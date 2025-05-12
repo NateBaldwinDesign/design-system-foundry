@@ -1,0 +1,556 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://designsystem.org/schemas/tokens/v1.0.0",
+    "title": "Design Token System Schema",
+    "description": "Schema for design tokens with multi-dimensional modes and flexible resolution",
+    "type": "object",
+    "required": ["tokenCollections", "dimensions", "tokens"],
+    "properties": {
+      "version": {
+        "type": "string",
+        "description": "Semantic version of the token set",
+        "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+      },
+      "metadata": {
+        "type": "object",
+        "description": "Additional information about the token set",
+        "properties": {
+          "description": { "type": "string" },
+          "lastUpdated": { 
+            "type": "string",
+            "format": "date" 
+          },
+          "maintainers": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "tokenCollections": {
+        "type": "array",
+        "description": "Collections of tokens grouped by type",
+        "items": {
+          "type": "object",
+          "required": ["id", "name", "resolvedValueTypes"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for the collection",
+              "pattern": "^[a-zA-Z0-9-_]+$"
+            },
+            "name": { 
+              "type": "string",
+              "description": "Display name for the collection" 
+            },
+            "description": { 
+              "type": "string",
+              "description": "Detailed description of the collection" 
+            },
+            "resolvedValueTypes": {
+              "type": "array",
+              "description": "Types of values this collection can contain",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "COLOR", 
+                  "DIMENSION", 
+                  "FONT_FAMILY", 
+                  "FONT_WEIGHT", 
+                  "FONT_STYLE", 
+                  "DURATION", 
+                  "CUBIC_BEZIER", 
+                  "BORDER_WIDTH", 
+                  "CORNER_ROUNDING", 
+                  "ELEVATION", 
+                  "SHADOW", 
+                  "OPACITY", 
+                  "NUMBER"
+                ]
+              }
+            },
+            "private": {
+              "type": "boolean",
+              "description": "Whether this collection is for internal use only",
+              "default": false
+            },
+            "defaultModeIds": {
+              "type": "array",
+              "description": "Default modes to use when resolving tokens in this collection",
+              "items": { 
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9-_]+$"
+              }
+            },
+            "modeResolutionStrategy": {
+              "type": "object",
+              "description": "Strategy for resolving token values across multiple dimensions",
+              "required": ["priorityByType", "fallbackStrategy"],
+              "properties": {
+                "priorityByType": {
+                  "type": "array",
+                  "description": "Order of dimension types to prioritize when resolving conflicts",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "COLOR_SCHEME", 
+                      "CONTRAST", 
+                      "DEVICE_TYPE", 
+                      "BRAND", 
+                      "THEME",
+                      "MOTION",
+                      "DENSITY"
+                    ]
+                  }
+                },
+                "fallbackStrategy": {
+                  "type": "string",
+                  "description": "Strategy to use when no exact mode match is found",
+                  "enum": [
+                    "MOST_SPECIFIC_MATCH",
+                    "DIMENSION_PRIORITY",
+                    "NEAREST_PARENT",
+                    "DEFAULT_VALUE"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "dimensions": {
+        "type": "array",
+        "description": "Dimensions that can modify token values",
+        "items": {
+          "type": "object",
+          "required": ["id", "type", "displayName", "modes"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for the dimension",
+              "pattern": "^[a-zA-Z0-9-_]+$"
+            },
+            "type": {
+              "type": "string",
+              "description": "Type of dimension for grouping and resolution",
+              "enum": [
+                "COLOR_SCHEME", 
+                "CONTRAST", 
+                "DEVICE_TYPE", 
+                "BRAND", 
+                "THEME",
+                "MOTION",
+                "DENSITY"
+              ]
+            },
+            "displayName": { 
+              "type": "string",
+              "description": "Human-readable name for the dimension" 
+            },
+            "description": { 
+              "type": "string",
+              "description": "Detailed description of the dimension" 
+            },
+            "modes": {
+              "type": "array",
+              "description": "Available modes for this dimension",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["id", "name", "dimensionId"],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique identifier for the mode",
+                    "pattern": "^[a-zA-Z0-9-_]+$"
+                  },
+                  "name": { 
+                    "type": "string",
+                    "description": "Display name for the mode" 
+                  },
+                  "description": { 
+                    "type": "string",
+                    "description": "Detailed description of the mode" 
+                  },
+                  "dimensionId": {
+                    "type": "string",
+                    "description": "Reference to the parent dimension",
+                    "pattern": "^[a-zA-Z0-9-_]+$"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "tokens": {
+        "type": "array",
+        "description": "Design tokens with values that can vary by mode",
+        "items": {
+          "type": "object",
+          "required": ["id", "displayName", "tokenCollectionId", "resolvedValueType", "valuesByMode"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for the token",
+              "pattern": "^[a-zA-Z0-9-_]+$"
+            },
+            "displayName": { 
+              "type": "string",
+              "description": "Human-readable name for the token" 
+            },
+            "description": { 
+              "type": "string",
+              "description": "Detailed description of the token" 
+            },
+            "tokenCollectionId": {
+              "type": "string",
+              "description": "Reference to the parent token collection",
+              "pattern": "^[a-zA-Z0-9-_]+$"
+            },
+            "resolvedValueType": {
+              "type": "string",
+              "description": "Type of value this token resolves to",
+              "enum": [
+                "COLOR", 
+                "DIMENSION", 
+                "FONT_FAMILY", 
+                "FONT_WEIGHT", 
+                "DURATION", 
+                "CUBIC_BEZIER", 
+                "BORDER", 
+                "SHADOW", 
+                "OPACITY", 
+                "NUMBER",
+                "TYPOGRAPHY"
+              ]
+            },
+            "private": {
+              "type": "boolean",
+              "description": "Whether this token is for internal use only",
+              "default": false
+            },
+            "status": {
+              "type": "string",
+              "description": "Lifecycle status of this token",
+              "enum": ["experimental", "stable", "deprecated"]
+            },
+            "taxonomies": {
+              "type": "object",
+              "description": "Categorical classification of the token",
+              "additionalProperties": { "type": "string" }
+            },
+            "propertyTypes": {
+              "type": "array",
+              "description": "CSS or platform properties this token can be applied to",
+              "items": { "type": "string" }
+            },
+            "codeSyntax": {
+              "type": "object",
+              "description": "Platform-specific naming conventions",
+              "additionalProperties": { "type": "string" }
+            },
+            "valuesByMode": {
+              "type": "array",
+              "description": "Values for this token in different mode combinations",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["modeIds", "value"],
+                "properties": {
+                  "modeIds": {
+                    "type": "array",
+                    "description": "Combination of modes this value applies to",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9-_]+$"
+                    }
+                  },
+                  "value": {
+                    "description": "Value of the token or reference to another token",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "description": "Direct value as a string (e.g. hex color)"
+                      },
+                      {
+                        "type": "number",
+                        "description": "Direct value as a number"
+                      },
+                      {
+                        "type": "object",
+                        "required": ["type", "tokenId"],
+                        "description": "Reference to another token",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "enum": ["ALIAS"]
+                          },
+                          "tokenId": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9-_]+$"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "description": "Complex value object for non-primitive types",
+                        "additionalProperties": true
+                      }
+                    ]
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "description": "Additional information about this value",
+                    "additionalProperties": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "extensions": {
+        "type": "object",
+        "description": "Extensions to the core token model",
+        "properties": {
+          "tokenGroups": {
+            "type": "array",
+            "description": "Groups of tokens for organizational purposes",
+            "items": {
+              "type": "object",
+              "required": ["id", "name", "tokenIds"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9-_]+$"
+                },
+                "name": { "type": "string" },
+                "description": { "type": "string" },
+                "tokenIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9-_]+$"
+                  }
+                }
+              }
+            }
+          },
+          "tokenVariants": {
+            "type": "object",
+            "description": "Variant generation rules for tokens",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "transform": {
+                    "type": "object",
+                    "required": ["type"],
+                    "properties": {
+                      "type": { 
+                        "type": "string",
+                        "enum": [
+                          "lighten",
+                          "darken",
+                          "alpha",
+                          "scale",
+                          "add",
+                          "multiply"
+                        ]
+                      },
+                      "amount": { "type": "number" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "additionalProperties": false,
+    "definitions": {
+      "colorValue": {
+        "type": "object",
+        "description": "Color value with optional metadata",
+        "required": ["hex"],
+        "properties": {
+          "hex": {
+            "type": "string",
+            "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"
+          },
+          "rgb": {
+            "type": "object",
+            "properties": {
+              "r": { "type": "integer", "minimum": 0, "maximum": 255 },
+              "g": { "type": "integer", "minimum": 0, "maximum": 255 },
+              "b": { "type": "integer", "minimum": 0, "maximum": 255 },
+              "a": { "type": "number", "minimum": 0, "maximum": 1 }
+            },
+            "required": ["r", "g", "b"]
+          }
+        }
+      },
+      "dimensionValue": {
+        "type": "object",
+        "description": "Dimension value with unit",
+        "oneOf": [
+          {
+            "required": ["value", "unit"],
+            "properties": {
+              "value": { "type": "number" },
+              "unit": { 
+                "type": "string",
+                "enum": ["px", "rem", "%", "em", "vh", "vw", "pt"]
+              }
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?(px|rem|%|em|vh|vw|pt)$"
+          }
+        ]
+      },
+      "durationValue": {
+        "type": "object",
+        "description": "Duration value with unit",
+        "oneOf": [
+          {
+            "required": ["value", "unit"],
+            "properties": {
+              "value": { "type": "number", "minimum": 0 },
+              "unit": { 
+                "type": "string",
+                "enum": ["ms", "s"]
+              }
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?(ms|s)$"
+          }
+        ]
+      },
+      "cubicBezierValue": {
+        "type": "object",
+        "description": "Cubic bezier value",
+        "oneOf": [
+          {
+            "required": ["x1", "y1", "x2", "y2"],
+            "properties": {
+              "x1": { "type": "number", "minimum": 0, "maximum": 1 },
+              "y1": { "type": "number" },
+              "x2": { "type": "number", "minimum": 0, "maximum": 1 },
+              "y2": { "type": "number" }
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^cubic-bezier\\([0-9]*(\\.[0-9]+)?, ?[0-9]*(\\.[0-9]+)?, ?[0-9]*(\\.[0-9]+)?, ?[0-9]*(\\.[0-9]+)?\\)$"
+          }
+        ]
+      },
+      "shadowValue": {
+        "type": "object",
+        "description": "Shadow value",
+        "oneOf": [
+          {
+            "type": "object",
+            "required": ["offsetX", "offsetY", "blur", "spread", "color"],
+            "properties": {
+              "offsetX": { "$ref": "#/definitions/dimensionValue" },
+              "offsetY": { "$ref": "#/definitions/dimensionValue" },
+              "blur": { "$ref": "#/definitions/dimensionValue" },
+              "spread": { "$ref": "#/definitions/dimensionValue" },
+              "color": { "$ref": "#/definitions/colorValue" },
+              "inset": { "type": "boolean" }
+            }
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["offsetX", "offsetY", "blur", "spread", "color"],
+              "properties": {
+                "offsetX": { "$ref": "#/definitions/dimensionValue" },
+                "offsetY": { "$ref": "#/definitions/dimensionValue" },
+                "blur": { "$ref": "#/definitions/dimensionValue" },
+                "spread": { "$ref": "#/definitions/dimensionValue" },
+                "color": { "$ref": "#/definitions/colorValue" },
+                "inset": { "type": "boolean" }
+              }
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^([0-9]+(\\.[0-9]+)?(px|rem) [0-9]+(\\.[0-9]+)?(px|rem) [0-9]+(\\.[0-9]+)?(px|rem) [0-9]+(\\.[0-9]+)?(px|rem) (#[A-Fa-f0-9]{6}|rgba?\\([0-9]+, ?[0-9]+, ?[0-9]+(, ?[0-9]+(\\.[0-9]+)?)?\\))( inset)?)(, ?[0-9]+(\\.[0-9]+)?(px|rem) [0-9]+(\\.[0-9]+)?(px|rem) [0-9]+(\\.[0-9]+)?(px|rem) [0-9]+(\\.[0-9]+)?(px|rem) (#[A-Fa-f0-9]{6}|rgba?\\([0-9]+, ?[0-9]+, ?[0-9]+(, ?[0-9]+(\\.[0-9]+)?)?\\))( inset)?)*$"
+          }
+        ]
+      },
+      "typographyValue": {
+        "type": "object",
+        "description": "Typography value",
+        "required": ["fontFamily", "fontSize", "fontWeight"],
+        "properties": {
+          "fontFamily": { 
+            "type": "string",
+            "description": "Font family name or stack" 
+          },
+          "fontSize": { 
+            "$ref": "#/definitions/dimensionValue",
+            "description": "Font size with unit" 
+          },
+          "fontWeight": { 
+            "oneOf": [
+              { "type": "number", "minimum": 100, "maximum": 900, "multipleOf": 100 },
+              { "type": "string", "enum": ["normal", "bold", "lighter", "bolder"] }
+            ],
+            "description": "Font weight as number or keyword"
+          },
+          "lineHeight": { 
+            "oneOf": [
+              { "type": "number" },
+              { "$ref": "#/definitions/dimensionValue" }
+            ],
+            "description": "Line height as unitless number or with unit"
+          },
+          "letterSpacing": { 
+            "$ref": "#/definitions/dimensionValue",
+            "description": "Letter spacing with unit" 
+          },
+          "textDecoration": { 
+            "type": "string",
+            "enum": ["none", "underline", "line-through", "overline"],
+            "description": "Text decoration style"
+          },
+          "textTransform": { 
+            "type": "string",
+            "enum": ["none", "capitalize", "uppercase", "lowercase"],
+            "description": "Text transformation style"
+          }
+        }
+      },
+      "borderValue": {
+        "type": "object",
+        "description": "Border value",
+        "oneOf": [
+          {
+            "required": ["width", "style", "color"],
+            "properties": {
+              "width": { "$ref": "#/definitions/dimensionValue" },
+              "style": { 
+                "type": "string",
+                "enum": ["solid", "dashed", "dotted", "double", "groove", "ridge", "inset", "outset", "none"] 
+              },
+              "color": { "$ref": "#/definitions/colorValue" }
+            }
+          },
+          {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?(px|rem) (solid|dashed|dotted|double|groove|ridge|inset|outset|none) (#[A-Fa-f0-9]{6}|rgba?\\([0-9]+, ?[0-9]+, ?[0-9]+(, ?[0-9]+(\\.[0-9]+)?)?\\))$"
+          }
+        ]
+      }
+    }
+  }
