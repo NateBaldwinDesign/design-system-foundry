@@ -20,7 +20,10 @@ export type {
   Token,
   TokenGroup,
   TokenVariant,
-  TokenSystem
+  TokenSystem,
+  Platform,
+  Taxonomy,
+  TaxonomyTerm
 } from './schema';
 
 // Re-export Zod schemas

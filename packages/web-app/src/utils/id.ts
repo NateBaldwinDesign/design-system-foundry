@@ -8,5 +8,6 @@ export const ID_PREFIXES = {
   TOKEN: 'token',
   MODE: 'mode',
   TOKEN_GROUP: 'tokenGroup',
-  TOKEN_VARIANT: 'tokenVariant'
+  TOKEN_VARIANT: 'tokenVariant',
+  TAXONOMY_TERM: 'term'
 } as const; 

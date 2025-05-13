@@ -60,6 +60,16 @@ if (result !== true) {
 - Returns `true` if valid.
 - Returns an error message string if invalid.
 
+## Data Validation
+
+To validate your example/default data against the schema, run:
+
+```
+pnpm --filter @token-model/data-model validate-data
+```
+
+This will check that your data (e.g., tokens, collections, dimensions, platforms) conforms to the schema in `src/schema.json`.
+
 ## How to Use
 
 1. **Install and import the package:**

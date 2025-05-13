@@ -1,0 +1,252 @@
+{
+  "tokenCollections": [
+    {
+      "id": "tokenCollection-AAAA-AAAA-AAAA",
+      "name": "Color",
+      "resolvedValueTypes": ["COLOR"],
+      "private": false,
+      "defaultModeIds": ["modeId-light", "modeId-regular"],
+      "modeResolutionStrategy": {
+        "priorityByType": ["COLOR_SCHEME", "CONTRAST"],
+        "fallbackStrategy": "MOST_SPECIFIC_MATCH"
+      }
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "dimensionId-0000-0000-0000",
+      "type": "COLOR_SCHEME",
+      "displayName": "Color Scheme",
+      "modes": [
+        { "id": "modeId-light", "name": "Light", "dimensionId": "dimensionId-0000-0000-0000" },
+        { "id": "modeId-dark", "name": "Dark", "dimensionId": "dimensionId-0000-0000-0000" }
+      ],
+      "required": true,
+      "defaultMode": "Light"
+    },
+    {
+      "id": "dimensionId-1111-1111-1111",
+      "type": "CONTRAST",
+      "displayName": "Contrast",
+      "modes": [
+        { "id": "modeId-regular", "name": "Regular", "dimensionId": "dimensionId-1111-1111-1111" },
+        { "id": "modeId-low", "name": "Low", "dimensionId": "dimensionId-1111-1111-1111" },
+        { "id": "modeId-high", "name": "High", "dimensionId": "dimensionId-1111-1111-1111" }
+      ],
+      "required": false,
+      "defaultMode": "Regular"
+    }
+  ],
+  "themes": [
+    {
+      "id": "themeId-0000-0000-0000",
+      "displayName": "My System",
+      "platforms": ["platform-000000", "platform-111111", "platform-222222", "platform-333333"],
+      "isDefault": true
+    },
+    {
+      "id": "themeId-1111-1111-1111",
+      "displayName": "My cool new theme",
+      "platforms": ["platform-000000", "platform-111111"],
+      "isDefault": false
+    }
+  ],
+  "taxonomies": [
+    {
+      "id": "taxonomyId-0000-0000-0000",
+      "name": "Color family",
+      "description": "Names of our hues",
+      "terms": [
+        {
+          "id": "termId-0000-0000-0000",
+          "name": "Blue"
+        },
+        {
+          "id": "termId-0000-0000-0001",
+          "name": "Red"
+        }
+      ]
+    },
+    {
+      "id": "taxonomyId-1111-1111-1111",
+      "name": "Element",
+      "description": "Names of our elements",
+      "terms": [
+        {
+          "id": "termId-1111-1111-1111",
+          "name": "Text",
+          "description": "Text elements"
+        },
+        {
+          "id": "termId-1111-1111-1112",
+          "name": "Button",
+          "description": "Clickable elements"
+        }
+      ]
+    },
+    {
+      "id": "taxonomyId-2222-2222-2222",
+      "name": "Position",
+      "description": "Scale of numbers for relative positions",
+      "terms": [
+        {
+          "id": "termId-2222-2222-2222",
+          "name": "50"
+        },
+        {
+          "id": "termId-2222-2222-2223",
+          "name": "100"
+        },
+        {
+          "id": "termId-2222-2222-2224",
+          "name": "200"
+        },
+        {
+          "id": "termId-2222-2222-2225",
+          "name": "300"
+        },
+        {
+          "id": "termId-2222-2222-2226",
+          "name": "400"
+        },
+        {
+          "id": "termId-2222-2222-2227",
+          "name": "500"
+        }
+      ]
+    }
+  ],
+  "tokens": [
+    {
+      "id": "token-7777-7777-7777",
+      "displayName": "Black",
+      "description": "Pure black",
+      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "taxonomies": { "concept": "Black" },
+      "propertyTypes": ["ALL_PROPERTY_TYPES"],
+      "codeSyntax": {
+        "Figma": "Black",
+        "WEB": "--spectrum-black",
+        "iOS": "SpBlack",
+        "ANDROID": "BLACK"
+      },
+      "valuesByMode": [
+        { "modeIds": [], "value": { "type": "COLOR", "value": "#000000" } }
+      ]
+    },
+    {
+      "id": "token-8888-88888-88888",
+      "displayName": "Blue 500",
+      "description": "Midtone blue",
+      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "taxonomies": { "concept": "Blue", "position": "500" },
+      "propertyTypes": ["ALL_PROPERTY_TYPES"],
+      "codeSyntax": {
+        "Figma": "Blue/500",
+        "WEB": "--spectrum-blue-500",
+        "iOS": "SpBlue500",
+        "ANDROID": "BLUE_500"
+      },
+      "constraints": [
+        {
+          "type": "contrast",
+          "rule": {
+            "minimum": 3,
+            "method": "WCAG 2.1",
+            "comparator": { "type": "COLOR", "value": "#fafafa" }
+          }
+        }
+      ],
+      "valuesByMode": [
+        {
+          "modeIds": ["modeId-light"],
+          "value": { "type": "COLOR", "value": "#274DEA" },
+          "platformOverrides": [
+            {
+              "platformId": "platform-111111",
+              "value": "lch(57% 67 290)",
+              "metadata": { "description": "Using LCH for better color display on Web" }
+            }
+          ]
+        },
+        {
+          "modeIds": ["modeId-dark"],
+          "value": { "type": "COLOR", "value": "#6995FE" }
+        }
+      ]
+    },
+    {
+      "id": "token-9999-9999-9999",
+      "displayName": "Accent text color",
+      "description": "Color of text using a shade of the accent color hue",
+      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "taxonomies": { "element": "text", "concept": "accent" },
+      "propertyTypes": ["ALL_PROPERTY_TYPES"],
+      "codeSyntax": {
+        "Figma": "Text/accent",
+        "WEB": "--text-accent",
+        "iOS": "SpTextAccent",
+        "ANDROID": "TEXT_ACCENT"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": ["modeId-light", "modeId-low"],
+          "value": { "type": "ALIAS", "tokenId": "token-8888-88888-88888" },
+          "platformOverrides": [
+            { "platformId": "platform-222222", "value": "#FF00AA" },
+            { "platformId": "platform-333333", "value": "#00FFAA" }
+          ]
+        },
+        {
+          "modeIds": ["modeId-light", "modeId-regular"],
+          "value": { "type": "COLOR", "value": "#4C6FFE" },
+          "platformOverrides": [
+            { "platformId": "platform-222222", "value": "#4C6FFF" },
+            { "platformId": "platform-333333", "value": "#4C6F00" }
+          ]
+        },
+        {
+          "modeIds": ["modeId-light", "modeId-high"],
+          "value": { "type": "COLOR", "value": "#092FCC" },
+          "platformOverrides": [
+            { "platformId": "platform-222222", "value": "#092FDD" },
+            { "platformId": "platform-333333", "value": "#092F00" }
+          ]
+        },
+        {
+          "modeIds": ["modeId-dark", "modeId-low"],
+          "value": { "type": "ALIAS", "tokenId": "token-8888-88888-88888" },
+          "platformOverrides": [
+            { "platformId": "platform-222222", "value": "#FF00BB" }
+          ]
+        },
+        {
+          "modeIds": ["modeId-dark", "modeId-regular"],
+          "value": { "type": "COLOR", "value": "#346EF9" },
+          "platformOverrides": [
+            { "platformId": "platform-222222", "value": "#346EFF" }
+          ]
+        },
+        {
+          "modeIds": ["modeId-dark", "modeId-high"],
+          "value": { "type": "COLOR", "value": "#A7C1FF" },
+          "platformOverrides": [
+            { "platformId": "platform-222222", "value": "#A7C1AA" }
+          ]
+        }
+      ]
+    }
+  ],
+  "platforms": [
+    { "id": "platform-000000", "displayName": "Figma" },
+    { "id": "platform-111111", "displayName": "Web" },
+    { "id": "platform-222222", "displayName": "iOS" },
+    { "id": "platform-333333", "displayName": "Android" }
+  ]
+} 

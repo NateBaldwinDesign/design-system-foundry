@@ -1,203 +1,38 @@
-import type { Token, TokenCollection, Mode, Dimension } from '@token-model/data-model';
+import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy } from '@token-model/data-model';
+import defaultData from './data/default-data.json';
 
-const DEFAULT_DIMENSIONS: Dimension[] = [
-  {
-    id: "dimensionId-0000-0000-0000",
-    type: "COLOR_SCHEME",
-    displayName: "Color Scheme",
-    modes: [
-      {
-        id: "modeId-0000-0000-0000",
-        name: "Light",
-        dimensionId: "dimensionId-0000-0000-0000"
-      },
-      {
-        id: "modeId-1111-1111-1111",
-        name: "Dark",
-        dimensionId: "dimensionId-0000-0000-0000"
-      }
-    ],
-    required: true,
-    defaultMode: "Light"
-  },
-  {
-    id: "dimensionId-1111-1111-1111",
-    type: "CONTRAST",
-    displayName: "Contrast",
-    modes: [
-      {
-        id: "modeId-2222-2222-2222",
-        name: "Regular",
-        dimensionId: "dimensionId-1111-1111-1111"
-      },
-      {
-        id: "modeId-3333-3333-3333",
-        name: "Low",
-        dimensionId: "dimensionId-1111-1111-1111"
-      },
-      {
-        id: "modeId-4444-4444-4444",
-        name: "High",
-        dimensionId: "dimensionId-1111-1111-1111"
-      }
-    ],
-    required: false,
-    defaultMode: "Regular"
-  }
-];
-
-const DEFAULT_COLLECTIONS: TokenCollection[] = [
-  {
-    id: "tokenCollection-AAAA-AAAA-AAAA",
-    name: "Color",
-    resolvedValueTypes: ["COLOR"],
-    private: false,
-    defaultModeIds: [
-      "modeId-0000-0000-0000",
-      "modeId-2222-2222-2222"
-    ],
-    modeResolutionStrategy: {
-      priorityByType: [
-        "COLOR_SCHEME",
-        "CONTRAST"
-      ],
-      fallbackStrategy: "MOST_SPECIFIC_MATCH"
-    }
-  }
-];
+const DEFAULT_COLLECTIONS = defaultData.tokenCollections as TokenCollection[];
+const DEFAULT_DIMENSIONS = defaultData.dimensions as Dimension[];
+const DEFAULT_TOKENS = defaultData.tokens as Token[];
+const DEFAULT_PLATFORMS = defaultData.platforms as Platform[];
+const DEFAULT_THEMES = defaultData.themes;
+const DEFAULT_TAXONOMIES = defaultData.taxonomies as Taxonomy[];
 
 const DEFAULT_MODES: Mode[] = [
   {
-    id: "modeId-0000-0000-0000",
+    id: "modeId-light",
     name: "Light",
     dimensionId: "dimensionId-0000-0000-0000"
   },
   {
-    id: "modeId-1111-1111-1111",
+    id: "modeId-dark",
     name: "Dark",
     dimensionId: "dimensionId-0000-0000-0000"
   },
   {
-    id: "modeId-2222-2222-2222",
+    id: "modeId-regular",
     name: "Regular",
     dimensionId: "dimensionId-1111-1111-1111"
   },
   {
-    id: "modeId-3333-3333-3333",
+    id: "modeId-low",
     name: "Low",
     dimensionId: "dimensionId-1111-1111-1111"
   },
   {
-    id: "modeId-4444-4444-4444",
+    id: "modeId-high",
     name: "High",
     dimensionId: "dimensionId-1111-1111-1111"
-  }
-];
-
-const DEFAULT_TOKENS: Token[] = [
-  {
-    id: "token-7777-7777-7777",
-    displayName: "Black",
-    description: "Pure black",
-    tokenCollectionId: "tokenCollection-AAAA-AAAA-AAAA",
-    resolvedValueType: "COLOR",
-    private: false,
-    taxonomies: {
-      concept: "Black"
-    },
-    propertyTypes: ["ALL_PROPERTY_TYPES"],
-    codeSyntax: {
-      Figma: "Black",
-      WEB: "--spectrum-black",
-      iOS: "SpBlack",
-      ANDROID: "BLACK"
-    },
-    valuesByMode: [
-      {
-        modeIds: [],
-        value: { type: "COLOR", value: "#000000" }
-      }
-    ]
-  },
-  {
-    id: "token-8888-88888-88888",
-    displayName: "Blue 500",
-    description: "Midtone blue",
-    tokenCollectionId: "tokenCollection-AAAA-AAAA-AAAA",
-    resolvedValueType: "COLOR",
-    private: false,
-    taxonomies: {
-      concept: "Blue",
-      position: "500"
-    },
-    propertyTypes: ["ALL_PROPERTY_TYPES"],
-    codeSyntax: {
-      Figma: "Blue/500",
-      WEB: "--spectrum-blue-500",
-      iOS: "SpBlue500",
-      ANDROID: "BLUE_500"
-    },
-    valuesByMode: [
-      {
-        modeIds: ["modeId-0000-0000-0000"],
-        value: { type: "COLOR", value: "#274DEA" }
-      },
-      {
-        modeIds: ["modeId-1111-1111-1111"],
-        value: { type: "COLOR", value: "#6995FE" }
-      }
-    ]
-  },
-  {
-    id: "token-9999-9999-9999",
-    displayName: "Accent text color",
-    description: "Color of text using a shade of the accent color hue",
-    tokenCollectionId: "tokenCollection-AAAA-AAAA-AAAA",
-    resolvedValueType: "COLOR",
-    private: false,
-    taxonomies: {
-      element: "text",
-      concept: "accent"
-    },
-    propertyTypes: ["ALL_PROPERTY_TYPES"],
-    codeSyntax: {
-      Figma: "Text/accent",
-      WEB: "--text-accent",
-      iOS: "SpTextAccent",
-      ANDROID: "TEXT_ACCENT"
-    },
-    valuesByMode: [
-      {
-        modeIds: ["modeId-0000-0000-0000", "modeId-2222-2222-2222"],
-        value: {
-          type: "ALIAS",
-          tokenId: "token-8888-88888-88888"
-        }
-      },
-      {
-        modeIds: ["modeId-0000-0000-0000", "modeId-3333-3333-3333"],
-        value: { type: "COLOR", value: "#4C6FFE" }
-      },
-      {
-        modeIds: ["modeId-0000-0000-0000", "modeId-4444-4444-4444"],
-        value: { type: "COLOR", value: "#092FCC" }
-      },
-      {
-        modeIds: ["modeId-1111-1111-1111", "modeId-2222-2222-2222"],
-        value: {
-          type: "ALIAS",
-          tokenId: "token-8888-88888-88888"
-        }
-      },
-      {
-        modeIds: ["modeId-1111-1111-1111", "modeId-3333-3333-3333"],
-        value: { type: "COLOR", value: "#346EF9" }
-      },
-      {
-        modeIds: ["modeId-1111-1111-1111", "modeId-4444-4444-4444"],
-        value: { type: "COLOR", value: "#A7C1FF" }
-      }
-    ]
   }
 ];
 
@@ -211,7 +46,10 @@ const STORAGE_KEYS = {
   COLLECTIONS: 'token-model:collections',
   MODES: 'token-model:modes',
   VALUE_TYPES: 'token-model:value-types',
-  DIMENSIONS: 'token-model:dimensions'
+  DIMENSIONS: 'token-model:dimensions',
+  PLATFORMS: 'token-model:platforms',
+  THEMES: 'token-model:themes',
+  TAXONOMIES: 'token-model:taxonomies'
 } as const;
 
 export class StorageService {
@@ -266,6 +104,30 @@ export class StorageService {
 
   static setDimensions(dimensions: Dimension[]): void {
     this.setItem(STORAGE_KEYS.DIMENSIONS, dimensions);
+  }
+
+  static getPlatforms(): Platform[] {
+    return this.getItem(STORAGE_KEYS.PLATFORMS, DEFAULT_PLATFORMS);
+  }
+
+  static setPlatforms(platforms: Platform[]): void {
+    this.setItem(STORAGE_KEYS.PLATFORMS, platforms);
+  }
+
+  static getThemes() {
+    return this.getItem(STORAGE_KEYS.THEMES, DEFAULT_THEMES);
+  }
+
+  static setThemes(themes: any[]) {
+    this.setItem(STORAGE_KEYS.THEMES, themes);
+  }
+
+  static getTaxonomies(): Taxonomy[] {
+    return this.getItem(STORAGE_KEYS.TAXONOMIES, DEFAULT_TAXONOMIES);
+  }
+
+  static setTaxonomies(taxonomies: Taxonomy[]): void {
+    this.setItem(STORAGE_KEYS.TAXONOMIES, taxonomies);
   }
 
   static clearAll(): void {

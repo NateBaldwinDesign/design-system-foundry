@@ -9,7 +9,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "lint": "eslint src --ext .ts",
-    "test": "jest"
+    "test": "jest",
+    "validate-data": "node scripts/validate-data.cjs"
   },
   "dependencies": {
     "zod": "^3.22.4"

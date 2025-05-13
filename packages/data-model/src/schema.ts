@@ -181,6 +181,18 @@ export const TokenCollection = z.object({
   }).optional()
 });
 
+export const PlatformOverride = z.object({
+  platformId: z.string(),
+  value: z.string(),
+  metadata: z.record(z.any()).optional()
+});
+
+// Taxonomy term reference for tokens
+export const TokenTaxonomyRef = z.object({
+  taxonomyId: z.string(),
+  termId: z.string()
+});
+
 export const Token = z.object({
   id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
   displayName: z.string(),
@@ -188,14 +200,17 @@ export const Token = z.object({
   tokenCollectionId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
   resolvedValueType: ResolvedValueType,
   private: z.boolean().default(false),
+  themeable: z.boolean().default(false),
   status: TokenStatus.optional(),
-  taxonomies: z.record(z.string()),
+  taxonomies: z.array(TokenTaxonomyRef),
   propertyTypes: z.array(z.string()),
   codeSyntax: z.record(z.string()),
   valuesByMode: z.array(
     z.object({
       modeIds: z.array(z.string()),
-      value: TokenValue
+      value: TokenValue,
+      metadata: z.record(z.any()).optional(),
+      platformOverrides: z.array(PlatformOverride).optional()
     })
   ).describe(
     `If any entry in valuesByMode has modeIds: [], it must be the only entry in the array. ` +
@@ -219,34 +234,67 @@ export const TokenVariant = z.object({
   tokens: z.array(Token)
 });
 
+export const Platform = z.object({
+  id: z.string(),
+  displayName: z.string()
+});
+
+// Theme schema
+export const Theme = z.object({
+  id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  displayName: z.string(),
+  description: z.string().optional(),
+  isDefault: z.boolean()
+});
+
+// ThemeOverride schema
+export const ThemeOverrideValue = z.object({
+  type: z.enum(["COLOR", "FLOAT", "INTEGER", "STRING", "BOOLEAN", "ALIAS"]),
+  value: z.union([z.string(), z.number(), z.boolean()]),
+  tokenId: z.string().regex(/^[a-zA-Z0-9-_]+$/).optional()
+});
+
+export const ThemePlatformOverride = z.object({
+  platformId: z.string(),
+  value: ThemeOverrideValue
+});
+
+export const ThemeOverride = z.object({
+  tokenId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  value: ThemeOverrideValue,
+  platformOverrides: z.array(ThemePlatformOverride).optional()
+});
+
+// ThemeOverrides object: { [themeId: string]: ThemeOverride[] }
+export const ThemeOverrides = z.record(z.array(ThemeOverride));
+
+// TaxonomyTerm schema
+export const TaxonomyTerm = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().optional()
+});
+
+// Taxonomy schema
+export const Taxonomy = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  terms: z.array(TaxonomyTerm)
+});
+
+// Update TokenSystem
 export const TokenSystem = z.object({
   dimensions: z.array(Dimension),
   tokenCollections: z.array(TokenCollection),
   tokens: z.array(Token),
   tokenGroups: z.array(TokenGroup),
-  tokenVariants: z.array(TokenVariant)
+  tokenVariants: z.array(TokenVariant),
+  platforms: z.array(Platform).optional(),
+  themes: z.array(Theme),
+  themeOverrides: ThemeOverrides,
+  taxonomies: z.array(Taxonomy)
 });
-
-// Type exports
-export type DimensionType = z.infer<typeof DimensionType>;
-export type ResolvedValueType = z.infer<typeof ResolvedValueType>;
-export type TokenStatus = z.infer<typeof TokenStatus>;
-export type FallbackStrategy = z.infer<typeof FallbackStrategy>;
-export type ColorValue = z.infer<typeof ColorValue>;
-export type DimensionValue = z.infer<typeof DimensionValue>;
-export type DurationValue = z.infer<typeof DurationValue>;
-export type CubicBezierValue = z.infer<typeof CubicBezierValue>;
-export type ShadowValue = z.infer<typeof ShadowValue>;
-export type TypographyValue = z.infer<typeof TypographyValue>;
-export type BorderValue = z.infer<typeof BorderValue>;
-export type TokenValue = z.infer<typeof TokenValue>;
-export type Mode = z.infer<typeof Mode>;
-export type Dimension = z.infer<typeof Dimension>;
-export type TokenCollection = z.infer<typeof TokenCollection>;
-export type Token = z.infer<typeof Token>;
-export type TokenGroup = z.infer<typeof TokenGroup>;
-export type TokenVariant = z.infer<typeof TokenVariant>;
-export type TokenSystem = z.infer<typeof TokenSystem>;
 
 // Validation functions
 export const validateTokenSystem = (data: unknown): TokenSystem => {
@@ -295,4 +343,76 @@ export const validateTypographyValue = (data: unknown): TypographyValue => {
 
 export const validateBorderValue = (data: unknown): BorderValue => {
   return BorderValue.parse(data);
-}; 
+};
+
+export const validateTheme = (data: unknown): Theme => {
+  return Theme.parse(data);
+};
+
+export const validateThemeOverride = (data: unknown): ThemeOverride => {
+  return ThemeOverride.parse(data);
+};
+
+export const validateThemeOverrides = (data: unknown): ThemeOverrides => {
+  return ThemeOverrides.parse(data);
+};
+
+export const validateTaxonomy = (data: unknown): Taxonomy => {
+  return Taxonomy.parse(data);
+};
+
+/**
+ * Validates that each taxonomyId in a token's taxonomies exists in the top-level taxonomies array,
+ * and that each termId exists in the referenced taxonomy.
+ * Returns an array of errors (empty if valid).
+ */
+export function validateTokenTaxonomiesReferentialIntegrity(
+  token: Token,
+  allTaxonomies: Taxonomy[]
+): string[] {
+  const errors: string[] = [];
+  for (const ref of token.taxonomies) {
+    const taxonomy = allTaxonomies.find(t => t.id === ref.taxonomyId);
+    if (!taxonomy) {
+      errors.push(
+        `Token '${token.id}' references missing taxonomyId '${ref.taxonomyId}'.`
+      );
+      continue;
+    }
+    const term = taxonomy.terms.find(term => term.id === ref.termId);
+    if (!term) {
+      errors.push(
+        `Token '${token.id}' references missing termId '${ref.termId}' in taxonomy '${taxonomy.id}'.`
+      );
+    }
+  }
+  return errors;
+}
+
+export type DimensionType = z.infer<typeof DimensionType>;
+export type ResolvedValueType = z.infer<typeof ResolvedValueType>;
+export type TokenStatus = z.infer<typeof TokenStatus>;
+export type FallbackStrategy = z.infer<typeof FallbackStrategy>;
+export type ColorValue = z.infer<typeof ColorValue>;
+export type DimensionValue = z.infer<typeof DimensionValue>;
+export type DurationValue = z.infer<typeof DurationValue>;
+export type CubicBezierValue = z.infer<typeof CubicBezierValue>;
+export type ShadowValue = z.infer<typeof ShadowValue>;
+export type TypographyValue = z.infer<typeof TypographyValue>;
+export type BorderValue = z.infer<typeof BorderValue>;
+export type TokenValue = z.infer<typeof TokenValue>;
+export type Mode = z.infer<typeof Mode>;
+export type Dimension = z.infer<typeof Dimension>;
+export type TokenCollection = z.infer<typeof TokenCollection>;
+export type Token = z.infer<typeof Token>;
+export type TokenGroup = z.infer<typeof TokenGroup>;
+export type TokenVariant = z.infer<typeof TokenVariant>;
+export type Platform = z.infer<typeof Platform>;
+export type PlatformOverride = z.infer<typeof PlatformOverride>;
+export type Theme = z.infer<typeof Theme>;
+export type ThemeOverride = z.infer<typeof ThemeOverride>;
+export type ThemeOverrides = z.infer<typeof ThemeOverrides>;
+export type TaxonomyTerm = z.infer<typeof TaxonomyTerm>;
+export type Taxonomy = z.infer<typeof Taxonomy>;
+export type TokenSystem = z.infer<typeof TokenSystem>;
+export type TokenTaxonomyRef = z.infer<typeof TokenTaxonomyRef>; 

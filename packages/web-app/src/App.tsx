@@ -9,16 +9,20 @@ import {
   Button,
   CircularProgress
 } from '@mui/material';
-import { TokenCollection, Mode, Token, Dimension } from '@token-model/data-model';
+import { TokenCollection, Mode, Token, Dimension, Platform } from '@token-model/data-model';
 import { TokenForm } from './components/TokenForm';
 import { TokenList } from './components/TokenList';
 import { CollectionsWorkflow } from './components/CollectionsWorkflow';
 import { ModesWorkflow } from './components/ModesWorkflow';
 import { ValueTypesWorkflow } from './components/ValueTypesWorkflow';
-import { SettingsWorkflow } from './components/SettingsWorkflow';
+import { SettingsWorkflow } from './views/settings/SettingsWorkflow';
 import { StorageService } from './services/storage';
 import { ValidationTester } from './components/ValidationTester';
 import { generateId, ID_PREFIXES } from './utils/id';
+import Dialog from '@mui/material/Dialog';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -53,17 +57,22 @@ function App() {
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
   const [valueTypes, setValueTypes] = useState<string[]>([]);
   const [tokens, setTokens] = useState<Token[]>([]);
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [themes, setThemes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [loadedCollections, loadedModes, loadedDimensions, loadedValueTypes, loadedTokens] = await Promise.all([
+        const [loadedCollections, loadedModes, loadedDimensions, loadedValueTypes, loadedTokens, loadedPlatforms, loadedThemes] = await Promise.all([
           StorageService.getCollections(),
           StorageService.getModes(),
           StorageService.getDimensions(),
           StorageService.getValueTypes(),
-          StorageService.getTokens()
+          StorageService.getTokens(),
+          StorageService.getPlatforms(),
+          StorageService.getThemes()
         ]);
 
         setCollections(loadedCollections);
@@ -71,6 +80,8 @@ function App() {
         setDimensions(loadedDimensions);
         setValueTypes(loadedValueTypes);
         setTokens(loadedTokens);
+        setPlatforms(loadedPlatforms);
+        setThemes(loadedThemes);
       } catch (error) {
         console.error('Failed to load data:', error);
       } finally {
@@ -85,6 +96,9 @@ function App() {
     setActiveTab(newValue);
   };
 
+  const handleOpenCreateDialog = () => setCreateDialogOpen(true);
+  const handleCloseCreateDialog = () => setCreateDialogOpen(false);
+
   const handleCreateToken = (tokenData: Omit<Token, 'id'>) => {
     const newToken: Token = {
       ...tokenData,
@@ -93,11 +107,13 @@ function App() {
     const newTokens = [...tokens, newToken];
     setTokens(newTokens);
     StorageService.setTokens(newTokens);
+    setCreateDialogOpen(false);
   };
 
-  const handleEditToken = (token: Token) => {
-    // TODO: Implement token editing
-    console.log('Edit token:', token);
+  const handleEditToken = (updatedToken: Token) => {
+    const newTokens = tokens.map(t => t.id === updatedToken.id ? updatedToken : t);
+    setTokens(newTokens);
+    StorageService.setTokens(newTokens);
   };
 
   const handleReset = () => {
@@ -138,14 +154,20 @@ function App() {
 
       <TabPanel value={activeTab} index={0}>
         <Box sx={{ mb: 4 }}>
-          <Typography variant="h5" gutterBottom>
-            Tokens
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h5" gutterBottom>
+              Tokens
+            </Typography>
+            <Button variant="contained" color="primary" onClick={handleOpenCreateDialog}>
+              Add token
+            </Button>
+          </Box>
           <TokenList
             tokens={tokens}
             collections={collections}
             modes={modes}
             dimensions={dimensions}
+            platforms={platforms}
             onEdit={handleEditToken}
             onDelete={(tokenId) => {
               const newTokens = tokens.filter(t => t.id !== tokenId);
@@ -155,18 +177,22 @@ function App() {
           />
         </Box>
 
-        <Box>
-          <Typography variant="h5" gutterBottom>
-            Add Token
-          </Typography>
-          <TokenForm
-            collections={collections}
-            modes={modes}
-            dimensions={dimensions}
-            tokens={tokens}
-            onSubmit={handleCreateToken}
-          />
-        </Box>
+        {/* Create Token Dialog */}
+        <Dialog open={createDialogOpen} onClose={handleCloseCreateDialog} maxWidth="md" fullWidth>
+          <DialogTitle>Add Token</DialogTitle>
+          <DialogContent>
+            <TokenForm
+              collections={collections}
+              modes={modes}
+              dimensions={dimensions}
+              tokens={tokens}
+              onSubmit={handleCreateToken}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseCreateDialog}>Cancel</Button>
+          </DialogActions>
+        </Dialog>
       </TabPanel>
 
       <TabPanel value={activeTab} index={1}>
@@ -186,6 +212,7 @@ function App() {
             setModes(newModes);
             StorageService.setModes(newModes);
           }}
+          themes={themes}
         />
       </TabPanel>
 
