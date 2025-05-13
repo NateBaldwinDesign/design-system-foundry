@@ -1,4 +1,50 @@
-import type { Token, TokenCollection, Mode } from '@token-model/data-model';
+import type { Token, TokenCollection, Mode, Dimension } from '@token-model/data-model';
+
+const DEFAULT_DIMENSIONS: Dimension[] = [
+  {
+    id: "dimensionId-0000-0000-0000",
+    type: "COLOR_SCHEME",
+    displayName: "Color Scheme",
+    modes: [
+      {
+        id: "modeId-0000-0000-0000",
+        name: "Light",
+        dimensionId: "dimensionId-0000-0000-0000"
+      },
+      {
+        id: "modeId-1111-1111-1111",
+        name: "Dark",
+        dimensionId: "dimensionId-0000-0000-0000"
+      }
+    ],
+    required: true,
+    defaultMode: "Light"
+  },
+  {
+    id: "dimensionId-1111-1111-1111",
+    type: "CONTRAST",
+    displayName: "Contrast",
+    modes: [
+      {
+        id: "modeId-2222-2222-2222",
+        name: "Regular",
+        dimensionId: "dimensionId-1111-1111-1111"
+      },
+      {
+        id: "modeId-3333-3333-3333",
+        name: "Low",
+        dimensionId: "dimensionId-1111-1111-1111"
+      },
+      {
+        id: "modeId-4444-4444-4444",
+        name: "High",
+        dimensionId: "dimensionId-1111-1111-1111"
+      }
+    ],
+    required: false,
+    defaultMode: "Regular"
+  }
+];
 
 const DEFAULT_COLLECTIONS: TokenCollection[] = [
   {
@@ -49,6 +95,30 @@ const DEFAULT_MODES: Mode[] = [
 ];
 
 const DEFAULT_TOKENS: Token[] = [
+  {
+    id: "token-7777-7777-7777",
+    displayName: "Black",
+    description: "Pure black",
+    tokenCollectionId: "tokenCollection-AAAA-AAAA-AAAA",
+    resolvedValueType: "COLOR",
+    private: false,
+    taxonomies: {
+      concept: "Black"
+    },
+    propertyTypes: ["ALL_PROPERTY_TYPES"],
+    codeSyntax: {
+      Figma: "Black",
+      WEB: "--spectrum-black",
+      iOS: "SpBlack",
+      ANDROID: "BLACK"
+    },
+    valuesByMode: [
+      {
+        modeIds: [],
+        value: { type: "COLOR", value: "#000000" }
+      }
+    ]
+  },
   {
     id: "token-8888-88888-88888",
     displayName: "Blue 500",
@@ -140,7 +210,8 @@ const STORAGE_KEYS = {
   TOKENS: 'token-model:tokens',
   COLLECTIONS: 'token-model:collections',
   MODES: 'token-model:modes',
-  VALUE_TYPES: 'token-model:value-types'
+  VALUE_TYPES: 'token-model:value-types',
+  DIMENSIONS: 'token-model:dimensions'
 } as const;
 
 export class StorageService {
@@ -187,6 +258,14 @@ export class StorageService {
 
   static setValueTypes(valueTypes: string[]): void {
     this.setItem(STORAGE_KEYS.VALUE_TYPES, valueTypes);
+  }
+
+  static getDimensions(): Dimension[] {
+    return this.getItem(STORAGE_KEYS.DIMENSIONS, DEFAULT_DIMENSIONS);
+  }
+
+  static setDimensions(dimensions: Dimension[]): void {
+    this.setItem(STORAGE_KEYS.DIMENSIONS, dimensions);
   }
 
   static clearAll(): void {

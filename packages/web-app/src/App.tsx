@@ -9,14 +9,16 @@ import {
   Button,
   CircularProgress
 } from '@mui/material';
-import { TokenCollection, Mode, Token } from '@token-model/data-model';
+import { TokenCollection, Mode, Token, Dimension } from '@token-model/data-model';
 import { TokenForm } from './components/TokenForm';
 import { TokenList } from './components/TokenList';
 import { CollectionsWorkflow } from './components/CollectionsWorkflow';
 import { ModesWorkflow } from './components/ModesWorkflow';
 import { ValueTypesWorkflow } from './components/ValueTypesWorkflow';
+import { SettingsWorkflow } from './components/SettingsWorkflow';
 import { StorageService } from './services/storage';
 import { ValidationTester } from './components/ValidationTester';
+import { generateId, ID_PREFIXES } from './utils/id';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -31,8 +33,8 @@ function TabPanel(props: TabPanelProps) {
     <div
       role="tabpanel"
       hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
+      id={`main-tabpanel-${index}`}
+      aria-labelledby={`main-tab-${index}`}
       {...other}
     >
       {value === index && (
@@ -46,72 +48,64 @@ function TabPanel(props: TabPanelProps) {
 
 function App() {
   const [activeTab, setActiveTab] = useState(0);
-  const [tokens, setTokens] = useState<Token[]>([]);
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
+  const [dimensions, setDimensions] = useState<Dimension[]>([]);
   const [valueTypes, setValueTypes] = useState<string[]>([]);
-  const [editingToken, setEditingToken] = useState<Token | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [tokens, setTokens] = useState<Token[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Load initial data
   useEffect(() => {
-    const loadData = () => {
+    const loadData = async () => {
       try {
-        // Clear existing data to ensure we get the defaults
-        StorageService.clearAll();
-        
-        // Load data with defaults
-        const loadedTokens = StorageService.getTokens();
-        const loadedCollections = StorageService.getCollections();
-        const loadedModes = StorageService.getModes();
-        const loadedValueTypes = StorageService.getValueTypes();
+        const [loadedCollections, loadedModes, loadedDimensions, loadedValueTypes, loadedTokens] = await Promise.all([
+          StorageService.getCollections(),
+          StorageService.getModes(),
+          StorageService.getDimensions(),
+          StorageService.getValueTypes(),
+          StorageService.getTokens()
+        ]);
 
-        setTokens(loadedTokens);
         setCollections(loadedCollections);
         setModes(loadedModes);
+        setDimensions(loadedDimensions);
         setValueTypes(loadedValueTypes);
+        setTokens(loadedTokens);
       } catch (error) {
-        console.error('Error loading data:', error);
+        console.error('Failed to load data:', error);
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
     loadData();
   }, []);
 
-  const handleCreateToken = (newToken: Omit<Token, 'id'>) => {
-    const token: Token = {
-      ...newToken,
-      id: crypto.randomUUID()
-    };
-    setTokens([...tokens, token]);
-  };
-
-  const handleEditToken = (token: Token) => {
-    setEditingToken(token);
-  };
-
-  const handleUpdateToken = (updatedToken: Omit<Token, 'id'>) => {
-    if (!editingToken) return;
-    
-    setTokens(tokens.map(token => 
-      token.id === editingToken.id 
-        ? { ...updatedToken, id: token.id }
-        : token
-    ));
-    setEditingToken(null);
-  };
-
-  const handleDeleteToken = (tokenId: string) => {
-    setTokens(tokens.filter(token => token.id !== tokenId));
-  };
-
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
 
-  if (isLoading) {
+  const handleCreateToken = (tokenData: Omit<Token, 'id'>) => {
+    const newToken: Token = {
+      ...tokenData,
+      id: generateId(ID_PREFIXES.TOKEN)
+    };
+    const newTokens = [...tokens, newToken];
+    setTokens(newTokens);
+    StorageService.setTokens(newTokens);
+  };
+
+  const handleEditToken = (token: Token) => {
+    // TODO: Implement token editing
+    console.log('Edit token:', token);
+  };
+
+  const handleReset = () => {
+    StorageService.clearAll();
+    window.location.reload();
+  };
+
+  if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
         <CircularProgress />
@@ -120,16 +114,21 @@ function App() {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Token Model
-      </Typography>
+    <Container>
+      <Box sx={{ my: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Token Model
+        </Typography>
+        <Button variant="outlined" color="error" onClick={handleReset} sx={{ ml: 2 }}>
+          Reset Data
+        </Button>
+      </Box>
 
       <Paper sx={{ width: '100%', mb: 4 }}>
         <Tabs
           value={activeTab}
           onChange={handleTabChange}
-          aria-label="token model tabs"
+          aria-label="main tabs"
           centered
         >
           <Tab label="Tokens" />
@@ -138,104 +137,69 @@ function App() {
       </Paper>
 
       <TabPanel value={activeTab} index={0}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <Box sx={{ mb: 4 }}>
-            <Button 
-              variant="contained" 
-              onClick={() => setEditingToken(null)}
-              sx={{ mb: 2 }}
-            >
-              Create New Token
-            </Button>
-            
-            {editingToken && (
-              <Box sx={{ mb: 4 }}>
-                <Typography variant="h6" gutterBottom>
-                  Edit Token
-                </Typography>
-                <TokenForm 
-                  collections={collections}
-                  modes={modes}
-                  valueTypes={valueTypes}
-                  tokens={tokens}
-                  onSubmit={handleUpdateToken}
-                  initialData={editingToken}
-                />
-              </Box>
-            )}
-          </Box>
-
-          <TokenList 
-            tokens={tokens} 
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h5" gutterBottom>
+            Tokens
+          </Typography>
+          <TokenList
+            tokens={tokens}
             collections={collections}
             modes={modes}
-            valueTypes={valueTypes}
+            dimensions={dimensions}
             onEdit={handleEditToken}
-            onDelete={handleDeleteToken}
-          />
-        </Box>
-      </TabPanel>
-
-      <TabPanel value={activeTab} index={1}>
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h5" gutterBottom>
-            Value Types
-          </Typography>
-          <ValueTypesWorkflow
-            valueTypes={valueTypes}
-            onUpdate={(newValueTypes) => {
-              setValueTypes(newValueTypes);
-              StorageService.setValueTypes(newValueTypes);
-            }}
-          />
-        </Box>
-
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h5" gutterBottom>
-            Collections
-          </Typography>
-          <CollectionsWorkflow
-            collections={collections}
-            modes={modes}
-            onUpdate={(newCollections) => {
-              setCollections(newCollections);
-              StorageService.setCollections(newCollections);
+            onDelete={(tokenId) => {
+              const newTokens = tokens.filter(t => t.id !== tokenId);
+              setTokens(newTokens);
+              StorageService.setTokens(newTokens);
             }}
           />
         </Box>
 
         <Box>
           <Typography variant="h5" gutterBottom>
-            Modes
+            Add Token
           </Typography>
-          <ModesWorkflow
-            modes={modes}
+          <TokenForm
             collections={collections}
-            onUpdate={(newModes) => {
-              setModes(newModes);
-              StorageService.setModes(newModes);
-            }}
+            modes={modes}
+            dimensions={dimensions}
+            tokens={tokens}
+            onSubmit={handleCreateToken}
           />
         </Box>
+      </TabPanel>
+
+      <TabPanel value={activeTab} index={1}>
+        <SettingsWorkflow
+          collections={collections}
+          setCollections={(newCollections) => {
+            setCollections(newCollections);
+            StorageService.setCollections(newCollections);
+          }}
+          dimensions={dimensions}
+          setDimensions={(newDimensions) => {
+            setDimensions(newDimensions);
+            StorageService.setDimensions(newDimensions);
+          }}
+          modes={modes}
+          setModes={(newModes) => {
+            setModes(newModes);
+            StorageService.setModes(newModes);
+          }}
+        />
       </TabPanel>
 
       <Box sx={{ my: 4 }}>
         <Typography variant="h5" gutterBottom>
           Validation Tester
         </Typography>
-        <ValidationTester />
-      </Box>
-
-      <Box>
-        <Typography variant="h5" gutterBottom>
-          Token Form
-        </Typography>
-        <TokenForm
-          collections={[]}
-          modes={[]}
-          valueTypes={[]}
-          tokens={[]}
-          onSubmit={() => {}}
+        <ValidationTester
+          tokens={tokens}
+          collections={collections}
+          modes={modes}
+          onValidate={(result) => {
+            console.log('Validation result:', result);
+          }}
         />
       </Box>
     </Container>

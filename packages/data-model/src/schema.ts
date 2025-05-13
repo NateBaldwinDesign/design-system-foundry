@@ -163,7 +163,9 @@ export const Dimension = z.object({
   type: DimensionType,
   displayName: z.string(),
   description: z.string().optional(),
-  modes: z.array(Mode).min(1)
+  modes: z.array(Mode).min(1),
+  required: z.boolean().default(false),
+  defaultMode: z.string()
 });
 
 export const TokenCollection = z.object({
@@ -190,11 +192,15 @@ export const Token = z.object({
   taxonomies: z.record(z.string()),
   propertyTypes: z.array(z.string()),
   codeSyntax: z.record(z.string()),
-  valuesByMode: z.array(z.object({
-    modeIds: z.array(z.string().regex(/^[a-zA-Z0-9-_]+$/)),
-    value: TokenValue,
-    metadata: z.record(z.any()).optional()
-  })).min(1)
+  valuesByMode: z.array(
+    z.object({
+      modeIds: z.array(z.string()),
+      value: TokenValue
+    })
+  ).describe(
+    `If any entry in valuesByMode has modeIds: [], it must be the only entry in the array. ` +
+    `Otherwise, all entries must have modeIds.length > 0. This enforces that a token can have either a single global value or multiple mode-specific values, but not both.`
+  ).min(1)
 });
 
 export const TokenGroup = z.object({

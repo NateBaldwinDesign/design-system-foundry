@@ -122,7 +122,7 @@
         "description": "Dimensions that can modify token values",
         "items": {
           "type": "object",
-          "required": ["id", "type", "displayName", "modes"],
+          "required": ["id", "type", "displayName", "modes", "required", "defaultMode"],
           "properties": {
             "id": {
               "type": "string",
@@ -149,6 +149,14 @@
             "description": { 
               "type": "string",
               "description": "Detailed description of the dimension" 
+            },
+            "required": {
+              "type": "boolean",
+              "description": "Whether this dimension must always be specified in mode combinations"
+            },
+            "defaultMode": {
+              "type": "string",
+              "description": "The mode to use when this dimension is not specified in a combination"
             },
             "modes": {
               "type": "array",
@@ -247,7 +255,31 @@
             "codeSyntax": {
               "type": "object",
               "description": "Platform-specific naming conventions",
-              "additionalProperties": { "type": "string" }
+              "additionalProperties": { "type": "string" },
+              "properties": {
+                "Figma": {
+                  "type": "string",
+                  "description": "Figma-specific naming convention"
+                },
+                "Web": {
+                  "type": "string",
+                  "description": "Web-specific naming convention"
+                },
+                "iOS": {
+                  "type": "string",
+                  "description": "iOS-specific naming convention"
+                },
+                "Android": {
+                  "type": "string",
+                  "description": "Android-specific naming convention"
+                }
+              },
+              "patternProperties": {
+                "^[a-zA-Z0-9-_]+$": {
+                  "type": "string",
+                  "description": "Custom platform-specific naming convention"
+                }
+              }
             },
             "valuesByMode": {
               "type": "array",
@@ -259,11 +291,12 @@
                 "properties": {
                   "modeIds": {
                     "type": "array",
-                    "description": "Combination of modes this value applies to",
+                    "description": "Combination of modes this value applies to. Must include all required dimensions and can include optional dimensions.",
                     "items": {
                       "type": "string",
                       "pattern": "^[a-zA-Z0-9-_]+$"
-                    }
+                    },
+                    "minItems": 1
                   },
                   "value": {
                     "description": "Value of the token or reference to another token",

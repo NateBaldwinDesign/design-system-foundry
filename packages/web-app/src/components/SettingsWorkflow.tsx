@@ -15,7 +15,9 @@ import {
   IconButton
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { TokenCollection, ResolvedValueType, DimensionType, FallbackStrategy } from '@token-model/data-model';
+import { TokenCollection, ResolvedValueType, DimensionType, FallbackStrategy, Dimension, Mode } from '@token-model/data-model';
+import { DimensionsWorkflow } from './DimensionsWorkflow';
+import { generateId, ID_PREFIXES } from '../utils/id';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -46,9 +48,20 @@ function TabPanel(props: TabPanelProps) {
 interface SettingsWorkflowProps {
   collections: TokenCollection[];
   setCollections: (collections: TokenCollection[]) => void;
+  dimensions: Dimension[];
+  setDimensions: (dimensions: Dimension[]) => void;
+  modes: Mode[];
+  setModes: (modes: Mode[]) => void;
 }
 
-export function SettingsWorkflow({ collections, setCollections }: SettingsWorkflowProps) {
+export function SettingsWorkflow({ 
+  collections, 
+  setCollections, 
+  dimensions, 
+  setDimensions,
+  modes,
+  setModes 
+}: SettingsWorkflowProps) {
   const [activeTab, setActiveTab] = useState(0);
   const [newCollection, setNewCollection] = useState<Partial<TokenCollection>>({
     name: '',
@@ -69,7 +82,7 @@ export function SettingsWorkflow({ collections, setCollections }: SettingsWorkfl
     try {
       const ms = newCollection.modeResolutionStrategy || { priorityByType: [], fallbackStrategy: 'MOST_SPECIFIC_MATCH' };
       const collection: TokenCollection = {
-        id: crypto.randomUUID(),
+        id: generateId(ID_PREFIXES.TOKEN_COLLECTION),
         name: newCollection.name || '',
         resolvedValueTypes: newCollection.resolvedValueTypes || [],
         private: newCollection.private || false,
@@ -109,6 +122,7 @@ export function SettingsWorkflow({ collections, setCollections }: SettingsWorkfl
           centered
         >
           <Tab label="Collections" />
+          <Tab label="Dimensions" />
           <Tab label="Modes" />
           <Tab label="Value Types" />
         </Tabs>
@@ -143,6 +157,18 @@ export function SettingsWorkflow({ collections, setCollections }: SettingsWorkfl
                 )}
               >
                 <MenuItem value="COLOR">Color</MenuItem>
+                <MenuItem value="DIMENSION">Dimension</MenuItem>
+                <MenuItem value="FONT_FAMILY">Font Family</MenuItem>
+                <MenuItem value="FONT_WEIGHT">Font Weight</MenuItem>
+                <MenuItem value="FONT_STYLE">Font Style</MenuItem>
+                <MenuItem value="DURATION">Duration</MenuItem>
+                <MenuItem value="CUBIC_BEZIER">Cubic Bezier</MenuItem>
+                <MenuItem value="BORDER_WIDTH">Border Width</MenuItem>
+                <MenuItem value="CORNER_ROUNDING">Corner Rounding</MenuItem>
+                <MenuItem value="ELEVATION">Elevation</MenuItem>
+                <MenuItem value="SHADOW">Shadow</MenuItem>
+                <MenuItem value="OPACITY">Opacity</MenuItem>
+                <MenuItem value="NUMBER">Number</MenuItem>
               </Select>
             </FormControl>
             <FormControl>
@@ -220,6 +246,15 @@ export function SettingsWorkflow({ collections, setCollections }: SettingsWorkfl
       </TabPanel>
 
       <TabPanel value={activeTab} index={1}>
+        <DimensionsWorkflow 
+          dimensions={dimensions}
+          setDimensions={setDimensions}
+          modes={modes}
+          setModes={setModes}
+        />
+      </TabPanel>
+
+      <TabPanel value={activeTab} index={2}>
         <Typography variant="h6" gutterBottom>
           Value Types
         </Typography>

@@ -13,20 +13,22 @@ import {
   Switch,
   Grid,
   Chip,
-  SelectChangeEvent
+  SelectChangeEvent,
+  FormHelperText
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import type { Token, TokenCollection, Mode, TokenValue } from '@token-model/data-model';
+import type { Token, TokenCollection, Mode, TokenValue, Dimension } from '@token-model/data-model';
 
 interface TokenFormProps {
   collections: TokenCollection[];
   modes: Mode[];
+  dimensions: Dimension[];
   tokens: Token[];
   onSubmit: (token: Omit<Token, 'id'>) => void;
   initialData?: Token;
 }
 
-export function TokenForm({ collections, modes, tokens, onSubmit, initialData }: TokenFormProps) {
+export function TokenForm({ collections, modes, dimensions, tokens, onSubmit, initialData }: TokenFormProps) {
   const [formData, setFormData] = useState<Omit<Token, 'id'>>({
     displayName: '',
     description: '',
@@ -72,6 +74,22 @@ export function TokenForm({ collections, modes, tokens, onSubmit, initialData }:
     }));
   };
 
+  const getAvailableModes = (selectedModeIds: string[]) => {
+    const requiredDimensions = dimensions.filter(d => d.required);
+    const optionalDimensions = dimensions.filter(d => !d.required);
+    
+    // Get modes for required dimensions that haven't been selected yet
+    const requiredModes = requiredDimensions
+      .flatMap(d => modes.filter(m => m.dimensionId === d.id))
+      .filter(m => !selectedModeIds.includes(m.id));
+
+    // Get modes for optional dimensions
+    const optionalModes = optionalDimensions
+      .flatMap(d => modes.filter(m => m.dimensionId === d.id));
+
+    return [...requiredModes, ...optionalModes];
+  };
+
   const handleValueByModeChange = (index: number, field: 'modeIds' | 'value', value: any) => {
     setFormData(prev => ({
       ...prev,
@@ -82,9 +100,18 @@ export function TokenForm({ collections, modes, tokens, onSubmit, initialData }:
   };
 
   const addValueByMode = () => {
+    // Start with required dimensions
+    const requiredModeIds = dimensions
+      .filter(d => d.required)
+      .map(d => modes.find(m => m.dimensionId === d.id && m.name === d.defaultMode)?.id)
+      .filter(Boolean) as string[];
+
     setFormData(prev => ({
       ...prev,
-      valuesByMode: [...(prev.valuesByMode || []), { modeIds: [], value: { type: 'COLOR', value: '' } }]
+      valuesByMode: [...(prev.valuesByMode || []), { 
+        modeIds: requiredModeIds,
+        value: { type: 'COLOR', value: '' } 
+      }]
     }));
   };
 
@@ -366,13 +393,35 @@ export function TokenForm({ collections, modes, tokens, onSubmit, initialData }:
                     value={valueByMode.modeIds}
                     label="Modes"
                     onChange={(e) => handleValueByModeChange(index, 'modeIds', e.target.value)}
+                    renderValue={(selected) => (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        {selected.map((modeId) => {
+                          const mode = modes.find(m => m.id === modeId);
+                          const dimension = dimensions.find(d => d.id === mode?.dimensionId);
+                          return (
+                            <Chip 
+                              key={modeId} 
+                              label={`${dimension?.displayName || 'Unknown'}: ${mode?.name || modeId}`}
+                              color={dimension?.required ? 'primary' : 'default'}
+                            />
+                          );
+                        })}
+                      </Box>
+                    )}
                   >
-                    {modes.map(mode => (
-                      <MenuItem key={mode.id} value={mode.id}>
-                        {mode.name}
-                      </MenuItem>
-                    ))}
+                    {getAvailableModes(valueByMode.modeIds).map(mode => {
+                      const dimension = dimensions.find(d => d.id === mode.dimensionId);
+                      return (
+                        <MenuItem key={mode.id} value={mode.id}>
+                          {dimension?.displayName || 'Unknown'}: {mode.name}
+                          {dimension?.required && ' (Required)'}
+                        </MenuItem>
+                      );
+                    })}
                   </Select>
+                  <FormHelperText>
+                    Required dimensions are marked with (Required)
+                  </FormHelperText>
                 </FormControl>
                 <FormControl sx={{ minWidth: 200 }}>
                   <InputLabel>Value Type</InputLabel>

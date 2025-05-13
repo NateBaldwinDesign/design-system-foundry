@@ -33,4 +33,26 @@ export {
   ShadowValue as ShadowValueSchema,
   TypographyValue as TypographyValueSchema,
   BorderValue as BorderValueSchema
-} from './schema'; 
+} from './schema';
+
+/**
+ * Validates that if any entry in valuesByMode has modeIds: [], it must be the only entry in the array.
+ * Otherwise, all entries must have modeIds.length > 0.
+ * Returns true if valid, or an error message string if invalid.
+ */
+export function validateTokenValuesByMode(valuesByMode: { modeIds: string[]; value: any }[]): true | string {
+  if (!Array.isArray(valuesByMode) || valuesByMode.length === 0) {
+    return 'valuesByMode must be a non-empty array.';
+  }
+  const hasGlobal = valuesByMode.some(v => Array.isArray(v.modeIds) && v.modeIds.length === 0);
+  if (hasGlobal) {
+    if (valuesByMode.length > 1) {
+      return 'If a global value (modeIds: []) is defined, it must be the only entry in valuesByMode.';
+    }
+  } else {
+    if (valuesByMode.some(v => !Array.isArray(v.modeIds) || v.modeIds.length === 0)) {
+      return 'All entries in valuesByMode must have at least one modeId, unless a single global value is defined.';
+    }
+  }
+  return true;
+} 
