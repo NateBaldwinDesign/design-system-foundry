@@ -1,0 +1,162 @@
+{
+  "platforms": [
+    { "id": "platformId-1", "name": "Web", "description": "Web platform" },
+    { "id": "platformId-2", "name": "iOS", "description": "iOS platform" },
+    { "id": "platformId-3", "name": "Android", "description": "Android platform" }
+  ],
+  "dimensions": [
+    {
+      "id": "dimensionId-1",
+      "type": "COLOR_SCHEME",
+      "displayName": "Color Scheme",
+      "description": "Light or dark mode",
+      "modes": [
+        { "id": "modeId-1", "name": "Light", "dimensionId": "dimensionId-1" },
+        { "id": "modeId-2", "name": "Dark", "dimensionId": "dimensionId-1" }
+      ],
+      "defaultMode": "modeId-1",
+      "required": true
+    },
+    {
+      "id": "dimensionId-2",
+      "type": "DENSITY",
+      "displayName": "Density",
+      "description": "Density of UI elements",
+      "modes": [
+        { "id": "modeId-3", "name": "Comfortable", "dimensionId": "dimensionId-2" },
+        { "id": "modeId-4", "name": "Compact", "dimensionId": "dimensionId-2" }
+      ],
+      "defaultMode": "modeId-3",
+      "required": false
+    }
+  ],
+  "taxonomies": [
+    {
+      "id": "taxonomyId-1",
+      "name": "Category",
+      "description": "Token category",
+      "terms": [
+        { "id": "termId-1", "name": "Color", "description": "Color tokens" },
+        { "id": "termId-2", "name": "Spacing", "description": "Spacing tokens" }
+      ]
+    },
+    {
+      "id": "taxonomyId-2",
+      "name": "Brand",
+      "description": "Brand association",
+      "terms": [
+        { "id": "termId-3", "name": "Acme", "description": "Acme brand" },
+        { "id": "termId-4", "name": "Globex", "description": "Globex brand" }
+      ]
+    }
+  ],
+  "tokens": [
+    {
+      "id": "tokenId-1",
+      "displayName": "Primary Background",
+      "description": "Background color for primary surfaces",
+      "resolvedValueType": "COLOR",
+      "status": "stable",
+      "private": false,
+      "themeable": true,
+      "taxonomies": [
+        { "taxonomyId": "taxonomyId-1", "termId": "termId-1" },
+        { "taxonomyId": "taxonomyId-2", "termId": "termId-3" }
+      ],
+      "valuesByMode": [
+        {
+          "modeIds": ["modeId-1", "modeId-3"],
+          "value": { "type": "COLOR", "value": "#ffffff" },
+          "platformOverrides": [
+            { "platformId": "platformId-2", "value": "#f8f8f8" },
+            { "platformId": "platformId-3", "value": "#f0f0f0" }
+          ]
+        },
+        {
+          "modeIds": ["modeId-1", "modeId-4"],
+          "value": { "type": "COLOR", "value": "#f5f5f5" }
+        },
+        {
+          "modeIds": ["modeId-2", "modeId-3"],
+          "value": { "type": "COLOR", "value": "#222222" },
+          "platformOverrides": [
+            { "platformId": "platformId-1", "value": "#1a1a1a" }
+          ]
+        },
+        {
+          "modeIds": ["modeId-2", "modeId-4"],
+          "value": { "type": "COLOR", "value": "#181818" }
+        }
+      ],
+      "codeSyntax": {
+        "Web": "var(--primary-bg)",
+        "iOS": "primaryBackgroundColor",
+        "Android": "primary_background"
+      }
+    },
+    {
+      "id": "tokenId-2",
+      "displayName": "Spacing Large",
+      "description": "Large spacing value",
+      "resolvedValueType": "FLOAT",
+      "status": "experimental",
+      "private": false,
+      "themeable": false,
+      "taxonomies": [
+        { "taxonomyId": "taxonomyId-1", "termId": "termId-2" }
+      ],
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": { "type": "FLOAT", "value": 32 },
+          "platformOverrides": [
+            { "platformId": "platformId-2", "value": "36" }
+          ]
+        }
+      ],
+      "codeSyntax": {
+        "Web": "var(--spacing-lg)",
+        "iOS": "spacingLarge",
+        "Android": "spacing_large"
+      }
+    },
+    {
+      "id": "tokenId-3",
+      "displayName": "Brand Alias",
+      "description": "Alias to primary background for brand",
+      "resolvedValueType": "ALIAS",
+      "status": "stable",
+      "private": false,
+      "themeable": true,
+      "taxonomies": [
+        { "taxonomyId": "taxonomyId-2", "termId": "termId-4" }
+      ],
+      "valuesByMode": [
+        {
+          "modeIds": ["modeId-1"],
+          "value": { "type": "ALIAS", "tokenId": "tokenId-1" }
+        },
+        {
+          "modeIds": ["modeId-2"],
+          "value": { "type": "ALIAS", "tokenId": "tokenId-1" },
+          "platformOverrides": [
+            { "platformId": "platformId-3", "value": "tokenId-2" }
+          ]
+        }
+      ],
+      "codeSyntax": {
+        "Web": "var(--brand-alias)",
+        "iOS": "brandAlias",
+        "Android": "brand_alias"
+      }
+    }
+  ],
+  "namingRules": {
+    "taxonomyOrder": ["taxonomyId-2", "taxonomyId-1"]
+  },
+  "exportConfigurations": {
+    "Web": { "prefix": "var(--", "delimiter": "-", "capitalization": "lower", "suffix": ")" },
+    "iOS": { "prefix": "", "delimiter": "", "capitalization": "camel", "suffix": "" },
+    "Android": { "prefix": "", "delimiter": "_", "capitalization": "snake", "suffix": "" }
+  }
+} 

@@ -15,7 +15,6 @@
   "dimensions": [
     {
       "id": "dimensionId-0000-0000-0000",
-      "type": "COLOR_SCHEME",
       "displayName": "Color Scheme",
       "modes": [
         { "id": "modeId-light", "name": "Light", "dimensionId": "dimensionId-0000-0000-0000" },
@@ -298,5 +297,11 @@
     { "id": "platform-111111", "displayName": "Web" },
     { "id": "platform-222222", "displayName": "iOS" },
     { "id": "platform-333333", "displayName": "Android" }
-  ]
+  ],
+  "namingRules": { 
+    "taxonomyOrder": [
+      "taxonomyId-1111-1111-1111", 
+      "taxonomyId-2222-2222-2222"
+    ] 
+  }
 } 

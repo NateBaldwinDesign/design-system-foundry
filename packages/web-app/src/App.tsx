@@ -7,10 +7,13 @@ import {
   Tab,
   Paper,
   Button,
-  CircularProgress
+  CircularProgress,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel
 } from '@mui/material';
 import { TokenCollection, Mode, Token, Dimension, Platform, Taxonomy } from '@token-model/data-model';
-import { TokenForm } from './components/TokenForm';
 import { TokenList } from './components/TokenList';
 import { CollectionsWorkflow } from './components/CollectionsWorkflow';
 import { ModesWorkflow } from './components/ModesWorkflow';
@@ -23,6 +26,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import { TokenEditorDialog } from './components/TokenEditorDialog';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -50,8 +54,14 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+const DATA_SOURCES = [
+  { label: 'Default Data', value: 'default' },
+  { label: 'Complex Data', value: 'complex' }
+];
+
 function App() {
   const [activeTab, setActiveTab] = useState(0);
+  const [dataSource, setDataSource] = useState<'default' | 'complex'>('default');
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
@@ -63,37 +73,49 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
+  // Helper to load data from the selected source
+  const loadDataFromSource = async (source: 'default' | 'complex') => {
+    setLoading(true);
+    let data;
+    if (source === 'default') {
+      data = await import('./services/data/default-data.json');
+    } else {
+      data = await import('./services/data/complex-data.json');
+    }
+    const d = data.default;
+
+    // Normalize platforms
+    const normalizedPlatforms = (d.platforms || []).map((p: any) => ({
+      ...p,
+      displayName: p.displayName || p.name || ''
+    }));
+
+    // Normalize tokens
+    const normalizedTokens = (d.tokens || []).map((t: any) => ({
+      themeable: t.themeable ?? false,
+      ...t
+    }));
+
+    // Normalize dimensions
+    const normalizedDimensions = (d.dimensions || []).map((dim: any) => ({
+      type: dim.type || 'COLOR_SCHEME',
+      ...dim
+    }));
+
+    setCollections((d as any).tokenCollections ?? []);
+    setModes((d as any).modes ?? []);
+    setDimensions(normalizedDimensions);
+    setValueTypes((d as any).valueTypes ?? []);
+    setTokens(normalizedTokens);
+    setPlatforms(normalizedPlatforms);
+    setThemes((d as any).themes ?? []);
+    setTaxonomies((d as any).taxonomies ?? []);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const [loadedCollections, loadedModes, loadedDimensions, loadedValueTypes, loadedTokens, loadedPlatforms, loadedThemes, loadedTaxonomies] = await Promise.all([
-          StorageService.getCollections(),
-          StorageService.getModes(),
-          StorageService.getDimensions(),
-          StorageService.getValueTypes(),
-          StorageService.getTokens(),
-          StorageService.getPlatforms(),
-          StorageService.getThemes(),
-          StorageService.getTaxonomies()
-        ]);
-
-        setCollections(loadedCollections);
-        setModes(loadedModes);
-        setDimensions(loadedDimensions);
-        setValueTypes(loadedValueTypes);
-        setTokens(loadedTokens);
-        setPlatforms(loadedPlatforms);
-        setThemes(loadedThemes);
-        setTaxonomies(loadedTaxonomies);
-      } catch (error) {
-        console.error('Failed to load data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
+    loadDataFromSource(dataSource);
+  }, [dataSource]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -138,9 +160,24 @@ function App() {
         <Typography variant="h4" component="h1" gutterBottom>
           Token Model
         </Typography>
-        <Button variant="outlined" color="error" onClick={handleReset} sx={{ ml: 2 }}>
-          Reset Data
-        </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <FormControl size="small">
+            <InputLabel>Data Source</InputLabel>
+            <Select
+              value={dataSource}
+              label="Data Source"
+              onChange={e => setDataSource(e.target.value as 'default' | 'complex')}
+              sx={{ minWidth: 160 }}
+            >
+              {DATA_SOURCES.map(ds => (
+                <MenuItem key={ds.value} value={ds.value}>{ds.label}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Button variant="outlined" color="error" onClick={handleReset} sx={{ ml: 2 }}>
+            Reset Data
+          </Button>
+        </Box>
       </Box>
 
       <Paper sx={{ width: '100%', mb: 4 }}>
@@ -182,22 +219,39 @@ function App() {
         </Box>
 
         {/* Create Token Dialog */}
-        <Dialog open={createDialogOpen} onClose={handleCloseCreateDialog} maxWidth="md" fullWidth>
-          <DialogTitle>Add Token</DialogTitle>
-          <DialogContent>
-            <TokenForm
-              collections={collections}
-              modes={modes}
-              dimensions={dimensions}
-              tokens={tokens}
-              onSubmit={handleCreateToken}
-              taxonomies={taxonomies}
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseCreateDialog}>Cancel</Button>
-          </DialogActions>
-        </Dialog>
+        <TokenEditorDialog
+          token={{
+            id: '',
+            displayName: '',
+            description: '',
+            tokenCollectionId: collections[0]?.id || '',
+            resolvedValueType: 'COLOR',
+            private: false,
+            valuesByMode: [],
+            taxonomies: [],
+            propertyTypes: [],
+            codeSyntax: {},
+            themeable: false,
+          }}
+          tokens={tokens}
+          dimensions={dimensions}
+          modes={modes}
+          platforms={platforms}
+          open={createDialogOpen}
+          onClose={handleCloseCreateDialog}
+          onSave={tokenData => {
+            const newToken = {
+              ...tokenData,
+              id: generateId(ID_PREFIXES.TOKEN)
+            };
+            const newTokens = [...tokens, newToken];
+            setTokens(newTokens);
+            StorageService.setTokens(newTokens);
+            setCreateDialogOpen(false);
+          }}
+          taxonomies={taxonomies}
+          isNew={true}
+        />
       </TabPanel>
 
       <TabPanel value={activeTab} index={1}>

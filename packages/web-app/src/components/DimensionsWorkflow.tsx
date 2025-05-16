@@ -45,10 +45,10 @@ const DIMENSION_TYPES: DimensionType[] = [
 
 interface DimensionFormData {
   id: string;
-  type: DimensionType;
   displayName: string;
   description: string;
   modes: Mode[];
+  defaultMode: string;
 }
 
 export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes }: DimensionsWorkflowProps) {
@@ -56,10 +56,10 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [form, setForm] = useState<DimensionFormData>({
     id: '',
-    type: 'COLOR_SCHEME',
     displayName: '',
     description: '',
-    modes: []
+    modes: [],
+    defaultMode: '',
   });
   const [modeForm, setModeForm] = useState({ id: '', name: '', description: '' });
   const [modeDialogOpen, setModeDialogOpen] = useState(false);
@@ -72,18 +72,18 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
       const dim = dimensions[index];
       setForm({
         id: dim.id,
-        type: dim.type,
         displayName: dim.displayName,
         description: dim.description || '',
-        modes: dim.modes
+        modes: dim.modes,
+        defaultMode: dim.defaultMode || (dim.modes[0]?.id ?? ''),
       });
     } else {
       setForm({
         id: '',
-        type: 'COLOR_SCHEME',
         displayName: '',
         description: '',
-        modes: []
+        modes: [],
+        defaultMode: '',
       });
     }
     setOpen(true);
@@ -100,10 +100,16 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
 
   const handleSave = () => {
     if (!form.id || !form.displayName) return;
+    if (!form.defaultMode || !form.modes.some(m => m.id === form.defaultMode)) {
+      alert('Please select a valid default mode.');
+      return;
+    }
     const newDims = [...dimensions];
     const dimToSave = {
       ...form,
-      modes: form.modes || []
+      modes: form.modes || [],
+      required: true,
+      defaultMode: form.defaultMode
     } as Dimension;
     if (editingIndex !== null) {
       newDims[editingIndex] = dimToSave;
@@ -148,25 +154,34 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
     } else {
       newModes.push({ ...modeForm, dimensionId: form.id! });
     }
-    setForm(prev => ({ ...prev, modes: newModes }));
+    setForm(prev => ({ ...prev, modes: newModes, defaultMode: prev.defaultMode || newModes[0]?.id || '' }));
     setModeDialogOpen(false);
     setModeEditIndex(null);
   };
 
   const handleModeDelete = (index: number) => {
-    setForm(prev => ({ ...prev, modes: (prev.modes || []).filter((_, i) => i !== index) }));
+    setForm(prev => {
+      const newModes = (prev.modes || []).filter((_, i) => i !== index);
+      let newDefault = prev.defaultMode;
+      if (prev.modes[index]?.id === prev.defaultMode) {
+        newDefault = newModes[0]?.id || '';
+      }
+      return { ...prev, modes: newModes, defaultMode: newDefault };
+    });
   };
 
   const handleAddDimension = () => {
-    if (!form.type || !form.displayName) {
+    if (!form.displayName) {
       return; // Don't add if required fields are missing
     }
     const newDimension: Dimension = {
       id: generateId(ID_PREFIXES.DIMENSION),
-      type: form.type,
+      type: 'COLOR_SCHEME',
       displayName: form.displayName,
       description: form.description,
-      modes: form.modes
+      modes: form.modes,
+      required: true,
+      defaultMode: form.defaultMode || form.modes[0]?.id || ''
     };
     setDimensions([...dimensions, newDimension]);
     handleClose();
@@ -196,7 +211,7 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
           {dimensions.map((dim, i) => (
             <ListItem key={dim.id}>
               <ListItemText
-                primary={`${dim.displayName} (${dim.type})`}
+                primary={dim.displayName}
                 secondary={
                   <>
                     Modes: {dim.modes.map(m => m.name).join(', ')}
@@ -215,7 +230,7 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
         <DialogTitle>{editingIndex !== null ? 'Edit Dimension' : 'Add Dimension'}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12}>
               <TextField
                 label="ID"
                 value={form.id}
@@ -223,20 +238,6 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
                 fullWidth
                 required
               />
-            </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Type</InputLabel>
-                <Select
-                  value={form.type}
-                  label="Type"
-                  onChange={e => handleFormChange('type', e.target.value)}
-                >
-                  {DIMENSION_TYPES.map(type => (
-                    <MenuItem key={type} value={type}>{type}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
             </Grid>
             <Grid item xs={12}>
               <TextField
@@ -256,6 +257,34 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
                 multiline
                 rows={2}
               />
+            </Grid>
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" sx={{ mt: 2 }}>Modes</Typography>
+              <List>
+                {form.modes.map((mode, idx) => (
+                  <ListItem key={mode.id}>
+                    <ListItemText
+                      primary={mode.name}
+                      secondary={mode.description}
+                    />
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={form.defaultMode === mode.id}
+                          onChange={() => setForm(prev => ({ ...prev, defaultMode: mode.id }))}
+                          color="primary"
+                        />
+                      }
+                      label="Default"
+                    />
+                    <IconButton onClick={() => handleModeDialogOpen(idx)}><EditIcon /></IconButton>
+                    <IconButton onClick={() => handleModeDelete(idx)}><DeleteIcon /></IconButton>
+                  </ListItem>
+                ))}
+              </List>
+              <Button startIcon={<AddIcon />} onClick={() => handleModeDialogOpen(null)} variant="outlined" sx={{ mt: 1 }}>
+                Add Mode
+              </Button>
             </Grid>
           </Grid>
         </DialogContent>

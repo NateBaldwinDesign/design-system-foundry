@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Typography } from '@mui/material';
 import type { TokenValue, Mode, Token } from '@token-model/data-model';
 import { TokenValuePicker } from './TokenValuePicker';
@@ -16,41 +16,62 @@ interface ValueByModeTableProps {
 }
 
 export function ValueByModeTable({ valuesByMode, modes, editable, onValueChange, getValueEditor, resolvedValueType, tokens, constraints, excludeTokenId }: ValueByModeTableProps) {
-  const getModeName = (modeId: string) => modes.find(m => m.id === modeId)?.name || modeId;
-  const columns = Array.from(
-    new Set(
-      valuesByMode
-        .map(vbm => vbm.modeIds[0])
-        .filter(id => !!id)
-    )
-  );
-  columns.sort((a, b) => getModeName(a).localeCompare(getModeName(b)));
+  // Create a memoized map of mode IDs to their names for efficient lookups
+  const modeNameMap = useMemo(() => {
+    return new Map(modes.map(mode => [mode.id, mode.name]));
+  }, [modes]);
+
+  const getModeName = (modeId: string) => {
+    const name = modeNameMap.get(modeId);
+    if (!name) {
+      console.warn(`Mode ID ${modeId} not found in available modes`);
+      return `Unknown Mode (${modeId})`;
+    }
+    return name;
+  };
+
+  // Validate that all mode IDs in valuesByMode exist in the modes array
+  const invalidModeIds = useMemo(() => {
+    const allModeIds = new Set(modes.map(m => m.id));
+    return valuesByMode
+      .flatMap(vbm => vbm.modeIds)
+      .filter(id => id && !allModeIds.has(id));
+  }, [valuesByMode, modes]);
+
+  if (invalidModeIds.length > 0) {
+    console.warn('Token contains references to non-existent modes:', invalidModeIds);
+  }
+
+  // Get unique mode IDs for columns and rows
+  const columns = useMemo(() => {
+    return Array.from(
+      new Set(
+        valuesByMode
+          .map(vbm => vbm.modeIds[0])
+          .filter(id => !!id)
+      )
+    ).sort((a, b) => getModeName(a).localeCompare(getModeName(b)));
+  }, [valuesByMode]);
+
   const hasRows = valuesByMode.some(vbm => vbm.modeIds.length > 1);
-  let rows: string[] = [];
-  if (hasRows) {
-    rows = Array.from(
+  const rows = useMemo(() => {
+    if (!hasRows) return ['single'];
+    return Array.from(
       new Set(
         valuesByMode
           .map(vbm => vbm.modeIds[1])
           .filter(id => !!id)
       )
-    );
-    rows.sort((a, b) => getModeName(a).localeCompare(getModeName(b)));
-  } else {
-    rows = ['single'];
-  }
-  const valueMap = new Map(
-    valuesByMode.map((vbm, idx) => [vbm.modeIds.join(','), { vbm, idx }])
-  );
-  const allGlobal = valuesByMode.every(vbm => vbm.modeIds.length === 0);
+    ).sort((a, b) => getModeName(a).localeCompare(getModeName(b)));
+  }, [valuesByMode, hasRows]);
 
-  // Debug logs
-  console.log('ValueByModeTable: modes', modes);
-  console.log('ValueByModeTable: columns', columns);
-  console.log('ValueByModeTable: rows', rows);
-  valuesByMode.forEach((vbm, idx) => {
-    console.log(`ValueByModeTable: valuesByMode[${idx}].modeIds`, vbm.modeIds);
-  });
+  const valueMap = useMemo(() => {
+    return new Map(
+      valuesByMode.map((vbm, idx) => [vbm.modeIds.join(','), { vbm, idx }])
+    );
+  }, [valuesByMode]);
+
+  const allGlobal = valuesByMode.every(vbm => vbm.modeIds.length === 0);
 
   return (
     <TableContainer component={Paper} variant="outlined">
@@ -59,23 +80,19 @@ export function ValueByModeTable({ valuesByMode, modes, editable, onValueChange,
           <TableHead>
             <TableRow>
               <TableCell></TableCell>
-              {columns.map((colId: string) => {
-                const modeName = getModeName(colId);
-                console.log('ValueByModeTable: Looking up mode name for colId', colId, '->', modeName);
-                return (
-                  <TableCell key={`header-${colId}`} align="center">
-                    {modeName !== colId ? modeName : 'Unknown Mode'}
-                  </TableCell>
-                );
-              })}
+              {columns.map(colId => (
+                <TableCell key={`header-${colId}`} align="center">
+                  {getModeName(colId)}
+                </TableCell>
+              ))}
             </TableRow>
           </TableHead>
         )}
         <TableBody>
-          {rows.map((rowId: string) => (
+          {rows.map(rowId => (
             <TableRow key={`row-${rowId}`}>
               <TableCell component="th" scope="row">{hasRows ? getModeName(rowId) : ''}</TableCell>
-              {columns.map((colId: string) => {
+              {columns.map(colId => {
                 let key;
                 if (hasRows) {
                   key = [colId, rowId].join(',');
@@ -85,28 +102,9 @@ export function ValueByModeTable({ valuesByMode, modes, editable, onValueChange,
                 const entry = valueMap.get(key);
                 const cellKey = `cell-${rowId}-${colId}`;
                 if (!entry) return <TableCell key={cellKey} />;
-                // Use TokenValuePicker for editable cells
-                if (editable && onValueChange) {
-                  return (
-                    <TableCell key={cellKey} align="center">
-                      <TokenValuePicker
-                        resolvedValueType={resolvedValueType}
-                        value={entry.vbm.value}
-                        tokens={tokens}
-                        constraints={constraints}
-                        excludeTokenId={excludeTokenId}
-                        onChange={newValue => onValueChange(entry.idx, newValue)}
-                      />
-                    </TableCell>
-                  );
-                }
-                // Fallback to getValueEditor for non-editable
                 return (
                   <TableCell key={cellKey} align="center">
-                    {getValueEditor(
-                      entry.vbm.value,
-                      entry.idx
-                    )}
+                    {getValueEditor(entry.vbm.value, entry.idx)}
                   </TableCell>
                 );
               })}

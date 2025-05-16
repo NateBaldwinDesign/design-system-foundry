@@ -1,163 +1,323 @@
-import React from 'react';
-import { Box, Button, FormControl, InputLabel, Select, MenuItem, IconButton, FormHelperText, Typography } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon, Warning as WarningIcon } from '@mui/icons-material';
-import type { Taxonomy, TokenTaxonomyRef } from '@token-model/data-model';
+import { useState } from 'react';
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Chip
+} from '@mui/material';
+import { Delete, Add, Edit } from '@mui/icons-material';
+import type { Taxonomy, TaxonomyTerm } from '@token-model/data-model';
+import { createUniqueId } from '../utils/id';
 
 interface TaxonomyPickerProps {
   taxonomies: Taxonomy[];
-  value: TokenTaxonomyRef[];
-  onChange: (newValue: TokenTaxonomyRef[]) => void;
+  value: { taxonomyId: string; termId: string }[];
+  onChange: (value: { taxonomyId: string; termId: string }[]) => void;
   disabled?: boolean;
 }
 
-export function TaxonomyPicker({ taxonomies, value, onChange, disabled }: TaxonomyPickerProps) {
-  // Ensure value is always an array
-  const safeValue = Array.isArray(value) ? value : [];
+export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false }: TaxonomyPickerProps) {
+  const [editingTaxonomy, setEditingTaxonomy] = useState<Taxonomy | null>(null);
+  const [editingTerm, setEditingTerm] = useState<{ taxonomyId: string; term: TaxonomyTerm } | null>(null);
+  const [isNewTaxonomy, setIsNewTaxonomy] = useState(false);
+  const [isNewTerm, setIsNewTerm] = useState(false);
 
-  // Remove any taxonomy/term pairs that are no longer valid (terms only, not taxonomyId)
-  React.useEffect(() => {
-    const filtered = safeValue.filter(ref =>
-      // Always keep if taxonomyId is present (even if not in top-level list)
-      ref.taxonomyId &&
-      (ref.termId === '' || taxonomies.find(tax => tax.id === ref.taxonomyId)?.terms.some(term => term.id === ref.termId) || !taxonomies.find(tax => tax.id === ref.taxonomyId))
-    );
-    if (JSON.stringify(filtered) !== JSON.stringify(safeValue)) {
-      onChange(filtered);
+  const handleAddTaxonomy = () => {
+    const newTaxonomy: Taxonomy = {
+      id: createUniqueId('taxonomy'),
+      name: '',
+      description: '',
+      terms: []
+    };
+    setEditingTaxonomy(newTaxonomy);
+    setIsNewTaxonomy(true);
+  };
+
+  const handleAddTerm = (taxonomyId: string) => {
+    const newTerm: TaxonomyTerm = {
+      id: createUniqueId('term'),
+      name: '',
+      description: ''
+    };
+    setEditingTerm({ taxonomyId, term: newTerm });
+    setIsNewTerm(true);
+  };
+
+  const handleSaveTaxonomy = () => {
+    if (!editingTaxonomy) return;
+
+    if (isNewTaxonomy) {
+      taxonomies.push(editingTaxonomy);
+    } else {
+      const index = taxonomies.findIndex(t => t.id === editingTaxonomy.id);
+      if (index !== -1) {
+        taxonomies[index] = editingTaxonomy;
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taxonomies]);
-
-  const handleTaxonomyRefChange = (index: number, field: 'taxonomyId' | 'termId', fieldValue: string) => {
-    onChange(
-      safeValue.map((ref, i) =>
-        i === index
-          ? field === 'taxonomyId'
-            ? { taxonomyId: fieldValue, termId: '' } // Reset termId if taxonomy changes
-            : { ...ref, termId: fieldValue }
-          : ref
-      )
-    );
+    setEditingTaxonomy(null);
+    setIsNewTaxonomy(false);
   };
 
-  const handleAddTaxonomyRef = () => {
-    // Only allow adding taxonomies that haven't been selected yet
-    const availableTaxonomies = taxonomies.filter(tax =>
-      !safeValue.some(ref => ref.taxonomyId === tax.id)
-    );
-    if (availableTaxonomies.length === 0) return;
-    onChange([
-      ...safeValue,
-      { taxonomyId: '', termId: '' }
-    ]);
+  const handleSaveTerm = () => {
+    if (!editingTerm) return;
+
+    const taxonomy = taxonomies.find(t => t.id === editingTerm.taxonomyId);
+    if (!taxonomy) return;
+
+    if (isNewTerm) {
+      taxonomy.terms.push(editingTerm.term);
+    } else {
+      const index = taxonomy.terms.findIndex(t => t.id === editingTerm.term.id);
+      if (index !== -1) {
+        taxonomy.terms[index] = editingTerm.term;
+      }
+    }
+    setEditingTerm(null);
+    setIsNewTerm(false);
   };
 
-  const handleRemoveTaxonomyRef = (index: number) => {
-    onChange(safeValue.filter((_, i) => i !== index));
+  const handleDeleteTaxonomy = (taxonomyId: string) => {
+    const index = taxonomies.findIndex(t => t.id === taxonomyId);
+    if (index !== -1) {
+      taxonomies.splice(index, 1);
+      // Remove any selected terms from this taxonomy
+      onChange(value.filter(v => v.taxonomyId !== taxonomyId));
+    }
   };
 
-  // Check if all taxonomies are already assigned (only those present in the top-level list)
-  const allTaxonomiesAssigned = taxonomies.length > 0 && taxonomies.every(tax =>
-    safeValue.some(ref => ref.taxonomyId === tax.id)
-  );
+  const handleDeleteTerm = (taxonomyId: string, termId: string) => {
+    const taxonomy = taxonomies.find(t => t.id === taxonomyId);
+    if (!taxonomy) return;
+
+    const index = taxonomy.terms.findIndex(t => t.id === termId);
+    if (index !== -1) {
+      taxonomy.terms.splice(index, 1);
+      // Remove this term from selected values
+      onChange(value.filter(v => !(v.taxonomyId === taxonomyId && v.termId === termId)));
+    }
+  };
+
+  const handleToggleTerm = (taxonomyId: string, termId: string) => {
+    const isSelected = value.some(v => v.taxonomyId === taxonomyId && v.termId === termId);
+    if (isSelected) {
+      onChange(value.filter(v => !(v.taxonomyId === taxonomyId && v.termId === termId)));
+    } else {
+      // Check if we already have a term from this taxonomy
+      const existingIndex = value.findIndex(v => v.taxonomyId === taxonomyId);
+      if (existingIndex !== -1) {
+        // Replace the existing term
+        const newValue = [...value];
+        newValue[existingIndex] = { taxonomyId, termId };
+        onChange(newValue);
+      } else {
+        // Add new term
+        onChange([...value, { taxonomyId, termId }]);
+      }
+    }
+  };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {safeValue.map((ref, idx: number) => {
-        const selectedTaxonomy = taxonomies.find(t => t.id === ref.taxonomyId);
-        const taxonomyMissing = !selectedTaxonomy;
-        const termMissing = ref.termId && selectedTaxonomy && !selectedTaxonomy.terms.some(term => term.id === ref.termId);
-        return (
-          <Box key={idx} sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-            <FormControl sx={{ minWidth: 200 }} disabled={disabled} error={!!taxonomyMissing}>
-              <InputLabel>Taxonomy</InputLabel>
-              <Select
-                value={ref.taxonomyId}
-                label="Taxonomy"
-                onChange={e => handleTaxonomyRefChange(idx, 'taxonomyId', e.target.value)}
-              >
-                <MenuItem value=""><em>Select a taxonomy</em></MenuItem>
-                {taxonomies.map(tax => (
-                  <MenuItem 
-                    key={tax.id} 
-                    value={tax.id} 
-                    title={tax.description || ''}
-                    disabled={safeValue.some((r, i) => i !== idx && r.taxonomyId === tax.id)}
-                  >
-                    {tax.name}
-                  </MenuItem>
+    <Box>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h6">Taxonomies</Typography>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={handleAddTaxonomy}
+          disabled={disabled}
+        >
+          Add Taxonomy
+        </Button>
+      </Box>
+
+      <List>
+        {taxonomies.map(taxonomy => (
+          <ListItem
+            key={taxonomy.id}
+            sx={{
+              flexDirection: 'column',
+              alignItems: 'stretch',
+              bgcolor: 'background.paper',
+              mb: 2,
+              borderRadius: 1
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle1">{taxonomy.name}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {taxonomy.description}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  ID: {taxonomy.id}
+                </Typography>
+              </Box>
+              <Box>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setEditingTaxonomy(taxonomy);
+                    setIsNewTaxonomy(false);
+                  }}
+                  disabled={disabled}
+                >
+                  <Edit />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => handleDeleteTaxonomy(taxonomy.id)}
+                  disabled={disabled}
+                >
+                  <Delete />
+                </IconButton>
+              </Box>
+            </Box>
+
+            <Box sx={{ mt: 2, width: '100%' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="subtitle2">Terms</Typography>
+                <Button
+                  size="small"
+                  startIcon={<Add />}
+                  onClick={() => handleAddTerm(taxonomy.id)}
+                  disabled={disabled}
+                >
+                  Add Term
+                </Button>
+              </Box>
+              <List dense>
+                {taxonomy.terms.map(term => (
+                  <ListItem key={term.id}>
+                    <ListItemText
+                      primary={term.name}
+                      secondary={
+                        <Box>
+                          <Typography variant="caption" display="block">
+                            {term.description}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            ID: {term.id}
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                    <ListItemSecondaryAction>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setEditingTerm({ taxonomyId: taxonomy.id, term });
+                          setIsNewTerm(false);
+                        }}
+                        disabled={disabled}
+                      >
+                        <Edit />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteTerm(taxonomy.id, term.id)}
+                        disabled={disabled}
+                      >
+                        <Delete />
+                      </IconButton>
+                      <Chip
+                        label={value.some(v => v.taxonomyId === taxonomy.id && v.termId === term.id) ? 'Selected' : 'Not Selected'}
+                        color={value.some(v => v.taxonomyId === taxonomy.id && v.termId === term.id) ? 'primary' : 'default'}
+                        onClick={() => handleToggleTerm(taxonomy.id, term.id)}
+                        disabled={disabled}
+                        sx={{ ml: 1 }}
+                      />
+                    </ListItemSecondaryAction>
+                  </ListItem>
                 ))}
-                {taxonomyMissing && ref.taxonomyId && (
-                  <MenuItem value={ref.taxonomyId} disabled>
-                    <WarningIcon fontSize="small" sx={{ mr: 1, color: 'warning.main' }} />
-                    Missing taxonomy ({ref.taxonomyId})
-                  </MenuItem>
-                )}
-              </Select>
-              {taxonomyMissing && ref.taxonomyId && (
-                <FormHelperText error>
-                  <WarningIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
-                  This taxonomy is missing from the current settings.
-                </FormHelperText>
-              )}
-              {selectedTaxonomy?.description && !taxonomyMissing && (
-                <FormHelperText>{selectedTaxonomy.description}</FormHelperText>
-              )}
-            </FormControl>
-            <FormControl sx={{ minWidth: 200 }} disabled={!ref.taxonomyId || disabled || taxonomyMissing} error={!!termMissing}>
-              <InputLabel>Term</InputLabel>
-              <Select
-                value={ref.termId}
-                label="Term"
-                onChange={e => handleTaxonomyRefChange(idx, 'termId', e.target.value)}
-              >
-                <MenuItem value=""><em>Select a term</em></MenuItem>
-                {selectedTaxonomy?.terms.map(term => (
-                  <MenuItem key={term.id} value={term.id} title={term.description || ''}>
-                    {term.name}
-                  </MenuItem>
-                ))}
-                {termMissing && ref.termId && (
-                  <MenuItem value={ref.termId} disabled>
-                    <WarningIcon fontSize="small" sx={{ mr: 1, color: 'warning.main' }} />
-                    Missing term ({ref.termId})
-                  </MenuItem>
-                )}
-              </Select>
-              {termMissing && ref.termId && (
-                <FormHelperText error>
-                  <WarningIcon fontSize="small" sx={{ mr: 1, verticalAlign: 'middle' }} />
-                  This term is missing from the selected taxonomy.
-                </FormHelperText>
-              )}
-              {selectedTaxonomy?.terms.find(t => t.id === ref.termId)?.description && !termMissing && (
-                <FormHelperText>
-                  {selectedTaxonomy.terms.find(t => t.id === ref.termId)?.description}
-                </FormHelperText>
-              )}
-            </FormControl>
-            <IconButton onClick={() => handleRemoveTaxonomyRef(idx)} sx={{ mt: 1 }} disabled={disabled}>
-              <DeleteIcon />
-            </IconButton>
+              </List>
+            </Box>
+          </ListItem>
+        ))}
+      </List>
+
+      {/* Taxonomy Editor Dialog */}
+      <Dialog open={!!editingTaxonomy} onClose={() => setEditingTaxonomy(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>{isNewTaxonomy ? 'Add Taxonomy' : 'Edit Taxonomy'}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            <TextField
+              label="Taxonomy ID"
+              value={editingTaxonomy?.id || ''}
+              disabled
+              fullWidth
+              helperText="Taxonomy IDs are automatically generated and cannot be edited"
+            />
+            <TextField
+              label="Name"
+              value={editingTaxonomy?.name || ''}
+              onChange={(e) => setEditingTaxonomy(prev => prev ? { ...prev, name: e.target.value } : null)}
+              fullWidth
+            />
+            <TextField
+              label="Description"
+              value={editingTaxonomy?.description || ''}
+              onChange={(e) => setEditingTaxonomy(prev => prev ? { ...prev, description: e.target.value } : null)}
+              multiline
+              rows={2}
+              fullWidth
+            />
           </Box>
-        );
-      })}
-      <Button
-        startIcon={<AddIcon />}
-        onClick={handleAddTaxonomyRef}
-        disabled={disabled || allTaxonomiesAssigned}
-      >
-        Add Taxonomy
-      </Button>
-      {allTaxonomiesAssigned && (
-        <FormHelperText>
-          All available taxonomies have been added.
-        </FormHelperText>
-      )}
-      {taxonomies.length === 0 && (
-        <Typography variant="body2" color="text.secondary">
-          No taxonomies are defined in settings.
-        </Typography>
-      )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingTaxonomy(null)}>Cancel</Button>
+          <Button onClick={handleSaveTaxonomy} variant="contained">
+            {isNewTaxonomy ? 'Add Taxonomy' : 'Save Changes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Term Editor Dialog */}
+      <Dialog open={!!editingTerm} onClose={() => setEditingTerm(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>{isNewTerm ? 'Add Term' : 'Edit Term'}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            <TextField
+              label="Term ID"
+              value={editingTerm?.term.id || ''}
+              disabled
+              fullWidth
+              helperText="Term IDs are automatically generated and cannot be edited"
+            />
+            <TextField
+              label="Name"
+              value={editingTerm?.term.name || ''}
+              onChange={(e) => setEditingTerm(prev => prev ? { ...prev, term: { ...prev.term, name: e.target.value } } : null)}
+              fullWidth
+            />
+            <TextField
+              label="Description"
+              value={editingTerm?.term.description || ''}
+              onChange={(e) => setEditingTerm(prev => prev ? { ...prev, term: { ...prev.term, description: e.target.value } } : null)}
+              multiline
+              rows={2}
+              fullWidth
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingTerm(null)}>Cancel</Button>
+          <Button onClick={handleSaveTerm} variant="contained">
+            {isNewTerm ? 'Add Term' : 'Save Changes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 } 

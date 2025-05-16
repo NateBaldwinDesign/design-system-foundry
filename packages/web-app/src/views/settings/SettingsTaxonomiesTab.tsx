@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -11,13 +11,21 @@ import {
   DialogActions,
   TextField,
   Button,
-  Alert
+  Alert,
+  MenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
 import type { Taxonomy, TaxonomyTerm } from '@token-model/data-model';
 import { StorageService } from '../../services/storage';
 import { generateId, ID_PREFIXES } from '../../utils/id';
 import { cleanupTokenTaxonomyReferences } from '../../utils/taxonomy';
+import defaultData from '../../services/data/default-data.json';
 
 interface SettingsTaxonomiesTabProps {
   taxonomies: Taxonomy[];
@@ -40,6 +48,51 @@ export function SettingsTaxonomiesTab({ taxonomies, setTaxonomies }: SettingsTax
     termName: '',
     usageCount: 0
   });
+
+  // Naming Rules state
+  const [taxonomyOrder, setTaxonomyOrder] = useState<string[]>(() => {
+    // Try to load from localStorage, fallback to defaultData
+    const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
+    return root.namingRules?.taxonomyOrder || defaultData.namingRules?.taxonomyOrder || [];
+  });
+
+  // Save taxonomyOrder to localStorage root object
+  const saveNamingRules = (newOrder: string[]) => {
+    const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
+    const updatedRoot = {
+      ...root,
+      namingRules: {
+        ...(root.namingRules || {}),
+        taxonomyOrder: newOrder
+      }
+    };
+    localStorage.setItem('token-model:root', JSON.stringify(updatedRoot));
+    setTaxonomyOrder(newOrder);
+  };
+
+  // Add taxonomy to order
+  const handleAddToOrder = (taxonomyId: string) => {
+    if (!taxonomyOrder.includes(taxonomyId)) {
+      saveNamingRules([...taxonomyOrder, taxonomyId]);
+    }
+  };
+
+  // Remove taxonomy from order
+  const handleRemoveFromOrder = (taxonomyId: string) => {
+    saveNamingRules(taxonomyOrder.filter(id => id !== taxonomyId));
+  };
+
+  // Move taxonomy up/down
+  const moveTaxonomy = (index: number, direction: -1 | 1) => {
+    const newOrder = [...taxonomyOrder];
+    const target = newOrder[index];
+    newOrder.splice(index, 1);
+    newOrder.splice(index + direction, 0, target);
+    saveNamingRules(newOrder);
+  };
+
+  // Taxonomies not in the order
+  const availableToAdd = taxonomies.filter(t => !taxonomyOrder.includes(t.id));
 
   const handleAddTerm = (taxonomyId: string) => {
     const taxonomy = taxonomies.find(t => t.id === taxonomyId);
@@ -229,6 +282,63 @@ export function SettingsTaxonomiesTab({ taxonomies, setTaxonomies }: SettingsTax
           <Button onClick={confirmDeleteTerm} color="error">Delete</Button>
         </DialogActions>
       </Dialog>
+
+      {/* Naming Rules: Taxonomy Order Section */}
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h6" gutterBottom>
+          Naming Rules: Taxonomy Order
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Set the order in which taxonomy terms are used when generating code syntax. The first taxonomy in the list will have its term appear first, and so on.
+        </Typography>
+        <TableContainer component={Paper} variant="outlined" sx={{ mb: 2, maxWidth: 500 }}>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Taxonomy</TableCell>
+                <TableCell align="center">Order</TableCell>
+                <TableCell align="center">Remove</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {taxonomyOrder.map((taxonomyId, idx) => {
+                const taxonomy = taxonomies.find(t => t.id === taxonomyId);
+                return (
+                  <TableRow key={taxonomyId}>
+                    <TableCell>
+                      <Chip label={taxonomy ? taxonomy.name : taxonomyId} color={taxonomy ? 'primary' : 'default'} />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Button size="small" onClick={() => moveTaxonomy(idx, -1)} disabled={idx === 0}>↑</Button>
+                      <Button size="small" onClick={() => moveTaxonomy(idx, 1)} disabled={idx === taxonomyOrder.length - 1}>↓</Button>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Button size="small" color="error" onClick={() => handleRemoveFromOrder(taxonomyId)}>Remove</Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        {availableToAdd.length > 0 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, maxWidth: 500 }}>
+            <TextField
+              select
+              label="Add Taxonomy to Order"
+              value=""
+              onChange={e => handleAddToOrder(e.target.value)}
+              size="small"
+              sx={{ minWidth: 200 }}
+            >
+              <MenuItem value="" disabled>Select taxonomy</MenuItem>
+              {availableToAdd.map(t => (
+                <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
+              ))}
+            </TextField>
+          </Box>
+        )}
+      </Box>
     </>
   );
 } 

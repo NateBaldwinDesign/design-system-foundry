@@ -11,6 +11,31 @@
         "description": "Semantic version of the token set",
         "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
       },
+      "exportConfigurations": {
+        "type": "object",
+        "description": "Platform-specific export configuration rules",
+        "patternProperties": {
+          "^[a-zA-Z0-9-_]+$": {
+            "type": "object",
+            "required": ["prefix", "delimiter", "capitalization"],
+            "properties": {
+              "prefix": {
+                "type": "string",
+                "description": "Prefix to add before token names"
+              },
+              "delimiter": {
+                "type": "string",
+                "description": "Character(s) to use between token name parts"
+              },
+              "capitalization": {
+                "type": "string",
+                "description": "Capitalization style for token names",
+                "enum": ["none", "uppercase", "lowercase", "capitalize"]
+              }
+            }
+          }
+        }
+      },
       "metadata": {
         "type": "object",
         "description": "Additional information about the token set",
@@ -128,458 +153,483 @@
             "displayName": { "type": "string" }
           }
         }
-    },
-
-    "dimensions": {
+      },
+      "dimensions": {
         "type": "array",
         "description": "Dimensions that can modify token values",
         "items": {
-        "type": "object",
-        "required": ["id", "type", "displayName", "modes", "required", "defaultMode"],
-        "properties": {
-        "id": {
-            "type": "string",
-            "description": "Unique identifier for the dimension",
-            "pattern": "^[a-zA-Z0-9-_]+$"
-        },
-        "type": {
-            "type": "string",
-            "description": "Type of dimension for grouping and resolution",
-            "enum": [
-            "COLOR_SCHEME", 
-            "CONTRAST", 
-            "DEVICE_TYPE", 
-            "BRAND", 
-            "THEME",
-            "MOTION",
-            "DENSITY"
-            ]
-        },
-        "displayName": { 
-            "type": "string",
-            "description": "Human-readable name for the dimension" 
-        },
-        "description": { 
-            "type": "string",
-            "description": "Detailed description of the dimension" 
-        },
-        "required": {
-            "type": "boolean",
-            "description": "Whether this dimension must always be specified in mode combinations"
-        },
-        "defaultMode": {
-            "type": "string",
-            "description": "The mode to use when this dimension is not specified in a combination"
-        },
-        "modes": {
-            "type": "array",
-            "description": "Available modes for this dimension",
-            "minItems": 1,
-            "items": {
-            "type": "object",
-            "required": ["id", "name", "dimensionId"],
-            "properties": {
-                "id": {
-                "type": "string",
-                "description": "Unique identifier for the mode",
-                "pattern": "^[a-zA-Z0-9-_]+$"
-                },
-                "name": { 
-                "type": "string",
-                "description": "Display name for the mode" 
-                },
-                "description": { 
-                "type": "string",
-                "description": "Detailed description of the mode" 
-                },
-                "dimensionId": {
-                "type": "string",
-                "description": "Reference to the parent dimension",
-                "pattern": "^[a-zA-Z0-9-_]+$"
+          "type": "object",
+          "required": ["id", "displayName", "modes", "required", "defaultMode"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for the dimension",
+              "pattern": "^[a-zA-Z0-9-_]+$"
+            },
+            "displayName": { 
+              "type": "string",
+              "description": "Human-readable name for the dimension" 
+            },
+            "description": { 
+              "type": "string",
+              "description": "Detailed description of the dimension" 
+            },
+            "required": {
+              "type": "boolean",
+              "description": "Whether this dimension must always be specified in mode combinations"
+            },
+            "defaultMode": {
+              "type": "string",
+              "description": "The mode to use when this dimension is not specified in a combination"
+            },
+            "modes": {
+              "type": "array",
+              "description": "Available modes for this dimension",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["id", "name", "dimensionId"],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique identifier for the mode",
+                    "pattern": "^[a-zA-Z0-9-_]+$"
+                  },
+                  "name": { 
+                    "type": "string",
+                    "description": "Display name for the mode" 
+                  },
+                  "description": { 
+                    "type": "string",
+                    "description": "Detailed description of the mode" 
+                  },
+                  "dimensionId": {
+                    "type": "string",
+                    "description": "Reference to the parent dimension",
+                    "pattern": "^[a-zA-Z0-9-_]+$"
+                  }
                 }
+              }
             }
-            }
+          }
         }
-        }
-    }
-    },
-    "tokens": {
-    "type": "array",
-    "description": "Design tokens with values that can vary by mode",
-    "items": {
-        "type": "object",
-        "required": ["id", "displayName", "tokenCollectionId", "resolvedValueType", "valuesByMode"],
-        "properties": {
-        "id": {
-            "type": "string",
-            "description": "Unique identifier for the token",
-            "pattern": "^[a-zA-Z0-9-_]+$"
-        },
-        "displayName": { 
-            "type": "string",
-            "description": "Human-readable name for the token" 
-        },
-        "description": { 
-            "type": "string",
-            "description": "Detailed description of the token" 
-        },
-        "tokenCollectionId": {
-            "type": "string",
-            "description": "Reference to the parent token collection",
-            "pattern": "^[a-zA-Z0-9-_]+$"
-        },
-        "resolvedValueType": {
-            "type": "string",
-            "description": "Type of value this token resolves to",
-            "enum": [
-            "COLOR", 
-            "DIMENSION", 
-            "FONT_FAMILY", 
-            "FONT_WEIGHT", 
-            "DURATION", 
-            "CUBIC_BEZIER", 
-            "BORDER", 
-            "SHADOW", 
-            "OPACITY", 
-            "NUMBER",
-            "TYPOGRAPHY"
-            ]
-        },
-        "private": {
-            "type": "boolean",
-            "description": "Whether this token is for internal use only",
-            "default": false
-        },
-        "status": {
-            "type": "string",
-            "description": "Lifecycle status of this token",
-            "enum": ["experimental", "stable", "deprecated"]
-        },
-        "themeable": {
-            "type": "boolean",
-            "description": "Whether this token can be overridden by a theme",
-            "default": false
-        },
-        "taxonomies": {
-            "type": "array",
-            "description": "Categorical classification of the token. Each entry must reference a taxonomy and a term from the top-level taxonomies array.",
-            "items": {
+      },
+      "tokens": {
+        "type": "array",
+        "description": "Design tokens with values that can vary by mode",
+        "items": {
+          "type": "object",
+          "required": ["id", "displayName", "tokenCollectionId", "resolvedValueType", "valuesByMode"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for the token",
+              "pattern": "^[a-zA-Z0-9-_]+$"
+            },
+            "displayName": { 
+              "type": "string",
+              "description": "Human-readable name for the token" 
+            },
+            "description": { 
+              "type": "string",
+              "description": "Detailed description of the token" 
+            },
+            "tokenCollectionId": {
+              "type": "string",
+              "description": "Reference to the parent token collection",
+              "pattern": "^[a-zA-Z0-9-_]+$"
+            },
+            "resolvedValueType": {
+              "type": "string",
+              "description": "Type of value this token resolves to",
+              "enum": [
+                "COLOR", 
+                "DIMENSION", 
+                "FONT_FAMILY", 
+                "FONT_WEIGHT", 
+                "DURATION", 
+                "CUBIC_BEZIER", 
+                "BORDER", 
+                "SHADOW", 
+                "OPACITY", 
+                "NUMBER",
+                "TYPOGRAPHY"
+              ]
+            },
+            "private": {
+              "type": "boolean",
+              "description": "Whether this token is for internal use only",
+              "default": false
+            },
+            "status": {
+              "type": "string",
+              "description": "Lifecycle status of this token",
+              "enum": ["experimental", "stable", "deprecated"]
+            },
+            "themeable": {
+              "type": "boolean",
+              "description": "Whether this token can be overridden by a theme",
+              "default": false
+            },
+            "taxonomies": {
+              "type": "array",
+              "description": "Categorical classification of the token. Each entry must reference a taxonomy and a term from the top-level taxonomies array.",
+              "items": {
                 "type": "object",
                 "required": ["taxonomyId", "termId"],
                 "properties": {
-                    "taxonomyId": {
-                        "type": "string",
-                        "description": "ID of the taxonomy (must match a taxonomy in the top-level taxonomies array)"
-                    },
-                    "termId": {
-                        "type": "string",
-                        "description": "ID of the term (must match a term in the referenced taxonomy)"
-                    }
-                }
-            }
-        },
-        "propertyTypes": {
-            "type": "array",
-            "description": "CSS or platform properties this token can be applied to",
-            "items": { "type": "string" }
-        },
-        "codeSyntax": {
-            "type": "object",
-            "description": "Platform-specific naming conventions",
-            "additionalProperties": { "type": "string" },
-            "properties": {
-            "Figma": {
-                "type": "string",
-                "description": "Figma-specific naming convention"
-            },
-            "Web": {
-                "type": "string",
-                "description": "Web-specific naming convention"
-            },
-            "iOS": {
-                "type": "string",
-                "description": "iOS-specific naming convention"
-            },
-            "Android": {
-                "type": "string",
-                "description": "Android-specific naming convention"
-            }
-            },
-            "patternProperties": {
-            "^[a-zA-Z0-9-_]+$": {
-                "type": "string",
-                "description": "Custom platform-specific naming convention"
-            }
-            }
-        },
-        "valuesByMode": {
-            "type": "array",
-            "description": "Values for this token in different mode combinations",
-            "minItems": 1,
-            "items": {
-            "type": "object",
-            "required": ["modeIds", "value"],
-            "properties": {
-                "modeIds": {
-                "type": "array",
-                "items": { "type": "string" },
-                "description": "The mode(s) this value applies to"
-                },
-                "value": {
-                "oneOf": [
-                    {
-                    "type": "object",
-                    "required": ["type", "value"],
-                    "properties": {
-                        "type": { "type": "string" },
-                        "value": {}
-                    }
-                    },
-                    {
-                    "type": "object",
-                    "required": ["type", "tokenId"],
-                    "properties": {
-                        "type": { "const": "ALIAS" },
-                        "tokenId": { "type": "string" }
-                    }
-                    }
-                ]
-                },
-                "platformOverrides": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "required": ["platformId", "value"],
-                    "properties": {
-                    "platformId": { "type": "string" },
-                    "value": { "type": "string" },
-                    "metadata": { "type": "object" }
-                    }
-                }
-                },
-                "metadata": { "type": "object" }
-            }
-            },
-            "allOf": [
-            {
-                "if": {
-                "contains": {
-                    "type": "object",
-                    "properties": { "modeIds": { "type": "array", "maxItems": 0 } },
-                    "required": ["modeIds"]
-                }
-                },
-                "then": { "minItems": 1, "maxItems": 1 },
-                "else": {
-                "not": {
-                    "contains": {
-                    "type": "object",
-                    "properties": { "modeIds": { "type": "array", "maxItems": 0 } },
-                    "required": ["modeIds"]
-                    }
-                }
-                }
-            }
-            ]
-        },
-        "constraints": {
-            "type": "array",
-            "description": "Constraints that must be satisfied by this token's value or aliases",
-            "items": {
-            "type": "object",
-            "required": ["type", "rule"],
-            "properties": {
-                "type": { "type": "string", "enum": ["contrast"] },
-                "rule": {
-                "type": "object",
-                "required": ["minimum", "comparator"],
-                "properties": {
-                    "minimum": { "type": "number" },
-                    "comparator": {
-                    "type": "object",
-                    "required": ["type", "value"],
-                    "properties": {
-                        "type": { "type": "string", "enum": ["COLOR"] },
-                        "value": { "type": "string" },
-                        "method": {
-                        "type": "string",
-                        "enum": ["WCAG21", "APCA", "Lstar"],
-                        "description": "Contrast calculation method: WCAG21 (WCAG 2.1), APCA, or Lstar (Lightness)"
-                        }
-                    }
-                    }
-                }
-                }
-            }
-            }
-        }
-        }
-    }
-    },
-    "extensions": {
-    "type": "object",
-    "description": "Extensions to the core token model",
-    "properties": {
-        "tokenGroups": {
-        "type": "array",
-        "description": "Groups of tokens for organizational purposes",
-        "items": {
-            "type": "object",
-            "required": ["id", "name", "tokenIds"],
-            "properties": {
-            "id": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9-_]+$"
-            },
-            "name": { "type": "string" },
-            "description": { "type": "string" },
-            "tokenIds": {
-                "type": "array",
-                "items": {
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9-_]+$"
-                }
-            }
-            }
-        }
-        },
-        "tokenVariants": {
-        "type": "object",
-        "description": "Variant generation rules for tokens",
-        "additionalProperties": {
-            "type": "object",
-            "additionalProperties": {
-            "type": "object",
-            "properties": {
-                "transform": {
-                "type": "object",
-                "required": ["type"],
-                "properties": {
-                    "type": { 
+                  "taxonomyId": {
                     "type": "string",
-                    "enum": [
-                        "lighten",
-                        "darken",
-                        "alpha",
-                        "scale",
-                        "add",
-                        "multiply"
+                    "description": "ID of the taxonomy (must match a taxonomy in the top-level taxonomies array)"
+                  },
+                  "termId": {
+                    "type": "string",
+                    "description": "ID of the term (must match a term in the referenced taxonomy)"
+                  }
+                }
+              }
+            },
+            "propertyTypes": {
+              "type": "array",
+              "description": "CSS or platform properties this token can be applied to",
+              "items": { "type": "string" }
+            },
+            "codeSyntax": {
+              "type": "object",
+              "description": "Platform-specific naming conventions",
+              "additionalProperties": { "type": "string" },
+              "properties": {
+                "Figma": {
+                  "type": "string",
+                  "description": "Figma-specific naming convention"
+                },
+                "Web": {
+                  "type": "string",
+                  "description": "Web-specific naming convention"
+                },
+                "iOS": {
+                  "type": "string",
+                  "description": "iOS-specific naming convention"
+                },
+                "Android": {
+                  "type": "string",
+                  "description": "Android-specific naming convention"
+                }
+              },
+              "patternProperties": {
+                "^[a-zA-Z0-9-_]+$": {
+                  "type": "string",
+                  "description": "Custom platform-specific naming convention"
+                }
+              }
+            },
+            "valuesByMode": {
+              "type": "array",
+              "description": "Values for this token in different mode combinations",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["modeIds", "value"],
+                "properties": {
+                  "modeIds": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "The mode(s) this value applies to"
+                  },
+                  "value": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "required": ["type", "value"],
+                        "properties": {
+                          "type": { "type": "string" },
+                          "value": {}
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "required": ["type", "tokenId"],
+                        "properties": {
+                          "type": { "const": "ALIAS" },
+                          "tokenId": { "type": "string" }
+                        }
+                      }
                     ]
-                    },
-                    "amount": { "type": "number" }
+                  },
+                  "platformOverrides": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["platformId", "value"],
+                      "properties": {
+                        "platformId": { "type": "string" },
+                        "value": { "type": "string" },
+                        "metadata": { "type": "object" }
+                      }
+                    }
+                  },
+                  "metadata": { "type": "object" }
                 }
+              },
+              "allOf": [
+                {
+                  "if": {
+                    "contains": {
+                      "type": "object",
+                      "properties": { "modeIds": { "type": "array", "maxItems": 0 } },
+                      "required": ["modeIds"]
+                    }
+                  },
+                  "then": { "minItems": 1, "maxItems": 1 },
+                  "else": {
+                    "not": {
+                      "contains": {
+                        "type": "object",
+                        "properties": { "modeIds": { "type": "array", "maxItems": 0 } },
+                        "required": ["modeIds"]
+                      }
+                    }
+                  }
                 }
+              ]
+            },
+            "constraints": {
+              "type": "array",
+              "description": "Constraints that must be satisfied by this token's value or aliases",
+              "items": {
+                "type": "object",
+                "required": ["type", "rule"],
+                "properties": {
+                  "type": { "type": "string", "enum": ["contrast"] },
+                  "rule": {
+                    "type": "object",
+                    "required": ["minimum", "comparator"],
+                    "properties": {
+                      "minimum": { "type": "number" },
+                      "comparator": {
+                        "type": "object",
+                        "required": ["type", "value"],
+                        "properties": {
+                          "type": { "type": "string", "enum": ["COLOR"] },
+                          "value": { "type": "string" },
+                          "method": {
+                            "type": "string",
+                            "enum": ["WCAG21", "APCA", "Lstar"],
+                            "description": "Contrast calculation method: WCAG21 (WCAG 2.1), APCA, or Lstar (Lightness)"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
+          }
+        }
+      },
+      "extensions": {
+        "type": "object",
+        "description": "Extensions to the core token model",
+        "properties": {
+          "tokenGroups": {
+            "type": "array",
+            "description": "Groups of tokens for organizational purposes",
+            "items": {
+              "type": "object",
+              "required": ["id", "name", "tokenIds"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9-_]+$"
+                },
+                "name": { "type": "string" },
+                "description": { "type": "string" },
+                "tokenIds": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9-_]+$"
+                  }
+                }
+              }
             }
+          },
+          "tokenVariants": {
+            "type": "object",
+            "description": "Variant generation rules for tokens",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "transform": {
+                    "type": "object",
+                    "required": ["type"],
+                    "properties": {
+                      "type": { 
+                        "type": "string",
+                        "enum": [
+                          "lighten",
+                          "darken",
+                          "alpha",
+                          "scale",
+                          "add",
+                          "multiply"
+                        ]
+                      },
+                      "amount": { "type": "number" }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
-        }
-    }
-    },
-    "themes": {
+      },
+      "themes": {
         "type": "array",
         "description": "Themes that can override token values across the entire dataset",
         "minItems": 1,
         "items": {
-            "type": "object",
-            "required": ["id", "displayName", "isDefault"],
-            "properties": {
+          "type": "object",
+          "required": ["id", "displayName", "isDefault"],
+          "properties": {
             "id": {
-                "type": "string",
-                "description": "Unique identifier for the theme",
-                "pattern": "^[a-zA-Z0-9-_]+$"
+              "type": "string",
+              "description": "Unique identifier for the theme",
+              "pattern": "^[a-zA-Z0-9-_]+$"
             },
             "displayName": {
-                "type": "string",
-                "description": "Human-readable name for the theme"
+              "type": "string",
+              "description": "Human-readable name for the theme"
             },
             "description": {
-                "type": "string",
-                "description": "Detailed description of the theme"
+              "type": "string",
+              "description": "Detailed description of the theme"
             },
             "isDefault": {
-                "type": "boolean",
-                "description": "Whether this is the default theme. Exactly one theme must be marked as default."
+              "type": "boolean",
+              "description": "Whether this is the default theme. Exactly one theme must be marked as default."
             }
-            }
+          }
         }
-        },
-        "themeOverrides": {
+      },
+      "themeOverrides": {
         "type": "object",
         "description": "Overrides for each theme, mapping theme IDs to arrays of token overrides.",
         "additionalProperties": {
-            "type": "array",
-            "items": {
+          "type": "array",
+          "items": {
             "type": "object",
             "required": ["tokenId", "value"],
             "properties": {
-                "tokenId": {
+              "tokenId": {
                 "type": "string",
                 "description": "ID of the token to override",
                 "pattern": "^[a-zA-Z0-9-_]+$"
-                },
-                "value": {
+              },
+              "value": {
                 "type": "object",
                 "description": "The override value for the token",
                 "required": ["type", "value"],
                 "properties": {
-                    "type": {
+                  "type": {
                     "type": "string",
                     "enum": ["COLOR", "FLOAT", "INTEGER", "STRING", "BOOLEAN", "ALIAS"]
-                    },
-                    "value": {
+                  },
+                  "value": {
                     "oneOf": [
-                        { "type": "string" },
-                        { "type": "number" },
-                        { "type": "boolean" }
+                      { "type": "string" },
+                      { "type": "number" },
+                      { "type": "boolean" }
                     ]
-                    },
-                    "tokenId": {
+                  },
+                  "tokenId": {
                     "type": "string",
                     "description": "ID of the token to alias to (only used when type is ALIAS)",
                     "pattern": "^[a-zA-Z0-9-_]+$"
-                    }
+                  }
                 }
-                },
-                "platformOverrides": {
+              },
+              "platformOverrides": {
                 "type": "array",
                 "description": "Platform-specific overrides for this token in this theme",
                 "items": {
-                    "type": "object",
-                    "required": ["platformId", "value"],
-                    "properties": {
+                  "type": "object",
+                  "required": ["platformId", "value"],
+                  "properties": {
                     "platformId": {
-                        "type": "string",
-                        "description": "ID of the platform this override applies to"
+                      "type": "string",
+                      "description": "ID of the platform this override applies to"
                     },
                     "value": {
-                        "type": "object",
-                        "required": ["type", "value"],
-                        "properties": {
+                      "type": "object",
+                      "required": ["type", "value"],
+                      "properties": {
                         "type": {
-                            "type": "string",
-                            "enum": ["COLOR", "FLOAT", "INTEGER", "STRING", "BOOLEAN", "ALIAS"]
+                          "type": "string",
+                          "enum": ["COLOR", "FLOAT", "INTEGER", "STRING", "BOOLEAN", "ALIAS"]
                         },
                         "value": {
-                            "oneOf": [
+                          "oneOf": [
                             { "type": "string" },
                             { "type": "number" },
                             { "type": "boolean" }
-                            ]
+                          ]
                         },
                         "tokenId": {
-                            "type": "string",
-                            "description": "ID of the token to alias to (only used when type is ALIAS)",
-                            "pattern": "^[a-zA-Z0-9-_]+$"
+                          "type": "string",
+                          "description": "ID of the token to alias to (only used when type is ALIAS)",
+                          "pattern": "^[a-zA-Z0-9-_]+$"
                         }
-                        }
+                      }
                     }
-                    }
+                  }
                 }
-                }
+              }
             }
-            }
+          }
         }
-    }, 
+      },
+      "taxonomies": {
+        "type": "array",
+        "description": "List of taxonomies for organizing tokens or other entities.",
+        "items": {
+          "type": "object",
+          "required": ["id", "name", "description", "terms"],
+          "properties": {
+            "id": { "type": "string", "description": "Unique identifier for the taxonomy." },
+            "name": { "type": "string", "description": "Human-readable name for the taxonomy." },
+            "description": { "type": "string", "description": "Description of the taxonomy." },
+            "terms": {
+              "type": "array",
+              "description": "Terms within this taxonomy.",
+              "items": {
+                "type": "object",
+                "required": ["id", "name", "description"],
+                "properties": {
+                  "id": { "type": "string", "description": "Unique identifier for the term." },
+                  "name": { "type": "string", "description": "Human-readable name for the term." },
+                  "description": { "type": "string", "description": "Description of the term.", "optional": true }
+                }
+              }
+            }
+          }
+        }
+      },
+      "namingRules": {
+        "type": "object",
+        "description": "Rules for generating code syntax and naming conventions for tokens.",
+        "properties": {
+          "taxonomyOrder": {
+            "type": "array",
+            "description": "Order of taxonomy IDs to use when generating codeSyntax strings. Determines which taxonomy's term comes first, second, etc.",
+            "items": { "type": "string" }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "additionalProperties": false,
     "definitions": {
       "colorValue": {
@@ -762,32 +812,6 @@
             "pattern": "^[0-9]+(\\.[0-9]+)?(px|rem) (solid|dashed|dotted|double|groove|ridge|inset|outset|none) (#[A-Fa-f0-9]{6}|rgba?\\([0-9]+, ?[0-9]+, ?[0-9]+(, ?[0-9]+(\\.[0-9]+)?)?\\))$"
           }
         ]
-      }
-    },
-    "taxonomies": {
-      "type": "array",
-      "description": "List of taxonomies for organizing tokens or other entities.",
-      "items": {
-        "type": "object",
-        "required": ["id", "name", "description", "terms"],
-        "properties": {
-          "id": { "type": "string", "description": "Unique identifier for the taxonomy." },
-          "name": { "type": "string", "description": "Human-readable name for the taxonomy." },
-          "description": { "type": "string", "description": "Description of the taxonomy." },
-          "terms": {
-            "type": "array",
-            "description": "Terms within this taxonomy.",
-            "items": {
-              "type": "object",
-              "required": ["id", "name", "description"],
-              "properties": {
-                "id": { "type": "string", "description": "Unique identifier for the term." },
-                "name": { "type": "string", "description": "Human-readable name for the term." },
-                "description": { "type": "string", "description": "Description of the term.", "optional": true }
-              }
-            }
-          }
-        }
       }
     }
   }

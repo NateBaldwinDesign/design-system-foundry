@@ -40,3 +40,4 @@ The web app is primarily built as a method of validating the schema with example
 - Leverage pre-existing components
 - Only build custom components when necessary
 - For any color or contrast related functions, use functions that are available in Colorjs.io node package from npm. Do not create custom color functions.
+- Dialog workflows should never change stored data until the "save" or "apply" button is selected by the user. These should not be real-time, but instead should allow for performant changes in values within the dialog prior to applying them to the data once the user has determined they want the changes to occur.

@@ -27,6 +27,7 @@ import { SettingsThemesTab } from './SettingsThemesTab';
 import { SettingsCollectionsTab } from './SettingsCollectionsTab';
 import { SettingsValueTypesTab } from './SettingsValueTypesTab';
 import { SettingsTaxonomiesTab } from './SettingsTaxonomiesTab';
+import { SettingsPlatformsTab } from '../../components/SettingsPlatformsTab';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -149,6 +150,7 @@ export function SettingsWorkflow({
           <Tab label="Value Types" />
           <Tab label="Themes" />
           <Tab label="Taxonomies" />
+          <Tab label="Platforms" />
         </Tabs>
       </Paper>
 
@@ -185,6 +187,10 @@ export function SettingsWorkflow({
           taxonomies={taxonomies} 
           setTaxonomies={setTaxonomies}
         />
+      </TabPanel>
+
+      <TabPanel value={activeTab} index={6}>
+        <SettingsPlatformsTab />
       </TabPanel>
     </Box>
   );
