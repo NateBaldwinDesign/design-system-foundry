@@ -9,7 +9,7 @@ import {
   Button,
   CircularProgress
 } from '@mui/material';
-import { TokenCollection, Mode, Token, Dimension, Platform } from '@token-model/data-model';
+import { TokenCollection, Mode, Token, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { TokenForm } from './components/TokenForm';
 import { TokenList } from './components/TokenList';
 import { CollectionsWorkflow } from './components/CollectionsWorkflow';
@@ -59,20 +59,22 @@ function App() {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [themes, setThemes] = useState<any[]>([]);
+  const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [loadedCollections, loadedModes, loadedDimensions, loadedValueTypes, loadedTokens, loadedPlatforms, loadedThemes] = await Promise.all([
+        const [loadedCollections, loadedModes, loadedDimensions, loadedValueTypes, loadedTokens, loadedPlatforms, loadedThemes, loadedTaxonomies] = await Promise.all([
           StorageService.getCollections(),
           StorageService.getModes(),
           StorageService.getDimensions(),
           StorageService.getValueTypes(),
           StorageService.getTokens(),
           StorageService.getPlatforms(),
-          StorageService.getThemes()
+          StorageService.getThemes(),
+          StorageService.getTaxonomies()
         ]);
 
         setCollections(loadedCollections);
@@ -82,6 +84,7 @@ function App() {
         setTokens(loadedTokens);
         setPlatforms(loadedPlatforms);
         setThemes(loadedThemes);
+        setTaxonomies(loadedTaxonomies);
       } catch (error) {
         console.error('Failed to load data:', error);
       } finally {
@@ -174,6 +177,7 @@ function App() {
               setTokens(newTokens);
               StorageService.setTokens(newTokens);
             }}
+            taxonomies={taxonomies}
           />
         </Box>
 
@@ -187,6 +191,7 @@ function App() {
               dimensions={dimensions}
               tokens={tokens}
               onSubmit={handleCreateToken}
+              taxonomies={taxonomies}
             />
           </DialogContent>
           <DialogActions>
@@ -213,6 +218,11 @@ function App() {
             StorageService.setModes(newModes);
           }}
           themes={themes}
+          taxonomies={taxonomies}
+          setTaxonomies={(newTaxonomies) => {
+            setTaxonomies(newTaxonomies);
+            StorageService.setTaxonomies(newTaxonomies);
+          }}
         />
       </TabPanel>
 

@@ -17,35 +17,57 @@ import {
   FormHelperText
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import type { Token, TokenCollection, Mode, TokenValue, Dimension } from '@token-model/data-model';
+import type { Token, TokenCollection, Mode, TokenValue, Dimension, Taxonomy, TokenTaxonomyRef } from '@token-model/data-model';
+import { TaxonomyPicker } from './TaxonomyPicker';
 
 interface TokenFormProps {
   collections: TokenCollection[];
   modes: Mode[];
   dimensions: Dimension[];
   tokens: Token[];
+  taxonomies: Taxonomy[];
   onSubmit: (token: Omit<Token, 'id'>) => void;
   initialData?: Token;
 }
 
-export function TokenForm({ collections, modes, dimensions, tokens, onSubmit, initialData }: TokenFormProps) {
+export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, onSubmit, initialData }: TokenFormProps) {
+  // Ensure taxonomies is always an array
+  const safeTaxonomies = Array.isArray(taxonomies) ? taxonomies : [];
   const [formData, setFormData] = useState<Omit<Token, 'id'>>({
     displayName: '',
     description: '',
     tokenCollectionId: '',
     resolvedValueType: 'COLOR',
     private: false,
-    taxonomies: {},
+    themeable: false,
+    taxonomies: [] as TokenTaxonomyRef[],
     propertyTypes: ['ALL_PROPERTY_TYPES'],
     codeSyntax: {},
     valuesByMode: []
   });
 
+  // Initialize form data from initialData if provided
   useEffect(() => {
     if (initialData) {
-      setFormData(initialData);
+      setFormData({
+        ...initialData,
+        taxonomies: Array.isArray(initialData.taxonomies)
+          ? (initialData.taxonomies as TokenTaxonomyRef[])
+          : []
+      });
     }
   }, [initialData]);
+
+  // Clean up invalid taxonomy/term references when taxonomies change
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      taxonomies: (prev.taxonomies || []).filter(ref =>
+        safeTaxonomies.some(tax => tax.id === ref.taxonomyId) &&
+        (ref.termId === '' || safeTaxonomies.find(tax => tax.id === ref.taxonomyId)?.terms.some(term => term.id === ref.termId))
+      )
+    }));
+  }, [safeTaxonomies]);
 
   const handleInputChange = (field: keyof Omit<Token, 'id'>, value: any) => {
     setFormData(prev => ({
@@ -54,13 +76,38 @@ export function TokenForm({ collections, modes, dimensions, tokens, onSubmit, in
     }));
   };
 
-  const handleTaxonomyChange = (key: string, value: string) => {
+  const handleTaxonomyRefChange = (index: number, field: 'taxonomyId' | 'termId', value: string) => {
     setFormData(prev => ({
       ...prev,
-      taxonomies: {
+      taxonomies: prev.taxonomies.map((ref: TokenTaxonomyRef, i: number) =>
+        i === index
+          ? field === 'taxonomyId'
+            ? { taxonomyId: value, termId: '' } // Reset termId if taxonomy changes
+            : { ...ref, termId: value }
+          : ref
+      )
+    }));
+  };
+
+  const handleAddTaxonomyRef = () => {
+    // Only allow adding taxonomies that haven't been selected yet
+    const availableTaxonomies = safeTaxonomies.filter(tax =>
+      !formData.taxonomies.some(ref => ref.taxonomyId === tax.id)
+    );
+    if (availableTaxonomies.length === 0) return;
+    setFormData(prev => ({
+      ...prev,
+      taxonomies: [
         ...prev.taxonomies,
-        [key]: value
-      }
+        { taxonomyId: '', termId: '' } as TokenTaxonomyRef
+      ]
+    }));
+  };
+
+  const handleRemoveTaxonomyRef = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      taxonomies: prev.taxonomies.filter((_, i) => i !== index)
     }));
   };
 
@@ -124,7 +171,12 @@ export function TokenForm({ collections, modes, dimensions, tokens, onSubmit, in
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Validate taxonomy assignments before submitting
+    const validTaxonomies = formData.taxonomies.filter(ref =>
+      safeTaxonomies.some(tax => tax.id === ref.taxonomyId) &&
+      (ref.termId === '' || safeTaxonomies.find(tax => tax.id === ref.taxonomyId)?.terms.some(term => term.id === ref.termId))
+    );
+    onSubmit({ ...formData, taxonomies: validTaxonomies });
   };
 
   const getValueInput = (value: TokenValue, onChange: (value: TokenValue) => void) => {
@@ -167,31 +219,27 @@ export function TokenForm({ collections, modes, dimensions, tokens, onSubmit, in
         );
       case 'BOOLEAN':
         return (
-          <FormControl>
-            <InputLabel>Boolean Value</InputLabel>
-            <Select
-              value={value.value ? 'true' : 'false'}
-              label="Boolean Value"
-              onChange={(e) => onChange({ type: 'BOOLEAN', value: e.target.value === 'true' })}
-            >
-              <MenuItem value="true">True</MenuItem>
-              <MenuItem value="false">False</MenuItem>
-            </Select>
-          </FormControl>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={value.value}
+                onChange={(e) => onChange({ type: 'BOOLEAN', value: e.target.checked })}
+              />
+            }
+            label="Boolean Value"
+          />
         );
       case 'ALIAS':
         return (
-          <FormControl>
-            <InputLabel>Token Reference</InputLabel>
+          <FormControl fullWidth>
+            <InputLabel>Alias Token</InputLabel>
             <Select
               value={value.tokenId}
-              label="Token Reference"
+              label="Alias Token"
               onChange={(e) => onChange({ type: 'ALIAS', tokenId: e.target.value })}
             >
               {tokens.map(token => (
-                <MenuItem key={token.id} value={token.id}>
-                  {token.displayName}
-                </MenuItem>
+                <MenuItem key={token.id} value={token.id}>{token.displayName}</MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -297,43 +345,15 @@ export function TokenForm({ collections, modes, dimensions, tokens, onSubmit, in
           <Typography variant="h6" gutterBottom>
             Taxonomies
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {Object.entries(formData.taxonomies).map(([key, value]) => (
-              <Box key={key} sx={{ display: 'flex', gap: 2 }}>
-                <TextField
-                  label="Key"
-                  value={key}
-                  onChange={(e) => {
-                    const newKey = e.target.value;
-                    const newTaxonomies = { ...formData.taxonomies };
-                    delete newTaxonomies[key];
-                    newTaxonomies[newKey] = value;
-                    handleInputChange('taxonomies', newTaxonomies);
-                  }}
-                />
-                <TextField
-                  label="Value"
-                  value={value}
-                  onChange={(e) => handleTaxonomyChange(key, e.target.value)}
-                />
-                <IconButton
-                  onClick={() => {
-                    const newTaxonomies = { ...formData.taxonomies };
-                    delete newTaxonomies[key];
-                    handleInputChange('taxonomies', newTaxonomies);
-                  }}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
-            ))}
-            <Button
-              startIcon={<AddIcon />}
-              onClick={() => handleTaxonomyChange('', '')}
-            >
-              Add Taxonomy
-            </Button>
-          </Box>
+          <FormHelperText sx={{ mb: 2 }}>
+            Select taxonomies and terms to categorize this token. Each taxonomy can only be selected once.
+          </FormHelperText>
+          <TaxonomyPicker
+            taxonomies={safeTaxonomies}
+            value={formData.taxonomies}
+            onChange={newTaxonomies => setFormData(prev => ({ ...prev, taxonomies: newTaxonomies }))}
+            disabled={safeTaxonomies.length === 0}
+          />
         </Grid>
 
         <Grid item xs={12}>

@@ -62,6 +62,8 @@ interface SettingsWorkflowProps {
   modes: Mode[];
   setModes: (modes: Mode[]) => void;
   themes: any[];
+  taxonomies: Taxonomy[];
+  setTaxonomies: (taxonomies: Taxonomy[]) => void;
 }
 
 export function SettingsWorkflow({ 
@@ -71,7 +73,9 @@ export function SettingsWorkflow({
   setDimensions,
   modes,
   setModes,
-  themes
+  themes,
+  taxonomies,
+  setTaxonomies
 }: SettingsWorkflowProps) {
   const [activeTab, setActiveTab] = useState(0);
   const [newCollection, setNewCollection] = useState<Partial<TokenCollection>>({
@@ -87,16 +91,10 @@ export function SettingsWorkflow({
   const [editTheme, setEditTheme] = useState<any | null>(null);
   const [editThemeFields, setEditThemeFields] = useState<any | null>(null);
   const [themeList, setThemeList] = useState<any[]>(themes);
-  const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
 
   useEffect(() => {
     setThemeList(themes);
   }, [themes]);
-
-  useEffect(() => {
-    const loadedTaxonomies = StorageService.getTaxonomies();
-    setTaxonomies(loadedTaxonomies);
-  }, []);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -185,10 +183,7 @@ export function SettingsWorkflow({
       <TabPanel value={activeTab} index={5}>
         <SettingsTaxonomiesTab 
           taxonomies={taxonomies} 
-          setTaxonomies={(newTaxonomies) => {
-            setTaxonomies(newTaxonomies);
-            StorageService.setTaxonomies(newTaxonomies);
-          }} 
+          setTaxonomies={setTaxonomies}
         />
       </TabPanel>
     </Box>

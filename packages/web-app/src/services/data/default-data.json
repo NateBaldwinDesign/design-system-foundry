@@ -63,7 +63,7 @@
         },
         {
           "id": "termId-0000-0000-0001",
-          "name": "Red"
+          "name": "Black"
         }
       ]
     },
@@ -86,6 +86,33 @@
     },
     {
       "id": "taxonomyId-2222-2222-2222",
+      "name": "Prominence",
+      "description": "Visual prominence of an element",
+      "terms": [
+        {
+          "id": "termId-1111-1111-1111",
+          "name": "Accent",
+          "description": "Highest prominence as an accent"
+        },
+        {
+          "id": "termId-1111-1111-1112",
+          "name": "Primary",
+          "description": "Highest prominence"
+        },
+        {
+          "id": "termId-1111-1111-1113",
+          "name": "Secondary",
+          "description": "Medium prominence"
+        },
+        {
+          "id": "termId-1111-1111-1114",
+          "name": "Tertiary",
+          "description": "Lowest prominence"
+        }
+      ]
+    },
+    {
+      "id": "taxonomyId-3333-3333-3333",
       "name": "Position",
       "description": "Scale of numbers for relative positions",
       "terms": [
@@ -124,7 +151,12 @@
       "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueType": "COLOR",
       "private": false,
-      "taxonomies": { "concept": "Black" },
+      "taxonomies": [
+        { 
+          "taxonomyId": "taxonomyId-0000-0000-0000",
+          "termId": "termId-0000-0000-0001"
+        }
+      ],
       "propertyTypes": ["ALL_PROPERTY_TYPES"],
       "codeSyntax": {
         "Figma": "Black",
@@ -143,7 +175,16 @@
       "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueType": "COLOR",
       "private": false,
-      "taxonomies": { "concept": "Blue", "position": "500" },
+      "taxonomies": [
+        { 
+          "taxonomyId": "taxonomyId-0000-0000-0000",
+          "termId": "termId-0000-0000-0000"
+        },
+        { 
+          "taxonomyId": "taxonomyId-3333-3333-3333",
+          "termId": "termId-2222-2222-2227"
+        }
+      ],
       "propertyTypes": ["ALL_PROPERTY_TYPES"],
       "codeSyntax": {
         "Figma": "Blue/500",
@@ -186,7 +227,16 @@
       "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueType": "COLOR",
       "private": false,
-      "taxonomies": { "element": "text", "concept": "accent" },
+      "taxonomies": [
+        { 
+          "taxonomyId": "taxonomyId-1111-1111-1111",
+          "termId": "termId-1111-1111-1111"
+        },
+        { 
+          "taxonomyId": "taxonomyId-2222-2222-2222",
+          "termId": "termId-1111-1111-1111"
+        }
+      ],
       "propertyTypes": ["ALL_PROPERTY_TYPES"],
       "codeSyntax": {
         "Figma": "Text/accent",

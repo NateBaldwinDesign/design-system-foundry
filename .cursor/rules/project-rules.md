@@ -8,6 +8,7 @@ The primary purpose of this project is to create and validate a data model / sch
 4. Never introduce new or alternative models, keys, properties, or other objects that could otherwise be leveraged from the schema
 5. Schema.ts should be a direct 1:1 correlate with schema.json, aside from optimizations or conventions natural to typescript
 6. Any deviations of schema.ts from schema.json should not fragment from the specific intent behind schema.json, and should solely be for formatting or functionality purposes
+7. Every prompt should be evaluated for any request or result that could have an effect or dependency on the JSON schema (and typescript schema). These impacts should be included in the response and evaluation of a solution proposed by the agent.
 
 ## Schema development
 The purpose of the schema is to represent a clear and flexible data system. Because of this, the schema itself should:

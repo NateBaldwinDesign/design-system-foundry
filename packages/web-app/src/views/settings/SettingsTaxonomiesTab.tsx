@@ -17,6 +17,7 @@ import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/ico
 import type { Taxonomy, TaxonomyTerm } from '@token-model/data-model';
 import { StorageService } from '../../services/storage';
 import { generateId, ID_PREFIXES } from '../../utils/id';
+import { cleanupTokenTaxonomyReferences } from '../../utils/taxonomy';
 
 interface SettingsTaxonomiesTabProps {
   taxonomies: Taxonomy[];
@@ -67,8 +68,8 @@ export function SettingsTaxonomiesTab({ taxonomies, setTaxonomies }: SettingsTax
 
     // Check for token usage
     const tokens = StorageService.getTokens();
-    const usageCount = tokens.filter(token => 
-      Object.values(token.taxonomies).includes(term.id)
+    const usageCount = tokens.filter(token =>
+      Array.isArray(token.taxonomies) && token.taxonomies.some(ref => ref.termId === term.id)
     ).length;
 
     setDeleteTermDialog({
@@ -92,6 +93,9 @@ export function SettingsTaxonomiesTab({ taxonomies, setTaxonomies }: SettingsTax
 
     setTaxonomies(taxonomies.map(t => t.id === taxonomyId ? updatedTaxonomy : t));
     setDeleteTermDialog({ ...deleteTermDialog, open: false });
+
+    // Clean up invalid taxonomy/term references from all tokens
+    cleanupTokenTaxonomyReferences(taxonomies);
   };
 
   return (
@@ -198,62 +202,31 @@ export function SettingsTaxonomiesTab({ taxonomies, setTaxonomies }: SettingsTax
                     setEditFields({ ...editFields, terms: newTerms });
                   }}
                   size="small"
-                  fullWidth
                 />
-                <IconButton
-                  onClick={() => handleDeleteTerm(editTaxonomy.id, term.id)}
-                  size="small"
-                  color="error"
-                >
-                  <DeleteIcon />
-                </IconButton>
               </Box>
             ))}
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setEditTaxonomy(null)}>Cancel</Button>
-            <Button
-              variant="contained"
-              onClick={() => {
-                setTaxonomies(taxonomies.map(t => t.id === editTaxonomy.id ? editFields : t));
-                setEditTaxonomy(null);
-              }}
-            >
-              Save
-            </Button>
+            <Button onClick={() => {
+              setTaxonomies(taxonomies.map(t => t.id === editFields.id ? editFields : t));
+              setEditTaxonomy(null);
+            }}>Save</Button>
           </DialogActions>
         </Dialog>
       )}
 
-      {/* Delete Term Confirmation Dialog */}
+      {/* Delete Term Dialog */}
       <Dialog open={deleteTermDialog.open} onClose={() => setDeleteTermDialog({ ...deleteTermDialog, open: false })}>
         <DialogTitle>Delete Term</DialogTitle>
         <DialogContent>
-          {deleteTermDialog.usageCount > 0 ? (
-            <Alert severity="warning" sx={{ mb: 2 }}>
-              This term is used in {deleteTermDialog.usageCount} token{deleteTermDialog.usageCount === 1 ? '' : 's'}.
-              Deleting it will require updating those tokens.
-            </Alert>
-          ) : (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              This term is not used in any tokens.
-            </Alert>
-          )}
-          <Typography>
-            Are you sure you want to delete the term "{deleteTermDialog.termName}"?
-          </Typography>
+          <Alert severity="warning">
+            This term is used in {deleteTermDialog.usageCount} tokens. Deleting it will remove these references.
+          </Alert>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteTermDialog({ ...deleteTermDialog, open: false })}>
-            Cancel
-          </Button>
-          <Button
-            onClick={confirmDeleteTerm}
-            color="error"
-            variant="contained"
-          >
-            Delete Anyway
-          </Button>
+          <Button onClick={() => setDeleteTermDialog({ ...deleteTermDialog, open: false })}>Cancel</Button>
+          <Button onClick={confirmDeleteTerm} color="error">Delete</Button>
         </DialogActions>
       </Dialog>
     </>

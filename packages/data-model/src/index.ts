@@ -38,6 +38,8 @@ export {
   BorderValue as BorderValueSchema
 } from './schema';
 
+export { TokenTaxonomyRef } from './schema';
+
 /**
  * Validates that if any entry in valuesByMode has modeIds: [], it must be the only entry in the array.
  * Otherwise, all entries must have modeIds.length > 0.

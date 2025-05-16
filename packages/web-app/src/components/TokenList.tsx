@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -21,13 +21,15 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Tooltip
+  Tooltip,
+  FormHelperText
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform } from '@token-model/data-model';
+import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { ValueByModeTable } from './ValueByModeTable';
 import { PlatformOverridesTable } from './PlatformOverridesTable';
 import { TokenValuePicker } from './TokenValuePicker';
+import { TaxonomyPicker } from './TaxonomyPicker';
 
 // Extend the Token type to include themeable
 type ExtendedToken = Token & { themeable?: boolean };
@@ -40,6 +42,7 @@ interface TokenListProps {
   platforms: Platform[];
   onEdit: (token: ExtendedToken) => void;
   onDelete: (tokenId: string) => void;
+  taxonomies: Taxonomy[];
 }
 
 interface TokenEditorProps {
@@ -51,6 +54,7 @@ interface TokenEditorProps {
   open: boolean;
   onClose: () => void;
   onSave: (token: ExtendedToken) => void;
+  taxonomies: Taxonomy[];
 }
 
 interface ContrastConstraint {
@@ -64,7 +68,7 @@ interface ContrastConstraint {
 
 type Constraint = ContrastConstraint;
 
-function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClose, onSave }: TokenEditorProps) {
+function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies }: TokenEditorProps) {
   const [editedToken, setEditedToken] = useState<ExtendedToken & { constraints?: Constraint[] }>(token);
   const [newTaxonomyKey, setNewTaxonomyKey] = useState('');
   const [newTaxonomyValue, setNewTaxonomyValue] = useState('');
@@ -72,6 +76,16 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
   const [newConstraintMin, setNewConstraintMin] = useState('');
   const [newConstraintComparator, setNewConstraintComparator] = useState('');
   const [newConstraintMethod, setNewConstraintMethod] = useState('WCAG21');
+
+  // Only reset local state when the token or dialog open state changes
+  useEffect(() => {
+    setEditedToken(token);
+  }, [token, open]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(editedToken);
+  };
 
   const handleValueChange = (modeIndex: number, newValue: TokenValue) => {
     setEditedToken(prev => ({
@@ -436,11 +450,16 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
     );
   };
 
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(editedToken);
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>Edit Token: {token.displayName}</DialogTitle>
       <DialogContent>
-        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box component="form" onSubmit={handleSave} sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
           {/* Basic Information */}
           <Box>
             <Typography variant="h6" gutterBottom>
@@ -605,60 +624,15 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
             <Typography variant="h6" gutterBottom>
               Taxonomies
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {Object.entries(editedToken.taxonomies).map(([key, value]) => (
-                <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <TextField
-                    label="Key"
-                    value={key}
-                    onChange={(e) => {
-                      const newTaxonomies = { ...editedToken.taxonomies };
-                      delete newTaxonomies[key];
-                      newTaxonomies[e.target.value] = value;
-                      handleFieldChange('taxonomies', newTaxonomies);
-                    }}
-                    size="small"
-                  />
-                  <TextField
-                    label="Value"
-                    value={value}
-                    onChange={(e) => {
-                      handleFieldChange('taxonomies', {
-                        ...editedToken.taxonomies,
-                        [key]: e.target.value
-                      });
-                    }}
-                    size="small"
-                    fullWidth
-                  />
-                  <IconButton onClick={() => handleRemoveTaxonomy(key)} size="small">
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
-              ))}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <TextField
-                  label="New Key"
-                  value={newTaxonomyKey}
-                  onChange={(e) => setNewTaxonomyKey(e.target.value)}
-                  size="small"
-                />
-                <TextField
-                  label="New Value"
-                  value={newTaxonomyValue}
-                  onChange={(e) => setNewTaxonomyValue(e.target.value)}
-                  size="small"
-                  fullWidth
-                />
-                <Button
-                  variant="outlined"
-                  onClick={handleAddTaxonomy}
-                  disabled={!newTaxonomyKey || !newTaxonomyValue}
-                >
-                  Add
-                </Button>
-              </Box>
-            </Box>
+            <FormHelperText sx={{ mb: 2 }}>
+              Select taxonomies and terms to categorize this token. Each taxonomy can only be selected once.
+            </FormHelperText>
+            <TaxonomyPicker
+              taxonomies={Array.isArray(taxonomies) ? taxonomies : []}
+              value={Array.isArray(editedToken.taxonomies) ? editedToken.taxonomies : []}
+              onChange={newTaxonomies => setEditedToken(prev => ({ ...prev, taxonomies: newTaxonomies }))}
+              disabled={!Array.isArray(taxonomies) || taxonomies.length === 0}
+            />
           </Box>
 
           {/* Values by Mode */}
@@ -721,7 +695,7 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={() => onSave(editedToken)} variant="contained">
+        <Button onClick={handleSave} variant="contained">
           Save Changes
         </Button>
       </DialogActions>
@@ -729,7 +703,7 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
   );
 }
 
-export function TokenList({ tokens, collections, modes, dimensions, platforms, onEdit, onDelete }: TokenListProps) {
+export function TokenList({ tokens, collections, modes, dimensions, platforms, onEdit, onDelete, taxonomies }: TokenListProps) {
   const [editingToken, setEditingToken] = useState<ExtendedToken | null>(null);
 
   // Add console logging to debug props
@@ -889,9 +863,10 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
         <TokenEditor
           token={editingToken}
           tokens={tokens}
-          dimensions={dimensions || []} // Provide empty array as fallback
+          dimensions={dimensions || []}
           modes={modes}
           platforms={platforms}
+          taxonomies={taxonomies}
           open={true}
           onClose={() => setEditingToken(null)}
           onSave={(updatedToken) => {
