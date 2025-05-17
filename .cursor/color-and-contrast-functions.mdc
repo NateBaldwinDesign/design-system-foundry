@@ -1,9 +1,0 @@
----
-description: Color or contrast measurements and manipulation
-globs: 
-alwaysApply: false
----
-summary: All color and contrast calculations must use the Colorjs.io npm package.
-details:
-- Do not implement custom color or contrast functions.
-- Use only Colorjs.io for all color-related logic.

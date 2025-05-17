@@ -1,9 +1,0 @@
----
-description: Dialog workflows, or tasks that will affect a dialog UI
-globs: 
-alwaysApply: false
----
-summary: Dialog workflows must not change stored data until the user explicitly saves or applies changes.
-details:
-- All dialog-based edits must be staged in local state.
-- Only commit changes to storage on explicit user action (save/apply).
