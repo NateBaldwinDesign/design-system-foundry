@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+summary: New features and UI organization must be driven by insights from [schema.json](mdc:token-model/packages/data-model/src/schema.json).
+details:
+- Use [schema.json](mdc:token-model/packages/data-model/src/schema.json) to identify opportunities for new features and UI organization.
+- Favor modularity and reusability by searching for existing components before building new ones.
+- Only build custom components when necessary.

@@ -1,0 +1,12 @@
+---
+description: display names
+globs: 
+alwaysApply: false
+---
+summary: All display names must use the global, up-to-date list of data from stored data, and adhere to the schema.
+details:
+- Always pass the complete, up-to-date list of all modes, dimensions, tokens, or any other data that has a display name property as a prop within a component or via context to any component showing display names.
+- Always look up display names using a list.
+- If an ID is not found when looking up a display name, display a fallback (“Unknown {data type} ({id})”) and log a warning.
+- Never use a filtered, partial, or stale list of data for display.
+- Validate on data load/save that all IDs referenced in values are present in the global list.

@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+summary: All data modeling, validation, and application logic must be based on data-model/src/schema.json as the single source of truth.
+details:
+- All application logic, data models, and UI organization must be derived from [schema.json](mdc:token-model/packages/data-model/src/schema.json)
+- [index.ts](mdc:token-model/packages/data-model/src/index.ts) must be a direct 1:1 correlate with schema.json, except for TypeScript-specific optimizations.
+- No new or alternative models, keys, or properties may be introduced if they are already defined in [schema.json](mdc:token-model/packages/data-model/src/schema.json).
+- Any prompt or code change that could affect or depend on the schema must be evaluated for schema impact, and the impact must be included in the response.

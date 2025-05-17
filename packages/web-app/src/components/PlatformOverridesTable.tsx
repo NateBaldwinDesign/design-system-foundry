@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 import type { Mode, Platform, TokenValue, PlatformOverride, Token } from '@token-model/data-model';
-import { ValueByModeTable } from './ValueByModeTable';
+import { ValueByModeTable, getModeName } from './ValueByModeTable';
 
 interface PlatformOverridesTableProps {
   platforms: Platform[];

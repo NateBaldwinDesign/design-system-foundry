@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+summary: Code must be modular, well-commented, and favor clarity and reusability.
+details:
+- Modularize functions and components for clarity.
+- Use inline comments to assist human comprehension.
+- Favor reusing existing components and patterns.

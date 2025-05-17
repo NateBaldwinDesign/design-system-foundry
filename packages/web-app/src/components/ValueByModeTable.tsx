@@ -3,6 +3,16 @@ import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper
 import type { TokenValue, Mode, Token } from '@token-model/data-model';
 import { TokenValuePicker } from './TokenValuePicker';
 
+// Utility for mode name lookup
+export function getModeName(modeId: string, modes: Mode[]): string {
+  const mode = modes.find(m => m.id === modeId);
+  if (!mode) {
+    console.warn(`Unknown modeId: ${modeId}`);
+    return `Unknown Mode (${modeId})`;
+  }
+  return mode.name;
+}
+
 interface ValueByModeTableProps {
   valuesByMode: any[];
   modes: Mode[];
@@ -16,20 +26,6 @@ interface ValueByModeTableProps {
 }
 
 export function ValueByModeTable({ valuesByMode, modes, editable, onValueChange, getValueEditor, resolvedValueType, tokens, constraints, excludeTokenId }: ValueByModeTableProps) {
-  // Create a memoized map of mode IDs to their names for efficient lookups
-  const modeNameMap = useMemo(() => {
-    return new Map(modes.map(mode => [mode.id, mode.name]));
-  }, [modes]);
-
-  const getModeName = (modeId: string) => {
-    const name = modeNameMap.get(modeId);
-    if (!name) {
-      console.warn(`Mode ID ${modeId} not found in available modes`);
-      return `Unknown Mode (${modeId})`;
-    }
-    return name;
-  };
-
   // Validate that all mode IDs in valuesByMode exist in the modes array
   const invalidModeIds = useMemo(() => {
     const allModeIds = new Set(modes.map(m => m.id));
@@ -50,8 +46,8 @@ export function ValueByModeTable({ valuesByMode, modes, editable, onValueChange,
           .map(vbm => vbm.modeIds[0])
           .filter(id => !!id)
       )
-    ).sort((a, b) => getModeName(a).localeCompare(getModeName(b)));
-  }, [valuesByMode]);
+    ).sort((a, b) => getModeName(a, modes).localeCompare(getModeName(b, modes)));
+  }, [valuesByMode, modes]);
 
   const hasRows = valuesByMode.some(vbm => vbm.modeIds.length > 1);
   const rows = useMemo(() => {
@@ -62,8 +58,8 @@ export function ValueByModeTable({ valuesByMode, modes, editable, onValueChange,
           .map(vbm => vbm.modeIds[1])
           .filter(id => !!id)
       )
-    ).sort((a, b) => getModeName(a).localeCompare(getModeName(b)));
-  }, [valuesByMode, hasRows]);
+    ).sort((a, b) => getModeName(a, modes).localeCompare(getModeName(b, modes)));
+  }, [valuesByMode, hasRows, modes]);
 
   const valueMap = useMemo(() => {
     return new Map(
@@ -82,7 +78,7 @@ export function ValueByModeTable({ valuesByMode, modes, editable, onValueChange,
               <TableCell></TableCell>
               {columns.map(colId => (
                 <TableCell key={`header-${colId}`} align="center">
-                  {getModeName(colId)}
+                  {getModeName(colId, modes)}
                 </TableCell>
               ))}
             </TableRow>
@@ -91,7 +87,7 @@ export function ValueByModeTable({ valuesByMode, modes, editable, onValueChange,
         <TableBody>
           {rows.map(rowId => (
             <TableRow key={`row-${rowId}`}>
-              <TableCell component="th" scope="row">{hasRows ? getModeName(rowId) : ''}</TableCell>
+              <TableCell component="th" scope="row">{hasRows ? getModeName(rowId, modes) : ''}</TableCell>
               {columns.map(colId => {
                 let key;
                 if (hasRows) {

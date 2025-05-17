@@ -102,8 +102,11 @@ function App() {
       ...dim
     }));
 
+    // Construct global modes array from all dimensions
+    const allModes = normalizedDimensions.flatMap((d: any) => d.modes || []);
+
     setCollections((d as any).tokenCollections ?? []);
-    setModes((d as any).modes ?? []);
+    setModes(allModes);
     setDimensions(normalizedDimensions);
     setValueTypes((d as any).valueTypes ?? []);
     setTokens(normalizedTokens);

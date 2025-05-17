@@ -1,0 +1,9 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+summary: [index.ts](mdc:token-model/packages/data-model/src/index.ts) and [schema.json](mdc:token-model/packages/data-model/src/schema.json) must remain synchronized, with any deviations only for TypeScript formatting or functionality.
+details:
+- Any changes to [schema.json](mdc:token-model/packages/data-model/src/schema.json) must be reflected in [index.ts](mdc:token-model/packages/data-model/src/index.ts).
+- Any deviations must not fragment from the intent of [schema.json](mdc:token-model/packages/data-model/src/schema.json).

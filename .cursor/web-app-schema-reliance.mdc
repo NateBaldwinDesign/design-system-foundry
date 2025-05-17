@@ -1,0 +1,9 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+summary: The web app must use the schema for all data organization, relationships, and UI logic.
+detaize data, UI, and features based on schema.json.
+- Build validation for all editable fields using schema constraints.
+- Do not assume data relationships or UI organization unless directly supported by [schema.json](mdc:token-model/packages/data-model/src/schema.json).
