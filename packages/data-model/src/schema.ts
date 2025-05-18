@@ -283,8 +283,34 @@ export const Taxonomy = z.object({
   terms: z.array(TaxonomyTerm)
 });
 
+// Version history types
+export const MigrationStrategy = z.object({
+  emptyModeIds: z.enum(['mapToDefaults', 'preserveEmpty', 'requireExplicit']),
+  preserveOriginalValues: z.boolean()
+});
+
+export const VersionHistoryEntry = z.object({
+  version: z.string(),
+  dimensions: z.array(z.string().regex(/^[a-zA-Z0-9-_]+$/)),
+  date: z.string(),
+  migrationStrategy: MigrationStrategy.optional()
+});
+
+export const DimensionEvolutionRule = z.object({
+  whenAdding: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  mapEmptyModeIdsTo: z.array(z.string().regex(/^[a-zA-Z0-9-_]+$/)),
+  preserveDefaultValues: z.boolean().optional()
+});
+
+export const DimensionEvolution = z.object({
+  rules: z.array(DimensionEvolutionRule)
+});
+
 // Update TokenSystem
 export const TokenSystem = z.object({
+  version: z.string(),
+  versionHistory: z.array(VersionHistoryEntry),
+  dimensionEvolution: DimensionEvolution.optional(),
   dimensions: z.array(Dimension),
   tokenCollections: z.array(TokenCollection),
   tokens: z.array(Token),
@@ -415,4 +441,8 @@ export type ThemeOverrides = z.infer<typeof ThemeOverrides>;
 export type TaxonomyTerm = z.infer<typeof TaxonomyTerm>;
 export type Taxonomy = z.infer<typeof Taxonomy>;
 export type TokenSystem = z.infer<typeof TokenSystem>;
-export type TokenTaxonomyRef = z.infer<typeof TokenTaxonomyRef>; 
+export type TokenTaxonomyRef = z.infer<typeof TokenTaxonomyRef>;
+export type MigrationStrategy = z.infer<typeof MigrationStrategy>;
+export type VersionHistoryEntry = z.infer<typeof VersionHistoryEntry>;
+export type DimensionEvolutionRule = z.infer<typeof DimensionEvolutionRule>;
+export type DimensionEvolution = z.infer<typeof DimensionEvolution>; 

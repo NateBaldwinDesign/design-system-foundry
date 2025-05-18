@@ -24,7 +24,7 @@ import {
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
 import type { Dimension, Mode, DimensionType } from '@token-model/data-model';
-import { generateId, ID_PREFIXES } from '../utils/id';
+import { createUniqueId, generateId, ID_PREFIXES } from '../utils/id';
 
 interface DimensionsWorkflowProps {
   dimensions: Dimension[];
@@ -65,6 +65,11 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
   const [modeDialogOpen, setModeDialogOpen] = useState(false);
   const [modeEditIndex, setModeEditIndex] = useState<number | null>(null);
   const [newModeName, setNewModeName] = useState('');
+  const [migrationStrategyForm, setMigrationStrategyForm] = useState({
+    emptyModeIds: 'mapToDefaults',
+    preserveOriginalValues: true,
+    mapEmptyModeIdsTo: [] as string[],
+  });
 
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
@@ -77,13 +82,23 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
         modes: dim.modes,
         defaultMode: dim.defaultMode || (dim.modes[0]?.id ?? ''),
       });
+      setMigrationStrategyForm({
+        emptyModeIds: 'mapToDefaults',
+        preserveOriginalValues: true,
+        mapEmptyModeIdsTo: [],
+      });
     } else {
       setForm({
-        id: '',
+        id: createUniqueId('dimension'),
         displayName: '',
         description: '',
         modes: [],
         defaultMode: '',
+      });
+      setMigrationStrategyForm({
+        emptyModeIds: 'mapToDefaults',
+        preserveOriginalValues: true,
+        mapEmptyModeIdsTo: [],
       });
     }
     setOpen(true);
@@ -119,6 +134,7 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
     setDimensions(newDims);
     setOpen(false);
     setEditingIndex(null);
+    console.log('Migration Strategy for new dimension:', migrationStrategyForm);
   };
 
   const handleDelete = (index: number) => {
@@ -132,7 +148,7 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
       const m = form.modes[index];
       setModeForm({ id: m.id, name: m.name, description: m.description || '' });
     } else {
-      setModeForm({ id: '', name: '', description: '' });
+      setModeForm({ id: createUniqueId('mode'), name: '', description: '' });
     }
     setModeDialogOpen(true);
   };
@@ -200,6 +216,10 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
     setNewModeName('');
   };
 
+  // Helper: get mode by name
+  const getModeIdByName = (name: string) => form.modes.find(m => m.name === name)?.id || '';
+  const getModeNameById = (id: string) => form.modes.find(m => m.id === id)?.name || id;
+
   return (
     <Box>
       <Typography variant="h5" gutterBottom>Dimensions</Typography>
@@ -234,9 +254,9 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
               <TextField
                 label="ID"
                 value={form.id}
-                onChange={e => handleFormChange('id', e.target.value)}
                 fullWidth
                 required
+                disabled
               />
             </Grid>
             <Grid item xs={12}>
@@ -286,6 +306,60 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
                 Add Mode
               </Button>
             </Grid>
+            {form.modes.length > 0 ? (
+              <Box mt={2}>
+                <Typography variant="subtitle1">Migration Strategy (for versioning)</Typography>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel id="empty-mode-ids-label">Empty modeIds Handling</InputLabel>
+                  <Select
+                    labelId="empty-mode-ids-label"
+                    value={migrationStrategyForm.emptyModeIds}
+                    label="Empty modeIds Handling"
+                    onChange={e => setMigrationStrategyForm(f => ({ ...f, emptyModeIds: e.target.value }))}
+                  >
+                    <MenuItem value="mapToDefaults">Map to Defaults</MenuItem>
+                    <MenuItem value="preserveEmpty">Preserve Empty</MenuItem>
+                    <MenuItem value="requireExplicit">Require Explicit</MenuItem>
+                  </Select>
+                </FormControl>
+                {migrationStrategyForm.emptyModeIds === 'mapToDefaults' && (
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel id="map-empty-mode-ids-to-label">Map Empty modeIds To</InputLabel>
+                    <Select
+                      labelId="map-empty-mode-ids-to-label"
+                      multiple
+                      value={migrationStrategyForm.mapEmptyModeIdsTo.map(getModeNameById)}
+                      onChange={e => {
+                        const selectedNames = e.target.value as string[];
+                        const selectedIds = selectedNames.map(getModeIdByName).filter(Boolean);
+                        setMigrationStrategyForm(f => ({ ...f, mapEmptyModeIdsTo: selectedIds }));
+                      }}
+                      renderValue={selected => (selected as string[]).join(', ')}
+                    >
+                      {form.modes.map(m => (
+                        <MenuItem key={m.id} value={m.name}>{m.name}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={migrationStrategyForm.preserveOriginalValues}
+                      onChange={e => setMigrationStrategyForm(f => ({ ...f, preserveOriginalValues: e.target.checked }))}
+                    />
+                  }
+                  label="Preserve Original Values"
+                />
+              </Box>
+            ) : (
+              <Box mt={2}>
+                <Typography variant="subtitle1">Migration Strategy (for versioning)</Typography>
+                <Typography color="textSecondary" variant="body2">
+                  Add at least one mode to enable migration mapping options.
+                </Typography>
+              </Box>
+            )}
           </Grid>
         </DialogContent>
         <DialogActions>
@@ -299,9 +373,9 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
           <TextField
             label="ID"
             value={modeForm.id}
-            onChange={e => handleModeFormChange('id', e.target.value)}
             fullWidth
             required
+            disabled
           />
           <TextField
             label="Name"

@@ -4,12 +4,87 @@
     "title": "Design Token System Schema",
     "description": "Schema for design tokens with multi-dimensional modes and flexible resolution",
     "type": "object",
-    "required": ["tokenCollections", "dimensions", "tokens", "platforms"],
+    "required": ["tokenCollections", "dimensions", "tokens", "platforms", "version", "versionHistory"],
     "properties": {
       "version": {
         "type": "string",
         "description": "Semantic version of the token set",
         "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$"
+      },
+      "versionHistory": {
+        "type": "array",
+        "description": "History of schema versions and their dimension configurations",
+        "items": {
+          "type": "object",
+          "required": ["version", "dimensions", "date"],
+          "properties": {
+            "version": {
+              "type": "string",
+              "description": "Semantic version of this schema state"
+            },
+            "dimensions": {
+              "type": "array",
+              "description": "List of dimension IDs present in this version",
+              "items": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9-_]+$"
+              }
+            },
+            "date": {
+              "type": "string",
+              "format": "date",
+              "description": "Date when this version was introduced"
+            },
+            "migrationStrategy": {
+              "type": "object",
+              "description": "Strategy for migrating from previous version",
+              "properties": {
+                "emptyModeIds": {
+                  "type": "string",
+                  "enum": ["mapToDefaults", "preserveEmpty", "requireExplicit"],
+                  "description": "How to handle empty modeIds when migrating"
+                },
+                "preserveOriginalValues": {
+                  "type": "boolean",
+                  "description": "Whether to keep original values when migrating"
+                }
+              }
+            }
+          }
+        }
+      },
+      "dimensionEvolution": {
+        "type": "object",
+        "description": "Rules for handling dimension changes",
+        "properties": {
+          "rules": {
+            "type": "array",
+            "description": "Rules for dimension evolution",
+            "items": {
+              "type": "object",
+              "required": ["whenAdding", "mapEmptyModeIdsTo"],
+              "properties": {
+                "whenAdding": {
+                  "type": "string",
+                  "description": "ID of the dimension being added",
+                  "pattern": "^[a-zA-Z0-9-_]+$"
+                },
+                "mapEmptyModeIdsTo": {
+                  "type": "array",
+                  "description": "List of mode IDs to use when modeIds is empty",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9-_]+$"
+                  }
+                },
+                "preserveDefaultValues": {
+                  "type": "boolean",
+                  "description": "Whether to preserve default values when mapping"
+                }
+              }
+            }
+          }
+        }
       },
       "exportConfigurations": {
         "type": "object",

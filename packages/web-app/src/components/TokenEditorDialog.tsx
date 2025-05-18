@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -74,6 +74,7 @@ function getDefaultTokenValue(type: string): TokenValue {
 }
 
 export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, isNew = false }: TokenEditorDialogProps) {
+  const preservedValuesByRemovedDimension = useRef<Record<string, Record<string, TokenValue>>>({});
   const [editedToken, setEditedToken] = useState<ExtendedToken & { constraints?: any[] }>(() => {
     if (isNew) {
       return {
@@ -115,25 +116,37 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
 
   // When dimensions or their modes change, update valuesByMode to reflect new/removed modes
   useEffect(() => {
-    // Only update if dialog is open (prevents unnecessary changes on mount)
     if (!open) return;
-    // If no active dimensions, nothing to update
     if (activeDimensionIds.length === 0) return;
-    // Get all active dimensions and their mode arrays
     const activeDims = dimensions.filter(d => activeDimensionIds.includes(d.id));
     const modeArrays = activeDims.map(d => d.modes.map(m => m.id));
     const combos = modeArrays.length > 0 ? cartesianProduct(modeArrays) : [[]];
     setEditedToken(prev => {
-      // For each combo, try to preserve existing value, else use a default
+      const prevMap = new Map(prev.valuesByMode.map(vbm => [vbm.modeIds.slice().sort().join(','), vbm.value]));
+      const newValuesByMode = combos.map(modeIds => {
+        const key = modeIds.slice().sort().join(',');
+        if (prevMap.has(key)) {
+          const val = prevMap.get(key);
+          return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueType) };
+        }
+        for (let i = 0; i < modeIds.length; i++) {
+          const parentIds = modeIds.slice(0, i).concat(modeIds.slice(i + 1));
+          const parentKey = parentIds.slice().sort().join(',');
+          if (prevMap.has(parentKey)) {
+            const val = prevMap.get(parentKey);
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueType) };
+          }
+        }
+        return { modeIds, value: getDefaultTokenValue(prev.resolvedValueType) };
+      });
+      console.log('[TokenEditorDialog] useEffect valuesByMode update:', {
+        prevValuesByMode: prev.valuesByMode,
+        combos,
+        newValuesByMode
+      });
       return {
         ...prev,
-        valuesByMode: combos.map(modeIds => {
-          const existing = prev.valuesByMode.find(vbm =>
-            vbm.modeIds.length === modeIds.length &&
-            vbm.modeIds.every(id => modeIds.includes(id))
-          );
-          return existing || { modeIds, value: getDefaultTokenValue(prev.resolvedValueType) };
-        })
+        valuesByMode: newValuesByMode
       };
     });
   }, [dimensions, activeDimensionIds, open]);
@@ -148,53 +161,96 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     const isActive = activeDimensionIds.includes(dimensionId);
     let newActiveDims: string[];
     if (isActive) {
-      // Remove: filter out all valuesByMode entries that include any mode from this dimension
       const dim = dimensions.find(d => d.id === dimensionId);
       if (!dim) return;
       newActiveDims = activeDimensionIds.filter(id => id !== dimensionId);
-      // Find the default mode for this dimension
       const defaultModeId = dim.defaultMode;
-      // For each combination of the remaining dimensions, keep the value where the removed dimension's mode is the default
       const remainingDims = dimensions.filter(d => newActiveDims.includes(d.id));
       const modeArrays = remainingDims.map(d => d.modes.map(m => m.id));
       const combos = modeArrays.length > 0 ? cartesianProduct(modeArrays) : [[]];
-      setEditedToken(prev => ({
-        ...prev,
-        valuesByMode: combos.map(modeIds => {
-          // Find the value where modeIds + [defaultModeId] matches an existing value
-          const allPossible = [...modeIds, defaultModeId];
-          const existing = prev.valuesByMode.find(vbm =>
-            vbm.modeIds.length === allPossible.length &&
-            allPossible.every(id => vbm.modeIds.includes(id))
+      setEditedToken(prev => {
+        // Preserve all values that include the removed dimension
+        const removedMap: Record<string, TokenValue> = {};
+        prev.valuesByMode.forEach(vbm => {
+          if (vbm.modeIds.includes(defaultModeId) || dim.modes.some(m => vbm.modeIds.includes(m.id))) {
+            const key = vbm.modeIds.slice().sort().join(',');
+            removedMap[key] = vbm.value;
+          }
+        });
+        preservedValuesByRemovedDimension.current[dimensionId] = removedMap;
+        const prevMap = new Map(prev.valuesByMode.map(vbm => [vbm.modeIds.slice().sort().join(','), vbm.value]));
+        const newValuesByMode = combos.map(modeIds => {
+          const key = modeIds.slice().sort().join(',');
+          if (prevMap.has(key)) {
+            const val = prevMap.get(key);
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueType) };
+          }
+          // Find all previous combos that are a superset of modeIds (i.e., modeIds + one from removed dimension)
+          const candidates = prev.valuesByMode.filter(vbm =>
+            vbm.modeIds.length === modeIds.length + 1 &&
+            modeIds.every(id => vbm.modeIds.includes(id))
           );
-          return existing || { modeIds, value: getDefaultTokenValue(prev.resolvedValueType) };
-        })
-      }));
+          let found = candidates.find(vbm => vbm.modeIds.includes(defaultModeId));
+          if (!found && candidates.length > 0) found = candidates[0];
+          if (found) {
+            return { modeIds, value: found.value };
+          }
+          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueType) };
+        });
+        console.log('[TokenEditorDialog] handleToggleDimension REMOVE:', {
+          prevValuesByMode: prev.valuesByMode,
+          combos,
+          newValuesByMode,
+          preserved: preservedValuesByRemovedDimension.current
+        });
+        return {
+          ...prev,
+          valuesByMode: newValuesByMode
+        };
+      });
     } else {
-      // Add: expand valuesByMode to include all combinations with this dimension's modes
       const dim = dimensions.find(d => d.id === dimensionId);
       if (!dim) return;
       newActiveDims = [...activeDimensionIds, dimensionId];
-      // Get all active dimensions
       const activeDims = dimensions.filter(d => newActiveDims.includes(d.id));
       const modeArrays = activeDims.map(d => d.modes.map(m => m.id));
       const combos = cartesianProduct(modeArrays);
-      setEditedToken(prev => ({
-        ...prev,
-        valuesByMode: combos.map(modeIds => {
-          // For each new combo, try to preserve existing value from the combo where the new dimension's mode is the default
-          const dimIdx = activeDims.findIndex(d => d.id === dimensionId);
-          const defaultModeId = dim.defaultMode;
-          // Build the modeIds for the "default" combo
-          const defaultCombo = [...modeIds];
-          defaultCombo[dimIdx] = defaultModeId;
-          const existing = prev.valuesByMode.find(vbm =>
-            vbm.modeIds.length === defaultCombo.length &&
-            defaultCombo.every(id => vbm.modeIds.includes(id))
-          );
-          return existing || { modeIds, value: getDefaultTokenValue(prev.resolvedValueType) };
-        })
-      }));
+      setEditedToken(prev => {
+        const prevMap = new Map(prev.valuesByMode.map(vbm => [vbm.modeIds.slice().sort().join(','), vbm.value]));
+        // Try to restore from preserved values if available
+        const preserved = preservedValuesByRemovedDimension.current[dimensionId] || {};
+        const newValuesByMode = combos.map(modeIds => {
+          const key = modeIds.slice().sort().join(',');
+          if (prevMap.has(key)) {
+            const val = prevMap.get(key);
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueType) };
+          }
+          // Try to restore from preserved
+          if (preserved[key]) {
+            return { modeIds, value: preserved[key] };
+          }
+          // Try to find a parent combo (same as before)
+          for (let i = 0; i < modeIds.length; i++) {
+            const parentIds = modeIds.slice(0, i).concat(modeIds.slice(i + 1));
+            const parentKey = parentIds.slice().sort().join(',');
+            if (prevMap.has(parentKey)) {
+              const val = prevMap.get(parentKey);
+              return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueType) };
+            }
+          }
+          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueType) };
+        });
+        console.log('[TokenEditorDialog] handleToggleDimension ADD:', {
+          prevValuesByMode: prev.valuesByMode,
+          combos,
+          newValuesByMode,
+          restored: preserved
+        });
+        return {
+          ...prev,
+          valuesByMode: newValuesByMode
+        };
+      });
     }
     setActiveDimensionIds(newActiveDims);
   };
