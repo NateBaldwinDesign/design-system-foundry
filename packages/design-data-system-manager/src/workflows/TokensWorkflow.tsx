@@ -17,21 +17,24 @@ import {
   Checkbox,
   IconButton,
 } from '@mui/material';
-import { Token, TokenSchema, TokenCollection } from '@token-model/data-model';
+import { Token, TokenSchema, TokenCollection, Taxonomy, TokenTaxonomyRef } from '@token-model/data-model';
 import { ZodError } from 'zod';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { TaxonomyPicker } from '../components/TaxonomyPicker';
 
 interface TokensWorkflowProps {
   tokens: Token[];
   setTokens: (tokens: Token[]) => void;
   tokenCollections: TokenCollection[];
+  taxonomies: Taxonomy[];
 }
 
 export default function TokensWorkflow({
   tokens,
   setTokens,
   tokenCollections,
+  taxonomies,
 }: TokensWorkflowProps) {
   const [newToken, setNewToken] = useState<Partial<Token>>({
     displayName: '',
@@ -39,7 +42,7 @@ export default function TokensWorkflow({
     tokenCollectionId: '',
     resolvedValueType: '',
     private: false,
-    taxonomies: {},
+    taxonomies: [] as TokenTaxonomyRef[],
     propertyTypes: [],
     codeSyntax: {},
   });
@@ -56,6 +59,9 @@ export default function TokensWorkflow({
         id: crypto.randomUUID(),
         ...newToken,
         propertyTypes: (newToken.propertyTypes || []).filter(Boolean),
+        taxonomies: (newToken.taxonomies || []).filter(
+          (ref: any) => ref.taxonomyId && ref.termId
+        ),
       });
       setTokens([...tokens, token]);
       setNewToken({
@@ -64,7 +70,7 @@ export default function TokensWorkflow({
         tokenCollectionId: '',
         resolvedValueType: '',
         private: false,
-        taxonomies: {},
+        taxonomies: [],
         propertyTypes: [],
         codeSyntax: {},
       });
@@ -87,21 +93,21 @@ export default function TokensWorkflow({
     if (newTaxonomyKey && newTaxonomyValue) {
       setNewToken({
         ...newToken,
-        taxonomies: {
-          ...newToken.taxonomies,
-          [newTaxonomyKey]: newTaxonomyValue,
-        },
+        taxonomies: [
+          ...(newToken.taxonomies || []),
+          { taxonomyId: newTaxonomyKey, termId: newTaxonomyValue },
+        ],
       });
       setNewTaxonomyKey('');
       setNewTaxonomyValue('');
     }
   };
 
-  const handleRemoveTaxonomy = (key: string) => {
-    const { [key]: removed, ...rest } = newToken.taxonomies || {};
+  const handleRemoveTaxonomy = (index: number) => {
+    const newTaxonomies = newToken.taxonomies?.filter((_, i) => i !== index) || [];
     setNewToken({
       ...newToken,
-      taxonomies: rest,
+      taxonomies: newTaxonomies,
     });
   };
 
@@ -193,33 +199,12 @@ export default function TokensWorkflow({
             />
 
             <Typography variant="subtitle1">Taxonomies</Typography>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <TextField
-                label="Key"
-                value={newTaxonomyKey}
-                onChange={(e) => setNewTaxonomyKey(e.target.value)}
-                size="small"
-              />
-              <TextField
-                label="Value"
-                value={newTaxonomyValue}
-                onChange={(e) => setNewTaxonomyValue(e.target.value)}
-                size="small"
-              />
-              <IconButton onClick={handleAddTaxonomy} color="primary">
-                <AddIcon />
-              </IconButton>
-            </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {Object.entries(newToken.taxonomies || {}).map(([key, value]) => (
-                <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="body2">{key}: {value}</Typography>
-                  <IconButton onClick={() => handleRemoveTaxonomy(key)} size="small">
-                    <DeleteIcon />
-                  </IconButton>
-                </Box>
-              ))}
-            </Box>
+            <TaxonomyPicker
+              taxonomies={taxonomies}
+              value={Array.isArray(newToken.taxonomies) ? newToken.taxonomies : []}
+              onChange={newTaxonomies => setNewToken(prev => ({ ...prev, taxonomies: newTaxonomies }))}
+              disabled={taxonomies.length === 0}
+            />
 
             <Typography variant="subtitle1">Code Syntax</Typography>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
@@ -279,7 +264,15 @@ export default function TokensWorkflow({
                         <div>Resolved Value Type: {token.resolvedValueType}</div>
                         <div>Private: {token.private ? 'Yes' : 'No'}</div>
                         <div>Property Types: {token.propertyTypes.join(', ')}</div>
-                        <div>Taxonomies: {Object.entries(token.taxonomies).map(([k, v]) => `${k}: ${v}`).join(', ')}</div>
+                        <div>
+                          Taxonomies: {Array.isArray(token.taxonomies) && token.taxonomies.length > 0
+                            ? token.taxonomies.map(ref => {
+                                const taxonomy = taxonomies.find(t => t.id === ref.taxonomyId);
+                                const term = taxonomy?.terms.find(term => term.id === ref.termId);
+                                return taxonomy && term ? `${taxonomy.name}: ${term.name}` : 'Unknown';
+                              }).join(', ')
+                            : 'None'}
+                        </div>
                         <div>Code Syntax: {Object.entries(token.codeSyntax).map(([k, v]) => `${k}: ${v}`).join(', ')}</div>
                       </>
                     }

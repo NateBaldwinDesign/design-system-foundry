@@ -1,11 +1,11 @@
 # Token Model
 
-A monorepo containing a JSON data model for tokens and a web application for managing them.
+A monorepo containing a JSON data model for tokens and a Design data system manager for managing them.
 
 ## Project Structure
 
 - `packages/data-model`: Contains the JSON schema and TypeScript types for tokens
-- `packages/web-app`: A Vite + React application for managing tokens
+- `packages/design-data-system-manager`: A Vite + React application for managing tokens (Design data system manager)
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ A monorepo containing a JSON data model for tokens and a web application for man
 
 3. Start the development server:
    ```bash
-   pnpm --filter @token-model/web-app dev
+   pnpm --filter @token-model/design-data-system-manager dev
    ```
 
 The application will be available at http://localhost:3000

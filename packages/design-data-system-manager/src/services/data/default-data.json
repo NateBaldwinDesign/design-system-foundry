@@ -3,25 +3,52 @@
     {
       "id": "tokenCollection-AAAA-AAAA-AAAA",
       "name": "Color",
-      "resolvedValueTypes": ["COLOR"],
+      "resolvedValueTypeIds": ["valueTypeId-COLOR"],
       "private": false,
+      "supportedDimensionIds": ["dimensionId-0000-0000-0000", "dimensionId-1111-1111-1111"],
       "defaultModeIds": ["modeId-light", "modeId-regular"],
       "modeResolutionStrategy": {
         "priorityByType": ["COLOR_SCHEME", "CONTRAST"],
         "fallbackStrategy": "MOST_SPECIFIC_MATCH"
       }
+    },
+    {
+      "id": "tokenCollection-BBBB-BBBB-BBBB",
+      "name": "Typography",
+      "resolvedValueTypeIds": ["valueTypeId-FONT", "valueTypeId-LINE_HEIGHT", "valueTypeId-FONT_WEIGHT"],
+      "private": false,
+      "supportedDimensionIds": ["dimensionId-0000-0000-0000", "dimensionId-2222-2222-2222"],
+      "defaultModeIds": ["modeId-light", "modeId-regular", "modeId-latin"],
+      "modeResolutionStrategy": {
+        "priorityByType": ["COLOR_SCHEME", "LANGUAGE"],
+        "fallbackStrategy": "MOST_SPECIFIC_MATCH"
+      }
     }
+  ],
+  "resolvedValueTypes": [
+    { "id": "valueTypeId-COLOR", "displayName": "Color" },
+    { "id": "valueTypeId-FONT", "displayName": "Font" },
+    { "id": "valueTypeId-LINE_HEIGHT", "displayName": "Line Height" },
+    { "id": "valueTypeId-FONT_WEIGHT", "displayName": "Font Weight" },
+    { "id": "valueTypeId-SPACING", "displayName": "Spacing" },
+    { "id": "valueTypeId-OPACITY", "displayName": "Opacity" },
+    { "id": "valueTypeId-SHADOW", "displayName": "Shadow" },
+    { "id": "valueTypeId-BORDER", "displayName": "Border" },
+    { "id": "valueTypeId-RADIUS", "displayName": "Radius" },
+    { "id": "valueTypeId-Z_INDEX", "displayName": "Z Index" }
   ],
   "dimensions": [
     {
       "id": "dimensionId-0000-0000-0000",
+      "type": "COLOR_SCHEME",
       "displayName": "Color Scheme",
       "modes": [
         { "id": "modeId-light", "name": "Light", "dimensionId": "dimensionId-0000-0000-0000" },
         { "id": "modeId-dark", "name": "Dark", "dimensionId": "dimensionId-0000-0000-0000" }
       ],
       "required": true,
-      "defaultMode": "Light"
+      "defaultMode": "modeId-light",
+      "resolvedValueTypeIds": ["valueTypeId-COLOR", "valueTypeId-OPACITY", "valueTypeId-FONT_WEIGHT"]
     },
     {
       "id": "dimensionId-1111-1111-1111",
@@ -33,7 +60,20 @@
         { "id": "modeId-high", "name": "High", "dimensionId": "dimensionId-1111-1111-1111" }
       ],
       "required": false,
-      "defaultMode": "Regular"
+      "defaultMode": "modeId-regular"
+    },
+    {
+      "id": "dimensionId-2222-2222-2222",
+      "type": "LANGUAGE",
+      "displayName": "Language",
+      "modes": [
+        { "id": "modeId-latin", "name": "Latin", "dimensionId": "dimensionId-2222-2222-2222" },
+        { "id": "modeId-cjk", "name": "CJK", "dimensionId": "dimensionId-2222-2222-2222" },
+        { "id": "modeId-arabic", "name": "Arabic", "dimensionId": "dimensionId-2222-2222-2222" },
+        { "id": "modeId-hebrew", "name": "Hebrew", "dimensionId": "dimensionId-2222-2222-2222" }
+      ],
+      "required": false,
+      "defaultMode": "modeId-latin"
     }
   ],
   "themes": [

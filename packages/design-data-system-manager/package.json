@@ -1,5 +1,5 @@
 {
-  "name": "@token-model/web-app",
+  "name": "@token-model/design-data-system-manager",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -17,7 +17,8 @@
     "@token-model/data-model": "workspace:*",
     "colorjs.io": "^0.5.2",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/react": "^18.2.55",

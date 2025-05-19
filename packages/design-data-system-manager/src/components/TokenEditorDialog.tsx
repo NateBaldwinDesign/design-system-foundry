@@ -42,6 +42,7 @@ export interface TokenEditorDialogProps {
   onClose: () => void;
   onSave: (token: ExtendedToken) => void;
   taxonomies: Taxonomy[];
+  resolvedValueTypes: { id: string; displayName: string }[];
   isNew?: boolean;
 }
 
@@ -73,7 +74,10 @@ function getDefaultTokenValue(type: string): TokenValue {
   }
 }
 
-export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, isNew = false }: TokenEditorDialogProps) {
+// Helper: get the allowed resolved value type union
+type AllowedResolvedValueType = Token['resolvedValueType'];
+
+export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, resolvedValueTypes, isNew = false }: TokenEditorDialogProps) {
   const preservedValuesByRemovedDimension = useRef<Record<string, Record<string, TokenValue>>>({});
   const [editedToken, setEditedToken] = useState<ExtendedToken & { constraints?: any[] }>(() => {
     if (isNew) {
@@ -318,6 +322,27 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                 fullWidth
               />
               <FormControl fullWidth>
+                <InputLabel id="resolved-value-type-label">Value Type</InputLabel>
+                <Select
+                  labelId="resolved-value-type-label"
+                  value={editedToken.resolvedValueType || ''}
+                  label="Value Type"
+                  onChange={e => {
+                    const newType = e.target.value;
+                    setEditedToken(prev => ({
+                      ...prev,
+                      resolvedValueType: newType as AllowedResolvedValueType,
+                      valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType as AllowedResolvedValueType) }]
+                    }));
+                  }}
+                >
+                  {resolvedValueTypes.map(vt => (
+                    <MenuItem key={vt.id} value={vt.id}>{vt.displayName}</MenuItem>
+                  ))}
+                </Select>
+                <FormHelperText>Select the value type for this token.</FormHelperText>
+              </FormControl>
+              <FormControl fullWidth sx={{ mt: 2 }}>
                 <InputLabel>Status</InputLabel>
                 <Select
                   value={editedToken.status || ''}

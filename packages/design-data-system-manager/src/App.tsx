@@ -65,7 +65,7 @@ function App() {
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
-  const [valueTypes, setValueTypes] = useState<string[]>([]);
+  const [resolvedValueTypes, setResolvedValueTypes] = useState<{ id: string; displayName: string }[]>([]);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [themes, setThemes] = useState<any[]>([]);
@@ -108,7 +108,7 @@ function App() {
     setCollections((d as any).tokenCollections ?? []);
     setModes(allModes);
     setDimensions(normalizedDimensions);
-    setValueTypes((d as any).valueTypes ?? []);
+    setResolvedValueTypes((d as any).resolvedValueTypes ?? []);
     setTokens(normalizedTokens);
     setPlatforms(normalizedPlatforms);
     setThemes((d as any).themes ?? []);
@@ -228,7 +228,7 @@ function App() {
             displayName: '',
             description: '',
             tokenCollectionId: collections[0]?.id || '',
-            resolvedValueType: 'COLOR',
+            resolvedValueType: (resolvedValueTypes[0]?.id || 'COLOR') as Token['resolvedValueType'],
             private: false,
             valuesByMode: [],
             taxonomies: [],
@@ -253,6 +253,7 @@ function App() {
             setCreateDialogOpen(false);
           }}
           taxonomies={taxonomies}
+          resolvedValueTypes={resolvedValueTypes}
           isNew={true}
         />
       </TabPanel>

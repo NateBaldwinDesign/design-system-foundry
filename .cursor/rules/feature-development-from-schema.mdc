@@ -8,3 +8,4 @@ details:
 - Use [schema.json](mdc:token-model/packages/data-model/src/schema.json) to identify opportunities for new features and UI organization.
 - Favor modularity and reusability by searching for existing components before building new ones.
 - Only build custom components when necessary.
+- Always reference technical decisions listed in [technical-decisions.md](mdc:token-model/packages/web-app/docs/technical-decisions.md)

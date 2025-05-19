@@ -165,12 +165,16 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
   const handleModeSave = () => {
     if (!modeForm.id || !modeForm.name) return;
     const newModes = form.modes ? [...form.modes] : [];
+    let newDefaultMode = form.defaultMode;
     if (modeEditIndex !== null) {
       newModes[modeEditIndex] = { ...modeForm, dimensionId: form.id! };
     } else {
       newModes.push({ ...modeForm, dimensionId: form.id! });
+      if (newModes.length === 1) {
+        newDefaultMode = newModes[0].id;
+      }
     }
-    setForm(prev => ({ ...prev, modes: newModes, defaultMode: prev.defaultMode || newModes[0]?.id || '' }));
+    setForm(prev => ({ ...prev, modes: newModes, defaultMode: newDefaultMode }));
     setModeDialogOpen(false);
     setModeEditIndex(null);
   };
@@ -309,48 +313,39 @@ export function DimensionsWorkflow({ dimensions, setDimensions, modes, setModes 
             {form.modes.length > 0 ? (
               <Box mt={2}>
                 <Typography variant="subtitle1">Migration Strategy (for versioning)</Typography>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel id="empty-mode-ids-label">Empty modeIds Handling</InputLabel>
-                  <Select
-                    labelId="empty-mode-ids-label"
-                    value={migrationStrategyForm.emptyModeIds}
-                    label="Empty modeIds Handling"
-                    onChange={e => setMigrationStrategyForm(f => ({ ...f, emptyModeIds: e.target.value }))}
-                  >
-                    <MenuItem value="mapToDefaults">Map to Defaults</MenuItem>
-                    <MenuItem value="preserveEmpty">Preserve Empty</MenuItem>
-                    <MenuItem value="requireExplicit">Require Explicit</MenuItem>
-                  </Select>
-                </FormControl>
-                {migrationStrategyForm.emptyModeIds === 'mapToDefaults' && (
+                <React.Fragment>
                   <FormControl fullWidth margin="normal">
-                    <InputLabel id="map-empty-mode-ids-to-label">Map Empty modeIds To</InputLabel>
+                    <InputLabel id="empty-mode-ids-label">Empty modeIds Handling</InputLabel>
                     <Select
-                      labelId="map-empty-mode-ids-to-label"
-                      multiple
-                      value={migrationStrategyForm.mapEmptyModeIdsTo.map(getModeNameById)}
-                      onChange={e => {
-                        const selectedNames = e.target.value as string[];
-                        const selectedIds = selectedNames.map(getModeIdByName).filter(Boolean);
-                        setMigrationStrategyForm(f => ({ ...f, mapEmptyModeIdsTo: selectedIds }));
-                      }}
-                      renderValue={selected => (selected as string[]).join(', ')}
+                      labelId="empty-mode-ids-label"
+                      value={migrationStrategyForm.emptyModeIds}
+                      label="Empty modeIds Handling"
+                      onChange={e => setMigrationStrategyForm(f => ({ ...f, emptyModeIds: e.target.value }))}
                     >
-                      {form.modes.map(m => (
-                        <MenuItem key={m.id} value={m.name}>{m.name}</MenuItem>
-                      ))}
+                      <MenuItem value="mapToDefaults">Map to Defaults</MenuItem>
+                      <MenuItem value="preserveEmpty">Preserve Empty</MenuItem>
+                      <MenuItem value="requireExplicit">Require Explicit</MenuItem>
                     </Select>
                   </FormControl>
-                )}
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={migrationStrategyForm.preserveOriginalValues}
-                      onChange={e => setMigrationStrategyForm(f => ({ ...f, preserveOriginalValues: e.target.checked }))}
-                    />
-                  }
-                  label="Preserve Original Values"
-                />
+                  <Typography variant="caption" color="textSecondary" sx={{ ml: 1, mb: 2, display: 'block' }}>
+                    <b>Empty modeIds Handling:</b> Determines how tokens with missing mode assignments are migrated when you change modes or dimensions.<br/>
+                    <b>Map to Defaults:</b> Assigns missing values to the <b>default mode</b> for this dimension.<br/>
+                    <b>Preserve Empty:</b> Leaves missing values unset.<br/>
+                    <b>Require Explicit:</b> Forces you to manually specify how to handle missing values.
+                  </Typography>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={migrationStrategyForm.preserveOriginalValues}
+                        onChange={e => setMigrationStrategyForm(f => ({ ...f, preserveOriginalValues: e.target.checked }))}
+                      />
+                    }
+                    label="Preserve Original Values"
+                  />
+                  <Typography variant="caption" color="textSecondary" sx={{ ml: 1, mb: 2, display: 'block' }}>
+                    <b>Preserve Original Values:</b> If enabled, existing values for tokens will be kept whenever possible during migration. If disabled, values may be reset or overwritten based on the new dimension or mode configuration.
+                  </Typography>
+                </React.Fragment>
               </Box>
             ) : (
               <Box mt={2}>

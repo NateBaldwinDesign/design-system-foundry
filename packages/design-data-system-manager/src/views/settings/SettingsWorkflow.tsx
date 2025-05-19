@@ -146,7 +146,6 @@ export function SettingsWorkflow({
         >
           <Tab label="Collections" />
           <Tab label="Dimensions" />
-          <Tab label="Modes" />
           <Tab label="Value Types" />
           <Tab label="Themes" />
           <Tab label="Taxonomies" />
@@ -178,18 +177,18 @@ export function SettingsWorkflow({
         <SettingsValueTypesTab />
       </TabPanel>
 
-      <TabPanel value={activeTab} index={4}>
+      <TabPanel value={activeTab} index={3}>
         <SettingsThemesTab themes={themeList} setThemes={setThemeList} />
       </TabPanel>
 
-      <TabPanel value={activeTab} index={5}>
+      <TabPanel value={activeTab} index={4}>
         <SettingsTaxonomiesTab 
           taxonomies={taxonomies} 
           setTaxonomies={setTaxonomies}
         />
       </TabPanel>
 
-      <TabPanel value={activeTab} index={6}>
+      <TabPanel value={activeTab} index={5}>
         <SettingsPlatformsTab />
       </TabPanel>
     </Box>

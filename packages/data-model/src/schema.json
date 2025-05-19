@@ -131,7 +131,7 @@
         "description": "Collections of tokens grouped by type",
         "items": {
           "type": "object",
-          "required": ["id", "name", "resolvedValueTypes"],
+          "required": ["id", "name", "resolvedValueTypeIds"],
           "properties": {
             "id": {
               "type": "string",
@@ -146,27 +146,19 @@
               "type": "string",
               "description": "Detailed description of the collection" 
             },
-            "resolvedValueTypes": {
+            "resolvedValueTypeIds": {
               "type": "array",
-              "description": "Types of values this collection can contain",
+              "description": "IDs of resolved value types this collection can contain. Must match an ID from the top-level resolvedValueTypes array.",
               "items": {
-                "type": "string",
-                "enum": [
-                  "COLOR", 
-                  "DIMENSION", 
-                  "FONT_FAMILY", 
-                  "FONT_WEIGHT", 
-                  "FONT_STYLE", 
-                  "DURATION", 
-                  "CUBIC_BEZIER", 
-                  "BORDER_WIDTH", 
-                  "CORNER_ROUNDING", 
-                  "ELEVATION", 
-                  "SHADOW", 
-                  "OPACITY", 
-                  "NUMBER"
-                ]
-              }
+                "type": "string"
+              },
+              "uniqueItems": true
+            },
+            "supportedDimensionIds": {
+              "type": "array",
+              "description": "IDs of dimensions supported by this collection. Each must match an ID from the top-level dimensions array.",
+              "items": { "type": "string" },
+              "uniqueItems": true
             },
             "private": {
               "type": "boolean",
@@ -285,6 +277,12 @@
                   }
                 }
               }
+            },
+            "resolvedValueTypeIds": {
+              "type": "array",
+              "description": "IDs of resolved value types this dimension supports or is associated with.",
+              "items": { "type": "string" },
+              "uniqueItems": true
             }
           }
         }
@@ -688,6 +686,12 @@
                   "description": { "type": "string", "description": "Description of the term.", "optional": true }
                 }
               }
+            },
+            "resolvedValueTypeIds": {
+              "type": "array",
+              "description": "IDs of resolved value types this taxonomy supports or is associated with.",
+              "items": { "type": "string" },
+              "uniqueItems": true
             }
           }
         }
@@ -703,6 +707,25 @@
           }
         },
         "additionalProperties": false
+      },
+      "resolvedValueTypes": {
+        "type": "array",
+        "description": "List of resolved value types supported by the system.",
+        "items": {
+          "type": "object",
+          "required": ["id", "displayName"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for the resolved value type."
+            },
+            "displayName": {
+              "type": "string",
+              "description": "Human-readable name for the resolved value type."
+            }
+          }
+        },
+        "uniqueItems": true
       }
     },
     "additionalProperties": false,
@@ -889,5 +912,4 @@
         ]
       }
     }
-  }
 }

@@ -8,3 +8,4 @@ details:
 - The schema in [schema.json](mdc:token-model/packages/data-model/src/schema.json) should be concise and avoid unnecessary hierarchies or over-flattening.
 - Relationships between elements must be preserved and clear.
 - The schema must be stable, flexible, and scalable for future use.
+- Reference all technical decisions documented in /token-model/packages/data-model/docs/technical-decisions.md

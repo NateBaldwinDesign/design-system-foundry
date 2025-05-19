@@ -48,7 +48,7 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false }
           const term = taxonomy?.terms.find(term => term.id === assignment.termId);
           return (
             <Chip
-              key={assignment.taxonomyId}
+              key={`${assignment.taxonomyId}-${assignment.termId}`}
               label={taxonomy && term ? `${taxonomy.name}: ${term.name}` : 'Unknown'}
               onDelete={disabled ? undefined : () => onChange(value.filter((_, i) => i !== idx))}
               sx={{ fontSize: 14 }}
@@ -83,9 +83,9 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false }
               onChange={e => setSelectedTermId(e.target.value)}
               disabled={!selectedTaxonomyId || disabled}
             >
-              {taxonomies.find(t => t.id === selectedTaxonomyId)?.terms.map(term => (
+              {taxonomies.find(t => t.id === selectedTaxonomyId)?.terms?.map(term => (
                 <MenuItem key={term.id} value={term.id}>{term.name}</MenuItem>
-              ))}
+              )) || []}
             </Select>
           </FormControl>
           <Button
