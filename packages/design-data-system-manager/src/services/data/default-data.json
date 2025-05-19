@@ -98,11 +98,13 @@
       "terms": [
         {
           "id": "termId-0000-0000-0000",
-          "name": "Blue"
+          "name": "Blue",
+          "description": "No description provided."
         },
         {
           "id": "termId-0000-0000-0001",
-          "name": "Black"
+          "name": "Black",
+          "description": "No description provided."
         }
       ]
     },
@@ -157,27 +159,33 @@
       "terms": [
         {
           "id": "termId-2222-2222-2222",
-          "name": "50"
+          "name": "50",
+          "description": "No description provided."
         },
         {
           "id": "termId-2222-2222-2223",
-          "name": "100"
+          "name": "100",
+          "description": "No description provided."
         },
         {
           "id": "termId-2222-2222-2224",
-          "name": "200"
+          "name": "200",
+          "description": "No description provided."
         },
         {
           "id": "termId-2222-2222-2225",
-          "name": "300"
+          "name": "300",
+          "description": "No description provided."
         },
         {
           "id": "termId-2222-2222-2226",
-          "name": "400"
+          "name": "400",
+          "description": "No description provided."
         },
         {
           "id": "termId-2222-2222-2227",
-          "name": "500"
+          "name": "500",
+          "description": "No description provided."
         }
       ]
     }
@@ -190,6 +198,8 @@
       "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueType": "COLOR",
       "private": false,
+      "status": "stable",
+      "themeable": false,
       "taxonomies": [
         { 
           "taxonomyId": "taxonomyId-0000-0000-0000",
@@ -214,6 +224,8 @@
       "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueType": "COLOR",
       "private": false,
+      "status": "stable",
+      "themeable": false,
       "taxonomies": [
         { 
           "taxonomyId": "taxonomyId-0000-0000-0000",
@@ -266,6 +278,8 @@
       "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueType": "COLOR",
       "private": false,
+      "status": "stable",
+      "themeable": false,
       "taxonomies": [
         { 
           "taxonomyId": "taxonomyId-1111-1111-1111",
@@ -343,5 +357,17 @@
       "taxonomyId-1111-1111-1111", 
       "taxonomyId-2222-2222-2222"
     ] 
-  }
+  },
+  "version": "1.0.0",
+  "versionHistory": [
+    {
+      "version": "1.0.0",
+      "dimensions": [
+        "dimensionId-0000-0000-0000",
+        "dimensionId-1111-1111-1111",
+        "dimensionId-2222-2222-2222"
+      ],
+      "date": "2024-06-07"
+    }
+  ]
 } 

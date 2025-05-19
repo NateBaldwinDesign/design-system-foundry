@@ -336,9 +336,17 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     }));
                   }}
                 >
-                  {resolvedValueTypes.map(vt => (
-                    <MenuItem key={vt.id} value={vt.id}>{vt.displayName}</MenuItem>
-                  ))}
+                  {Array.isArray(resolvedValueTypes) && resolvedValueTypes.length > 0 ? (
+                    resolvedValueTypes.map(vt => (
+                      <MenuItem key={vt.id} value={vt.id}>{vt.displayName}</MenuItem>
+                    ))
+                  ) : (
+                    <MenuItem disabled value="">
+                      {resolvedValueTypes === undefined
+                        ? "No resolved value types available. Please configure them in the editor above."
+                        : "No resolved value types found."}
+                    </MenuItem>
+                  )}
                 </Select>
                 <FormHelperText>Select the value type for this token.</FormHelperText>
               </FormControl>

@@ -161,7 +161,7 @@ function App() {
     <Container>
       <Box sx={{ my: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant="h4" component="h1" gutterBottom>
-          Token Model
+          Design Data System Manager
         </Typography>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <FormControl size="small">
