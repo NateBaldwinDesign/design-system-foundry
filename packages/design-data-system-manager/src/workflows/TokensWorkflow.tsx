@@ -17,11 +17,14 @@ import {
   Checkbox,
   IconButton,
 } from '@mui/material';
-import { Token, TokenSchema, TokenCollection, Taxonomy, TokenTaxonomyRef } from '@token-model/data-model';
+import { Token, TokenCollection, Taxonomy, TokenTaxonomyRef } from '@token-model/data-model';
+import { Token as TokenSchema } from '../../../data-model/src/schema';
 import { ZodError } from 'zod';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { TaxonomyPicker } from '../components/TaxonomyPicker';
+import { useSchema } from '../hooks/useSchema';
+import { CodeSyntaxService } from '../services/codeSyntax';
 
 interface TokensWorkflowProps {
   tokens: Token[];
@@ -40,7 +43,7 @@ export default function TokensWorkflow({
     displayName: '',
     description: '',
     tokenCollectionId: '',
-    resolvedValueType: '',
+    resolvedValueType: 'COLOR',
     private: false,
     taxonomies: [] as TokenTaxonomyRef[],
     propertyTypes: [],
@@ -49,26 +52,32 @@ export default function TokensWorkflow({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [newTaxonomyKey, setNewTaxonomyKey] = useState('');
   const [newTaxonomyValue, setNewTaxonomyValue] = useState('');
-  const [newCodeSyntaxKey, setNewCodeSyntaxKey] = useState('');
-  const [newCodeSyntaxValue, setNewCodeSyntaxValue] = useState('');
+  const { schema } = useSchema();
 
   const handleAddToken = () => {
     setFieldErrors({});
     try {
+      const validTaxonomies = (newToken.taxonomies || []).filter(
+        (ref: any) => ref.taxonomyId && ref.termId
+      );
+      const codeSyntax = CodeSyntaxService.generateAllCodeSyntaxes(
+        { ...newToken, taxonomies: validTaxonomies } as any,
+        schema as any
+      );
       const token = TokenSchema.parse({
         id: crypto.randomUUID(),
         ...newToken,
+        resolvedValueType: (newToken.resolvedValueType as Token['resolvedValueType']) || 'COLOR',
         propertyTypes: (newToken.propertyTypes || []).filter(Boolean),
-        taxonomies: (newToken.taxonomies || []).filter(
-          (ref: any) => ref.taxonomyId && ref.termId
-        ),
+        taxonomies: validTaxonomies,
+        codeSyntax
       });
       setTokens([...tokens, token]);
       setNewToken({
         displayName: '',
         description: '',
         tokenCollectionId: '',
-        resolvedValueType: '',
+        resolvedValueType: 'COLOR',
         private: false,
         taxonomies: [],
         propertyTypes: [],
@@ -108,28 +117,6 @@ export default function TokensWorkflow({
     setNewToken({
       ...newToken,
       taxonomies: newTaxonomies,
-    });
-  };
-
-  const handleAddCodeSyntax = () => {
-    if (newCodeSyntaxKey && newCodeSyntaxValue) {
-      setNewToken({
-        ...newToken,
-        codeSyntax: {
-          ...newToken.codeSyntax,
-          [newCodeSyntaxKey]: newCodeSyntaxValue,
-        },
-      });
-      setNewCodeSyntaxKey('');
-      setNewCodeSyntaxValue('');
-    }
-  };
-
-  const handleRemoveCodeSyntax = (key: string) => {
-    const { [key]: removed, ...rest } = newToken.codeSyntax || {};
-    setNewToken({
-      ...newToken,
-      codeSyntax: rest,
     });
   };
 
@@ -177,7 +164,7 @@ export default function TokensWorkflow({
             <TextField
               label="Resolved Value Type"
               value={newToken.resolvedValueType}
-              onChange={(e) => setNewToken({ ...newToken, resolvedValueType: e.target.value })}
+              onChange={(e) => setNewToken({ ...newToken, resolvedValueType: e.target.value as Token['resolvedValueType'] })}
               error={Boolean(fieldErrors.resolvedValueType)}
               helperText={fieldErrors.resolvedValueType}
             />
@@ -206,31 +193,11 @@ export default function TokensWorkflow({
               disabled={taxonomies.length === 0}
             />
 
-            <Typography variant="subtitle1">Code Syntax</Typography>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <TextField
-                label="Platform"
-                value={newCodeSyntaxKey}
-                onChange={(e) => setNewCodeSyntaxKey(e.target.value)}
-                size="small"
-              />
-              <TextField
-                label="Syntax"
-                value={newCodeSyntaxValue}
-                onChange={(e) => setNewCodeSyntaxValue(e.target.value)}
-                size="small"
-              />
-              <IconButton onClick={handleAddCodeSyntax} color="primary">
-                <AddIcon />
-              </IconButton>
-            </Box>
+            <Typography variant="subtitle1">Code Syntax (auto-generated)</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {Object.entries(newToken.codeSyntax || {}).map(([key, value]) => (
+              {Object.entries(CodeSyntaxService.generateAllCodeSyntaxes(newToken as any, schema as any)).map(([key, value]) => (
                 <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2">{key}: {value}</Typography>
-                  <IconButton onClick={() => handleRemoveCodeSyntax(key)} size="small">
-                    <DeleteIcon />
-                  </IconButton>
                 </Box>
               ))}
             </Box>

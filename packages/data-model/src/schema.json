@@ -100,7 +100,15 @@
               },
               "delimiter": {
                 "type": "string",
-                "description": "Character(s) to use between token name parts"
+                "description": "Delimiter to use between token name parts.",
+                "enum": ["", "_", "-", ".", "/"],
+                "enumDescriptions": [
+                  "None (no delimiter)",
+                  "Underscore (_)",
+                  "Hyphen (-)",
+                  "Dot (.)",
+                  "Forward slash (/)"
+                ]
               },
               "capitalization": {
                 "type": "string",
@@ -217,7 +225,68 @@
           "required": ["id", "displayName"],
           "properties": {
             "id": { "type": "string" },
-            "displayName": { "type": "string" }
+            "displayName": { "type": "string" },
+            "description": { 
+              "type": "string",
+              "description": "Detailed description of the platform"
+            },
+            "syntaxPatterns": {
+              "type": "object",
+              "description": "Patterns for generating code syntax for this platform",
+              "properties": {
+                "prefix": {
+                  "type": "string",
+                  "description": "Prefix to add before token names"
+                },
+                "suffix": {
+                  "type": "string",
+                  "description": "Suffix to add after token names"
+                },
+                "delimiter": {
+                  "type": "string",
+                  "description": "Delimiter to use between token name parts.",
+                  "enum": ["", "_", "-", ".", "/"],
+                  "enumDescriptions": [
+                    "None (no delimiter)",
+                    "Underscore (_)",
+                    "Hyphen (-)",
+                    "Dot (.)",
+                    "Forward slash (/)"
+                  ]
+                },
+                "capitalization": {
+                  "type": "string",
+                  "enum": ["camel", "uppercase", "lowercase", "capitalize"],
+                  "description": "Capitalization style for token names"
+                },
+                "formatString": {
+                  "type": "string",
+                  "description": "Template string for formatting token names, using {name} as placeholder"
+                }
+              }
+            },
+            "valueFormatters": {
+              "type": "object",
+              "description": "Rules for formatting values for this platform",
+              "properties": {
+                "color": {
+                  "type": "string",
+                  "enum": ["hex", "rgb", "rgba", "hsl", "hsla"],
+                  "description": "Preferred color format for this platform"
+                },
+                "dimension": {
+                  "type": "string",
+                  "enum": ["px", "rem", "em", "pt", "dp", "sp"],
+                  "description": "Preferred dimension unit for this platform"
+                },
+                "numberPrecision": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10,
+                  "description": "Number of decimal places to use for numeric values"
+                }
+              }
+            }
           }
         }
       },
@@ -583,6 +652,10 @@
             "isDefault": {
               "type": "boolean",
               "description": "Whether this is the default theme. Exactly one theme must be marked as default."
+            },
+            "overrideFileUri": {
+              "type": "string",
+              "description": "URI pointing to the theme override file for this theme"
             }
           }
         }

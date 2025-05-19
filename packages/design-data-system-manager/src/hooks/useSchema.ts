@@ -11,6 +11,19 @@ export interface ExportConfiguration {
 export interface Platform {
   id: string;
   displayName: string;
+  description?: string;
+  syntaxPatterns?: {
+    prefix?: string;
+    suffix?: string;
+    delimiter?: string;
+    capitalization?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+    formatString?: string;
+  };
+  valueFormatters?: {
+    color?: 'hex' | 'rgb' | 'rgba' | 'hsl' | 'hsla';
+    dimension?: 'px' | 'rem' | 'em' | 'pt' | 'dp' | 'sp';
+    numberPrecision?: number;
+  };
 }
 
 export interface Schema {

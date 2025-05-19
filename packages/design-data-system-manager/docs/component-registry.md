@@ -28,14 +28,14 @@ This document serves as the central registry for all key components in our appli
 **Props:**
 ```typescript
 interface TokenListProps {
-  tokens: ExtendedToken[];
-  collections: TokenCollection[];
-  modes: Mode[];
-  dimensions: Dimension[];
-  platforms: Platform[];
-  onEdit: (token: ExtendedToken) => void;
-  onDelete: (tokenId: string) => void;
-  taxonomies: Taxonomy[];
+  tokens: ExtendedToken[]; // Array of all tokens to display. Used to render the list and provide data for edit/delete actions.
+  collections: TokenCollection[]; // Array of all token collections. Used to display collection names for each token.
+  modes: Mode[]; // Array of all modes. Used for displaying mode-related info for tokens.
+  dimensions: Dimension[]; // Array of all dimensions. Used for displaying dimension info for tokens.
+  platforms: Platform[]; // Array of all platforms. Used for displaying platform-specific info for tokens.
+  onEdit: (token: ExtendedToken) => void; // Callback fired when the user clicks edit on a token. Receives the token to edit.
+  onDelete: (tokenId: string) => void; // Callback fired when the user clicks delete on a token. Receives the token's ID.
+  taxonomies: Taxonomy[]; // Array of all taxonomies. Used to display taxonomy/term info for each token.
 }
 ```
 
@@ -71,15 +71,15 @@ interface TokenListProps {
 **Props:**
 ```typescript
 interface PlatformOverridesTableProps {
-  platforms: Platform[];
-  valuesByMode: any[];
-  modes: Mode[];
-  getValueEditor: (value: TokenValue | string, modeIndex: number, isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode;
-  onPlatformOverrideChange: (platformId: string, modeIndex: number, newValue: TokenValue) => void;
-  resolvedValueType: string;
-  tokens: Token[];
-  constraints?: any[];
-  excludeTokenId?: string;
+  platforms: Platform[]; // Array of all platforms. Used to render override columns and match overrides to platforms.
+  valuesByMode: any[]; // Array of value-by-mode objects for the token. Used to display/edit overrides for each mode/platform.
+  modes: Mode[]; // Array of all modes. Used to map mode IDs to mode names for display.
+  getValueEditor: (value: TokenValue | string, modeIndex: number, isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode; // Function to render the value editor for each override cell. Used for custom value input.
+  onPlatformOverrideChange: (platformId: string, modeIndex: number, newValue: TokenValue) => void; // Callback fired when an override value is changed. Receives platform ID, mode index, and new value.
+  resolvedValueType: string; // The resolved value type for the token (e.g., 'COLOR'). Used to determine value editor type.
+  tokens: Token[]; // Array of all tokens. Used for alias value selection and validation.
+  constraints?: any[]; // Optional. Array of constraints for value validation. Used to enforce rules on override values.
+  excludeTokenId?: string; // Optional. Token ID to exclude from alias selection (e.g., to prevent self-aliasing).
 }
 ```
 
@@ -101,15 +101,15 @@ interface PlatformOverridesTableProps {
 **Props:**
 ```typescript
 interface ValueByModeTableProps {
-  valuesByMode: any[];
-  modes: Mode[];
-  editable?: boolean;
-  onValueChange?: (modeIndex: number, newValue: TokenValue) => void;
-  getValueEditor: (value: TokenValue | string, modeIndex: number, isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode;
-  resolvedValueType: string;
-  tokens: Token[];
-  constraints?: any[];
-  excludeTokenId?: string;
+  valuesByMode: any[]; // Array of value-by-mode objects for the token. Used to render the table rows and cells.
+  modes: Mode[]; // Array of all modes. Used to map mode IDs to mode names for display.
+  editable?: boolean; // Optional. If true, allows editing values in the table. Defaults to false (read-only).
+  onValueChange?: (modeIndex: number, newValue: TokenValue) => void; // Optional. Callback fired when a value is changed. Receives mode index and new value.
+  getValueEditor: (value: TokenValue | string, modeIndex: number, isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode; // Function to render the value editor for each cell. Used for custom value input.
+  resolvedValueType: string; // The resolved value type for the token (e.g., 'COLOR'). Used to determine value editor type.
+  tokens: Token[]; // Array of all tokens. Used for alias value selection and validation.
+  constraints?: any[]; // Optional. Array of constraints for value validation. Used to enforce rules on values.
+  excludeTokenId?: string; // Optional. Token ID to exclude from alias selection (e.g., to prevent self-aliasing).
 }
 ```
 
@@ -131,10 +131,10 @@ interface ValueByModeTableProps {
 **Props:**
 ```typescript
 interface TaxonomyPickerProps {
-  taxonomies: Taxonomy[];
-  value: { taxonomyId: string; termId: string }[];
-  onChange: (value: { taxonomyId: string; termId: string }[]) => void;
-  disabled?: boolean;
+  taxonomies: Taxonomy[]; // Array of all taxonomies. Used to populate the taxonomy/term selection options.
+  value: { taxonomyId: string; termId: string }[]; // Array of selected taxonomy/term pairs. Used to display selected chips and as the current value.
+  onChange: (value: { taxonomyId: string; termId: string }[]) => void; // Callback fired when the selection changes. Receives the new array of taxonomy/term pairs.
+  disabled?: boolean; // Optional. If true, disables the picker UI. Defaults to false.
 }
 ```
 
@@ -160,16 +160,16 @@ Dialog for creating or editing a token, including all metadata, dimensions, taxo
 **Props:**
 ```typescript
 export interface TokenEditorDialogProps {
-  token: ExtendedToken;
-  tokens: ExtendedToken[];
-  dimensions: Dimension[];
-  modes: Mode[];
-  platforms: Platform[];
-  open: boolean;
-  onClose: () => void;
-  onSave: (token: ExtendedToken) => void;
-  taxonomies: Taxonomy[];
-  isNew?: boolean;
+  token: ExtendedToken; // The token to edit or create. Used to initialize the dialog state and as the base for edits.
+  tokens: ExtendedToken[]; // Array of all tokens. Used for alias value selection and validation.
+  dimensions: Dimension[]; // Array of all dimensions. Used to display and edit dimension assignments for the token.
+  modes: Mode[]; // Array of all modes. Used to display and edit mode assignments for the token.
+  platforms: Platform[]; // Array of all platforms. Used to display and edit platform-specific overrides and code syntax.
+  open: boolean; // If true, the dialog is open. Used to control dialog visibility.
+  onClose: () => void; // Callback fired when the dialog is closed (cancel or close button).
+  onSave: (token: ExtendedToken) => void; // Callback fired when the user saves changes. Receives the updated token.
+  taxonomies: Taxonomy[]; // Array of all taxonomies. Used to display and edit taxonomy assignments for the token.
+  isNew?: boolean; // Optional. If true, the dialog is for creating a new token. Defaults to false (editing existing token).
 }
 ```
 

@@ -1,83 +1,75 @@
-import type { Token } from '@token-model/data-model';
+import type { Token, Taxonomy, Platform as PlatformType } from '@token-model/data-model';
 
-interface CodeSyntaxOptions {
-  platform: string;
-  prefix?: string;
-  separator?: string;
-  suffix?: string;
+interface Schema {
+  namingRules?: { taxonomyOrder?: string[] };
+  taxonomies: Taxonomy[];
+  platforms: PlatformType[];
 }
 
 export class CodeSyntaxService {
-  private static defaultOptions: Record<string, CodeSyntaxOptions> = {
-    WEB: {
-      platform: 'WEB',
-      prefix: '--',
-      separator: '-',
-      suffix: ''
-    },
-    iOS: {
-      platform: 'iOS',
-      prefix: '',
-      separator: '',
-      suffix: ''
-    },
-    ANDROID: {
-      platform: 'ANDROID',
-      prefix: '',
-      separator: '_',
-      suffix: ''
-    },
-    FIGMA: {
-      platform: 'Figma',
-      prefix: '',
-      separator: '/',
-      suffix: ''
-    }
-  };
+  static generateCodeSyntax(token: Token, platformId: string, schema: Schema): string {
+    // Find the platform object
+    const platform = (schema.platforms || []).find(p => p.id === platformId);
+    const syntax = platform?.syntaxPatterns || {};
+    const taxonomyOrder = schema.namingRules?.taxonomyOrder || [];
+    const taxonomies = schema.taxonomies || [];
 
-  static generateCodeSyntax(token: Token, platform: string): string {
-    const options = this.defaultOptions[platform] || {
-      platform,
-      prefix: '',
-      separator: '-',
-      suffix: ''
-    };
-
-    // If the token already has a code syntax for this platform, use it
-    if (token.codeSyntax && token.codeSyntax[platform]) {
-      return token.codeSyntax[platform];
-    }
-
-    // Generate a new code syntax based on the token's properties
+    // Build parts in taxonomy order
     const parts: string[] = [];
-
-    // Add taxonomies in order
-    if (token.taxonomies) {
-      Object.entries(token.taxonomies).forEach(([key, value]) => {
-        parts.push(value);
+    if (Array.isArray(token.taxonomies) && token.taxonomies.length > 0) {
+      taxonomyOrder.forEach(taxId => {
+        const ref = token.taxonomies.find(t => t.taxonomyId === taxId);
+        if (ref) {
+          const taxonomy = taxonomies.find(tax => tax.id === ref.taxonomyId);
+          const term = taxonomy?.terms.find(term => term.id === ref.termId);
+          if (term) parts.push(term.name);
+        }
+      });
+      // Add any remaining taxonomies not in the order
+      token.taxonomies.forEach(ref => {
+        if (!taxonomyOrder.includes(ref.taxonomyId)) {
+          const taxonomy = taxonomies.find(tax => tax.id === ref.taxonomyId);
+          const term = taxonomy?.terms.find(term => term.id === ref.termId);
+          if (term) parts.push(term.name);
+        }
       });
     }
-
-    // Add the display name if no taxonomies are present
+    // Fallback to displayName if no taxonomy terms
     if (parts.length === 0) {
       parts.push(token.displayName);
     }
-
-    // Join the parts with the separator
-    const baseSyntax = parts.join(options.separator);
-
-    // Add prefix and suffix
-    return `${options.prefix}${baseSyntax}${options.suffix}`;
+    // Join parts with delimiter
+    let name = parts.join(syntax.delimiter ?? '');
+    // Capitalization
+    switch (syntax.capitalization) {
+      case 'uppercase':
+        name = name.toUpperCase();
+        break;
+      case 'lowercase':
+        name = name.toLowerCase();
+        break;
+      case 'capitalize':
+        name = name.replace(/\b\w/g, c => c.toUpperCase());
+        break;
+      default:
+        break;
+    }
+    // Format string or prefix/suffix
+    let result = `${syntax.prefix ?? ''}${name}${syntax.suffix ?? ''}`;
+    if (syntax.formatString) {
+      result = syntax.formatString
+        .replace('{prefix}', syntax.prefix ?? '')
+        .replace('{name}', name)
+        .replace('{suffix}', syntax.suffix ?? '');
+    }
+    return result;
   }
 
-  static generateAllCodeSyntaxes(token: Token): Record<string, string> {
+  static generateAllCodeSyntaxes(token: Token, schema: Schema): Record<string, string> {
     const syntaxes: Record<string, string> = {};
-
-    // Generate syntax for each supported platform
-    Object.keys(this.defaultOptions).forEach(platform => {
-      syntaxes[platform] = this.generateCodeSyntax(token, platform);
+    (schema.platforms || []).forEach(platform => {
+      syntaxes[platform.id] = this.generateCodeSyntax(token, platform.id, schema);
     });
-
     return syntaxes;
   }
 

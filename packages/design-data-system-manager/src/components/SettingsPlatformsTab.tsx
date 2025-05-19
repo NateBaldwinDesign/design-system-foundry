@@ -21,44 +21,38 @@ import { useSchema, ExportConfiguration } from '../hooks/useSchema';
 interface Platform {
   id: string;
   displayName: string;
+  description?: string;
+  syntaxPatterns?: {
+    prefix?: string;
+    suffix?: string;
+    delimiter?: string;
+    capitalization?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+    formatString?: string;
+  };
 }
 
 export const SettingsPlatformsTab: React.FC = () => {
   const { schema, updateSchema } = useSchema();
   const [newPlatformName, setNewPlatformName] = React.useState('');
 
-  const handleUpdateConfiguration = (
+  const handleUpdatePlatform = (
     platformId: string,
-    field: keyof ExportConfiguration,
+    field: keyof NonNullable<Platform['syntaxPatterns']>,
     value: string
   ) => {
-    const currentConfig = schema.exportConfigurations?.[platformId] as ExportConfiguration | undefined;
-    if (!currentConfig) {
-      const updatedConfigurations = {
-        ...schema.exportConfigurations,
-        [platformId]: {
-          prefix: '',
-          delimiter: '_',
-          capitalization: 'none' as const,
-          [field]: value,
-        },
-      };
-      updateSchema({
-        ...schema,
-        exportConfigurations: updatedConfigurations,
-      });
-      return;
-    }
-    const updatedConfigurations = {
-      ...schema.exportConfigurations,
-      [platformId]: {
-        ...currentConfig,
-        [field]: value,
-      },
-    };
     updateSchema({
       ...schema,
-      exportConfigurations: updatedConfigurations,
+      platforms: (schema.platforms || []).map((p: Platform) =>
+        p.id === platformId
+          ? {
+              ...p,
+              syntaxPatterns: {
+                ...p.syntaxPatterns,
+                [field]: value
+              }
+            }
+          : p
+      )
     });
   };
 
@@ -66,7 +60,17 @@ export const SettingsPlatformsTab: React.FC = () => {
     if (!newPlatformName.trim()) return;
     const newId = newPlatformName.trim().replace(/\s+/g, '_').toLowerCase();
     if (schema.platforms?.some((p: Platform) => p.id === newId)) return;
-    const newPlatform: Platform = { id: newId, displayName: newPlatformName.trim() };
+    const newPlatform: Platform = {
+      id: newId,
+      displayName: newPlatformName.trim(),
+      syntaxPatterns: {
+        prefix: '',
+        suffix: '',
+        delimiter: '_',
+        capitalization: 'none',
+        formatString: ''
+      }
+    };
     updateSchema({
       ...schema,
       platforms: [...(schema.platforms || []), newPlatform],
@@ -78,9 +82,6 @@ export const SettingsPlatformsTab: React.FC = () => {
     updateSchema({
       ...schema,
       platforms: (schema.platforms || []).filter((p: Platform) => p.id !== platformId),
-      exportConfigurations: Object.fromEntries(
-        Object.entries(schema.exportConfigurations || {}).filter(([id]) => id !== platformId)
-      ),
     });
   };
 
@@ -111,15 +112,17 @@ export const SettingsPlatformsTab: React.FC = () => {
             <TableRow>
               <TableCell>Platform Name</TableCell>
               <TableCell>Prefix</TableCell>
+              <TableCell>Suffix</TableCell>
               <TableCell>Delimiter</TableCell>
               <TableCell>Capitalization</TableCell>
+              <TableCell>Format String</TableCell>
               <TableCell>Preview</TableCell>
               <TableCell>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {(schema.platforms || []).map((platform: Platform) => {
-              const config = schema.exportConfigurations?.[platform.id] as ExportConfiguration | undefined;
+              const syntax = platform.syntaxPatterns || {};
               return (
                 <TableRow key={platform.id}>
                   <TableCell>
@@ -132,24 +135,38 @@ export const SettingsPlatformsTab: React.FC = () => {
                   <TableCell>
                     <TextField
                       size="small"
-                      value={config?.prefix ?? ''}
-                      onChange={e => handleUpdateConfiguration(platform.id, 'prefix', e.target.value)}
+                      value={syntax.prefix ?? ''}
+                      onChange={e => handleUpdatePlatform(platform.id, 'prefix', e.target.value)}
                       placeholder="e.g., TKN_"
                     />
                   </TableCell>
                   <TableCell>
                     <TextField
                       size="small"
-                      value={config?.delimiter ?? '_'}
-                      onChange={e => handleUpdateConfiguration(platform.id, 'delimiter', e.target.value)}
-                      placeholder="e.g., _"
+                      value={syntax.suffix ?? ''}
+                      onChange={e => handleUpdatePlatform(platform.id, 'suffix', e.target.value)}
+                      placeholder="e.g., _SUF"
                     />
                   </TableCell>
                   <TableCell>
                     <FormControl size="small" fullWidth>
                       <Select
-                        value={config?.capitalization ?? 'none'}
-                        onChange={e => handleUpdateConfiguration(platform.id, 'capitalization', e.target.value)}
+                        value={syntax.delimiter ?? ''}
+                        onChange={e => handleUpdatePlatform(platform.id, 'delimiter', e.target.value)}
+                      >
+                        <MenuItem value="">None (no delimiter)</MenuItem>
+                        <MenuItem value="_">Underscore (_)</MenuItem>
+                        <MenuItem value="-">Hyphen (-)</MenuItem>
+                        <MenuItem value=".">Dot (.)</MenuItem>
+                        <MenuItem value="/">Forward slash (/)</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </TableCell>
+                  <TableCell>
+                    <FormControl size="small" fullWidth>
+                      <Select
+                        value={syntax.capitalization ?? 'none'}
+                        onChange={e => handleUpdatePlatform(platform.id, 'capitalization', e.target.value)}
                       >
                         <MenuItem value="none">None</MenuItem>
                         <MenuItem value="uppercase">UPPERCASE</MenuItem>
@@ -159,11 +176,19 @@ export const SettingsPlatformsTab: React.FC = () => {
                     </FormControl>
                   </TableCell>
                   <TableCell>
+                    <TextField
+                      size="small"
+                      value={syntax.formatString ?? ''}
+                      onChange={e => handleUpdatePlatform(platform.id, 'formatString', e.target.value)}
+                      placeholder="e.g., {prefix}{name}{suffix}"
+                    />
+                  </TableCell>
+                  <TableCell>
                     {(() => {
                       // Example token name parts
                       const exampleParts = ['primary', 'color', 'background'];
-                      let name = exampleParts.join(config?.delimiter ?? '_');
-                      switch (config?.capitalization) {
+                      let name = exampleParts.join(syntax.delimiter ?? '_');
+                      switch (syntax.capitalization) {
                         case 'uppercase':
                           name = name.toUpperCase();
                           break;
@@ -176,7 +201,14 @@ export const SettingsPlatformsTab: React.FC = () => {
                         default:
                           break;
                       }
-                      return `${config?.prefix ?? ''}${name}`;
+                      let preview = `${syntax.prefix ?? ''}${name}${syntax.suffix ?? ''}`;
+                      if (syntax.formatString) {
+                        preview = syntax.formatString
+                          .replace('{prefix}', syntax.prefix ?? '')
+                          .replace('{name}', name)
+                          .replace('{suffix}', syntax.suffix ?? '');
+                      }
+                      return preview;
                     })()}
                   </TableCell>
                   <TableCell>

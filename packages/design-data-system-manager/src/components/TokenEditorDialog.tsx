@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -28,9 +28,11 @@ import { TaxonomyPicker } from './TaxonomyPicker';
 import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { Delete } from '@mui/icons-material';
 import { createUniqueId } from '../utils/id';
+import { useSchema } from '../hooks/useSchema';
+import { CodeSyntaxService } from '../services/codeSyntax';
 
 // Extend the Token type to include themeable
-export type ExtendedToken = Token & { themeable?: boolean };
+export type ExtendedToken = Token & { themeable?: boolean; codeSyntax?: Record<string, string> };
 
 export interface TokenEditorDialogProps {
   token: ExtendedToken;
@@ -78,6 +80,7 @@ function getDefaultTokenValue(type: string): TokenValue {
 type AllowedResolvedValueType = Token['resolvedValueType'];
 
 export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, resolvedValueTypes, isNew = false }: TokenEditorDialogProps) {
+  const { schema } = useSchema();
   const preservedValuesByRemovedDimension = useRef<Record<string, Record<string, TokenValue>>>({});
   const [editedToken, setEditedToken] = useState<ExtendedToken & { constraints?: any[] }>(() => {
     if (isNew) {
@@ -88,6 +91,35 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     }
     return token;
   });
+
+  // Debug: log props on mount
+  useEffect(() => {
+    console.log('[TokenEditorDialog] props', { token, tokens, dimensions, modes, platforms, open, taxonomies, resolvedValueTypes, isNew });
+  }, [token, tokens, dimensions, modes, platforms, open, taxonomies, resolvedValueTypes, isNew]);
+
+  // Local state for taxonomy edits (not applied to editedToken until save)
+  const [taxonomyEdits, setTaxonomyEdits] = useState<any[]>(() =>
+    Array.isArray(token.taxonomies) ? token.taxonomies : []
+  );
+
+  // Debug: log taxonomyEdits whenever they change
+  useEffect(() => {
+    console.log('[TokenEditorDialog] taxonomyEdits changed', taxonomyEdits);
+  }, [taxonomyEdits]);
+
+  // codeSyntax state, initialized from token.codeSyntax or generated if missing
+  const [codeSyntax, setCodeSyntax] = useState<Record<string, string>>(() => {
+    if (token.codeSyntax && Object.keys(token.codeSyntax).length > 0) {
+      return token.codeSyntax;
+    }
+    // fallback: generate from initial token state
+    return CodeSyntaxService.generateAllCodeSyntaxes({ ...token, taxonomies: taxonomyEdits } as any, schema as any);
+  });
+
+  // Debug: log codeSyntax whenever it updates
+  useEffect(() => {
+    console.log('[TokenEditorDialog] codeSyntax updated', codeSyntax);
+  }, [codeSyntax]);
 
   // Track which dimensions are active for this token
   const [activeDimensionIds, setActiveDimensionIds] = useState<string[]>([]);
@@ -155,10 +187,21 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     });
   }, [dimensions, activeDimensionIds, open]);
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave(editedToken);
-  };
+  // Update codeSyntax state whenever taxonomyEdits or other relevant fields change
+  useEffect(() => {
+    setCodeSyntax(CodeSyntaxService.generateAllCodeSyntaxes(
+      { ...editedToken, taxonomies: taxonomyEdits } as any,
+      schema as any
+    ));
+    console.log('[TokenEditorDialog] codeSyntax updated', {
+      editedToken,
+      taxonomyEdits,
+      codeSyntax: CodeSyntaxService.generateAllCodeSyntaxes(
+        { ...editedToken, taxonomies: taxonomyEdits } as any,
+        schema as any
+      )
+    });
+  }, [taxonomyEdits, editedToken.displayName, editedToken.resolvedValueType, editedToken.tokenCollectionId, editedToken.propertyTypes, editedToken.private, editedToken.themeable, schema]);
 
   // Add or remove a dimension from the token
   const handleToggleDimension = (dimensionId: string) => {
@@ -287,7 +330,24 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     );
   };
 
-  // ... (handlers for value changes, constraints, etc. can be added here as needed) ...
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('[TokenEditorDialog] handleSave', {
+      editedToken,
+      taxonomyEdits,
+      codeSyntax
+    });
+    // Apply taxonomyEdits and codeSyntax to the token on save
+    onSave({ ...editedToken, taxonomies: taxonomyEdits, codeSyntax });
+  };
+
+  // Build code syntax preview elements outside of JSX for clarity
+  const codeSyntaxPreview = Object.entries(codeSyntax).map(([key, value]) => (
+    <Box key={key} sx={{ display: 'flex', alignItems: 'baseline', gap: 1, ml: 2, mb: 0.5 }}>
+      <Typography variant="body2" sx={{ minWidth: 100 }}>{key}:</Typography>
+      <Typography variant="body2">{value}</Typography>
+    </Box>
+  ));
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -425,8 +485,8 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
             </FormHelperText>
             <TaxonomyPicker
               taxonomies={Array.isArray(taxonomies) ? taxonomies : []}
-              value={Array.isArray(editedToken.taxonomies) ? editedToken.taxonomies : []}
-              onChange={newTaxonomies => setEditedToken(prev => ({ ...prev, taxonomies: newTaxonomies }))}
+              value={taxonomyEdits}
+              onChange={setTaxonomyEdits}
               disabled={!Array.isArray(taxonomies) || taxonomies.length === 0}
             />
           </Box>
@@ -550,13 +610,8 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                 <Typography variant="body2">{editedToken.resolvedValueType}</Typography>
               </Box>
               <Box>
-                <Typography variant="subtitle2" gutterBottom>Code Syntax:</Typography>
-                {Object.entries(editedToken.codeSyntax).map(([key, value]) => (
-                  <Box key={key} sx={{ display: 'flex', alignItems: 'baseline', gap: 1, ml: 2, mb: 0.5 }}>
-                    <Typography variant="body2" sx={{ minWidth: 100 }}>{key}:</Typography>
-                    <Typography variant="body2">{value}</Typography>
-                  </Box>
-                ))}
+                <Typography variant="subtitle2" gutterBottom>Code Syntax (preview):</Typography>
+                {codeSyntaxPreview}
               </Box>
             </Box>
           </Box>

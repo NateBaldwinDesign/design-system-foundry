@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://designsystem.org/schemas/theme-overrides/v1.0.0",
+  "title": "Theme Override Schema",
+  "description": "Schema for theme override files, referenced from the main schema's themes[].overrideFileUri property.",
+  "type": "object",
+  "required": ["themeId", "tokenOverrides"],
+  "properties": {
+    "themeId": {
+      "type": "string",
+      "description": "ID of the theme these overrides belong to"
+    },
+    "tokenOverrides": {
+      "type": "array",
+      "description": "Overrides for tokens in this theme.",
+      "items": {
+        "type": "object",
+        "required": ["tokenId", "value"],
+        "properties": {
+          "tokenId": {
+            "type": "string",
+            "description": "ID of the token to override"
+          },
+          "value": {
+            "type": "object",
+            "description": "The override value for the token",
+            "required": ["type", "value"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["COLOR", "FLOAT", "INTEGER", "STRING", "BOOLEAN", "ALIAS"]
+              },
+              "value": {
+                "oneOf": [
+                  { "type": "string" },
+                  { "type": "number" },
+                  { "type": "boolean" }
+                ]
+              },
+              "tokenId": {
+                "type": "string",
+                "description": "ID of the token to alias to (only used when type is ALIAS)"
+              }
+            }
+          },
+          "platformOverrides": {
+            "type": "array",
+            "description": "Platform-specific overrides for this token in this theme",
+            "items": {
+              "type": "object",
+              "required": ["platformId", "value"],
+              "properties": {
+                "platformId": {
+                  "type": "string",
+                  "description": "ID of the platform this override applies to"
+                },
+                "value": {
+                  "type": "object",
+                  "required": ["type", "value"],
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["COLOR", "FLOAT", "INTEGER", "STRING", "BOOLEAN", "ALIAS"]
+                    },
+                    "value": {
+                      "oneOf": [
+                        { "type": "string" },
+                        { "type": "number" },
+                        { "type": "boolean" }
+                      ]
+                    },
+                    "tokenId": {
+                      "type": "string",
+                      "description": "ID of the token to alias to (only used when type is ALIAS)"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+} 

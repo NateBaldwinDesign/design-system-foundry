@@ -234,9 +234,26 @@ export const TokenVariant = z.object({
   tokens: z.array(Token)
 });
 
+// Add enum for delimiter
+export const PlatformDelimiter = z.enum(['', '_', '-', '.', '/']);
+
+// Update Platform schema to include syntaxPatterns
 export const Platform = z.object({
   id: z.string(),
-  displayName: z.string()
+  displayName: z.string(),
+  description: z.string().optional(),
+  syntaxPatterns: z.object({
+    prefix: z.string().optional(),
+    suffix: z.string().optional(),
+    delimiter: PlatformDelimiter.optional(),
+    capitalization: z.enum(['none', 'uppercase', 'lowercase', 'capitalize']).optional(),
+    formatString: z.string().optional()
+  }).optional(),
+  valueFormatters: z.object({
+    color: z.enum(['hex', 'rgb', 'rgba', 'hsl', 'hsla']).optional(),
+    dimension: z.enum(['px', 'rem', 'em', 'pt', 'dp', 'sp']).optional(),
+    numberPrecision: z.number().int().min(0).max(10).optional()
+  }).optional()
 });
 
 // Theme schema
@@ -306,7 +323,7 @@ export const DimensionEvolution = z.object({
   rules: z.array(DimensionEvolutionRule)
 });
 
-// Update TokenSystem
+// Update TokenSystem to require platforms
 export const TokenSystem = z.object({
   version: z.string(),
   versionHistory: z.array(VersionHistoryEntry),
@@ -316,7 +333,7 @@ export const TokenSystem = z.object({
   tokens: z.array(Token),
   tokenGroups: z.array(TokenGroup),
   tokenVariants: z.array(TokenVariant),
-  platforms: z.array(Platform).optional(),
+  platforms: z.array(Platform),
   themes: z.array(Theme),
   themeOverrides: ThemeOverrides,
   taxonomies: z.array(Taxonomy)

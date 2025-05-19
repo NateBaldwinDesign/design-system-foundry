@@ -19,6 +19,8 @@ import {
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import type { Token, TokenCollection, Mode, TokenValue, Dimension, Taxonomy, TokenTaxonomyRef } from '@token-model/data-model';
 import { TaxonomyPicker } from './TaxonomyPicker';
+import { useSchema } from '../hooks/useSchema';
+import { CodeSyntaxService } from '../services/codeSyntax';
 
 interface TokenFormProps {
   collections: TokenCollection[];
@@ -45,6 +47,8 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
     codeSyntax: {},
     valuesByMode: []
   });
+
+  const { schema } = useSchema();
 
   // Initialize form data from initialData if provided
   useEffect(() => {
@@ -111,16 +115,6 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
     }));
   };
 
-  const handleCodeSyntaxChange = (platform: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      codeSyntax: {
-        ...prev.codeSyntax,
-        [platform]: value
-      }
-    }));
-  };
-
   const getAvailableModes = (selectedModeIds: string[]) => {
     const requiredDimensions = dimensions.filter(d => d.required);
     const optionalDimensions = dimensions.filter(d => !d.required);
@@ -176,7 +170,12 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
       safeTaxonomies.some(tax => tax.id === ref.taxonomyId) &&
       (ref.termId === '' || safeTaxonomies.find(tax => tax.id === ref.taxonomyId)?.terms.some(term => term.id === ref.termId))
     );
-    onSubmit({ ...formData, taxonomies: validTaxonomies });
+    // Generate codeSyntax for all platforms
+    const codeSyntax = CodeSyntaxService.generateAllCodeSyntaxes(
+      { ...formData, taxonomies: validTaxonomies } as any,
+      schema as any
+    );
+    onSubmit({ ...formData, taxonomies: validTaxonomies, codeSyntax });
   };
 
   const getValueInput = (value: TokenValue, onChange: (value: TokenValue) => void) => {
@@ -358,44 +357,18 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
 
         <Grid item xs={12}>
           <Typography variant="h6" gutterBottom>
-            Code Syntax
+            Code Syntax (auto-generated)
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {Object.entries(formData.codeSyntax).map(([platform, syntax]) => (
+            {Object.entries(CodeSyntaxService.generateAllCodeSyntaxes(formData as any, schema as any)).map(([platform, syntax]) => (
               <Box key={platform} sx={{ display: 'flex', gap: 2 }}>
                 <TextField
-                  label="Platform"
-                  value={platform}
-                  onChange={(e) => {
-                    const newPlatform = e.target.value;
-                    const newCodeSyntax = { ...formData.codeSyntax };
-                    delete newCodeSyntax[platform];
-                    newCodeSyntax[newPlatform] = syntax;
-                    handleInputChange('codeSyntax', newCodeSyntax);
-                  }}
-                />
-                <TextField
-                  label="Syntax"
+                  label={platform}
                   value={syntax}
-                  onChange={(e) => handleCodeSyntaxChange(platform, e.target.value)}
+                  InputProps={{ readOnly: true }}
                 />
-                <IconButton
-                  onClick={() => {
-                    const newCodeSyntax = { ...formData.codeSyntax };
-                    delete newCodeSyntax[platform];
-                    handleInputChange('codeSyntax', newCodeSyntax);
-                  }}
-                >
-                  <DeleteIcon />
-                </IconButton>
               </Box>
             ))}
-            <Button
-              startIcon={<AddIcon />}
-              onClick={() => handleCodeSyntaxChange('', '')}
-            >
-              Add Code Syntax
-            </Button>
           </Box>
         </Grid>
 

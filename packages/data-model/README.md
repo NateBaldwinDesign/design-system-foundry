@@ -82,3 +82,59 @@ This will check that your data (e.g., tokens, collections, dimensions, platforms
 ## License
 
 MIT 
+
+## Theme Overrides: Hybrid File Approach
+
+- **Core Tokens File:** The main schema (schema.json) defines all core tokens and themes.
+- **Theme Override Files:** Each theme can reference a separate override file via the new `overrideFileUri` property in the theme object.
+- **Reference System:** The main schema's `themes` array includes an `overrideFileUri` property for each theme, which points to a JSON file containing overrides for that theme.
+
+### Example (in schema.json)
+```json
+"themes": [
+  {
+    "id": "brand-dark",
+    "displayName": "Brand Dark Theme",
+    "description": "Dark version of our brand theme",
+    "isDefault": false,
+    "overrideFileUri": "themes/brand-dark-overrides.json"
+  }
+]
+```
+
+### Example (theme override file)
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://designsystem.org/schemas/theme-overrides/v1.0.0",
+  "themeId": "brand-dark",
+  "tokenOverrides": [
+    {
+      "tokenId": "color-primary",
+      "value": { "type": "COLOR", "value": "#003366" },
+      "platformOverrides": [
+        {
+          "platformId": "iOS",
+          "value": { "type": "COLOR", "value": "#004477" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Validation & Access Control
+- Only tokens with `themeable: true` may be overridden in theme override files.
+- Theme override files must reference existing theme IDs and token IDs.
+- Override values must follow the correct type constraints.
+- Core token maintainers have access to the main schema file; theme designers have access only to their theme override files.
+
+### Extensibility Benefits
+- New themes can be added without modifying core tokens.
+- Theme overrides can evolve independently.
+- Different teams can work on different themes concurrently.
+- Easily supports future features like theme inheritance or theme composition.
+
+### Validation
+- Use `theme-overrides.schema.json` to validate each theme override file.
+- Use the main schema to validate the core tokens and theme metadata. 
