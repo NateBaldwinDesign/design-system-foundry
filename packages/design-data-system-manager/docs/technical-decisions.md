@@ -17,7 +17,7 @@ Both options have been removed from the UI and underlying logic.
 ### Outcome
 - The only valid behavior for "Map to Defaults" is to use the dimension's `defaultMode`.
 - Value preservation is always the default and only behavior during migration.
-- The migration UI is now simpler, more predictable, and aligned with schema-driven best practices.
+- The migration UI is now simpler, more predictable, and aligned with schema-driven best practices. 
 
 # Code Syntax Preview Mapping in TokenEditorDialog
 

@@ -19,7 +19,8 @@ import {
   ListItem,
   ListItemText,
   ListItemSecondaryAction,
-  IconButton
+  IconButton,
+  FormControlLabel
 } from '@mui/material';
 import { ValueByModeTable } from './ValueByModeTable';
 import { PlatformOverridesTable } from './PlatformOverridesTable';
@@ -92,34 +93,21 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     return token;
   });
 
-  // Debug: log props on mount
-  useEffect(() => {
-    console.log('[TokenEditorDialog] props', { token, tokens, dimensions, modes, platforms, open, taxonomies, resolvedValueTypes, isNew });
-  }, [token, tokens, dimensions, modes, platforms, open, taxonomies, resolvedValueTypes, isNew]);
+  // Only add taxonomies to schemaForSyntax if needed
+  const schemaForSyntax = {
+    ...schema,
+    taxonomies: taxonomies ?? (schema as any).taxonomies
+  };
 
   // Local state for taxonomy edits (not applied to editedToken until save)
   const [taxonomyEdits, setTaxonomyEdits] = useState<any[]>(() =>
     Array.isArray(token.taxonomies) ? token.taxonomies : []
   );
-
-  // Debug: log taxonomyEdits whenever they change
-  useEffect(() => {
-    console.log('[TokenEditorDialog] taxonomyEdits changed', taxonomyEdits);
-  }, [taxonomyEdits]);
-
-  // codeSyntax state, initialized from token.codeSyntax or generated if missing
-  const [codeSyntax, setCodeSyntax] = useState<Record<string, string>>(() => {
-    if (token.codeSyntax && Object.keys(token.codeSyntax).length > 0) {
-      return token.codeSyntax;
-    }
-    // fallback: generate from initial token state
-    return CodeSyntaxService.generateAllCodeSyntaxes({ ...token, taxonomies: taxonomyEdits } as any, schema as any);
-  });
-
-  // Debug: log codeSyntax whenever it updates
-  useEffect(() => {
-    console.log('[TokenEditorDialog] codeSyntax updated', codeSyntax);
-  }, [codeSyntax]);
+  
+  const codeSyntax = useMemo(() => {
+    const tokenForSyntax = { ...token, ...editedToken, taxonomies: taxonomyEdits };
+    return CodeSyntaxService.generateAllCodeSyntaxes(tokenForSyntax, schemaForSyntax);
+  }, [token, editedToken, taxonomyEdits, schemaForSyntax]);
 
   // Track which dimensions are active for this token
   const [activeDimensionIds, setActiveDimensionIds] = useState<string[]>([]);
@@ -175,33 +163,12 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
         }
         return { modeIds, value: getDefaultTokenValue(prev.resolvedValueType) };
       });
-      console.log('[TokenEditorDialog] useEffect valuesByMode update:', {
-        prevValuesByMode: prev.valuesByMode,
-        combos,
-        newValuesByMode
-      });
       return {
         ...prev,
         valuesByMode: newValuesByMode
       };
     });
   }, [dimensions, activeDimensionIds, open]);
-
-  // Update codeSyntax state whenever taxonomyEdits or other relevant fields change
-  useEffect(() => {
-    setCodeSyntax(CodeSyntaxService.generateAllCodeSyntaxes(
-      { ...editedToken, taxonomies: taxonomyEdits } as any,
-      schema as any
-    ));
-    console.log('[TokenEditorDialog] codeSyntax updated', {
-      editedToken,
-      taxonomyEdits,
-      codeSyntax: CodeSyntaxService.generateAllCodeSyntaxes(
-        { ...editedToken, taxonomies: taxonomyEdits } as any,
-        schema as any
-      )
-    });
-  }, [taxonomyEdits, editedToken.displayName, editedToken.resolvedValueType, editedToken.tokenCollectionId, editedToken.propertyTypes, editedToken.private, editedToken.themeable, schema]);
 
   // Add or remove a dimension from the token
   const handleToggleDimension = (dimensionId: string) => {
@@ -244,12 +211,6 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           }
           return { modeIds, value: getDefaultTokenValue(prev.resolvedValueType) };
         });
-        console.log('[TokenEditorDialog] handleToggleDimension REMOVE:', {
-          prevValuesByMode: prev.valuesByMode,
-          combos,
-          newValuesByMode,
-          preserved: preservedValuesByRemovedDimension.current
-        });
         return {
           ...prev,
           valuesByMode: newValuesByMode
@@ -286,12 +247,6 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
             }
           }
           return { modeIds, value: getDefaultTokenValue(prev.resolvedValueType) };
-        });
-        console.log('[TokenEditorDialog] handleToggleDimension ADD:', {
-          prevValuesByMode: prev.valuesByMode,
-          combos,
-          newValuesByMode,
-          restored: preserved
         });
         return {
           ...prev,
@@ -332,239 +287,218 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[TokenEditorDialog] handleSave', {
-      editedToken,
-      taxonomyEdits,
-      codeSyntax
-    });
-    // Apply taxonomyEdits and codeSyntax to the token on save
-    onSave({ ...editedToken, taxonomies: taxonomyEdits, codeSyntax });
+    onSave({ ...editedToken, taxonomies: taxonomyEdits });
   };
 
-  // Build code syntax preview elements outside of JSX for clarity
-  const codeSyntaxPreview = Object.entries(codeSyntax).map(([key, value]) => (
-    <Box key={key} sx={{ display: 'flex', alignItems: 'baseline', gap: 1, ml: 2, mb: 0.5 }}>
-      <Typography variant="body2" sx={{ minWidth: 100 }}>{key}:</Typography>
-      <Typography variant="body2">{value}</Typography>
-    </Box>
-  ));
+  function handleTaxonomyChange(newTaxonomies: any[]) {
+    setTaxonomyEdits(newTaxonomies);
+  }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>{isNew ? 'Create Token' : `Edit Token: ${token.displayName}`}</DialogTitle>
+      <DialogTitle>{isNew ? 'Create token' : `Edit token: ${token.displayName}`}</DialogTitle>
       <DialogContent>
-        <Box component="form" onSubmit={handleSave} sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
-          {/* Basic Information */}
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              Basic Information
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField
-                label="Token ID"
-                value={editedToken.id}
-                disabled
-                fullWidth
-                helperText="Token IDs are automatically generated and cannot be edited"
-              />
-              <TextField
-                label="Display Name"
-                value={editedToken.displayName}
-                onChange={(e) => setEditedToken(prev => ({ ...prev, displayName: e.target.value }))}
-                fullWidth
-              />
-              <TextField
-                label="Description"
-                value={editedToken.description || ''}
-                onChange={(e) => setEditedToken(prev => ({ ...prev, description: e.target.value }))}
-                multiline
-                rows={2}
-                fullWidth
-              />
-              <FormControl fullWidth>
-                <InputLabel id="resolved-value-type-label">Value Type</InputLabel>
-                <Select
-                  labelId="resolved-value-type-label"
-                  value={editedToken.resolvedValueType || ''}
-                  label="Value Type"
-                  onChange={e => {
-                    const newType = e.target.value;
-                    setEditedToken(prev => ({
-                      ...prev,
-                      resolvedValueType: newType as AllowedResolvedValueType,
-                      valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType as AllowedResolvedValueType) }]
-                    }));
-                  }}
-                >
-                  {Array.isArray(resolvedValueTypes) && resolvedValueTypes.length > 0 ? (
-                    resolvedValueTypes.map(vt => (
-                      <MenuItem key={vt.id} value={vt.id}>{vt.displayName}</MenuItem>
-                    ))
-                  ) : (
-                    <MenuItem disabled value="">
-                      {resolvedValueTypes === undefined
-                        ? "No resolved value types available. Please configure them in the editor above."
-                        : "No resolved value types found."}
-                    </MenuItem>
-                  )}
-                </Select>
-                <FormHelperText>Select the value type for this token.</FormHelperText>
-              </FormControl>
-              <FormControl fullWidth sx={{ mt: 2 }}>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={editedToken.status || ''}
-                  label="Status"
-                  onChange={(e) => {
-                    const allowed = ['experimental', 'stable', 'deprecated'];
-                    const val = allowed.includes(e.target.value) ? e.target.value as 'experimental' | 'stable' | 'deprecated' : undefined;
-                    setEditedToken(prev => ({ ...prev, status: val }));
-                  }}
-                >
-                  <MenuItem value="experimental">Experimental</MenuItem>
-                  <MenuItem value="stable">Stable</MenuItem>
-                  <MenuItem value="deprecated">Deprecated</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControl>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography>Private:</Typography>
-                  <Chip
-                    label={editedToken.private ? 'Yes' : 'No'}
-                    color={editedToken.private ? 'default' : 'success'}
-                    onClick={() => setEditedToken(prev => ({ ...prev, private: !prev.private }))}
-                    clickable
-                  />
-                </Box>
-              </FormControl>
-              <FormControl>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography>Themeable:</Typography>
-                  <Chip
-                    label={editedToken.themeable ? 'Yes' : 'No'}
-                    color={editedToken.themeable ? 'success' : 'default'}
-                    onClick={() => setEditedToken(prev => ({ ...prev, themeable: !prev.themeable }))}
-                    clickable
-                  />
-                </Box>
-              </FormControl>
-            </Box>
-          </Box>
+        {/* Token ID below heading */}
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 2, ml: 0.5 }}>
+          Token ID: {editedToken.id}
+        </Typography>
 
-          {/* Dimensions */}
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              Dimensions
-            </Typography>
-            <FormHelperText sx={{ mb: 2 }}>
-              Select which dimensions (e.g., Color Scheme, Contrast) this token should use. Adding a dimension will create all combinations of its modes with the others. Removing a dimension will remove all values for its modes.
-            </FormHelperText>
-            <List dense>
-              {dimensions.map(dim => (
-                <ListItem key={dim.id}>
-                  <ListItemText primary={dim.displayName} secondary={dim.description} />
-                  <ListItemSecondaryAction>
-                    <Checkbox
-                      edge="end"
-                      checked={activeDimensionIds.includes(dim.id)}
-                      onChange={() => handleToggleDimension(dim.id)}
-                    />
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
-            </List>
-          </Box>
+        {/* Display Name and Description */}
+        <TextField
+          label="Display Name"
+          value={editedToken.displayName}
+          onChange={(e) => setEditedToken(prev => ({ ...prev, displayName: e.target.value }))}
+          fullWidth
+          sx={{ mb: 2 }}
+        />
+        <TextField
+          label="Description"
+          value={editedToken.description || ''}
+          onChange={(e) => setEditedToken(prev => ({ ...prev, description: e.target.value }))}
+          multiline
+          rows={2}
+          fullWidth
+          sx={{ mb: 3 }}
+        />
 
-          {/* Taxonomies */}
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              Taxonomies
-            </Typography>
-            <FormHelperText sx={{ mb: 2 }}>
-              Select taxonomies and terms to categorize this token. Each taxonomy can only be selected once.
-            </FormHelperText>
+        {/* Classification Section */}
+        <Box sx={{ display: 'flex', gap: 4, alignItems: 'flex-start', mb: 3 }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h6" gutterBottom>Classification</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Taxonomy</Typography>
             <TaxonomyPicker
               taxonomies={Array.isArray(taxonomies) ? taxonomies : []}
               value={taxonomyEdits}
-              onChange={setTaxonomyEdits}
+              onChange={handleTaxonomyChange}
               disabled={!Array.isArray(taxonomies) || taxonomies.length === 0}
             />
           </Box>
-
-          {/* Values by Mode */}
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              Values by Mode
-            </Typography>
-            {activeDimensionIds.length === 0 ? (
-              (() => {
-                const globalValue = editedToken.valuesByMode.find(vbm => Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0);
-                if (!globalValue) {
-                  return (
-                    <Button
-                      variant="outlined"
-                      onClick={() => setEditedToken(prev => ({
-                        ...prev,
-                        valuesByMode: [
-                          ...prev.valuesByMode,
-                          { modeIds: [], value: getDefaultTokenValue(prev.resolvedValueType) }
-                        ]
-                      }))}
-                    >
-                      Add Value
-                    </Button>
-                  );
-                }
-                return (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <TokenValuePicker
-                      resolvedValueType={editedToken.resolvedValueType}
-                      value={globalValue.value}
-                      tokens={tokens}
-                      constraints={(editedToken as any).constraints ?? []}
-                      excludeTokenId={editedToken.id}
-                      onChange={newValue => setEditedToken(prev => ({
-                        ...prev,
-                        valuesByMode: prev.valuesByMode.map(vbm =>
-                          Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0
-                            ? { ...vbm, value: newValue }
-                            : vbm
-                        )
-                      }))}
-                    />
-                    <IconButton
-                      color="error"
-                      onClick={() => setEditedToken(prev => ({
-                        ...prev,
-                        valuesByMode: prev.valuesByMode.filter(vbm => !(Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0))
-                      }))}
-                    >
-                      <Delete />
-                    </IconButton>
-                  </Box>
-                );
-              })()
-            ) : (
-              <ValueByModeTable
-                valuesByMode={editedToken.valuesByMode}
-                modes={modes}
-                editable={true}
-                onValueChange={(modeIndex, newValue) => setEditedToken(prev => ({
-                  ...prev,
-                  valuesByMode: prev.valuesByMode.map((item, i) =>
-                    i === modeIndex ? { ...item, value: newValue } : item
-                  )
-                }))}
-                getValueEditor={getValueEditor}
-                resolvedValueType={editedToken.resolvedValueType}
-                tokens={tokens}
-                constraints={(editedToken as any).constraints ?? []}
-                excludeTokenId={editedToken.id}
-              />
-            )}
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>Generated names per platform</Typography>
+            <Box>
+              {Object.entries(codeSyntax).map(([platform, name]) => (
+                <Box key={platform} sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 0.5 }}>
+                  <Typography variant="body2" sx={{ minWidth: 80 }}>{platform}</Typography>
+                  <Typography variant="body2">{name}</Typography>
+                </Box>
+              ))}
+            </Box>
           </Box>
+        </Box>
 
-          {/* Platform Overrides */}
+        {/* Settings Section */}
+        <Box sx={{ display: 'flex', gap: 4, alignItems: 'flex-end', mb: 3 }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h6" gutterBottom>Settings</Typography>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel id="resolved-value-type-label">Value type</InputLabel>
+              <Select
+                labelId="resolved-value-type-label"
+                value={editedToken.resolvedValueType || ''}
+                label="Value type"
+                onChange={e => {
+                  const newType = e.target.value;
+                  setEditedToken(prev => ({
+                    ...prev,
+                    resolvedValueType: newType as AllowedResolvedValueType,
+                    valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType as AllowedResolvedValueType) }]
+                  }));
+                }}
+              >
+                {Array.isArray(resolvedValueTypes) && resolvedValueTypes.length > 0 ? (
+                  resolvedValueTypes.map(vt => (
+                    <MenuItem key={vt.id} value={vt.id}>{vt.displayName}</MenuItem>
+                  ))
+                ) : (
+                  <MenuItem disabled value="">
+                    {resolvedValueTypes === undefined
+                      ? "No resolved value types available. Please configure them in the editor above."
+                      : "No resolved value types found."}
+                  </MenuItem>
+                )}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={editedToken.status || ''}
+                label="Status"
+                onChange={(e) => {
+                  const allowed = ['experimental', 'stable', 'deprecated'];
+                  const val = allowed.includes(e.target.value) ? e.target.value as 'experimental' | 'stable' | 'deprecated' : undefined;
+                  setEditedToken(prev => ({ ...prev, status: val }));
+                }}
+              >
+                <MenuItem value="experimental">Experimental</MenuItem>
+                <MenuItem value="stable">Stable</MenuItem>
+                <MenuItem value="deprecated">Deprecated</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+            <Typography variant="subtitle2">Extensibility</Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <FormControlLabel
+                control={<Checkbox checked={!!editedToken.private} onChange={() => setEditedToken(prev => ({ ...prev, private: !prev.private }))} />}
+                label="Private"
+              />
+              <FormControlLabel
+                control={<Checkbox checked={!!editedToken.themeable} onChange={() => setEditedToken(prev => ({ ...prev, themeable: !prev.themeable }))} />}
+                label="Theme-able"
+              />
+            </Box>
+          </Box>
+        </Box>
+
+        {/* Values Section */}
+        <Box>
+          <Typography variant="h6" gutterBottom>Values</Typography>
+          <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ mr: 2 }}>Dimensions</Typography>
+            {dimensions.map(dim => (
+              <FormControlLabel
+                key={dim.id}
+                control={
+                  <Checkbox
+                    checked={activeDimensionIds.includes(dim.id)}
+                    onChange={() => handleToggleDimension(dim.id)}
+                  />
+                }
+                label={dim.displayName}
+              />
+            ))}
+          </Box>
+          {activeDimensionIds.length === 0 ? (
+            (() => {
+              const globalValue = editedToken.valuesByMode.find(vbm => Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0);
+              if (!globalValue) {
+                return (
+                  <Button
+                    variant="outlined"
+                    onClick={() => setEditedToken(prev => ({
+                      ...prev,
+                      valuesByMode: [
+                        ...prev.valuesByMode,
+                        { modeIds: [], value: getDefaultTokenValue(prev.resolvedValueType) }
+                      ]
+                    }))}
+                  >
+                    Add Value
+                  </Button>
+                );
+              }
+              return (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <TokenValuePicker
+                    resolvedValueType={editedToken.resolvedValueType}
+                    value={globalValue.value}
+                    tokens={tokens}
+                    constraints={(editedToken as any).constraints ?? []}
+                    excludeTokenId={editedToken.id}
+                    onChange={newValue => setEditedToken(prev => ({
+                      ...prev,
+                      valuesByMode: prev.valuesByMode.map(vbm =>
+                        Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0
+                          ? { ...vbm, value: newValue }
+                          : vbm
+                      )
+                    }))}
+                  />
+                  <IconButton
+                    color="error"
+                    onClick={() => setEditedToken(prev => ({
+                      ...prev,
+                      valuesByMode: prev.valuesByMode.filter(vbm => !(Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0))
+                    }))}
+                  >
+                    <Delete />
+                  </IconButton>
+                </Box>
+              );
+            })()
+          ) : (
+            <ValueByModeTable
+              valuesByMode={editedToken.valuesByMode}
+              modes={modes}
+              editable={true}
+              onValueChange={(modeIndex, newValue) => setEditedToken(prev => ({
+                ...prev,
+                valuesByMode: prev.valuesByMode.map((item, i) =>
+                  i === modeIndex ? { ...item, value: newValue } : item
+                )
+              }))}
+              getValueEditor={getValueEditor}
+              resolvedValueType={editedToken.resolvedValueType}
+              tokens={tokens}
+              constraints={(editedToken as any).constraints ?? []}
+              excludeTokenId={editedToken.id}
+            />
+          )}
+        </Box>
+
+        {/* Platform Overrides Section */}
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h6" gutterBottom>Platform overrides</Typography>
           <PlatformOverridesTable
             platforms={platforms}
             valuesByMode={editedToken.valuesByMode}
@@ -594,33 +528,18 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
             constraints={(editedToken as any).constraints ?? []}
             excludeTokenId={editedToken.id}
           />
-
-          {/* Token Information */}
-          <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
-            <Typography variant="h6" gutterBottom>
-              Token Information
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                <Typography variant="subtitle2" sx={{ minWidth: 120 }}>Token ID:</Typography>
-                <Typography variant="body2">{editedToken.id}</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                <Typography variant="subtitle2" sx={{ minWidth: 120 }}>Value Type:</Typography>
-                <Typography variant="body2">{editedToken.resolvedValueType}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="subtitle2" gutterBottom>Code Syntax (preview):</Typography>
-                {codeSyntaxPreview}
-              </Box>
-            </Box>
-          </Box>
+          {/* Add override button if no overrides exist */}
+          {editedToken.valuesByMode.every(vbm => !vbm.platformOverrides || vbm.platformOverrides.length === 0) && (
+            <Button variant="outlined" sx={{ mt: 2 }}>
+              Add override
+            </Button>
+          )}
         </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Cancel</Button>
         <Button onClick={handleSave} variant="contained">
-          {isNew ? 'Create Token' : 'Save Changes'}
+          {isNew ? 'Create token' : 'Save'}
         </Button>
       </DialogActions>
     </Dialog>

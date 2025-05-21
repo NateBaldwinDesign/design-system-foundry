@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStorage } from './useStorage';
-import defaultData from '../services/data/default-data.json';
+import coreData from '@token-model/data-model/examples/themed/core-data.json';
 
 export interface ExportConfiguration {
   prefix: string;
@@ -40,14 +40,10 @@ export interface Schema {
 
 export const useSchema = () => {
   const { getItem, setItem } = useStorage();
-  const [schema, setSchema] = useState<Schema>(() => {
+  const [schema, setSchema] = useState<any>(() => {
     const stored = getItem('schema');
-    let base = stored ? JSON.parse(stored) : (defaultData as any);
-    if (!('version' in base) || !base.version) base.version = '1.0.0';
-    if (!Array.isArray(base.platforms) || base.platforms.length === 0) {
-      base.platforms = (defaultData as any).platforms;
-    }
-    return base as Schema;
+    if (stored) return JSON.parse(stored);
+    return coreData; // Use the full data instance as the default
   });
 
   useEffect(() => {

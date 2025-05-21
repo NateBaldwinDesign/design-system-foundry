@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -21,6 +21,7 @@ interface TaxonomyPickerProps {
 }
 
 export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false }: TaxonomyPickerProps) {
+
   // State for adding a new taxonomy assignment
   const [adding, setAdding] = useState(false);
   const [selectedTaxonomyId, setSelectedTaxonomyId] = useState('');
@@ -33,10 +34,23 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false }
 
   const handleAdd = () => {
     if (selectedTaxonomyId && selectedTermId) {
-      onChange([...value, { taxonomyId: selectedTaxonomyId, termId: selectedTermId }]);
+      try {
+        onChange([...value, { taxonomyId: selectedTaxonomyId, termId: selectedTermId }]);
+      } catch (error) {
+        console.error('[TaxonomyPicker] Error calling onChange:', error);
+      }
       setAdding(false);
       setSelectedTaxonomyId('');
       setSelectedTermId('');
+    }
+  };
+
+  // Debug: log when chip delete is clicked
+  const handleDelete = (idx: number) => {
+    try {
+      onChange(value.filter((_, i) => i !== idx));
+    } catch (error) {
+      console.error('[TaxonomyPicker] Error calling onChange:', error);
     }
   };
 
@@ -50,7 +64,7 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false }
             <Chip
               key={`${assignment.taxonomyId}-${assignment.termId}`}
               label={taxonomy && term ? `${taxonomy.name}: ${term.name}` : 'Unknown'}
-              onDelete={disabled ? undefined : () => onChange(value.filter((_, i) => i !== idx))}
+              onDelete={disabled ? undefined : () => handleDelete(idx)}
               sx={{ fontSize: 14 }}
               disabled={disabled}
             />

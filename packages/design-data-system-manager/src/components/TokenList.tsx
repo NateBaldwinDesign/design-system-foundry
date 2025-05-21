@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   Box, 
   Typography, 
@@ -44,6 +44,7 @@ interface TokenListProps {
   onEdit: (token: ExtendedToken) => void;
   onDelete: (tokenId: string) => void;
   taxonomies: Taxonomy[];
+  resolvedValueTypes: { id: string; displayName: string }[];
 }
 
 interface TokenEditorProps {
@@ -56,6 +57,7 @@ interface TokenEditorProps {
   onClose: () => void;
   onSave: (token: ExtendedToken) => void;
   taxonomies: Taxonomy[];
+  resolvedValueTypes: { id: string; displayName: string }[];
 }
 
 interface ContrastConstraint {
@@ -69,7 +71,7 @@ interface ContrastConstraint {
 
 type Constraint = ContrastConstraint;
 
-function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies }: TokenEditorProps) {
+function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, resolvedValueTypes }: TokenEditorProps) {
   const [editedToken, setEditedToken] = useState<ExtendedToken & { constraints?: Constraint[] }>(token);
   const [newTaxonomyKey, setNewTaxonomyKey] = useState('');
   const [newTaxonomyValue, setNewTaxonomyValue] = useState('');
@@ -162,7 +164,7 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
   const handleRemoveTaxonomy = (key: string) => {
     setEditedToken(prev => {
       const newTaxonomies = { ...prev.taxonomies };
-      delete newTaxonomies[key];
+      delete (newTaxonomies as any)[key];
       return {
         ...prev,
         taxonomies: newTaxonomies
@@ -468,12 +470,36 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
       onSave={onSave}
       taxonomies={taxonomies}
       isNew={false}
+      resolvedValueTypes={resolvedValueTypes}
     />
   );
 }
 
-export function TokenList({ tokens, collections, modes, dimensions, platforms, onEdit, onDelete, taxonomies }: TokenListProps) {
+export function TokenList({ tokens, collections, modes, dimensions, platforms, onEdit, onDelete, taxonomies, resolvedValueTypes }: TokenListProps) {
   const [editingToken, setEditingToken] = useState<ExtendedToken | null>(null);
+
+  // Filter state
+  const [collectionFilter, setCollectionFilter] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [privateFilter, setPrivateFilter] = useState<string>('');
+  const [themeableFilter, setThemeableFilter] = useState<string>('');
+
+  // Filtering logic
+  const filteredTokens = useMemo(() => {
+    return tokens.filter(token => {
+      if (collectionFilter && token.tokenCollectionId !== collectionFilter) return false;
+      if (typeFilter && token.resolvedValueType !== typeFilter) return false;
+      if (statusFilter && token.status !== statusFilter) return false;
+      if (privateFilter && String(token.private) !== privateFilter) return false;
+      if (themeableFilter && String(token.themeable) !== themeableFilter) return false;
+      return true;
+    });
+  }, [tokens, collectionFilter, typeFilter, statusFilter, privateFilter, themeableFilter]);
+
+  // Unique values for filters
+  const typeOptions = Array.from(new Set(tokens.map(t => t.resolvedValueType))).sort();
+  const statusOptions = Array.from(new Set(tokens.map(t => t.status).filter(Boolean))).sort();
 
   // Add console logging to debug props
   console.log('TokenList props:', { tokens, collections, modes, dimensions });
@@ -538,6 +564,78 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
 
   return (
     <>
+      {/* Filter Controls */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel>Collection</InputLabel>
+          <Select
+            value={collectionFilter}
+            label="Collection"
+            onChange={e => setCollectionFilter(e.target.value)}
+            displayEmpty
+          >
+            <MenuItem value=""><em>All</em></MenuItem>
+            {collections.map(c => (
+              <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Type</InputLabel>
+          <Select
+            value={typeFilter}
+            label="Type"
+            onChange={e => setTypeFilter(e.target.value)}
+            displayEmpty
+          >
+            <MenuItem value=""><em>All</em></MenuItem>
+            {typeOptions.map(type => (
+              <MenuItem key={type} value={type}>{type}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Status</InputLabel>
+          <Select
+            value={statusFilter}
+            label="Status"
+            onChange={e => setStatusFilter(e.target.value)}
+            displayEmpty
+          >
+            <MenuItem value=""><em>All</em></MenuItem>
+            {statusOptions.map(status => (
+              <MenuItem key={status} value={status}>{status}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Private</InputLabel>
+          <Select
+            value={privateFilter}
+            label="Private"
+            onChange={e => setPrivateFilter(e.target.value)}
+            displayEmpty
+          >
+            <MenuItem value=""><em>All</em></MenuItem>
+            <MenuItem value="true">Private</MenuItem>
+            <MenuItem value="false">Public</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Themeable</InputLabel>
+          <Select
+            value={themeableFilter}
+            label="Themeable"
+            onChange={e => setThemeableFilter(e.target.value)}
+            displayEmpty
+          >
+            <MenuItem value=""><em>All</em></MenuItem>
+            <MenuItem value="true">Yes</MenuItem>
+            <MenuItem value="false">No</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
+      {/* Token Table */}
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -553,7 +651,7 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
             </TableRow>
           </TableHead>
           <TableBody>
-            {tokens.map((token) => (
+            {filteredTokens.map((token) => (
               <TableRow key={token.id}>
                 <TableCell>
                   <Typography variant="body1">{token.displayName}</Typography>
@@ -642,6 +740,7 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
             onEdit(updatedToken);
             setEditingToken(null);
           }}
+          resolvedValueTypes={resolvedValueTypes || []}
         />
       )}
     </>

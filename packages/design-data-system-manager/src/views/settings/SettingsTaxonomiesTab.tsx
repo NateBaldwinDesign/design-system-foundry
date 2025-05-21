@@ -25,7 +25,6 @@ import type { Taxonomy, TaxonomyTerm } from '@token-model/data-model';
 import { StorageService } from '../../services/storage';
 import { generateId, ID_PREFIXES } from '../../utils/id';
 import { cleanupTokenTaxonomyReferences } from '../../utils/taxonomy';
-import defaultData from '../../services/data/default-data.json';
 
 interface SettingsTaxonomiesTabProps {
   taxonomies: Taxonomy[];
@@ -53,7 +52,7 @@ export function SettingsTaxonomiesTab({ taxonomies, setTaxonomies }: SettingsTax
   const [taxonomyOrder, setTaxonomyOrder] = useState<string[]>(() => {
     // Try to load from localStorage, fallback to defaultData
     const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
-    return root.namingRules?.taxonomyOrder || defaultData.namingRules?.taxonomyOrder || [];
+    return root.namingRules?.taxonomyOrder || [];
   });
 
   // Save taxonomyOrder to localStorage root object
@@ -122,7 +121,7 @@ export function SettingsTaxonomiesTab({ taxonomies, setTaxonomies }: SettingsTax
     // Check for token usage
     const tokens = StorageService.getTokens();
     const usageCount = tokens.filter(token =>
-      Array.isArray(token.taxonomies) && token.taxonomies.some(ref => ref.termId === term.id)
+      Array.isArray(token.taxonomies) && token.taxonomies.some((ref: any) => ref.termId === term.id)
     ).length;
 
     setDeleteTermDialog({

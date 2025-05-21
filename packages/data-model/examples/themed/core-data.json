@@ -1,0 +1,1548 @@
+{
+  "tokenCollections": [
+    {
+      "id": "collection-color",
+      "name": "Color",
+      "resolvedValueTypeIds": [
+        "COLOR"
+      ],
+      "private": false,
+      "supportedDimensionIds": [
+        "dimension-color-scheme",
+        "dimension-contrast"
+      ],
+      "defaultModeIds": [
+        "mode-light",
+        "mode-regular"
+      ],
+      "modeResolutionStrategy": {
+        "priorityByType": [
+          "COLOR_SCHEME",
+          "CONTRAST"
+        ],
+        "fallbackStrategy": "MOST_SPECIFIC_MATCH"
+      }
+    },
+    {
+      "id": "collection-spacing",
+      "name": "Spacing",
+      "resolvedValueTypeIds": [
+        "DIMENSION"
+      ],
+      "private": false,
+      "supportedDimensionIds": [],
+      "defaultModeIds": [],
+      "modeResolutionStrategy": {
+        "priorityByType": [],
+        "fallbackStrategy": "MOST_SPECIFIC_MATCH"
+      }
+    },
+    {
+      "id": "collection-typography",
+      "name": "Typography",
+      "resolvedValueTypeIds": [
+        "FONT_FAMILY",
+        "FONT_WEIGHT",
+        "TYPOGRAPHY"
+      ],
+      "private": false,
+      "supportedDimensionIds": [],
+      "defaultModeIds": [],
+      "modeResolutionStrategy": {
+        "priorityByType": [],
+        "fallbackStrategy": "MOST_SPECIFIC_MATCH"
+      }
+    }
+  ],
+  "dimensions": [
+    {
+      "id": "dimension-color-scheme",
+      "type": "COLOR_SCHEME",
+      "displayName": "Color Scheme",
+      "modes": [
+        {
+          "id": "mode-light",
+          "name": "Light",
+          "dimensionId": "dimension-color-scheme"
+        },
+        {
+          "id": "mode-dark",
+          "name": "Dark",
+          "dimensionId": "dimension-color-scheme"
+        }
+      ],
+      "required": true,
+      "defaultMode": "mode-light",
+      "resolvedValueTypeIds": [
+        "COLOR",
+        "OPACITY"
+      ]
+    },
+    {
+      "id": "dimension-contrast",
+      "type": "CONTRAST",
+      "displayName": "Contrast",
+      "modes": [
+        {
+          "id": "mode-regular",
+          "name": "Regular",
+          "dimensionId": "dimension-contrast"
+        },
+        {
+          "id": "mode-high",
+          "name": "High",
+          "dimensionId": "dimension-contrast"
+        }
+      ],
+      "required": false,
+      "defaultMode": "mode-regular",
+      "resolvedValueTypeIds": [
+        "COLOR"
+      ]
+    }
+  ],
+  "tokens": [
+    {
+      "id": "token-blue-50",
+      "displayName": "Blue 50",
+      "description": "Blue color, scale 50",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-blue"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-50"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Blue/50",
+        "WEB": "--blue-50",
+        "iOS": "Blue50",
+        "ANDROID": "BLUE_50"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#8db324"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-blue-100",
+      "displayName": "Blue 100",
+      "description": "Blue color, scale 100",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-blue"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-100"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Blue/100",
+        "WEB": "--blue-100",
+        "iOS": "Blue100",
+        "ANDROID": "BLUE_100"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#2e37e6"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-blue-200",
+      "displayName": "Blue 200",
+      "description": "Blue color, scale 200",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-blue"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-200"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Blue/200",
+        "WEB": "--blue-200",
+        "iOS": "Blue200",
+        "ANDROID": "BLUE_200"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#c58b5c"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-blue-300",
+      "displayName": "Blue 300",
+      "description": "Blue color, scale 300",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-blue"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-300"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Blue/300",
+        "WEB": "--blue-300",
+        "iOS": "Blue300",
+        "ANDROID": "BLUE_300"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#6b0e16"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-blue-400",
+      "displayName": "Blue 400",
+      "description": "Blue color, scale 400",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-blue"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-400"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Blue/400",
+        "WEB": "--blue-400",
+        "iOS": "Blue400",
+        "ANDROID": "BLUE_400"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#c0df2c"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-blue-500",
+      "displayName": "Blue 500",
+      "description": "Blue color, scale 500",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-blue"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-500"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Blue/500",
+        "WEB": "--blue-500",
+        "iOS": "Blue500",
+        "ANDROID": "BLUE_500"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#6afda3"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-red-50",
+      "displayName": "Red 50",
+      "description": "Red color, scale 50",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-red"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-50"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Red/50",
+        "WEB": "--red-50",
+        "iOS": "Red50",
+        "ANDROID": "RED_50"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#f82a05"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-red-100",
+      "displayName": "Red 100",
+      "description": "Red color, scale 100",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-red"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-100"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Red/100",
+        "WEB": "--red-100",
+        "iOS": "Red100",
+        "ANDROID": "RED_100"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#0ccca1"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-red-200",
+      "displayName": "Red 200",
+      "description": "Red color, scale 200",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-red"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-200"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Red/200",
+        "WEB": "--red-200",
+        "iOS": "Red200",
+        "ANDROID": "RED_200"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#c31121"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-red-300",
+      "displayName": "Red 300",
+      "description": "Red color, scale 300",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-red"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-300"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Red/300",
+        "WEB": "--red-300",
+        "iOS": "Red300",
+        "ANDROID": "RED_300"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#763250"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-red-400",
+      "displayName": "Red 400",
+      "description": "Red color, scale 400",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-red"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-400"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Red/400",
+        "WEB": "--red-400",
+        "iOS": "Red400",
+        "ANDROID": "RED_400"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#53c10d"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-red-500",
+      "displayName": "Red 500",
+      "description": "Red color, scale 500",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-red"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-500"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Red/500",
+        "WEB": "--red-500",
+        "iOS": "Red500",
+        "ANDROID": "RED_500"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#68ee6a"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-green-50",
+      "displayName": "Green 50",
+      "description": "Green color, scale 50",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-green"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-50"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Green/50",
+        "WEB": "--green-50",
+        "iOS": "Green50",
+        "ANDROID": "GREEN_50"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#fae300"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-green-100",
+      "displayName": "Green 100",
+      "description": "Green color, scale 100",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-green"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-100"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Green/100",
+        "WEB": "--green-100",
+        "iOS": "Green100",
+        "ANDROID": "GREEN_100"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#63d7d5"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-green-200",
+      "displayName": "Green 200",
+      "description": "Green color, scale 200",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-green"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-200"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Green/200",
+        "WEB": "--green-200",
+        "iOS": "Green200",
+        "ANDROID": "GREEN_200"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#a93955"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-green-300",
+      "displayName": "Green 300",
+      "description": "Green color, scale 300",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-green"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-300"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Green/300",
+        "WEB": "--green-300",
+        "iOS": "Green300",
+        "ANDROID": "GREEN_300"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#b19702"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-green-400",
+      "displayName": "Green 400",
+      "description": "Green color, scale 400",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-green"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-400"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Green/400",
+        "WEB": "--green-400",
+        "iOS": "Green400",
+        "ANDROID": "GREEN_400"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#a05a28"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-green-500",
+      "displayName": "Green 500",
+      "description": "Green color, scale 500",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-green"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-500"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Green/500",
+        "WEB": "--green-500",
+        "iOS": "Green500",
+        "ANDROID": "GREEN_500"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#cb89e0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-gray-50",
+      "displayName": "Gray 50",
+      "description": "Gray color, scale 50",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-gray"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-50"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Gray/50",
+        "WEB": "--gray-50",
+        "iOS": "Gray50",
+        "ANDROID": "GRAY_50"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#80b9f5"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-gray-100",
+      "displayName": "Gray 100",
+      "description": "Gray color, scale 100",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-gray"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-100"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Gray/100",
+        "WEB": "--gray-100",
+        "iOS": "Gray100",
+        "ANDROID": "GRAY_100"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#acd673"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-gray-200",
+      "displayName": "Gray 200",
+      "description": "Gray color, scale 200",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-gray"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-200"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Gray/200",
+        "WEB": "--gray-200",
+        "iOS": "Gray200",
+        "ANDROID": "GRAY_200"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#c04795"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-gray-300",
+      "displayName": "Gray 300",
+      "description": "Gray color, scale 300",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-gray"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-300"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Gray/300",
+        "WEB": "--gray-300",
+        "iOS": "Gray300",
+        "ANDROID": "GRAY_300"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#0e04be"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-gray-400",
+      "displayName": "Gray 400",
+      "description": "Gray color, scale 400",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-gray"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-400"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Gray/400",
+        "WEB": "--gray-400",
+        "iOS": "Gray400",
+        "ANDROID": "GRAY_400"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#6dfebe"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-gray-500",
+      "displayName": "Gray 500",
+      "description": "Gray color, scale 500",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-gray"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-500"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Gray/500",
+        "WEB": "--gray-500",
+        "iOS": "Gray500",
+        "ANDROID": "GRAY_500"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#ca76e2"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-accent-color",
+      "displayName": "Accent",
+      "description": "Themable color",
+      "tokenCollectionId": "collection-color",
+      "resolvedValueType": "COLOR",
+      "private": false,
+      "status": "stable",
+      "themeable": true,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomy-color-family",
+          "termId": "term-gray"
+        },
+        {
+          "taxonomyId": "taxonomy-scale",
+          "termId": "term-500"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Gray/500",
+        "WEB": "--gray-500",
+        "iOS": "Gray500",
+        "ANDROID": "GRAY_500"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "ALIAS",
+            "alias": "token-blue-500"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-spacing-8",
+      "displayName": "Spacing 8",
+      "description": "Spacing of 8px",
+      "tokenCollectionId": "collection-spacing",
+      "resolvedValueType": "DIMENSION",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Spacing/8",
+        "WEB": "--spacing-8",
+        "iOS": "Spacing8",
+        "ANDROID": "SPACING_8"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "DIMENSION",
+            "value": "8px"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-spacing-16",
+      "displayName": "Spacing 16",
+      "description": "Spacing of 16px",
+      "tokenCollectionId": "collection-spacing",
+      "resolvedValueType": "DIMENSION",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Spacing/16",
+        "WEB": "--spacing-16",
+        "iOS": "Spacing16",
+        "ANDROID": "SPACING_16"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "DIMENSION",
+            "value": "16px"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-spacing-24",
+      "displayName": "Spacing 24",
+      "description": "Spacing of 24px",
+      "tokenCollectionId": "collection-spacing",
+      "resolvedValueType": "DIMENSION",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Spacing/24",
+        "WEB": "--spacing-24",
+        "iOS": "Spacing24",
+        "ANDROID": "SPACING_24"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "DIMENSION",
+            "value": "24px"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-spacing-32",
+      "displayName": "Spacing 32",
+      "description": "Spacing of 32px",
+      "tokenCollectionId": "collection-spacing",
+      "resolvedValueType": "DIMENSION",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Spacing/32",
+        "WEB": "--spacing-32",
+        "iOS": "Spacing32",
+        "ANDROID": "SPACING_32"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "DIMENSION",
+            "value": "32px"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-spacing-40",
+      "displayName": "Spacing 40",
+      "description": "Spacing of 40px",
+      "tokenCollectionId": "collection-spacing",
+      "resolvedValueType": "DIMENSION",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": {
+        "Figma": "Spacing/40",
+        "WEB": "--spacing-40",
+        "iOS": "Spacing40",
+        "ANDROID": "SPACING_40"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "DIMENSION",
+            "value": "40px"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-font-inter",
+      "displayName": "Font Family Inter",
+      "description": "Font family: Inter",
+      "tokenCollectionId": "collection-typography",
+      "resolvedValueType": "FONT_FAMILY",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [],
+      "propertyTypes": [
+        "font-family"
+      ],
+      "codeSyntax": {
+        "Figma": "Inter",
+        "WEB": "inter",
+        "iOS": "Inter",
+        "ANDROID": "INTER"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "FONT_FAMILY",
+            "value": "Inter"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-font-roboto",
+      "displayName": "Font Family Roboto",
+      "description": "Font family: Roboto",
+      "tokenCollectionId": "collection-typography",
+      "resolvedValueType": "FONT_FAMILY",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [],
+      "propertyTypes": [
+        "font-family"
+      ],
+      "codeSyntax": {
+        "Figma": "Roboto",
+        "WEB": "roboto",
+        "iOS": "Roboto",
+        "ANDROID": "ROBOTO"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "FONT_FAMILY",
+            "value": "Roboto"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-font-sf-pro",
+      "displayName": "Font Family SF Pro",
+      "description": "Font family: SF Pro",
+      "tokenCollectionId": "collection-typography",
+      "resolvedValueType": "FONT_FAMILY",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [],
+      "propertyTypes": [
+        "font-family"
+      ],
+      "codeSyntax": {
+        "Figma": "SF Pro",
+        "WEB": "sf-pro",
+        "iOS": "SFPro",
+        "ANDROID": "SF_PRO"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "FONT_FAMILY",
+            "value": "SF Pro"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-font-primary",
+      "displayName": "Font primary",
+      "description": "Themeable font",
+      "tokenCollectionId": "collection-typography",
+      "resolvedValueType": "FONT_FAMILY",
+      "private": false,
+      "status": "stable",
+      "themeable": true,
+      "taxonomies": [],
+      "propertyTypes": [
+        "font-family"
+      ],
+      "codeSyntax": {
+        "Figma": "SF Pro",
+        "WEB": "sf-pro",
+        "iOS": "SFPro",
+        "ANDROID": "SF_PRO"
+      },
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "ALIAS",
+            "alias": "token-font-sf-pro"
+          }
+        }
+      ]
+    }
+  ],
+  "platforms": [
+    {
+      "id": "platform-figma",
+      "displayName": "Figma"
+    },
+    {
+      "id": "platform-web",
+      "displayName": "Web"
+    },
+    {
+      "id": "platform-ios",
+      "displayName": "iOS"
+    },
+    {
+      "id": "platform-android",
+      "displayName": "Android"
+    }
+  ],
+  "taxonomies": [
+    {
+      "id": "taxonomy-color-family",
+      "name": "Color Family",
+      "description": "Hue families",
+      "terms": [
+        {
+          "id": "term-blue",
+          "name": "Blue",
+          "description": ""
+        },
+        {
+          "id": "term-red",
+          "name": "Red",
+          "description": ""
+        },
+        {
+          "id": "term-green",
+          "name": "Green",
+          "description": ""
+        },
+        {
+          "id": "term-gray",
+          "name": "Gray",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "taxonomy-prominance",
+      "name": "Prominance",
+      "description": "Visual prominence in the app",
+      "terms": [
+        {
+          "id": "term-accent",
+          "name": "Accent",
+          "description": ""
+        },
+        {
+          "id": "term-primary",
+          "name": "Secondary",
+          "description": ""
+        },
+        {
+          "id": "term-secondary",
+          "name": "Secondary",
+          "description": ""
+        },
+        {
+          "id": "term-tertiary",
+          "name": "Tertiary",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "taxonomy-element",
+      "name": "Element",
+      "description": "UI element type",
+      "terms": [
+        {
+          "id": "term-text",
+          "name": "Text",
+          "description": ""
+        },
+        {
+          "id": "term-bg",
+          "name": "Background",
+          "description": ""
+        },
+        {
+          "id": "term-border",
+          "name": "Border",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "taxonomy-scale",
+      "name": "Scale",
+      "description": "Numeric scale",
+      "terms": [
+        {
+          "id": "term-50",
+          "name": "50",
+          "description": ""
+        },
+        {
+          "id": "term-100",
+          "name": "100",
+          "description": ""
+        },
+        {
+          "id": "term-200",
+          "name": "200",
+          "description": ""
+        },
+        {
+          "id": "term-300",
+          "name": "300",
+          "description": ""
+        },
+        {
+          "id": "term-400",
+          "name": "400",
+          "description": ""
+        },
+        {
+          "id": "term-500",
+          "name": "500",
+          "description": ""
+        }
+      ]
+    }
+  ],
+  "themes": [
+    {
+      "id": "theme-default",
+      "displayName": "Default Theme",
+      "platforms": [
+        "platform-figma",
+        "platform-web",
+        "platform-ios",
+        "platform-android"
+      ],
+      "isDefault": true
+    },
+    {
+      "id": "theme-brand-a",
+      "displayName": "Brand A",
+      "platforms": [
+        "platform-figma",
+        "platform-web",
+        "platform-ios",
+        "platform-android"
+      ],
+      "isDefault": false,
+      "overrideFileUri": "themed/brand-a-overrides.json"
+    },
+    {
+      "id": "theme-brand-b",
+      "displayName": "Brand B",
+      "platforms": [
+        "platform-figma",
+        "platform-web",
+        "platform-ios",
+        "platform-android"
+      ],
+      "isDefault": false,
+      "overrideFileUri": "themed/brand-b-overrides.json"
+    }
+  ],
+  "namingRules": {
+    "taxonomyOrder": [
+      "taxonomy-color-family",
+      "taxonomy-prominance",
+      "taxonomy-element",
+      "taxonomy-scale"
+    ]
+  },
+  "resolvedValueTypes": [
+    {
+      "id": "COLOR",
+      "displayName": "Color"
+    },
+    {
+      "id": "DIMENSION",
+      "displayName": "Dimension"
+    },
+    {
+      "id": "FONT_FAMILY",
+      "displayName": "Font Family"
+    },
+    {
+      "id": "FONT_WEIGHT",
+      "displayName": "Font Weight"
+    },
+    {
+      "id": "DURATION",
+      "displayName": "Duration"
+    },
+    {
+      "id": "BORDER",
+      "displayName": "Border"
+    },
+    {
+      "id": "SHADOW",
+      "displayName": "Shadow"
+    },
+    {
+      "id": "OPACITY",
+      "displayName": "Opacity"
+    },
+    {
+      "id": "NUMBER",
+      "displayName": "Number"
+    },
+    {
+      "id": "TYPOGRAPHY",
+      "displayName": "Typography"
+    }
+  ],
+  "version": "1.0.0",
+  "versionHistory": [
+    {
+      "version": "1.0.0",
+      "dimensions": [
+        "dimension-color-scheme",
+        "dimension-contrast"
+      ],
+      "date": "2025-05-21"
+    }
+  ]
+}

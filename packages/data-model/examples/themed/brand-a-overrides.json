@@ -1,0 +1,19 @@
+{
+  "themeId": "theme-brand-a",
+  "tokenOverrides": [
+    {
+      "tokenId": "token-accent-color",
+      "value": {
+        "type": "COLOR",
+        "value": "#FF6F61"
+      }
+    },
+    {
+      "tokenId": "token-font-primary",
+      "value": {
+        "type": "STRING",
+        "value": "Roboto"
+      }
+    }
+  ]
+} 

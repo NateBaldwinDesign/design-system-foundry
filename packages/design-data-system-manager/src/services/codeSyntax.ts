@@ -16,18 +16,23 @@ export class CodeSyntaxService {
 
     // Build parts in taxonomy order
     const parts: string[] = [];
+    const usedTaxonomyIds = new Set<string>();
     if (Array.isArray(token.taxonomies) && token.taxonomies.length > 0) {
+      // Always use taxonomyOrder from schema.namingRules
       taxonomyOrder.forEach(taxId => {
         const ref = token.taxonomies.find(t => t.taxonomyId === taxId);
         if (ref) {
           const taxonomy = taxonomies.find(tax => tax.id === ref.taxonomyId);
           const term = taxonomy?.terms.find(term => term.id === ref.termId);
-          if (term) parts.push(term.name);
+          if (term) {
+            parts.push(term.name);
+            usedTaxonomyIds.add(taxId);
+          }
         }
       });
-      // Add any remaining taxonomies not in the order
+      // Add any remaining taxonomies not in the order, in the order they appear in token.taxonomies
       token.taxonomies.forEach(ref => {
-        if (!taxonomyOrder.includes(ref.taxonomyId)) {
+        if (!usedTaxonomyIds.has(ref.taxonomyId)) {
           const taxonomy = taxonomies.find(tax => tax.id === ref.taxonomyId);
           const term = taxonomy?.terms.find(term => term.id === ref.termId);
           if (term) parts.push(term.name);

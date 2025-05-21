@@ -54,14 +54,29 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-const DATA_SOURCES = [
-  { label: 'Default Data', value: 'default' },
-  { label: 'Complex Data', value: 'complex' }
-];
+// TypeScript declaration for import.meta.glob
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+const exampleDataFiles = import.meta.glob('../../data-model/examples/**/*.json', { as: 'raw' });
+
+function getDataSourceOptions() {
+  // Convert file paths to user-friendly labels
+  return Object.keys(exampleDataFiles).map((filePath) => {
+    // e.g., ../../data-model/examples/themed/core-data.json -> themed/core-data.json
+    const relPath = filePath.replace(/^\.\.\/\.\.\/data-model\/examples\//, '');
+    // Label: Themed / Core Data
+    const label = relPath
+      .replace(/\//g, ' / ')
+      .replace(/-/g, ' ')
+      .replace(/\.json$/, '')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+    return { label, value: relPath, filePath };
+  });
+}
 
 function App() {
   const [activeTab, setActiveTab] = useState(0);
-  const [dataSource, setDataSource] = useState<'default' | 'complex'>('default');
+  const [dataSource, setDataSource] = useState<string>('themed/core-data.json');
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
@@ -72,39 +87,35 @@ function App() {
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [dataOptions, setDataOptions] = useState<{ label: string; value: string; filePath: string }[]>([]);
+
+  // Discover data files on mount
+  useEffect(() => {
+    setDataOptions(getDataSourceOptions());
+  }, []);
 
   // Helper to load data from the selected source
-  const loadDataFromSource = async (source: 'default' | 'complex') => {
+  const loadDataFromSource = async (source: string) => {
     setLoading(true);
-    let data;
-    if (source === 'default') {
-      data = await import('./services/data/default-data.json');
-    } else {
-      data = await import('./services/data/complex-data.json');
-    }
-    const d = data.default;
-
+    let rawData = await exampleDataFiles[`../../data-model/examples/${source}`]();
+    let d = JSON.parse(rawData);
     // Normalize platforms
     const normalizedPlatforms = (d.platforms || []).map((p: any) => ({
       ...p,
       displayName: p.displayName || p.name || ''
     }));
-
     // Normalize tokens
     const normalizedTokens = (d.tokens || []).map((t: any) => ({
       themeable: t.themeable ?? false,
       ...t
     }));
-
     // Normalize dimensions
     const normalizedDimensions = (d.dimensions || []).map((dim: any) => ({
       type: dim.type || 'COLOR_SCHEME',
       ...dim
     }));
-
     // Construct global modes array from all dimensions
     const allModes = normalizedDimensions.flatMap((d: any) => d.modes || []);
-
     setCollections((d as any).tokenCollections ?? []);
     setModes(allModes);
     setDimensions(normalizedDimensions);
@@ -117,7 +128,9 @@ function App() {
   };
 
   useEffect(() => {
+    if (dataSource) {
     loadDataFromSource(dataSource);
+    }
   }, [dataSource]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -169,10 +182,10 @@ function App() {
             <Select
               value={dataSource}
               label="Data Source"
-              onChange={e => setDataSource(e.target.value as 'default' | 'complex')}
-              sx={{ minWidth: 160 }}
+              onChange={e => setDataSource(e.target.value as string)}
+              sx={{ minWidth: 220 }}
             >
-              {DATA_SOURCES.map(ds => (
+              {dataOptions.map(ds => (
                 <MenuItem key={ds.value} value={ds.value}>{ds.label}</MenuItem>
               ))}
             </Select>
