@@ -65,6 +65,8 @@ interface SettingsWorkflowProps {
   themes: any[];
   taxonomies: Taxonomy[];
   setTaxonomies: (taxonomies: Taxonomy[]) => void;
+  taxonomyOrder: string[];
+  setTaxonomyOrder: (order: string[]) => void;
 }
 
 export function SettingsWorkflow({ 
@@ -76,7 +78,9 @@ export function SettingsWorkflow({
   setModes,
   themes,
   taxonomies,
-  setTaxonomies
+  setTaxonomies,
+  taxonomyOrder,
+  setTaxonomyOrder
 }: SettingsWorkflowProps) {
   const [activeTab, setActiveTab] = useState(0);
   const [newCollection, setNewCollection] = useState<Partial<TokenCollection>>({
@@ -185,6 +189,8 @@ export function SettingsWorkflow({
         <SettingsTaxonomiesTab 
           taxonomies={taxonomies} 
           setTaxonomies={setTaxonomies}
+          taxonomyOrder={taxonomyOrder}
+          setTaxonomyOrder={setTaxonomyOrder}
         />
       </TabPanel>
 

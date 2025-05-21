@@ -29,9 +29,11 @@ import { cleanupTokenTaxonomyReferences } from '../../utils/taxonomy';
 interface SettingsTaxonomiesTabProps {
   taxonomies: Taxonomy[];
   setTaxonomies: (taxonomies: Taxonomy[]) => void;
+  taxonomyOrder: string[];
+  setTaxonomyOrder: (order: string[]) => void;
 }
 
-export function SettingsTaxonomiesTab({ taxonomies, setTaxonomies }: SettingsTaxonomiesTabProps) {
+export function SettingsTaxonomiesTab({ taxonomies, setTaxonomies, taxonomyOrder, setTaxonomyOrder }: SettingsTaxonomiesTabProps) {
   const [editTaxonomy, setEditTaxonomy] = useState<Taxonomy | null>(null);
   const [editFields, setEditFields] = useState<Taxonomy | null>(null);
   const [deleteTermDialog, setDeleteTermDialog] = useState<{
@@ -46,13 +48,6 @@ export function SettingsTaxonomiesTab({ taxonomies, setTaxonomies }: SettingsTax
     termId: '',
     termName: '',
     usageCount: 0
-  });
-
-  // Naming Rules state
-  const [taxonomyOrder, setTaxonomyOrder] = useState<string[]>(() => {
-    // Try to load from localStorage, fallback to defaultData
-    const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
-    return root.namingRules?.taxonomyOrder || [];
   });
 
   // Save taxonomyOrder to localStorage root object
