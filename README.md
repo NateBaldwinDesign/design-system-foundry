@@ -44,3 +44,32 @@ The application will be available at http://localhost:3000
 - Modern React application with Material-UI
 - Real-time validation of token data
 - Token management interface
+
+# Value Types
+
+The data model supports a set of standard value types, based on the W3C Design Tokens Community Group specification and common design system needs:
+
+- color
+- dimension
+- spacing
+- fontFamily
+- fontWeight
+- fontSize
+- lineHeight
+- letterSpacing
+- duration
+- cubicBezier
+- blur
+- spread
+- radius
+
+These types are recommended for use in the `resolvedValueTypes` array in your schema. However, the schema is extensible: you may add custom value types by specifying any string as an `id`.
+
+**Rationale:**
+- Standard types ensure interoperability and predictable transformation across platforms (Figma, CSS, iOS, Android, etc.).
+- Custom types allow for future extensibility and proprietary needs.
+
+**How to extend:**
+- Use the standard types for all common design token needs.
+- For custom types, document their purpose and how they should be transformed for each platform.
+- Update the schema and documentation as new types are added or standardized.

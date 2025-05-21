@@ -67,6 +67,8 @@ interface SettingsWorkflowProps {
   setTaxonomies: (taxonomies: Taxonomy[]) => void;
   taxonomyOrder: string[];
   setTaxonomyOrder: (order: string[]) => void;
+  resolvedValueTypes: { id: string; displayName: string }[];
+  setResolvedValueTypes: (types: { id: string; displayName: string }[]) => void;
 }
 
 export function SettingsWorkflow({ 
@@ -80,7 +82,9 @@ export function SettingsWorkflow({
   taxonomies,
   setTaxonomies,
   taxonomyOrder,
-  setTaxonomyOrder
+  setTaxonomyOrder,
+  resolvedValueTypes,
+  setResolvedValueTypes
 }: SettingsWorkflowProps) {
   const [activeTab, setActiveTab] = useState(0);
   const [newCollection, setNewCollection] = useState<Partial<TokenCollection>>({
@@ -178,7 +182,10 @@ export function SettingsWorkflow({
       </TabPanel>
 
       <TabPanel value={activeTab} index={2}>
-        <SettingsValueTypesTab />
+        <SettingsValueTypesTab 
+          resolvedValueTypes={resolvedValueTypes}
+          setResolvedValueTypes={setResolvedValueTypes}
+        />
       </TabPanel>
 
       <TabPanel value={activeTab} index={3}>

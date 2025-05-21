@@ -790,13 +790,29 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "Unique identifier for the resolved value type."
+              "description": "Unique identifier for the resolved value type.",
+              "enum": [
+                "color",
+                "dimension",
+                "spacing",
+                "fontFamily",
+                "fontWeight",
+                "fontSize",
+                "lineHeight",
+                "letterSpacing",
+                "duration",
+                "cubicBezier",
+                "blur",
+                "spread",
+                "radius"
+              ]
             },
             "displayName": {
               "type": "string",
               "description": "Human-readable name for the resolved value type."
             }
-          }
+          },
+          "additionalProperties": true
         },
         "uniqueItems": true
       }

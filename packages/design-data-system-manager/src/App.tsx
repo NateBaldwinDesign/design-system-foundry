@@ -391,6 +391,8 @@ function App() {
           setTaxonomies={setTaxonomies}
           taxonomyOrder={taxonomyOrder}
           setTaxonomyOrder={setTaxonomyOrder}
+          resolvedValueTypes={resolvedValueTypes}
+          setResolvedValueTypes={setResolvedValueTypes}
         />
       </TabPanel>
 
