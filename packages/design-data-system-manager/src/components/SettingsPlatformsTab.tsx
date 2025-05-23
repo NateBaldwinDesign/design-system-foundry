@@ -1,22 +1,22 @@
 import React from 'react';
 import {
   Box,
-  Paper,
   Table,
-  TableBody,
-  TableCell,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
   TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
+  Input,
   Select,
-  MenuItem,
   FormControl,
   IconButton,
-  Button
-} from '@mui/material';
-import { Delete, Add } from '@mui/icons-material';
-import { useSchema, ExportConfiguration } from '../hooks/useSchema';
+  Button,
+  useColorModeValue
+} from '@chakra-ui/react';
+import { DeleteIcon } from '@chakra-ui/icons';
+import { useSchema } from '../hooks/useSchema';
 
 interface Platform {
   id: string;
@@ -94,96 +94,101 @@ export const SettingsPlatformsTab: React.FC = () => {
     });
   };
 
+  const bg = useColorModeValue('white', 'gray.800');
+
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
-        <TextField
-          size="small"
-          label="New Platform Name"
+    <Box p={3} bg={bg} borderRadius="md" boxShadow="md">
+      <Box mb={2} display="flex" gap={2}>
+        <Input
+          size="sm"
+          placeholder="New Platform Name"
           value={newPlatformName}
           onChange={e => setNewPlatformName(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleAddPlatform(); }}
+          maxW="250px"
         />
-        <Button variant="contained" onClick={handleAddPlatform} startIcon={<Add />}>Add Platform</Button>
+        <Button colorScheme="blue" size="sm" onClick={handleAddPlatform} leftIcon={<DeleteIcon boxSize={4} />}>Add Platform</Button>
       </Box>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Platform Name</TableCell>
-              <TableCell>Prefix</TableCell>
-              <TableCell>Suffix</TableCell>
-              <TableCell>Delimiter</TableCell>
-              <TableCell>Capitalization</TableCell>
-              <TableCell>Format String</TableCell>
-              <TableCell>Preview</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
+      <TableContainer>
+        <Table size="sm">
+          <Thead>
+            <Tr>
+              <Th>Platform Name</Th>
+              <Th>Prefix</Th>
+              <Th>Suffix</Th>
+              <Th>Delimiter</Th>
+              <Th>Capitalization</Th>
+              <Th>Format String</Th>
+              <Th>Preview</Th>
+              <Th>Actions</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
             {(schema.platforms || []).map((platform: Platform) => {
               const syntax = platform.syntaxPatterns || {};
               return (
-                <TableRow key={platform.id}>
-                  <TableCell>
-                    <TextField
-                      size="small"
+                <Tr key={platform.id}>
+                  <Td>
+                    <Input
+                      size="sm"
                       value={platform.displayName}
                       onChange={e => handleEditPlatformName(platform.id, e.target.value)}
                     />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      size="small"
+                  </Td>
+                  <Td>
+                    <Input
+                      size="sm"
                       value={syntax.prefix ?? ''}
                       onChange={e => handleUpdatePlatform(platform.id, 'prefix', e.target.value)}
                       placeholder="e.g., TKN_"
                     />
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      size="small"
+                  </Td>
+                  <Td>
+                    <Input
+                      size="sm"
                       value={syntax.suffix ?? ''}
                       onChange={e => handleUpdatePlatform(platform.id, 'suffix', e.target.value)}
                       placeholder="e.g., _SUF"
                     />
-                  </TableCell>
-                  <TableCell>
-                    <FormControl size="small" fullWidth>
+                  </Td>
+                  <Td>
+                    <FormControl size="sm">
                       <Select
+                        size="sm"
                         value={syntax.delimiter ?? ''}
                         onChange={e => handleUpdatePlatform(platform.id, 'delimiter', e.target.value)}
                       >
-                        <MenuItem value="">None (no delimiter)</MenuItem>
-                        <MenuItem value="_">Underscore (_)</MenuItem>
-                        <MenuItem value="-">Hyphen (-)</MenuItem>
-                        <MenuItem value=".">Dot (.)</MenuItem>
-                        <MenuItem value="/">Forward slash (/)</MenuItem>
+                        <option value="">None (no delimiter)</option>
+                        <option value="_">Underscore (_)</option>
+                        <option value="-">Hyphen (-)</option>
+                        <option value=".">Dot (.)</option>
+                        <option value="/">Forward slash (/)</option>
                       </Select>
                     </FormControl>
-                  </TableCell>
-                  <TableCell>
-                    <FormControl size="small" fullWidth>
+                  </Td>
+                  <Td>
+                    <FormControl size="sm">
                       <Select
+                        size="sm"
                         value={syntax.capitalization ?? 'none'}
                         onChange={e => handleUpdatePlatform(platform.id, 'capitalization', e.target.value)}
                       >
-                        <MenuItem value="none">None</MenuItem>
-                        <MenuItem value="uppercase">UPPERCASE</MenuItem>
-                        <MenuItem value="lowercase">lowercase</MenuItem>
-                        <MenuItem value="capitalize">Capitalize</MenuItem>
+                        <option value="none">None</option>
+                        <option value="uppercase">UPPERCASE</option>
+                        <option value="lowercase">lowercase</option>
+                        <option value="capitalize">Capitalize</option>
                       </Select>
                     </FormControl>
-                  </TableCell>
-                  <TableCell>
-                    <TextField
-                      size="small"
+                  </Td>
+                  <Td>
+                    <Input
+                      size="sm"
                       value={syntax.formatString ?? ''}
                       onChange={e => handleUpdatePlatform(platform.id, 'formatString', e.target.value)}
                       placeholder="e.g., {prefix}{name}{suffix}"
                     />
-                  </TableCell>
-                  <TableCell>
+                  </Td>
+                  <Td>
                     {(() => {
                       // Example token name parts
                       const exampleParts = ['primary', 'color', 'background'];
@@ -210,16 +215,20 @@ export const SettingsPlatformsTab: React.FC = () => {
                       }
                       return preview;
                     })()}
-                  </TableCell>
-                  <TableCell>
-                    <IconButton onClick={() => handleDeletePlatform(platform.id)} color="error">
-                      <Delete />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
+                  </Td>
+                  <Td>
+                    <IconButton
+                      aria-label="Delete platform"
+                      colorScheme="red"
+                      size="sm"
+                      icon={<DeleteIcon />}
+                      onClick={() => handleDeletePlatform(platform.id)}
+                    />
+                  </Td>
+                </Tr>
               );
             })}
-          </TableBody>
+          </Tbody>
         </Table>
       </TableContainer>
     </Box>

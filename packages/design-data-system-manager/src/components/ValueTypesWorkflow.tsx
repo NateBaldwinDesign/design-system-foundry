@@ -1,20 +1,32 @@
-import { useState } from 'react';
+import React, { useState } from "react";
 import {
   Box,
-  Typography,
-  TextField,
+  Text,
   Button,
-  List,
-  ListItem,
-  ListItemText,
+  VStack,
+  HStack,
   IconButton,
+  useToast,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
   FormControl,
-  InputLabel,
+  FormLabel,
+  Input,
   Select,
-  MenuItem,
-  FormHelperText
-} from '@mui/material';
-import { Delete as DeleteIcon, Edit as EditIcon } from '@mui/icons-material';
+  FormErrorMessage,
+  useColorMode
+} from '@chakra-ui/react';
+import { DeleteIcon, EditIcon } from '@chakra-ui/icons';
+
+interface ValueTypeItem {
+  name: string;
+  type: string;
+}
 
 interface ValueTypesWorkflowProps {
   valueTypes: string[];
@@ -22,125 +34,135 @@ interface ValueTypesWorkflowProps {
 }
 
 export function ValueTypesWorkflow({ valueTypes, onUpdate }: ValueTypesWorkflowProps) {
+  const { colorMode } = useColorMode();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<string | null>(null);
   const [name, setName] = useState('');
-  const [type, setType] = useState<string>('');
+  const [type, setType] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const toast = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // For demo, treat valueTypes as array of names, but you can adapt to array of objects if needed
+  const valueTypeList: ValueTypeItem[] = valueTypes.map((vt) => ({ name: vt, type: 'STRING' }));
+
+  const handleOpenCreate = () => {
+    setEditingType(null);
+    setName('');
+    setType('');
+    setDialogOpen(true);
+  };
+
+  const handleOpenEdit = (valueType: ValueTypeItem) => {
+    setEditingType(valueType.name);
+    setName(valueType.name);
+    setType(valueType.type);
+    setDialogOpen(true);
+  };
+
+  const handleDialogSave = () => {
     setErrors({});
-
     if (!name.trim()) {
       setErrors({ name: 'Name is required' });
       return;
     }
-
     if (!type) {
       setErrors({ type: 'Type is required' });
       return;
     }
-
     const newType: string = name.trim();
-    if (!newType) return;
     if (editingType) {
       onUpdate(valueTypes.map(t => t === editingType ? newType : t));
+      toast({ title: 'Value type updated', status: 'success', duration: 2000 });
     } else {
       onUpdate([...valueTypes, newType]);
+      toast({ title: 'Value type created', status: 'success', duration: 2000 });
     }
-
-    resetForm();
+    setDialogOpen(false);
   };
 
-  const handleEdit = (valueType: string) => {
-    setEditingType(valueType);
+  const handleDialogClose = () => {
+    setDialogOpen(false);
   };
 
   const handleDelete = (valueType: string) => {
     onUpdate(valueTypes.filter(t => t !== valueType));
-  };
-
-  const resetForm = () => {
-    setEditingType(null);
-    setName('');
-    setType('');
-    setErrors({});
+    toast({ title: 'Value type deleted', status: 'info', duration: 2000 });
   };
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
-        {editingType ? 'Edit Value Type' : 'Create New Value Type'}
-      </Typography>
-
-      <Box component="form" onSubmit={handleSubmit} sx={{ mb: 4 }}>
-        <TextField
-          label="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          error={!!errors.name}
-          helperText={errors.name}
-          fullWidth
-          sx={{ mb: 2 }}
-        />
-
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Type</InputLabel>
-          <Select
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            error={!!errors.type}
-          >
-            <MenuItem value="COLOR">Color</MenuItem>
-            <MenuItem value="FLOAT">Float</MenuItem>
-            <MenuItem value="INTEGER">Integer</MenuItem>
-            <MenuItem value="STRING">String</MenuItem>
-            <MenuItem value="BOOLEAN">Boolean</MenuItem>
-            <MenuItem value="ALIAS">Alias</MenuItem>
-          </Select>
-          {errors.type && (
-            <FormHelperText error>{errors.type}</FormHelperText>
-          )}
-        </FormControl>
-
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-          >
-            {editingType ? 'Update Value Type' : 'Create Value Type'}
-          </Button>
-          {editingType && (
-            <Button
-              variant="outlined"
-              onClick={resetForm}
+      <Text fontSize="2xl" fontWeight="bold" mb={4}>Value Types</Text>
+      <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+        <Button onClick={handleOpenCreate} colorScheme="blue" mb={4}>
+          Create New Value Type
+        </Button>
+        <VStack align="stretch" spacing={2}>
+          {valueTypeList.map((valueType) => (
+            <Box 
+              key={valueType.name} 
+              p={3} 
+              borderWidth={1} 
+              borderRadius="md" 
+              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
             >
+              <HStack justify="space-between" align="center">
+                <Box>
+                  <Text fontSize="lg" fontWeight="medium">{valueType.name}</Text>
+                  <Text fontSize="sm" color="gray.600">Type: {valueType.type}</Text>
+                </Box>
+                <HStack>
+                  <IconButton aria-label="Edit value type" icon={<EditIcon />} size="sm" onClick={() => handleOpenEdit(valueType)} />
+                  <IconButton aria-label="Delete value type" icon={<DeleteIcon />} size="sm" colorScheme="red" onClick={() => handleDelete(valueType.name)} />
+                </HStack>
+              </HStack>
+            </Box>
+          ))}
+        </VStack>
+      </Box>
+      <Modal isOpen={dialogOpen} onClose={handleDialogClose} size="md">
+        <ModalOverlay />
+        <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+          <ModalHeader>{editingType ? 'Edit Value Type' : 'Create Value Type'}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4} align="stretch">
+              <FormControl isInvalid={!!errors.name} isRequired>
+                <FormLabel>Name</FormLabel>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                {errors.name && <FormErrorMessage>{errors.name}</FormErrorMessage>}
+              </FormControl>
+              <FormControl isInvalid={!!errors.type} isRequired>
+                <FormLabel>Type</FormLabel>
+                <Select
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                  placeholder="Select type"
+                >
+                  <option value="COLOR">Color</option>
+                  <option value="FLOAT">Float</option>
+                  <option value="INTEGER">Integer</option>
+                  <option value="STRING">String</option>
+                  <option value="BOOLEAN">Boolean</option>
+                  <option value="ALIAS">Alias</option>
+                </Select>
+                {errors.type && <FormErrorMessage>{errors.type}</FormErrorMessage>}
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={handleDialogClose}>
               Cancel
             </Button>
-          )}
-        </Box>
-      </Box>
-
-      <Typography variant="h6" gutterBottom>
-        Value Types
-      </Typography>
-
-      <List>
-        {valueTypes.map((valueType) => (
-          <ListItem key={valueType}>
-            <ListItemText primary={valueType} />
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <IconButton onClick={() => handleEdit(valueType)}>
-                <EditIcon />
-              </IconButton>
-              <IconButton onClick={() => handleDelete(valueType)}>
-                <DeleteIcon />
-              </IconButton>
-            </Box>
-          </ListItem>
-        ))}
-      </List>
+            <Button colorScheme="blue" onClick={handleDialogSave}>
+              {editingType ? 'Update' : 'Create'}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 } 

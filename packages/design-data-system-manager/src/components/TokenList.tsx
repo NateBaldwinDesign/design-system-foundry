@@ -1,30 +1,36 @@
-import { useState, useEffect, useMemo } from 'react';
-import { 
-  Box, 
-  Typography, 
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Box,
+  Text,
   Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Chip,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Tbody,
+  Td,
+  Th,
+  Tr,
+  Thead,
+  Input,
   Button,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
+  Tag,
+  TagLabel,
+  TagCloseButton,
+  HStack,
+  VStack,
+  IconButton,
   Tooltip,
-  FormHelperText
-} from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
+  Select,
+  useDisclosure,
+  Flex
+} from '@chakra-ui/react';
+import { EditIcon, DeleteIcon } from '@chakra-ui/icons';
 import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { ValueByModeTable } from './ValueByModeTable';
 import { PlatformOverridesTable } from './PlatformOverridesTable';
@@ -221,7 +227,7 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
 
   const getValueEditor = (value: TokenValue | string, modeIndex: number, isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => {
     if (typeof value === 'string') {
-      return <Typography variant="caption" color="text.secondary">{value}</Typography>;
+      return <Text variant="caption" color="text.secondary">{value}</Text>;
     }
     switch (value.type) {
       case 'COLOR':
@@ -236,8 +242,8 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
                 backgroundColor: value.value
               }}
             />
-            <TextField
-              size="small"
+            <Input
+              size="sm"
               value={value.value}
               onChange={(e) => {
                 const newValue = { type: 'COLOR' as const, value: e.target.value };
@@ -252,7 +258,7 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
         );
       case 'ALIAS':
         return (
-          <FormControl size="small" sx={{ minWidth: 200 }}>
+          <FormControl size="sm" sx={{ minWidth: 200 }}>
             <Select
               value={value.tokenId}
               onChange={(e) => {
@@ -267,17 +273,17 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
               {tokens
                 .filter(t => t.id !== token.id)
                 .map(token => (
-                  <MenuItem key={token.id} value={token.id}>
+                  <option key={token.id} value={token.id}>
                     {token.displayName}
-                  </MenuItem>
+                  </option>
                 ))}
             </Select>
           </FormControl>
         );
       case 'FLOAT':
         return (
-          <TextField
-            size="small"
+          <Input
+            size="sm"
             type="number"
             value={value.value}
             onChange={(e) => {
@@ -292,8 +298,8 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
         );
       case 'INTEGER':
         return (
-          <TextField
-            size="small"
+          <Input
+            size="sm"
             type="number"
             value={value.value}
             onChange={(e) => {
@@ -308,8 +314,8 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
         );
       case 'STRING':
         return (
-          <TextField
-            size="small"
+          <Input
+            size="sm"
             value={value.value}
             onChange={(e) => {
               const newValue = { type: 'STRING' as const, value: e.target.value };
@@ -323,10 +329,9 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
         );
       case 'BOOLEAN':
         return (
-          <Chip
-            label={value.value ? 'True' : 'False'}
-            color={value.value ? 'success' : 'error'}
-            size="small"
+          <Tag
+            size="sm"
+            colorScheme={value.value ? "green" : "red"}
             onClick={() => {
               const newValue = { type: 'BOOLEAN' as const, value: !value.value };
               if (onChange) {
@@ -335,7 +340,9 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
                 handleValueChange(modeIndex, newValue);
               }
             }}
-          />
+          >
+            {value.value ? "True" : "False"}
+          </Tag>
         );
       default:
         return 'Unknown value type';
@@ -408,48 +415,46 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
 
   const renderValueTable = () => {
     return (
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          {!allGlobal && (
-            <TableHead>
-              <TableRow>
-                <TableCell></TableCell>
-                {columns.map(colId => {
-                  const modeName = getModeName(colId);
-                  return (
-                    <TableCell key={`header-${colId}`} align="center">
-                      {modeName !== colId ? modeName : 'Unknown Mode'}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            </TableHead>
-          )}
-          <TableBody>
-            {rows.map(rowId => (
-              <TableRow key={`row-${rowId}`}>
-                <TableCell component="th" scope="row">{hasRows ? getModeName(rowId) : ''}</TableCell>
-                {columns.map(colId => {
-                  let key;
-                  if (hasRows) {
-                    key = [colId, rowId].join(',');
-                  } else {
-                    key = [colId].join(',');
-                  }
-                  const entry = valueMap.get(key);
-                  const cellKey = `cell-${rowId}-${colId}`;
-                  if (!entry) return <TableCell key={cellKey} />;
-                  return (
-                    <TableCell key={cellKey} align="center">
-                      {getValueEditor(entry.vbm.value, entry.idx)}
-                    </TableCell>
-                  );
-                })}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <Table variant="simple">
+        {!allGlobal && (
+          <Thead>
+            <Tr>
+              <Th></Th>
+              {columns.map(colId => {
+                const modeName = getModeName(colId);
+                return (
+                  <Th key={`header-${colId}`} textAlign="center">
+                    {modeName !== colId ? modeName : 'Unknown Mode'}
+                  </Th>
+                );
+              })}
+            </Tr>
+          </Thead>
+        )}
+        <Tbody>
+          {rows.map(rowId => (
+            <Tr key={`row-${rowId}`}>
+              <Td>{hasRows ? getModeName(rowId) : ''}</Td>
+              {columns.map(colId => {
+                let key;
+                if (hasRows) {
+                  key = [colId, rowId].join(',');
+                } else {
+                  key = [colId].join(',');
+                }
+                const entry = valueMap.get(key);
+                const cellKey = `cell-${rowId}-${colId}`;
+                if (!entry) return <Td key={cellKey} />;
+                return (
+                  <Td key={cellKey} textAlign="center">
+                    {getValueEditor(entry.vbm.value, entry.idx)}
+                  </Td>
+                );
+              })}
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
     );
   };
 
@@ -516,46 +521,28 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
     switch (value.type) {
       case 'COLOR':
         return (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box
-              sx={{
-                width: 24,
-                height: 24,
-                borderRadius: 1,
-                border: '1px solid #ccc',
-                backgroundColor: value.value
-              }}
-            />
-            <Typography variant="body2">{value.value}</Typography>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Box w={6} h={6} borderRadius={2} border="1px solid #ccc" bg={value.value} />
+            <Text fontSize="sm">{value.value}</Text>
           </Box>
         );
       case 'ALIAS':
         const aliasToken = tokens.find(t => t.id === value.tokenId);
         return (
-          <Typography variant="body2">
+          <Text fontSize="sm">
             {aliasToken?.displayName || value.tokenId}
-          </Typography>
+          </Text>
         );
       case 'FLOAT':
       case 'INTEGER':
-        return (
-          <Typography variant="body2">
-            {value.value}
-          </Typography>
-        );
+        return <Text fontSize="sm">{value.value}</Text>;
       case 'STRING':
-        return (
-          <Typography variant="body2">
-            {value.value}
-          </Typography>
-        );
+        return <Text fontSize="sm">{value.value}</Text>;
       case 'BOOLEAN':
         return (
-          <Chip
-            label={value.value ? 'True' : 'False'}
-            color={value.value ? 'success' : 'error'}
-            size="small"
-          />
+          <Tag colorScheme={value.value ? 'green' : 'red'} size="sm">
+            {value.value ? 'True' : 'False'}
+          </Tag>
         );
       default:
         return 'Unknown value type';
@@ -565,166 +552,140 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
   return (
     <>
       {/* Filter Controls */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+      <Flex direction='row'>
         <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel>Collection</InputLabel>
+          <FormLabel>Collection</FormLabel>
           <Select
             value={collectionFilter}
-            label="Collection"
             onChange={e => setCollectionFilter(e.target.value)}
-            displayEmpty
           >
-            <MenuItem value=""><em>All</em></MenuItem>
+            <option value="">All</option>
             {collections.map(c => (
-              <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </Select>
         </FormControl>
         <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Type</InputLabel>
+          <FormLabel>Type</FormLabel>
           <Select
             value={typeFilter}
-            label="Type"
             onChange={e => setTypeFilter(e.target.value)}
-            displayEmpty
           >
-            <MenuItem value=""><em>All</em></MenuItem>
+            <option value="">All</option>
             {typeOptions.map(type => (
-              <MenuItem key={type} value={type}>{type}</MenuItem>
+              <option key={type} value={type}>{type}</option>
             ))}
           </Select>
         </FormControl>
         <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Status</InputLabel>
+          <FormLabel>Status</FormLabel>
           <Select
             value={statusFilter}
-            label="Status"
             onChange={e => setStatusFilter(e.target.value)}
-            displayEmpty
           >
-            <MenuItem value=""><em>All</em></MenuItem>
+            <option value="">All</option>
             {statusOptions.map(status => (
-              <MenuItem key={status} value={status}>{status}</MenuItem>
+              <option key={status} value={status}>{status}</option>
             ))}
           </Select>
         </FormControl>
         <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Private</InputLabel>
+          <FormLabel>Private</FormLabel>
           <Select
             value={privateFilter}
-            label="Private"
             onChange={e => setPrivateFilter(e.target.value)}
-            displayEmpty
           >
-            <MenuItem value=""><em>All</em></MenuItem>
-            <MenuItem value="true">Private</MenuItem>
-            <MenuItem value="false">Public</MenuItem>
+            <option value="">All</option>
+            <option value="true">Private</option>
+            <option value="false">Public</option>
           </Select>
         </FormControl>
         <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Themeable</InputLabel>
+          <FormLabel>Themeable</FormLabel>
           <Select
             value={themeableFilter}
-            label="Themeable"
             onChange={e => setThemeableFilter(e.target.value)}
-            displayEmpty
           >
-            <MenuItem value=""><em>All</em></MenuItem>
-            <MenuItem value="true">Yes</MenuItem>
-            <MenuItem value="false">No</MenuItem>
+            <option value="">All</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
           </Select>
         </FormControl>
-      </Box>
+      </Flex>
       {/* Token Table */}
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>Name</TableCell>
-              <TableCell>Collection</TableCell>
-              <TableCell>Type</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Private</TableCell>
-              <TableCell>Themeable</TableCell>
-              <TableCell>Values by Mode</TableCell>
-              <TableCell>Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredTokens.map((token) => (
-              <TableRow key={token.id}>
-                <TableCell>
-                  <Typography variant="body1">{token.displayName}</Typography>
-                  {token.description && (
-                    <Typography variant="body2" color="text.secondary">
-                      {token.description}
-                    </Typography>
-                  )}
-                </TableCell>
-                <TableCell>{getCollectionName(token.tokenCollectionId)}</TableCell>
-                <TableCell>
-                  <Chip
-                    label={token.resolvedValueType}
-                    size="small"
-                    color="primary"
-                  />
-                </TableCell>
-                <TableCell>
-                  {token.status && (
-                    <Chip
-                      label={token.status}
-                      size="small"
-                      color={
-                        token.status === 'stable'
-                          ? 'success'
-                          : token.status === 'experimental'
-                          ? 'warning'
-                          : 'error'
-                      }
-                    />
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={token.private ? 'Private' : 'Public'}
-                    size="small"
-                    color={token.private ? 'default' : 'success'}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Chip
-                    label={token.themeable ? 'Yes' : 'No'}
-                    size="small"
-                    color={token.themeable ? 'success' : 'default'}
-                  />
-                </TableCell>
-                <TableCell>
-                  {token.valuesByMode.map((valueByMode, index) => (
-                    <Box key={index} sx={{ mb: 1 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        {getModeNames(valueByMode.modeIds)}:
-                      </Typography>
-                      <Box sx={{ mt: 0.5 }}>
-                        {getValueDisplay(valueByMode.value)}
-                      </Box>
+      <Table variant="simple" size="sm">
+        <Thead>
+          <Tr>
+            <Th>Name</Th>
+            <Th>Collection</Th>
+            <Th>Type</Th>
+            <Th>Status</Th>
+            <Th>Private</Th>
+            <Th>Themeable</Th>
+            <Th>Values by Mode</Th>
+            <Th>Actions</Th>
+          </Tr>
+        </Thead>
+        <Tbody>
+          {filteredTokens.map((token) => (
+            <Tr key={token.id}>
+              <Td>
+                <Text fontWeight="bold">{token.displayName}</Text>
+                {token.description && (
+                  <Text fontSize="sm" color="gray.500">
+                    {token.description}
+                  </Text>
+                )}
+              </Td>
+              <Td>{getCollectionName(token.tokenCollectionId)}</Td>
+              <Td>
+                <Tag colorScheme="blue" size="sm">{token.resolvedValueType}</Tag>
+              </Td>
+              <Td>
+                {token.status && (
+                  <Tag colorScheme={
+                    token.status === 'stable'
+                      ? 'green'
+                      : token.status === 'experimental'
+                      ? 'yellow'
+                      : 'red'
+                  } size="sm">
+                    {token.status}
+                  </Tag>
+                )}
+              </Td>
+              <Td>
+                <Tag colorScheme={token.private ? 'gray' : 'green'} size="sm">
+                  {token.private ? 'Private' : 'Public'}
+                </Tag>
+              </Td>
+              <Td>
+                <Tag colorScheme={token.themeable ? 'green' : 'gray'} size="sm">
+                  {token.themeable ? 'Yes' : 'No'}
+                </Tag>
+              </Td>
+              <Td>
+                {token.valuesByMode.map((valueByMode, index) => (
+                  <Box key={index} mb={1}>
+                    <Text fontSize="xs" color="gray.500">
+                      {getModeNames(valueByMode.modeIds)}:
+                    </Text>
+                    <Box mt={1}>
+                      {getValueDisplay(valueByMode.value)}
                     </Box>
-                  ))}
-                </TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <IconButton onClick={() => setEditingToken(token)}>
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton onClick={() => onDelete(token.id)}>
-                      <DeleteIcon />
-                    </IconButton>
                   </Box>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                ))}
+              </Td>
+              <Td>
+                <Box display="flex" gap={1}>
+                  <IconButton aria-label="Edit token" icon={<EditIcon />} onClick={() => setEditingToken(token)} size="sm" />
+                  <IconButton aria-label="Delete token" icon={<DeleteIcon />} onClick={() => onDelete(token.id)} size="sm" />
+                </Box>
+              </Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
 
       {editingToken && (
         <TokenEditor

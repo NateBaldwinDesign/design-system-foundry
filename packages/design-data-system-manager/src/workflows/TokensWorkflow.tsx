@@ -1,27 +1,23 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
-  Typography,
+  Text,
   Box,
-  Paper,
-  List,
-  ListItem,
-  ListItemText,
+  VStack,
+  HStack,
   Button,
-  TextField,
+  Input,
   Grid,
+  GridItem,
   FormControl,
-  InputLabel,
+  FormLabel,
+  FormErrorMessage,
   Select,
-  MenuItem,
-  FormControlLabel,
   Checkbox,
-  IconButton,
-} from '@mui/material';
+  useToast
+} from '@chakra-ui/react';
 import { Token, TokenCollection, Taxonomy, TokenTaxonomyRef } from '@token-model/data-model';
 import { Token as TokenSchema } from '../../../data-model/src/schema';
 import { ZodError } from 'zod';
-import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
 import { TaxonomyPicker } from '../components/TaxonomyPicker';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService } from '../services/codeSyntax';
@@ -50,19 +46,18 @@ export default function TokensWorkflow({
     codeSyntax: {},
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [newTaxonomyKey, setNewTaxonomyKey] = useState('');
-  const [newTaxonomyValue, setNewTaxonomyValue] = useState('');
   const { schema } = useSchema();
+  const toast = useToast();
 
   const handleAddToken = () => {
     setFieldErrors({});
     try {
       const validTaxonomies = (newToken.taxonomies || []).filter(
-        (ref: any) => ref.taxonomyId && ref.termId
+        (ref: TokenTaxonomyRef) => ref.taxonomyId && ref.termId
       );
       const codeSyntax = CodeSyntaxService.generateAllCodeSyntaxes(
-        { ...newToken, taxonomies: validTaxonomies } as any,
-        schema as any
+        { ...newToken, taxonomies: validTaxonomies } as Token,
+        schema
       );
       const token = TokenSchema.parse({
         id: crypto.randomUUID(),
@@ -83,6 +78,12 @@ export default function TokensWorkflow({
         propertyTypes: [],
         codeSyntax: {},
       });
+      toast({
+        title: 'Token added',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
     } catch (error) {
       if (error instanceof ZodError) {
         const errors: Record<string, string> = {};
@@ -95,97 +96,86 @@ export default function TokensWorkflow({
       } else {
         setFieldErrors({ general: 'An unexpected error occurred.' });
       }
-    }
-  };
-
-  const handleAddTaxonomy = () => {
-    if (newTaxonomyKey && newTaxonomyValue) {
-      setNewToken({
-        ...newToken,
-        taxonomies: [
-          ...(newToken.taxonomies || []),
-          { taxonomyId: newTaxonomyKey, termId: newTaxonomyValue },
-        ],
+      toast({
+        title: 'Error adding token',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
       });
-      setNewTaxonomyKey('');
-      setNewTaxonomyValue('');
     }
-  };
-
-  const handleRemoveTaxonomy = (index: number) => {
-    const newTaxonomies = newToken.taxonomies?.filter((_, i) => i !== index) || [];
-    setNewToken({
-      ...newToken,
-      taxonomies: newTaxonomies,
-    });
   };
 
   return (
-    <Grid container spacing={3}>
-      <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>
+    <Grid templateColumns={{ base: '1fr', md: 'repeat(2, 1fr)' }} gap={6}>
+      <GridItem>
+        <Box p={4} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
+          <Text fontSize="xl" fontWeight="bold" mb={4}>
             Add New Token
-          </Typography>
-          <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              label="Display Name"
-              value={newToken.displayName}
-              onChange={(e) => setNewToken({ ...newToken, displayName: e.target.value })}
-              error={Boolean(fieldErrors.displayName)}
-              helperText={fieldErrors.displayName}
-            />
-            <TextField
-              label="Description"
-              value={newToken.description}
-              onChange={(e) => setNewToken({ ...newToken, description: e.target.value })}
-              error={Boolean(fieldErrors.description)}
-              helperText={fieldErrors.description}
-            />
-            <FormControl fullWidth error={Boolean(fieldErrors.tokenCollectionId)}>
-              <InputLabel>Token Collection</InputLabel>
+          </Text>
+          <VStack spacing={4} align="stretch">
+            <FormControl isInvalid={Boolean(fieldErrors.displayName)}>
+              <FormLabel>Display Name</FormLabel>
+              <Input
+                value={newToken.displayName}
+                onChange={(e) => setNewToken({ ...newToken, displayName: e.target.value })}
+              />
+              <FormErrorMessage>{fieldErrors.displayName}</FormErrorMessage>
+            </FormControl>
+
+            <FormControl isInvalid={Boolean(fieldErrors.description)}>
+              <FormLabel>Description</FormLabel>
+              <Input
+                value={newToken.description}
+                onChange={(e) => setNewToken({ ...newToken, description: e.target.value })}
+              />
+              <FormErrorMessage>{fieldErrors.description}</FormErrorMessage>
+            </FormControl>
+
+            <FormControl isInvalid={Boolean(fieldErrors.tokenCollectionId)}>
+              <FormLabel>Token Collection</FormLabel>
               <Select
                 value={newToken.tokenCollectionId || ''}
-                label="Token Collection"
                 onChange={(e) => setNewToken({ ...newToken, tokenCollectionId: e.target.value })}
               >
+                <option value="">Select a collection</option>
                 {tokenCollections.map((collection) => (
-                  <MenuItem key={collection.id} value={collection.id}>
+                  <option key={collection.id} value={collection.id}>
                     {collection.name}
-                  </MenuItem>
+                  </option>
                 ))}
               </Select>
-              {fieldErrors.tokenCollectionId && (
-                <Typography color="error" variant="caption">
-                  {fieldErrors.tokenCollectionId}
-                </Typography>
-              )}
+              <FormErrorMessage>{fieldErrors.tokenCollectionId}</FormErrorMessage>
             </FormControl>
-            <TextField
-              label="Resolved Value Type"
-              value={newToken.resolvedValueType}
-              onChange={(e) => setNewToken({ ...newToken, resolvedValueType: e.target.value as Token['resolvedValueType'] })}
-              error={Boolean(fieldErrors.resolvedValueType)}
-              helperText={fieldErrors.resolvedValueType}
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={!!newToken.private}
-                  onChange={(e) => setNewToken({ ...newToken, private: e.target.checked })}
-                />
-              }
-              label="Private"
-            />
-            <TextField
-              label="Property Types (comma separated)"
-              value={(newToken.propertyTypes || []).join(',')}
-              onChange={(e) => setNewToken({ ...newToken, propertyTypes: e.target.value.split(',').map((v) => v.trim()) })}
-              error={Boolean(fieldErrors.propertyTypes)}
-              helperText={fieldErrors.propertyTypes}
-            />
 
-            <Typography variant="subtitle1">Taxonomies</Typography>
+            <FormControl isInvalid={Boolean(fieldErrors.resolvedValueType)}>
+              <FormLabel>Resolved Value Type</FormLabel>
+              <Input
+                value={newToken.resolvedValueType}
+                onChange={(e) => setNewToken({ ...newToken, resolvedValueType: e.target.value as Token['resolvedValueType'] })}
+              />
+              <FormErrorMessage>{fieldErrors.resolvedValueType}</FormErrorMessage>
+            </FormControl>
+
+            <FormControl>
+              <Checkbox
+                isChecked={!!newToken.private}
+                onChange={(e) => setNewToken({ ...newToken, private: e.target.checked })}
+              >
+                Private
+              </Checkbox>
+            </FormControl>
+
+            <FormControl isInvalid={Boolean(fieldErrors.propertyTypes)}>
+              <FormLabel>Property Types (comma separated)</FormLabel>
+              <Input
+                value={(newToken.propertyTypes || []).join(',')}
+                onChange={(e) => setNewToken({ ...newToken, propertyTypes: e.target.value.split(',').map((v) => v.trim()) })}
+              />
+              <FormErrorMessage>{fieldErrors.propertyTypes}</FormErrorMessage>
+            </FormControl>
+
+            <Text fontSize="lg" fontWeight="medium">Taxonomies</Text>
             <TaxonomyPicker
               taxonomies={taxonomies}
               value={Array.isArray(newToken.taxonomies) ? newToken.taxonomies : []}
@@ -193,63 +183,66 @@ export default function TokensWorkflow({
               disabled={taxonomies.length === 0}
             />
 
-            <Typography variant="subtitle1">Code Syntax (auto-generated)</Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {Object.entries(CodeSyntaxService.generateAllCodeSyntaxes(newToken as any, schema as any)).map(([key, value]) => (
-                <Box key={key} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="body2">{key}: {value}</Typography>
-                </Box>
+            <Text fontSize="lg" fontWeight="medium">Code Syntax (auto-generated)</Text>
+            <VStack spacing={2} align="stretch">
+              {Object.entries(CodeSyntaxService.generateAllCodeSyntaxes(newToken as Token, schema)).map(([key, value]) => (
+                <HStack key={key} spacing={2}>
+                  <Text fontSize="sm">{key}: {value}</Text>
+                </HStack>
               ))}
-            </Box>
+            </VStack>
 
             {fieldErrors.general && (
-              <Typography color="error">{fieldErrors.general}</Typography>
+              <Text color="red.500">{fieldErrors.general}</Text>
             )}
-            <Button variant="contained" onClick={handleAddToken}>
+
+            <Button colorScheme="blue" onClick={handleAddToken}>
               Add Token
             </Button>
-          </Box>
-        </Paper>
-      </Grid>
+          </VStack>
+        </Box>
+      </GridItem>
 
-      <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>
+      <GridItem>
+        <Box p={4} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
+          <Text fontSize="xl" fontWeight="bold" mb={4}>
             Tokens List
-          </Typography>
-          <List>
+          </Text>
+          <VStack spacing={4} align="stretch">
             {tokens.map((token) => {
               const collection = tokenCollections.find((c) => c.id === token.tokenCollectionId);
               return (
-                <ListItem key={token.id}>
-                  <ListItemText
-                    primary={token.displayName}
-                    secondary={
-                      <>
-                        <div>Description: {token.description}</div>
-                        <div>Collection: {collection?.name || 'Unknown'}</div>
-                        <div>Resolved Value Type: {token.resolvedValueType}</div>
-                        <div>Private: {token.private ? 'Yes' : 'No'}</div>
-                        <div>Property Types: {token.propertyTypes.join(', ')}</div>
-                        <div>
-                          Taxonomies: {Array.isArray(token.taxonomies) && token.taxonomies.length > 0
-                            ? token.taxonomies.map(ref => {
-                                const taxonomy = taxonomies.find(t => t.id === ref.taxonomyId);
-                                const term = taxonomy?.terms.find(term => term.id === ref.termId);
-                                return taxonomy && term ? `${taxonomy.name}: ${term.name}` : 'Unknown';
-                              }).join(', ')
-                            : 'None'}
-                        </div>
-                        <div>Code Syntax: {Object.entries(token.codeSyntax).map(([k, v]) => `${k}: ${v}`).join(', ')}</div>
-                      </>
-                    }
-                  />
-                </ListItem>
+                <Box
+                  key={token.id}
+                  p={4}
+                  borderWidth={1}
+                  borderRadius="md"
+                  bg="gray.50"
+                >
+                  <Text fontSize="lg" fontWeight="medium">{token.displayName}</Text>
+                  <VStack align="start" spacing={1} mt={2}>
+                    <Text fontSize="sm">Description: {token.description}</Text>
+                    <Text fontSize="sm">Collection: {collection?.name || 'Unknown'}</Text>
+                    <Text fontSize="sm">Resolved Value Type: {token.resolvedValueType}</Text>
+                    <Text fontSize="sm">Private: {token.private ? 'Yes' : 'No'}</Text>
+                    <Text fontSize="sm">Property Types: {token.propertyTypes.join(', ')}</Text>
+                    <Text fontSize="sm">
+                      Taxonomies: {Array.isArray(token.taxonomies) && token.taxonomies.length > 0
+                        ? token.taxonomies.map(ref => {
+                            const taxonomy = taxonomies.find(t => t.id === ref.taxonomyId);
+                            const term = taxonomy?.terms.find(term => term.id === ref.termId);
+                            return taxonomy && term ? `${taxonomy.name}: ${term.name}` : 'Unknown';
+                          }).join(', ')
+                        : 'None'}
+                    </Text>
+                    <Text fontSize="sm">Code Syntax: {Object.entries(token.codeSyntax).map(([k, v]) => `${k}: ${v}`).join(', ')}</Text>
+                  </VStack>
+                </Box>
               );
             })}
-          </List>
-        </Paper>
-      </Grid>
+          </VStack>
+        </Box>
+      </GridItem>
     </Grid>
   );
 } 

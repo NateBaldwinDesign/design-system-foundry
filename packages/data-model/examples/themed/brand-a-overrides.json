@@ -1,5 +1,6 @@
 {
   "themeId": "theme-brand-a",
+  "systemId": "core-design-system",
   "tokenOverrides": [
     {
       "tokenId": "token-accent-color",

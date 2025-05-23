@@ -1,26 +1,27 @@
+import React from "react";
 import { useState } from 'react';
 import {
   Box,
-  Typography,
-  Paper,
-  TextField,
+  Text,
   Button,
   FormControl,
-  InputLabel,
+  FormLabel,
   Select,
-  MenuItem,
-  Alert
-} from '@mui/material';
-import type { Token, TokenCollection, Mode } from '@token-model/data-model';
+  Alert,
+  VStack,
+  Heading,
+  useColorMode
+} from '@chakra-ui/react';
+import type { Token, TokenCollection } from '@token-model/data-model';
 
 interface ValidationTesterProps {
   tokens: Token[];
   collections: TokenCollection[];
-  modes: Mode[];
   onValidate: (token: Token) => void;
 }
 
-export function ValidationTester({ tokens = [], collections = [], modes = [], onValidate }: ValidationTesterProps) {
+export function ValidationTester({ tokens = [], collections = [], onValidate }: ValidationTesterProps) {
+  const { colorMode } = useColorMode();
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [validationResult, setValidationResult] = useState<string | null>(null);
 
@@ -39,44 +40,44 @@ export function ValidationTester({ tokens = [], collections = [], modes = [], on
 
   return (
     <Box>
-      <Paper sx={{ p: 2 }}>
-        <Typography variant="h6" gutterBottom>
+      <Box p={4} borderRadius="md" boxShadow="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+        <Heading as="h2" size="md" mb={4}>
           Token Validation Tester
-        </Typography>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <FormControl fullWidth>
-            <InputLabel>Select Token</InputLabel>
+        </Heading>
+        <VStack align="stretch" spacing={4}>
+          <FormControl>
+            <FormLabel>Select Token</FormLabel>
             <Select
               value={selectedToken?.id || ''}
               onChange={(e) => handleTokenSelect(e.target.value)}
-              label="Select Token"
+              placeholder="Select token"
             >
               {tokens?.map((token) => (
-                <MenuItem key={token.id} value={token.id}>
+                <option key={token.id} value={token.id}>
                   {token.displayName}
-                </MenuItem>
+                </option>
               ))}
             </Select>
           </FormControl>
 
           {selectedToken && (
             <Box>
-              <Typography variant="subtitle1" gutterBottom>
+              <Text fontWeight="semibold" mb={2}>
                 Selected Token Details
-              </Typography>
-              <Typography variant="body2">
+              </Text>
+              <Text fontSize="sm">
                 Name: {selectedToken.displayName}
-              </Typography>
-              <Typography variant="body2">
+              </Text>
+              <Text fontSize="sm">
                 Collection: {collections?.find(c => c.id === selectedToken.tokenCollectionId)?.name}
-              </Typography>
-              <Typography variant="body2">
+              </Text>
+              <Text fontSize="sm">
                 Value Type: {selectedToken.resolvedValueType}
-              </Typography>
+              </Text>
               <Button
-                variant="contained"
+                colorScheme="blue"
                 onClick={handleValidate}
-                sx={{ mt: 2 }}
+                mt={3}
               >
                 Validate Token
               </Button>
@@ -84,12 +85,12 @@ export function ValidationTester({ tokens = [], collections = [], modes = [], on
           )}
 
           {validationResult && (
-            <Alert severity="info" sx={{ mt: 2 }}>
+            <Alert status="info" mt={2}>
               {validationResult}
             </Alert>
           )}
-        </Box>
-      </Paper>
+        </VStack>
+      </Box>
     </Box>
   );
 } 

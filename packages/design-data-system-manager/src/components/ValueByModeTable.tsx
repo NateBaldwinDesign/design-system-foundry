@@ -1,7 +1,14 @@
 import React, { useMemo } from 'react';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Typography } from '@mui/material';
-import type { TokenValue, Mode, Token } from '@token-model/data-model';
-import { TokenValuePicker } from './TokenValuePicker';
+import {
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Box
+} from '@chakra-ui/react';
+import type { TokenValue, Mode } from '@token-model/data-model';
 
 // Utility for mode name lookup
 export function getModeName(modeId: string, modes: Mode[]): string {
@@ -13,19 +20,18 @@ export function getModeName(modeId: string, modes: Mode[]): string {
   return mode.name;
 }
 
-interface ValueByModeTableProps {
-  valuesByMode: any[];
-  modes: Mode[];
-  editable?: boolean;
-  onValueChange?: (modeIndex: number, newValue: TokenValue) => void;
-  getValueEditor: (value: TokenValue | string, modeIndex: number, isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode;
-  resolvedValueType: string;
-  tokens: Token[];
-  constraints?: any[];
-  excludeTokenId?: string;
+interface ValueByMode {
+  modeIds: string[];
+  value: TokenValue;
 }
 
-export function ValueByModeTable({ valuesByMode, modes, editable, onValueChange, getValueEditor, resolvedValueType, tokens, constraints, excludeTokenId }: ValueByModeTableProps) {
+interface ValueByModeTableProps {
+  valuesByMode: ValueByMode[];
+  modes: Mode[];
+  getValueEditor: (value: TokenValue | string, modeIndex: number, isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode;
+}
+
+export function ValueByModeTable({ valuesByMode, modes, getValueEditor }: ValueByModeTableProps) {
   // Validate that all mode IDs in valuesByMode exist in the modes array
   const invalidModeIds = useMemo(() => {
     const allModeIds = new Set(modes.map(m => m.id));
@@ -70,24 +76,24 @@ export function ValueByModeTable({ valuesByMode, modes, editable, onValueChange,
   const allGlobal = valuesByMode.every(vbm => vbm.modeIds.length === 0);
 
   return (
-    <TableContainer component={Paper} variant="outlined">
-      <Table size="small">
+    <Box borderWidth={1} borderRadius="md" overflow="hidden">
+      <Table size="sm">
         {!allGlobal && (
-          <TableHead>
-            <TableRow>
-              <TableCell></TableCell>
+          <Thead>
+            <Tr>
+              <Th></Th>
               {columns.map(colId => (
-                <TableCell key={`header-${colId}`} align="center">
+                <Th key={`header-${colId}`} textAlign="center">
                   {getModeName(colId, modes)}
-                </TableCell>
+                </Th>
               ))}
-            </TableRow>
-          </TableHead>
+            </Tr>
+          </Thead>
         )}
-        <TableBody>
+        <Tbody>
           {rows.map(rowId => (
-            <TableRow key={`row-${rowId}`}>
-              <TableCell component="th" scope="row">{hasRows ? getModeName(rowId, modes) : ''}</TableCell>
+            <Tr key={`row-${rowId}`}>
+              <Th scope="row">{hasRows ? getModeName(rowId, modes) : ''}</Th>
               {columns.map(colId => {
                 let key;
                 if (hasRows) {
@@ -97,17 +103,17 @@ export function ValueByModeTable({ valuesByMode, modes, editable, onValueChange,
                 }
                 const entry = valueMap.get(key);
                 const cellKey = `cell-${rowId}-${colId}`;
-                if (!entry) return <TableCell key={cellKey} />;
+                if (!entry) return <Td key={cellKey} />;
                 return (
-                  <TableCell key={cellKey} align="center">
+                  <Td key={cellKey} textAlign="center">
                     {getValueEditor(entry.vbm.value, entry.idx)}
-                  </TableCell>
+                  </Td>
                 );
               })}
-            </TableRow>
+            </Tr>
           ))}
-        </TableBody>
+        </Tbody>
       </Table>
-    </TableContainer>
+    </Box>
   );
 } 

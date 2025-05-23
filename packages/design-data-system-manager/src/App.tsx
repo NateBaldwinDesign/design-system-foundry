@@ -1,60 +1,50 @@
+import React from "react";
 import { useState, useEffect } from 'react';
 import {
-  Container,
-  Typography,
   Box,
-  Tabs,
-  Tab,
-  Paper,
+  Container,
+  Heading,
+  VStack,
+  HStack,
   Button,
-  CircularProgress,
-  MenuItem,
-  Select,
+  useDisclosure,
+  Flex,
+  Spinner,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel,
   FormControl,
-  InputLabel
-} from '@mui/material';
-import { TokenCollection, Mode, Token, Dimension, Platform, Taxonomy } from '@token-model/data-model';
+  FormLabel,
+  Select
+} from '@chakra-ui/react';
+import {
+  TokenCollection,
+  Mode,
+  Token,
+  Dimension,
+  Platform,
+  Taxonomy
+} from '@token-model/data-model';
 import { TokenList } from './components/TokenList';
 import { CollectionsWorkflow } from './components/CollectionsWorkflow';
-import { ModesWorkflow } from './components/ModesWorkflow';
+import { DimensionsWorkflow } from './components/DimensionsWorkflow';
 import { ValueTypesWorkflow } from './components/ValueTypesWorkflow';
 import { SettingsWorkflow } from './views/settings/SettingsWorkflow';
 import { StorageService } from './services/storage';
 import { ValidationTester } from './components/ValidationTester';
 import { generateId, ID_PREFIXES } from './utils/id';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
 import { TokenEditorDialog } from './components/TokenEditorDialog';
 import { exportAndValidateData } from './utils/validateAndExportData';
 import { createSchemaJsonFromLocalStorage, validateSchemaJson, downloadSchemaJsonFromLocalStorage } from './services/createJson';
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`main-tabpanel-${index}`}
-      aria-labelledby={`main-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
+import './App.css';
+import Header from './components/Header';
+import { VerticalTabsLayout } from './components/VerticalTabsLayout';
+import { SettingsTaxonomiesTab } from './views/settings/SettingsTaxonomiesTab';
+import { SettingsNamingRulesTab } from './views/settings/SettingsNamingRulesTab';
+import { SettingsThemesTab } from './views/settings/SettingsThemesTab';
+import { ThemesWorkflow } from './components/ThemesWorkflow';
 
 // TypeScript declaration for import.meta.glob
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -76,7 +66,7 @@ function getDataSourceOptions() {
   });
 }
 
-function App() {
+export function App() {
   const [activeTab, setActiveTab] = useState(0);
   const [dataSource, setDataSource] = useState<string>('themed/core-data.json');
   const [collections, setCollections] = useState<TokenCollection[]>([]);
@@ -95,6 +85,9 @@ function App() {
   const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
   const [downloadOption, setDownloadOption] = useState('raw');
   const [taxonomyOrder, setTaxonomyOrder] = useState<string[]>([]);
+  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [activeView, setActiveView] = useState<string>('tokens');
 
   // Discover data files on mount
   useEffect(() => {
@@ -106,6 +99,62 @@ function App() {
     setLoading(true);
     let rawData = await exampleDataFiles[`../../data-model/examples/${source}`]();
     let d = JSON.parse(rawData);
+
+    // --- THEME OVERRIDE MERGE LOGIC ---
+    // If this is a theme override file (has systemId, themeId, tokenOverrides, and no tokens array)
+    if (
+      d &&
+      typeof d === 'object' &&
+      d.systemId &&
+      d.themeId &&
+      Array.isArray(d.tokenOverrides) &&
+      !Array.isArray(d.tokens)
+    ) {
+      // Find all files in the same directory
+      const dirPrefix = source.substring(0, source.lastIndexOf('/') + 1);
+      const candidates = Object.keys(exampleDataFiles).filter(f => f.startsWith(`../../data-model/examples/${dirPrefix}`));
+      let coreData = null;
+      for (const file of candidates) {
+        if (file === `../../data-model/examples/${source}`) continue;
+        const fileRaw = await exampleDataFiles[file]();
+        let fileData;
+        try { fileData = JSON.parse(fileRaw); } catch { continue; }
+        if (
+          fileData &&
+          typeof fileData === 'object' &&
+          fileData.systemId === d.systemId &&
+          Array.isArray(fileData.tokens)
+        ) {
+          coreData = fileData;
+          break;
+        }
+      }
+      if (!coreData) {
+        alert('No matching core data file found for systemId: ' + d.systemId);
+        setLoading(false);
+        return;
+      }
+      // Merge tokenOverrides into coreData tokens (only for themeable tokens)
+      const mergedTokens = coreData.tokens.map((token: any) => {
+        const override = d.tokenOverrides.find((o: any) => o.tokenId === token.id);
+        if (override && token.themeable) {
+          // Replace the valuesByMode with the override value (global, modeIds: [])
+          return {
+            ...token,
+            valuesByMode: [
+              {
+                modeIds: [],
+                value: override.value
+              }
+            ]
+          };
+        }
+        return token;
+      });
+      // Use the merged data for the UI
+      d = { ...coreData, ...d, tokens: mergedTokens };
+    }
+    // --- END THEME OVERRIDE MERGE LOGIC ---
 
     // Normalize platforms
     const normalizedPlatforms = (d.platforms || []).map((p: any) => ({
@@ -236,230 +285,221 @@ function App() {
     setCreateDialogOpen(false);
   };
 
-  const handleEditToken = (updatedToken: Token) => {
-    const newTokens = tokens.map(t => t.id === updatedToken.id ? updatedToken : t);
-    setTokens(newTokens);
-    StorageService.setTokens(newTokens);
+  const handleEditToken = (token: Token) => {
+    setSelectedToken(token);
+    onOpen();
   };
 
-  const handleReset = () => {
-    StorageService.clearAll();
-    window.location.reload();
+  const handleSaveToken = (token: Token) => {
+    if (selectedToken) {
+      setTokens(tokens.map(t => t.id === token.id ? token : t));
+    } else {
+      setTokens([...tokens, token]);
+    }
+    onClose();
+  };
+
+  const handleDeleteToken = (tokenId: string) => {
+    setTokens(tokens.filter(t => t.id !== tokenId));
+  };
+
+  const handleResetData = () => {
+    setTokens([]);
+  };
+
+  const handleValidateData = () => {
+    // Placeholder logic for validateData
+  };
+
+  const handleExportData = () => {
+    // Placeholder logic for exportData
   };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <Spinner />
       </Box>
     );
   }
 
   return (
-    <Container>
-      <Box sx={{ my: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Design Data System Manager
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <FormControl size="small">
-            <InputLabel>Data Source</InputLabel>
-            <Select
-              value={dataSource}
-              label="Data Source"
-              onChange={e => setDataSource(e.target.value as string)}
-              sx={{ minWidth: 220 }}
-            >
-              {dataOptions.map(ds => (
-                <MenuItem key={ds.value} value={ds.value}>{ds.label}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={() => {
-              const schemaData = createSchemaJsonFromLocalStorage();
-              const result = validateSchemaJson(schemaData);
-              setValidationResult(result);
-              setValidationDialogOpen(true);
-            }}
-            sx={{ ml: 2 }}
-          >
-            Validate data
-          </Button>
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={() => setDownloadDialogOpen(true)}
-            sx={{ ml: 2 }}
-          >
-            Download
-          </Button>
-          <Button variant="outlined" color="error" onClick={handleReset} sx={{ ml: 2 }}>
-            Reset Data
-          </Button>
-        </Box>
-      </Box>
-
-      <Paper sx={{ width: '100%', mb: 4 }}>
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          aria-label="main tabs"
-          centered
-        >
-          <Tab label="Tokens" />
-          <Tab label="Settings" />
-        </Tabs>
-      </Paper>
-
-      <TabPanel value={activeTab} index={0}>
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h5" gutterBottom>
-              Tokens
-            </Typography>
-            <Button variant="contained" color="primary" onClick={handleOpenCreateDialog}>
-              Add token
-            </Button>
-          </Box>
-          <TokenList
-            tokens={tokens}
-            collections={collections}
-            modes={modes}
-            dimensions={dimensions}
-            platforms={platforms}
-            onEdit={handleEditToken}
-            onDelete={(tokenId) => {
-              const newTokens = tokens.filter(t => t.id !== tokenId);
-              setTokens(newTokens);
-              StorageService.setTokens(newTokens);
-            }}
-            taxonomies={taxonomies}
-            resolvedValueTypes={resolvedValueTypes}
+    <Box minH="100vh" bg="chakra-body-bg">
+      <Container maxW="container.xl" py={8}>
+        <VStack spacing={6} align="stretch">
+          <Header
+            dataSource={dataSource}
+            setDataSource={setDataSource}
+            dataOptions={dataOptions}
+            handleResetData={handleResetData}
+            handleValidateData={handleValidateData}
+            handleExportData={handleExportData}
+            activeView={activeView}
+            onViewChange={setActiveView}
           />
-        </Box>
+          {activeView === 'tokens' && (
+            <VerticalTabsLayout
+              tabs={[
+                {
+                  id: 'tokens',
+                  label: 'Tokens',
+                  content: (
+                    <>
+                      <TokenList
+                        tokens={tokens}
+                        collections={collections}
+                        modes={modes}
+                        dimensions={dimensions}
+                        platforms={platforms}
+                        onEdit={handleEditToken}
+                        onDelete={handleDeleteToken}
+                        taxonomies={taxonomies}
+                        resolvedValueTypes={resolvedValueTypes}
+                      />
+                      <Button onClick={handleOpenCreateDialog} colorScheme="blue" size="lg" mt={4}>
+                        Add Token
+                      </Button>
+                      <TokenEditorDialog
+                        token={selectedToken || {
+                          id: '',
+                          displayName: '',
+                          valuesByMode: [],
+                          resolvedValueType: 'COLOR',
+                          tokenCollectionId: '',
+                          private: false,
+                          themeable: false,
+                          taxonomies: [],
+                          propertyTypes: [],
+                          codeSyntax: {}
+                        }}
+                        tokens={tokens}
+                        dimensions={dimensions}
+                        modes={modes}
+                        platforms={platforms}
+                        open={isOpen}
+                        onClose={onClose}
+                        onSave={handleSaveToken}
+                        taxonomies={taxonomies}
+                        resolvedValueTypes={resolvedValueTypes}
+                        isNew={!selectedToken}
+                      />
+                    </>
+                  )
+                },
+                {
+                  id: 'collections',
+                  label: 'Collections',
+                  content: (
+                    <CollectionsWorkflow
+                      collections={collections}
+                      modes={modes}
+                      onUpdate={setCollections}
+                    />
+                  )
+                },
+                {
+                  id: 'algorithms',
+                  label: 'Algorithms',
+                  content: (
+                    <Box>To be built...</Box>
+                  )
+                },
+                
 
-        {/* Create Token Dialog */}
-        <TokenEditorDialog
-          token={{
-            id: '',
-            displayName: '',
-            description: '',
-            tokenCollectionId: collections[0]?.id || '',
-            resolvedValueType: (resolvedValueTypes[0]?.id || 'COLOR') as Token['resolvedValueType'],
-            private: false,
-            valuesByMode: [],
-            taxonomies: [],
-            propertyTypes: [],
-            codeSyntax: {},
-            themeable: false,
-          }}
-          tokens={tokens}
-          dimensions={dimensions}
-          modes={modes}
-          platforms={platforms}
-          open={createDialogOpen}
-          onClose={handleCloseCreateDialog}
-          onSave={tokenData => {
-            const newToken = {
-              ...tokenData,
-              id: generateId(ID_PREFIXES.TOKEN)
-            };
-            const newTokens = [...tokens, newToken];
-            setTokens(newTokens);
-            StorageService.setTokens(newTokens);
-            setCreateDialogOpen(false);
-          }}
-          taxonomies={taxonomies}
-          resolvedValueTypes={resolvedValueTypes}
-          isNew={true}
-        />
-      </TabPanel>
-
-      <TabPanel value={activeTab} index={1}>
-        <SettingsWorkflow
-          collections={collections}
-          setCollections={setCollections}
-          dimensions={dimensions}
-          setDimensions={setDimensions}
-          modes={modes}
-          setModes={setModes}
-          themes={themes}
-          taxonomies={taxonomies}
-          setTaxonomies={setTaxonomies}
-          taxonomyOrder={taxonomyOrder}
-          setTaxonomyOrder={setTaxonomyOrder}
-          resolvedValueTypes={resolvedValueTypes}
-          setResolvedValueTypes={setResolvedValueTypes}
-        />
-      </TabPanel>
-
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h5" gutterBottom>
-          Validation Tester
-        </Typography>
-        <ValidationTester
-          tokens={tokens}
-          collections={collections}
-          modes={modes}
-          onValidate={(result) => {
-            console.log('Validation result:', result);
-          }}
-        />
-      </Box>
-
-      <Dialog open={validationDialogOpen} onClose={() => setValidationDialogOpen(false)}>
-        <DialogTitle>Validation Result</DialogTitle>
-        <DialogContent>
-          {validationResult?.valid ? (
-            <Typography color="success.main">Data is valid!</Typography>
-          ) : (
-            <Box>
-              <Typography color="error.main">Validation failed:</Typography>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{validationResult?.error}</Typography>
+                {
+                  id: 'settings',
+                  label: 'Settings',
+                  content: (
+                    <SettingsWorkflow
+                      collections={collections}
+                      setCollections={setCollections}
+                      modes={modes}
+                      setModes={setModes}
+                      themes={themes}
+                      taxonomies={taxonomies}
+                      setTaxonomies={setTaxonomies}
+                      taxonomyOrder={taxonomyOrder}
+                      setTaxonomyOrder={setTaxonomyOrder}
+                      resolvedValueTypes={resolvedValueTypes}
+                      setResolvedValueTypes={setResolvedValueTypes}
+                    />
+                  )
+                },
+                {
+                  id: 'validation',
+                  label: 'Validation',
+                  content: (
+                    <ValidationTester
+                      tokens={tokens}
+                      collections={collections}
+                      modes={modes}
+                      onValidate={() => {}}
+                    />
+                  )
+                }
+              ]}
+              activeTab={activeTab}
+              onChange={setActiveTab}
+            />
+          )}
+          {activeView === 'setup' && (
+            <VerticalTabsLayout
+              tabs={[
+                {
+                  id: 'dimensions',
+                  label: 'Dimensions',
+                  content: (
+                    <DimensionsWorkflow
+                      dimensions={dimensions}
+                      setDimensions={setDimensions}
+                    />
+                  )
+                },
+                {
+                  id: 'classification',
+                  label: 'Classification',
+                  content: (
+                    <SettingsTaxonomiesTab
+                      taxonomies={taxonomies}
+                      setTaxonomies={setTaxonomies}
+                    />
+                  )
+                },
+                {
+                  id: 'naming-rules',
+                  label: 'Naming Rules',
+                  content: (
+                    <SettingsNamingRulesTab
+                      taxonomies={taxonomies}
+                      taxonomyOrder={taxonomyOrder}
+                      setTaxonomyOrder={setTaxonomyOrder}
+                    />
+                  )
+                },
+                {
+                  id: 'value-types',
+                  label: 'Value Types',
+                  content: (
+                    <ValueTypesWorkflow
+                      valueTypes={resolvedValueTypes.map(vt => vt.id)}
+                      onUpdate={types => setResolvedValueTypes(types.map(id => ({ id, displayName: id })))}
+                    />
+                  )
+                }
+              ]}
+              activeTab={activeTab}
+              onChange={setActiveTab}
+            />
+          )}
+          {activeView === 'themes' && (
+            <Box p={3} bg="chakra-body-bg" borderRadius="md" boxShadow="md">
+              <ThemesWorkflow themes={themes} setThemes={setThemes} />
             </Box>
           )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setValidationDialogOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Download Dialog */}
-      <Dialog open={downloadDialogOpen} onClose={() => setDownloadDialogOpen(false)}>
-        <DialogTitle>Download Data</DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel id="download-option-label">Download Option</InputLabel>
-            <Select
-              labelId="download-option-label"
-              value={downloadOption}
-              label="Download Option"
-              onChange={e => setDownloadOption(e.target.value)}
-            >
-              <MenuItem value="raw">Raw data</MenuItem>
-              {/* Future options can be added here */}
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDownloadDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              if (downloadOption === 'raw') {
-                downloadSchemaJsonFromLocalStorage();
-              }
-              setDownloadDialogOpen(false);
-            }}
-          >
-            Download
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+          {activeView !== 'tokens' && activeView !== 'setup' && activeView !== 'themes' && <Box />}
+        </VStack>
+      </Container>
+    </Box>
   );
 }
 

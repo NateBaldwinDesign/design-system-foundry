@@ -1,4 +1,6 @@
 {
+  "systemName": "Simple design system",
+  "systemId": "simple-design-system",
     "tokenCollections": [
       {
         "id": "tokenCollection-AAAA-AAAA-AAAA",

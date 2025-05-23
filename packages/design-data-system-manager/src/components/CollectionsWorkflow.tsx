@@ -1,21 +1,17 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
-  Typography,
-  TextField,
+  Text,
   Button,
-  List,
-  ListItem,
-  ListItemText,
   IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Chip
-} from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import type { TokenCollection, Mode, DimensionType, FallbackStrategy, ResolvedValueType } from '@token-model/data-model';
+  VStack,
+  HStack,
+  useToast,
+  useColorMode
+} from '@chakra-ui/react';
+import { DeleteIcon, EditIcon } from '@chakra-ui/icons';
+import type { TokenCollection, Mode } from '@token-model/data-model';
+import { CollectionEditorDialog } from './CollectionEditorDialog';
 
 interface CollectionsWorkflowProps {
   collections: TokenCollection[];
@@ -24,205 +20,110 @@ interface CollectionsWorkflowProps {
 }
 
 export function CollectionsWorkflow({ collections, modes, onUpdate }: CollectionsWorkflowProps) {
+  const { colorMode } = useColorMode();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCollection, setEditingCollection] = useState<TokenCollection | null>(null);
-  const [name, setName] = useState('');
-  const [resolvedValueTypes, setResolvedValueTypes] = useState<string[]>([]);
-  const [private_, setPrivate] = useState(false);
-  const [defaultModeIds, setDefaultModeIds] = useState<string[]>([]);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isNew, setIsNew] = useState(false);
+  const toast = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-
-    if (!name.trim()) {
-      setErrors({ name: 'Name is required' });
-      return;
-    }
-
-    const newCollection: TokenCollection = {
-      id: editingCollection?.id || crypto.randomUUID(),
-      name: name.trim(),
-      resolvedValueTypes: resolvedValueTypes as ResolvedValueType[],
-      private: private_,
-      defaultModeIds,
-      modeResolutionStrategy: {
-        priorityByType: [],
-        fallbackStrategy: 'MOST_SPECIFIC_MATCH'
-      }
-    };
-
-    if (editingCollection) {
-      onUpdate(collections.map(c => c.id === editingCollection.id ? newCollection : c));
-    } else {
-      onUpdate([...collections, newCollection]);
-    }
-
-    resetForm();
-  };
-
-  const handleEdit = (collection: TokenCollection) => {
-    setEditingCollection(collection);
-    setName(collection.name);
-    setResolvedValueTypes(collection.resolvedValueTypes as string[]);
-    setPrivate(collection.private);
-    setDefaultModeIds(collection.defaultModeIds ?? []);
-  };
-
-  const handleDelete = (id: string) => {
-    onUpdate(collections.filter(c => c.id !== id));
-  };
-
-  const resetForm = () => {
+  // Open dialog for creating a new collection
+  const handleOpenCreate = () => {
     setEditingCollection(null);
-    setName('');
-    setResolvedValueTypes([]);
-    setPrivate(false);
-    setDefaultModeIds([]);
-    setErrors({});
+    setIsNew(true);
+    setDialogOpen(true);
+  };
+
+  // Open dialog for editing an existing collection
+  const handleOpenEdit = (collection: TokenCollection) => {
+    setEditingCollection(collection);
+    setIsNew(false);
+    setDialogOpen(true);
+  };
+
+  // Save handler for dialog
+  const handleDialogSave = (collection: TokenCollection) => {
+    if (isNew) {
+      onUpdate([...collections, collection]);
+      toast({ title: 'Collection created', status: 'success', duration: 2000 });
+    } else {
+      onUpdate(collections.map(c => c.id === collection.id ? collection : c));
+      toast({ title: 'Collection updated', status: 'success', duration: 2000 });
+    }
+    setDialogOpen(false);
+  };
+
+  // Close dialog
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+  };
+
+  const handleDeleteCollection = (id: string) => {
+    onUpdate(collections.filter(c => c.id !== id));
+    toast({ title: 'Collection deleted', status: 'info', duration: 2000 });
   };
 
   return (
     <Box>
-      <Typography variant="h6" gutterBottom>
-        {editingCollection ? 'Edit Collection' : 'Create New Collection'}
-      </Typography>
-
-      <Box component="form" onSubmit={handleSubmit} sx={{ mb: 4 }}>
-        <TextField
-          label="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          error={!!errors.name}
-          helperText={errors.name}
-          fullWidth
-          sx={{ mb: 2 }}
-        />
-
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Resolved Value Types</InputLabel>
-          <Select
-            multiple
-            value={resolvedValueTypes}
-            onChange={(e) => setResolvedValueTypes(e.target.value as string[])}
-            renderValue={(selected) => (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {selected.map((value) => (
-                  <Chip key={value} label={value} />
-                ))}
-              </Box>
-            )}
-          >
-            <MenuItem value="COLOR">Color</MenuItem>
-            <MenuItem value="FLOAT">Float</MenuItem>
-            <MenuItem value="INTEGER">Integer</MenuItem>
-            <MenuItem value="STRING">String</MenuItem>
-            <MenuItem value="BOOLEAN">Boolean</MenuItem>
-            <MenuItem value="ALIAS">Alias</MenuItem>
-          </Select>
-        </FormControl>
-
-        <FormControl fullWidth sx={{ mb: 2 }}>
-          <InputLabel>Default Modes</InputLabel>
-          <Select
-            multiple
-            value={defaultModeIds}
-            onChange={(e) => setDefaultModeIds(e.target.value as string[])}
-            renderValue={(selected) => (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                {selected.map((modeId) => {
-                  const mode = modes.find(m => m.id === modeId);
-                  return (
-                    <Chip key={modeId} label={mode?.name || modeId} />
-                  );
-                })}
-              </Box>
-            )}
-          >
-            {modes.map((mode) => (
-              <MenuItem key={mode.id} value={mode.id}>
-                {mode.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-          >
-            {editingCollection ? 'Update Collection' : 'Create Collection'}
-          </Button>
-          {editingCollection && (
-            <Button
-              variant="outlined"
-              onClick={resetForm}
+      <Text fontSize="2xl" fontWeight="bold" mb={4}>Collections</Text>
+      <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+        <Button onClick={handleOpenCreate} colorScheme="blue" mb={4}>
+          Create New Collection
+        </Button>
+        <VStack align="stretch" spacing={2}>
+          {collections.map((collection) => (
+            <Box 
+              key={collection.id} 
+              p={3} 
+              borderWidth={1} 
+              borderRadius="md" 
+              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
             >
-              Cancel
-            </Button>
-          )}
-        </Box>
-      </Box>
-
-      <Typography variant="h6" gutterBottom>
-        Collections
-      </Typography>
-
-      <List>
-        {collections.map((collection) => (
-          <ListItem
-            key={collection.id}
-            sx={{
-              border: '1px solid #eee',
-              borderRadius: 1,
-              mb: 1,
-              '&:hover': {
-                backgroundColor: '#f5f5f5'
-              }
-            }}
-          >
-            <ListItemText
-              primary={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="h6">{collection.name}</Typography>
-                  {collection.private && (
-                    <Chip
-                      label="Private"
-                      size="small"
-                      color="default"
-                    />
-                  )}
+              <HStack justify="space-between" align="center">
+                <Box>
+                  <Text fontSize="lg" fontWeight="medium">{collection.name}</Text>
                 </Box>
-              }
-              secondary={
-                <Box sx={{ mt: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Value Types: {collection.resolvedValueTypes.join(', ')}
-                  </Typography>
-                  {collection.defaultModeIds && collection.defaultModeIds.length > 0 && (
-                    <Typography variant="body2" color="text.secondary">
-                      Default Modes: {collection.defaultModeIds?.map(id => {
-                        const mode = modes.find(m => m.id === id);
-                        return mode?.name || id;
-                      }).join(', ')}
-                    </Typography>
-                  )}
-                </Box>
-              }
-            />
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <IconButton onClick={() => handleEdit(collection)}>
-                <EditIcon />
-              </IconButton>
-              <IconButton onClick={() => handleDelete(collection.id)}>
-                Delete
-              </IconButton>
+                <HStack>
+                  <IconButton aria-label="Edit collection" icon={<EditIcon />} size="sm" onClick={() => handleOpenEdit(collection)} />
+                  <IconButton aria-label="Delete collection" icon={<DeleteIcon />} size="sm" colorScheme="red" onClick={() => handleDeleteCollection(collection.id)} />
+                </HStack>
+              </HStack>
+              <VStack align="start" spacing={1} mt={2} ml={2}>
+                <Text fontSize="sm" color="gray.600">
+                  <b>Value Types:</b> {Array.isArray(collection.resolvedValueTypes) ? collection.resolvedValueTypes.join(', ') : 'None'}
+                </Text>
+                <Text fontSize="sm" color="gray.600">
+                  <b>Mode Priority:</b> {Array.isArray(collection.modeResolutionStrategy?.priorityByType) && collection.modeResolutionStrategy?.priorityByType.length > 0
+                    ? collection.modeResolutionStrategy?.priorityByType.join(' > ')
+                    : 'None'}
+                </Text>
+                <Text fontSize="sm" color="gray.600">
+                  <b>Fallback Strategy:</b> {collection.modeResolutionStrategy?.fallbackStrategy || 'None'}
+                </Text>
+                {collection.private && (
+                  <Text fontSize="sm" color="gray.500"><b>Private</b></Text>
+                )}
+                {collection.defaultModeIds && collection.defaultModeIds.length > 0 && (
+                  <Text fontSize="sm" color="gray.600">
+                    <b>Default Modes:</b> {collection.defaultModeIds.map(id => {
+                      const mode = modes.find(m => m.id === id);
+                      return mode?.name || id;
+                    }).join(', ')}
+                  </Text>
+                )}
+              </VStack>
             </Box>
-          </ListItem>
-        ))}
-      </List>
+          ))}
+        </VStack>
+      </Box>
+      <CollectionEditorDialog
+        open={dialogOpen}
+        onClose={handleDialogClose}
+        onSave={handleDialogSave}
+        collection={editingCollection}
+        valueTypes={[]}
+        isNew={isNew}
+      />
     </Box>
   );
 } 

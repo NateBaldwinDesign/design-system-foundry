@@ -1,4 +1,6 @@
 {
+  "systemName": "Core design system",
+  "systemId": "core-design-system",
   "tokenCollections": [
     {
       "id": "collection-color",

@@ -27,6 +27,8 @@ const taxonomies = extractArray('DEFAULT_TAXONOMIES');
 
 // Compose the data as expected by the schema
 const data = {
+  systemName: 'Test System',
+  systemId: 'test-system',
   tokenCollections,
   dimensions,
   tokens,

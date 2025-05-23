@@ -3,28 +3,45 @@ import {
   Box,
   Button,
   Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverBody,
+  PopoverArrow,
+  PopoverCloseButton,
   Tabs,
+  TabList,
+  TabPanels,
+  TabPanel,
   Tab,
+  Input,
   List,
   ListItem,
-  ListItemButton,
-  ListItemText,
-  Typography,
-  TextField
-} from '@mui/material';
+  Text,
+  VStack,
+  useDisclosure
+} from '@chakra-ui/react';
 import type { Token, TokenValue } from '@token-model/data-model';
 import Color from 'colorjs.io';
+
+interface Constraint {
+  type: string;
+  rule: {
+    comparator: { value: string };
+    minimum: number;
+    method?: string;
+  };
+}
 
 interface TokenValuePickerProps {
   resolvedValueType: string;
   value: TokenValue | string;
   tokens: Token[];
-  constraints?: any[];
+  constraints?: Constraint[];
   onChange: (newValue: TokenValue) => void;
   excludeTokenId?: string;
 }
 
-function satisfiesConstraints(token: Token, constraints?: any[]): boolean {
+function satisfiesConstraints(token: Token, constraints?: Constraint[]): boolean {
   if (!constraints || constraints.length === 0) return true;
   for (const constraint of constraints) {
     if (constraint.type === 'contrast') {
@@ -46,12 +63,9 @@ function satisfiesConstraints(token: Token, constraints?: any[]): boolean {
       else if (method === 'Lstar') colorjsMethod = 'Lstar';
       else colorjsMethod = 'WCAG21';
       try {
-        // @ts-ignore colorjs.io types mismatch runtime for constructor
         const c1 = new Color(color);
-        // @ts-ignore colorjs.io types mismatch runtime for constructor
         const c2 = new Color(comparator);
-        // @ts-ignore colorjs.io types mismatch runtime for contrast
-        if (c1.contrast(c2, colorjsMethod) < min) return false;
+        if (c1.contrast(c2, colorjsMethod as "WCAG21" | "APCA" | "Lstar" | "Michelson" | "Weber" | "DeltaPhi") < min) return false;
       } catch {
         return false;
       }
@@ -69,16 +83,8 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
   onChange,
   excludeTokenId
 }) => {
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [tab, setTab] = useState(0);
-
-  const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-  const open = Boolean(anchorEl);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [tabIndex, setTabIndex] = useState(0);
 
   // Filter tokens for the "token" tab
   const filteredTokens = tokens.filter(
@@ -108,91 +114,97 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
   }
 
   return (
-    <>
-      <Button variant="outlined" onClick={handleOpen} sx={{ minWidth: 120 }}>
-        {buttonLabel || 'Set value'}
-      </Button>
-      <Popover
-        open={open}
-        anchorEl={anchorEl}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      >
-        <Box sx={{ width: 320, p: 2 }}>
-          <Tabs value={tab} onChange={(_, v) => setTab(v)}>
-            <Tab label="Custom" />
-            <Tab label="Token" />
-          </Tabs>
-          {tab === 0 && (
-            <Box sx={{ mt: 2 }}>
-              {resolvedValueType === 'COLOR' && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <input
-                    type="color"
-                    value={typeof value === 'object' && value.type === 'COLOR' ? value.value : '#000000'}
-                    onChange={e => onChange({ type: 'COLOR', value: e.target.value })}
-                  />
-                  <TextField
-                    size="small"
-                    value={typeof value === 'object' && value.type === 'COLOR' ? value.value : ''}
-                    onChange={e => onChange({ type: 'COLOR', value: e.target.value })}
-                  />
+    <Popover isOpen={isOpen} onClose={onClose} placement="bottom-start">
+      <PopoverTrigger>
+        <Button variant="outline" minW={32} onClick={onOpen}>
+          {buttonLabel || 'Set value'}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent w="320px">
+        <PopoverArrow />
+        <PopoverCloseButton />
+        <PopoverBody>
+          <Tabs index={tabIndex} onChange={setTabIndex}>
+            <TabList>
+              <Tab>Custom</Tab>
+              <Tab>Token</Tab>
+            </TabList>
+            <TabPanels>
+              <TabPanel px={0}>
+                <VStack align="stretch" spacing={3} mt={2}>
+                  {resolvedValueType === 'COLOR' && (
+                    <VStack>
+                      <Input
+                        type="color"
+                        w="40px"
+                        p={0}
+                        value={typeof value === 'object' && value.type === 'COLOR' ? value.value : '#000000'}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'COLOR', value: e.target.value })}
+                      />
+                      <Input
+                        size="sm"
+                        value={typeof value === 'object' && value.type === 'COLOR' ? value.value : ''}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'COLOR', value: e.target.value })}
+                      />
+                    </VStack>
+                  )}
+                  {(resolvedValueType === 'FLOAT' || resolvedValueType === 'INTEGER') && (
+                    <Input
+                      type="number"
+                      size="sm"
+                      value={typeof value === 'object' && (value.type === 'FLOAT' || value.type === 'INTEGER') ? value.value : ''}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: resolvedValueType as 'FLOAT' | 'INTEGER', value: Number(e.target.value) })}
+                    />
+                  )}
+                  {resolvedValueType === 'STRING' && (
+                    <Input
+                      size="sm"
+                      value={typeof value === 'object' && value.type === 'STRING' ? value.value : ''}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'STRING', value: e.target.value })}
+                    />
+                  )}
+                  {resolvedValueType === 'BOOLEAN' && (
+                    <Button
+                      colorScheme={typeof value === 'object' && value.type === 'BOOLEAN' && value.value ? 'green' : 'red'}
+                      onClick={() => onChange({ type: 'BOOLEAN', value: !(typeof value === 'object' && value.type === 'BOOLEAN' ? value.value : false) })}
+                      size="sm"
+                    >
+                      {typeof value === 'object' && value.type === 'BOOLEAN' && value.value ? 'True' : 'False'}
+                    </Button>
+                  )}
+                </VStack>
+              </TabPanel>
+              <TabPanel px={0}>
+                <Box mt={2}>
+                  {filteredTokens.length === 0 ? (
+                    <Text color="gray.500">No matching tokens available.</Text>
+                  ) : (
+                    <List spacing={1}>
+                      {filteredTokens.map(token => (
+                        <ListItem
+                          key={token.id}
+                          cursor="pointer"
+                          _hover={{ bg: 'gray.100' }}
+                          borderRadius="md"
+                          px={2}
+                          py={1}
+                          onClick={() => {
+                            onChange({ type: 'ALIAS', tokenId: token.id });
+                            onClose();
+                          }}
+                        >
+                          <Text fontWeight="medium">{token.displayName}</Text>
+                          <Text fontSize="sm" color="gray.500">{token.description}</Text>
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
                 </Box>
-              )}
-              {(resolvedValueType === 'FLOAT' || resolvedValueType === 'INTEGER') && (
-                <TextField
-                  type="number"
-                  size="small"
-                  value={typeof value === 'object' && (value.type === 'FLOAT' || value.type === 'INTEGER') ? value.value : ''}
-                  onChange={e => onChange({ type: resolvedValueType as 'FLOAT' | 'INTEGER', value: Number(e.target.value) })}
-                  fullWidth
-                />
-              )}
-              {resolvedValueType === 'STRING' && (
-                <TextField
-                  size="small"
-                  value={typeof value === 'object' && value.type === 'STRING' ? value.value : ''}
-                  onChange={e => onChange({ type: 'STRING', value: e.target.value })}
-                  fullWidth
-                />
-              )}
-              {resolvedValueType === 'BOOLEAN' && (
-                <Button
-                  variant="contained"
-                  color={typeof value === 'object' && value.type === 'BOOLEAN' && value.value ? 'success' : 'error'}
-                  onClick={() => onChange({ type: 'BOOLEAN', value: !(typeof value === 'object' && value.type === 'BOOLEAN' ? value.value : false) })}
-                  fullWidth
-                >
-                  {typeof value === 'object' && value.type === 'BOOLEAN' && value.value ? 'True' : 'False'}
-                </Button>
-              )}
-              {/* Add more types as needed */}
-            </Box>
-          )}
-          {tab === 1 && (
-            <Box sx={{ mt: 2 }}>
-              {filteredTokens.length === 0 ? (
-                <Typography color="text.secondary">No matching tokens available.</Typography>
-              ) : (
-                <List dense>
-                  {filteredTokens.map(token => (
-                    <ListItem key={token.id} disablePadding>
-                      <ListItemButton
-                        onClick={() => {
-                          onChange({ type: 'ALIAS', tokenId: token.id });
-                          handleClose();
-                        }}
-                      >
-                        <ListItemText primary={token.displayName} secondary={token.description} />
-                      </ListItemButton>
-                    </ListItem>
-                  ))}
-                </List>
-              )}
-            </Box>
-          )}
-        </Box>
-      </Popover>
-    </>
+              </TabPanel>
+            </TabPanels>
+          </Tabs>
+        </PopoverBody>
+      </PopoverContent>
+    </Popover>
   );
 }; 
