@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box,
   Text,
@@ -8,11 +8,7 @@ import {
   Th,
   Tr,
   Thead,
-  Input,
-  Button,
   Tag,
-  TagLabel,
-  TagCloseButton,
   HStack,
   VStack,
   IconButton,
@@ -142,7 +138,7 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
         {renderAddTokenButton}
       </Flex>
       {/* Filter Controls */}
-      <Flex direction="row" mb={4} gap={4} wrap="wrap">
+      <HStack spacing={4} wrap="nowrap" align="flex-start" mb={4}>
         <FormControl minW="140px">
           <FormLabel>Collection</FormLabel>
           <Select value={collectionFilter} onChange={e => setCollectionFilter(e.target.value)}>
@@ -186,7 +182,7 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
             <option key="themeable-false" value="false">No</option>
           </Select>
         </FormControl>
-      </Flex>
+      </HStack>
       {/* Token Table */}
       <Box p={0} borderWidth={0} borderRadius="md">
         <Table variant="simple" size="sm">
