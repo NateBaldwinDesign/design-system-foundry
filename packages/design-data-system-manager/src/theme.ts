@@ -24,6 +24,13 @@ const theme = extendTheme({
         bg: 'transparent',
       },
     },
+    Modal: {
+      baseStyle: {
+        dialog: {
+          bg: 'chakra-body-bg',
+        },
+      },
+    },
   },
   semanticTokens: {
     colors: {

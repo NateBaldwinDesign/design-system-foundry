@@ -45,6 +45,10 @@ import { SettingsTaxonomiesTab } from './views/settings/SettingsTaxonomiesTab';
 import { SettingsNamingRulesTab } from './views/settings/SettingsNamingRulesTab';
 import { SettingsThemesTab } from './views/settings/SettingsThemesTab';
 import { ThemesWorkflow } from './components/ThemesWorkflow';
+import PublishingView from './views/publishing/PublishingView';
+import TokensView from './views/tokens/TokensView';
+import SetupView from './views/setup/SetupView';
+import ThemesView from './views/themes/ThemesView';
 
 // TypeScript declaration for import.meta.glob
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -88,6 +92,7 @@ export function App() {
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [activeView, setActiveView] = useState<string>('tokens');
+  const [setupActiveTab, setSetupActiveTab] = useState<number>(0);
 
   // Discover data files on mount
   useEffect(() => {
@@ -315,6 +320,20 @@ export function App() {
     // Placeholder logic for exportData
   };
 
+  // Handler for popover link: close dialog, then navigate
+  const handleViewSetupClassificationTab = () => {
+    setActiveView('setup');
+    setSetupActiveTab(1); // Set to Classifications tab (index 1)
+  };
+
+  // Updated: Synchronously reset tab index on user navigation
+  const handleViewChange = (view: string) => {
+    if (view === 'setup') {
+      setSetupActiveTab(0); // Reset tab index synchronously
+    }
+    setActiveView(view);
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -324,8 +343,8 @@ export function App() {
   }
 
   return (
-    <Box minH="100vh" bg="chakra-body-bg">
-      <Container maxW="container.xl" py={8}>
+    <Box minH="100vh" minW="100vw" bg="chakra-body-bg">
+      <Container maxW="100vw" py={4}>
         <VStack spacing={6} align="stretch">
           <Header
             dataSource={dataSource}
@@ -335,168 +354,57 @@ export function App() {
             handleValidateData={handleValidateData}
             handleExportData={handleExportData}
             activeView={activeView}
-            onViewChange={setActiveView}
+            onViewChange={handleViewChange}
           />
           {activeView === 'tokens' && (
-            <VerticalTabsLayout
-              tabs={[
-                {
-                  id: 'tokens',
-                  label: 'Tokens',
-                  content: (
-                    <>
-                      <TokenList
-                        tokens={tokens}
-                        collections={collections}
-                        modes={modes}
-                        dimensions={dimensions}
-                        platforms={platforms}
-                        onEdit={handleEditToken}
-                        onDelete={handleDeleteToken}
-                        taxonomies={taxonomies}
-                        resolvedValueTypes={resolvedValueTypes}
-                      />
-                      <Button onClick={handleOpenCreateDialog} colorScheme="blue" size="lg" mt={4}>
-                        Add Token
-                      </Button>
-                      <TokenEditorDialog
-                        token={selectedToken || {
-                          id: '',
-                          displayName: '',
-                          valuesByMode: [],
-                          resolvedValueType: 'COLOR',
-                          tokenCollectionId: '',
-                          private: false,
-                          themeable: false,
-                          taxonomies: [],
-                          propertyTypes: [],
-                          codeSyntax: {}
-                        }}
-                        tokens={tokens}
-                        dimensions={dimensions}
-                        modes={modes}
-                        platforms={platforms}
-                        open={isOpen}
-                        onClose={onClose}
-                        onSave={handleSaveToken}
-                        taxonomies={taxonomies}
-                        resolvedValueTypes={resolvedValueTypes}
-                        isNew={!selectedToken}
-                      />
-                    </>
-                  )
-                },
-                {
-                  id: 'collections',
-                  label: 'Collections',
-                  content: (
-                    <CollectionsWorkflow
-                      collections={collections}
-                      modes={modes}
-                      onUpdate={setCollections}
-                    />
-                  )
-                },
-                {
-                  id: 'algorithms',
-                  label: 'Algorithms',
-                  content: (
-                    <Box>To be built...</Box>
-                  )
-                },
-                
-
-                {
-                  id: 'settings',
-                  label: 'Settings',
-                  content: (
-                    <SettingsWorkflow
-                      collections={collections}
-                      setCollections={setCollections}
-                      modes={modes}
-                      setModes={setModes}
-                      themes={themes}
-                      taxonomies={taxonomies}
-                      setTaxonomies={setTaxonomies}
-                      taxonomyOrder={taxonomyOrder}
-                      setTaxonomyOrder={setTaxonomyOrder}
-                      resolvedValueTypes={resolvedValueTypes}
-                      setResolvedValueTypes={setResolvedValueTypes}
-                    />
-                  )
-                },
-                {
-                  id: 'validation',
-                  label: 'Validation',
-                  content: (
-                    <ValidationTester
-                      tokens={tokens}
-                      collections={collections}
-                      modes={modes}
-                      onValidate={() => {}}
-                    />
-                  )
-                }
-              ]}
-              activeTab={activeTab}
-              onChange={setActiveTab}
+            <TokensView
+              tokens={tokens}
+              collections={collections}
+              modes={modes}
+              dimensions={dimensions}
+              platforms={platforms}
+              taxonomies={taxonomies}
+              resolvedValueTypes={resolvedValueTypes}
+              themes={themes}
+              taxonomyOrder={taxonomyOrder}
+              onEditToken={handleEditToken}
+              onDeleteToken={handleDeleteToken}
+              onSaveToken={handleSaveToken}
+              setCollections={setCollections}
+              setModes={setModes}
+              setTaxonomies={setTaxonomies}
+              setTaxonomyOrder={setTaxonomyOrder}
+              setResolvedValueTypes={setResolvedValueTypes}
+              onViewSetupClassificationTab={handleViewSetupClassificationTab}
             />
           )}
           {activeView === 'setup' && (
-            <VerticalTabsLayout
-              tabs={[
-                {
-                  id: 'dimensions',
-                  label: 'Dimensions',
-                  content: (
-                    <DimensionsWorkflow
-                      dimensions={dimensions}
-                      setDimensions={setDimensions}
-                    />
-                  )
-                },
-                {
-                  id: 'classification',
-                  label: 'Classification',
-                  content: (
-                    <SettingsTaxonomiesTab
-                      taxonomies={taxonomies}
-                      setTaxonomies={setTaxonomies}
-                    />
-                  )
-                },
-                {
-                  id: 'naming-rules',
-                  label: 'Naming Rules',
-                  content: (
-                    <SettingsNamingRulesTab
-                      taxonomies={taxonomies}
-                      taxonomyOrder={taxonomyOrder}
-                      setTaxonomyOrder={setTaxonomyOrder}
-                    />
-                  )
-                },
-                {
-                  id: 'value-types',
-                  label: 'Value Types',
-                  content: (
-                    <ValueTypesWorkflow
-                      valueTypes={resolvedValueTypes.map(vt => vt.id)}
-                      onUpdate={types => setResolvedValueTypes(types.map(id => ({ id, displayName: id })))}
-                    />
-                  )
-                }
-              ]}
-              activeTab={activeTab}
-              onChange={setActiveTab}
+            <SetupView
+              dimensions={dimensions}
+              setDimensions={setDimensions}
+              taxonomies={taxonomies}
+              setTaxonomies={setTaxonomies}
+              taxonomyOrder={taxonomyOrder}
+              setTaxonomyOrder={setTaxonomyOrder}
+              resolvedValueTypes={resolvedValueTypes}
+              setResolvedValueTypes={setResolvedValueTypes}
+              activeTab={setupActiveTab}
+              setActiveTab={setSetupActiveTab}
             />
           )}
           {activeView === 'themes' && (
-            <Box p={3} bg="chakra-body-bg" borderRadius="md" boxShadow="md">
-              <ThemesWorkflow themes={themes} setThemes={setThemes} />
-            </Box>
+            <ThemesView
+              themes={themes}
+              setThemes={setThemes}
+            />
           )}
-          {activeView !== 'tokens' && activeView !== 'setup' && activeView !== 'themes' && <Box />}
+          {activeView === 'publishing' && (
+            <PublishingView
+              tokens={tokens}
+              collections={collections}
+            />
+          )}
+          {activeView !== 'tokens' && activeView !== 'setup' && activeView !== 'themes' && activeView !== 'publishing' && <Box />}
         </VStack>
       </Container>
     </Box>

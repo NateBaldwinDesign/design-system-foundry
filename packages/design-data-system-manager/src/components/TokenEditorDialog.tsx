@@ -18,19 +18,16 @@ import {
   IconButton,
   VStack,
   HStack,
-  useDisclosure,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
+  Stack,
+  Flex,
+  TableContainer,
+  useColorMode,
   Table,
   Thead,
-  Tbody,
   Tr,
   Th,
-  Td,
-  TableContainer
+  Tbody,
+  Td
 } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons';
 import { ValueByModeTable } from './ValueByModeTable';
@@ -57,6 +54,10 @@ export interface TokenEditorDialogProps {
   taxonomies: Taxonomy[];
   resolvedValueTypes: { id: string; displayName: string }[];
   isNew?: boolean;
+  /**
+   * Optional callback to navigate to the Classifications tab in the parent view.
+   */
+  onViewClassifications?: () => void;
 }
 
 // Helper: get all mode combinations for selected dimensions
@@ -87,17 +88,19 @@ function getDefaultTokenValue(type: string): TokenValue {
   }
 }
 
-export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, resolvedValueTypes, isNew = false }: TokenEditorDialogProps) {
+export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, resolvedValueTypes, isNew = false, onViewClassifications }: TokenEditorDialogProps) {
+  console.log('[TokenEditorDialog] onViewClassifications prop:', typeof onViewClassifications, onViewClassifications);
   const { schema } = useSchema();
   const preservedValuesByRemovedDimension = useRef<Record<string, Record<string, TokenValue>>>({});
-  const [editedToken, setEditedToken] = useState<ExtendedToken & { constraints?: any[] }>(() => {
+  const [editedToken, setEditedToken] = useState<ExtendedToken & { constraints?: any[]; themeable?: boolean }>(() => {
     if (isNew) {
       return {
         ...token,
-        id: createUniqueId('token')
+        id: createUniqueId('token'),
+        themeable: token.themeable ?? false,
       };
     }
-    return token;
+    return { ...token, themeable: token.themeable ?? false };
   });
 
   const schemaForSyntax = {
@@ -117,6 +120,8 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
 
   // Track which dimensions are active for this token
   const [activeDimensionIds, setActiveDimensionIds] = useState<string[]>([]);
+
+  const { colorMode } = useColorMode();
 
   useEffect(() => {
     if (open && isNew) {
@@ -302,17 +307,26 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   return (
     <Modal isOpen={open} onClose={onClose} size="xl">
       <ModalOverlay />
-      <ModalContent>
+      <ModalContent maxW="900px">
         <ModalHeader>
           {isNew ? 'Create Token' : 'Edit Token'}
+          <Text fontSize="xs" color="gray.500" mt={1} fontFamily="mono" wordBreak="break-all">
+            {editedToken.id}
+          </Text>
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <VStack spacing={4} align="stretch">
             {/* Basic Information */}
-            <Box>
-              <Text fontSize="lg" fontWeight="bold" mb={2}>Basic Information</Text>
-              <VStack spacing={3}>
+            <Text fontSize="lg" fontWeight="bold" mb={2}>Basic Information</Text>
+            <Box
+              p={3}
+              borderWidth={1}
+              borderRadius="md"
+              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+            >
+              <VStack spacing={3} align="stretch">
                 <FormControl>
                   <FormLabel>Display Name</FormLabel>
                   <Input
@@ -327,65 +341,124 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken(prev => ({ ...prev, description: e.target.value }))}
                   />
                 </FormControl>
-                <FormControl>
-                  <FormLabel>Value Type</FormLabel>
-                  <Select
-                    value={editedToken.resolvedValueType}
-                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                      const newType = e.target.value;
-                      setEditedToken(prev => ({
-                        ...prev,
-                        resolvedValueType: newType,
-                        valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType) }]
-                      }));
-                    }}
-                  >
-                    {resolvedValueTypes.map(vt => (
-                      <option key={vt.id} value={vt.id}>{vt.displayName}</option>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl>
+              </VStack>
+            </Box>
+
+            {/* Classification */}
+            <Text fontSize="lg" fontWeight="bold" mb={2}>Classification</Text>
+            <Box
+              p={3}
+              borderWidth={1}
+              borderRadius="md"
+              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+            >
+              <Flex direction="row" gap={6} align="flex-start">
+                {/* Taxonomy (left column) */}
+                <Box flex={1} minW={0}>
+                  <FormControl mb={3}>
+                    <TaxonomyPicker
+                      taxonomies={Array.isArray(taxonomies) ? taxonomies : []}
+                      value={taxonomyEdits}
+                      onChange={handleTaxonomyChange}
+                      disabled={!Array.isArray(taxonomies) || taxonomies.length === 0}
+                      onViewClassifications={onViewClassifications}
+                    />
+                  </FormControl>
+                </Box>
+                {/* Generated names by platform (right column) */}
+                <Box flex={1} minW={0}>
+                  <Text fontSize="sm" fontWeight="medium" mb={1}>Generated names per platform</Text>
+                  <Table size="sm" variant="simple">
+                    <Thead>
+                      <Tr>
+                        <Th>Platform</Th>
+                        <Th>Name</Th>
+                      </Tr>
+                    </Thead>
+                    <Tbody>
+                      {Object.entries(codeSyntax).map(([platform, name]) => (
+                        <Tr key={platform}>
+                          <Td>{platform}</Td>
+                          <Td><Text fontFamily="mono">{name}</Text></Td>
+                        </Tr>
+                      ))}
+                    </Tbody>
+                  </Table>
+                </Box>
+              </Flex>
+            </Box>
+
+            {/* Settings */}
+            <Text fontSize="lg" fontWeight="bold" mb={2}>Settings</Text>
+            <Box
+              p={3}
+              borderWidth={1}
+              borderRadius="md"
+              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+            >
+              <Flex direction="row" gap={6} align="flex-start">
+                {/* ValueType + Status (left column) */}
+                <VStack spacing={3} align="stretch" flex={1}>
+                  <FormControl>
+                    <FormLabel>Value Type</FormLabel>
+                    <Select
+                      value={editedToken.resolvedValueType}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                        const newType = e.target.value;
+                        setEditedToken(prev => ({
+                          ...prev,
+                          resolvedValueType: newType,
+                          valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType) }]
+                        }));
+                      }}
+                    >
+                      {resolvedValueTypes.map(vt => (
+                        <option key={vt.id} value={vt.id}>{vt.displayName}</option>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Status</FormLabel>
+                    <Select
+                      value={editedToken.status || ''}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditedToken(prev => ({ ...prev, status: e.target.value }))}
+                    >
+                      <option value="">None</option>
+                      <option value="draft">Draft</option>
+                      <option value="active">Active</option>
+                      <option value="deprecated">Deprecated</option>
+                    </Select>
+                  </FormControl>
+                </VStack>
+                {/* Private + Themeable (right column) */}
+                <VStack spacing={3} align="stretch" flex={1}>
                   <Checkbox
                     isChecked={editedToken.private}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken(prev => ({ ...prev, private: e.target.checked }))}
                   >
                     Private
                   </Checkbox>
-                </FormControl>
-              </VStack>
-            </Box>
-
-            {/* Classification */}
-            <Box>
-              <Text fontSize="lg" fontWeight="bold" mb={2}>Classification</Text>
-              <VStack spacing={3}>
-                <FormControl>
-                  <FormLabel>Taxonomy</FormLabel>
-                  <TaxonomyPicker
-                    taxonomies={Array.isArray(taxonomies) ? taxonomies : []}
-                    value={taxonomyEdits}
-                    onChange={handleTaxonomyChange}
-                    disabled={!Array.isArray(taxonomies) || taxonomies.length === 0}
-                  />
-                </FormControl>
-                <Box>
-                  <Text fontSize="sm" fontWeight="medium" mb={1}>Generated names per platform</Text>
-                  <VStack align="stretch" spacing={1}>
-                    {Object.entries(codeSyntax).map(([platform, name]) => (
-                      <HStack key={platform} spacing={2}>
-                        <Text fontSize="sm" minW="80px">{platform}</Text>
-                        <Text fontSize="sm">{name}</Text>
-                      </HStack>
-                    ))}
-                  </VStack>
-                </Box>
-              </VStack>
+                  <Checkbox
+                    isChecked={!!editedToken.themeable}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken(prev => ({ ...prev, themeable: e.target.checked }))}
+                  >
+                    Themeable
+                  </Checkbox>
+                </VStack>
+              </Flex>
             </Box>
 
             {/* Values */}
-            <Box>
-              <Text fontSize="lg" fontWeight="bold" mb={2}>Values</Text>
+            <Text fontSize="lg" fontWeight="bold" mb={2}>Values</Text>
+            <Box
+              p={3}
+              borderWidth={1}
+              borderRadius="md"
+              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+            >
               <VStack spacing={3}>
                 <HStack spacing={4} align="center">
                   <Text fontSize="sm" fontWeight="medium">Dimensions</Text>
@@ -464,46 +537,51 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     excludeTokenId={editedToken.id}
                   />
                 )}
-              </VStack>
-            </Box>
-
-            {/* Platform Overrides */}
-            <Box>
-              <Text fontSize="lg" fontWeight="bold" mb={2}>Platform overrides</Text>
-              <PlatformOverridesTable
-                platforms={platforms}
-                valuesByMode={editedToken.valuesByMode}
-                modes={modes}
-                getValueEditor={getValueEditor}
-                onPlatformOverrideChange={(platformId, modeIndex, newValue) => {
-                  setEditedToken(prev => ({
-                    ...prev,
-                    valuesByMode: prev.valuesByMode.map((item, i) =>
-                      i === modeIndex
-                        ? {
-                            ...item,
-                            platformOverrides: [
-                              ...(item.platformOverrides || []).filter(p => p.platformId !== platformId),
-                              {
-                                platformId,
-                                value: typeof newValue === 'string' ? newValue : JSON.stringify(newValue)
+                {/* Platform Overrides as a nested box */}
+                <Text fontSize="md" fontWeight="bold" mb={2} mt={4}>Platform overrides</Text>
+                <Box
+                  p={3}
+                  borderWidth={1}
+                  borderRadius="md"
+                  bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                  borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                >
+                  <PlatformOverridesTable
+                    platforms={platforms}
+                    valuesByMode={editedToken.valuesByMode}
+                    modes={modes}
+                    getValueEditor={getValueEditor}
+                    onPlatformOverrideChange={(platformId, modeIndex, newValue) => {
+                      setEditedToken(prev => ({
+                        ...prev,
+                        valuesByMode: prev.valuesByMode.map((item, i) =>
+                          i === modeIndex
+                            ? {
+                                ...item,
+                                platformOverrides: [
+                                  ...(item.platformOverrides || []).filter(p => p.platformId !== platformId),
+                                  {
+                                    platformId,
+                                    value: typeof newValue === 'string' ? newValue : JSON.stringify(newValue)
+                                  }
+                                ]
                               }
-                            ]
-                          }
-                        : item
-                    )
-                  }));
-                }}
-                resolvedValueType={editedToken.resolvedValueType}
-                tokens={tokens}
-                constraints={(editedToken as any).constraints ?? []}
-                excludeTokenId={editedToken.id}
-              />
-              {editedToken.valuesByMode.every(vbm => !vbm.platformOverrides || vbm.platformOverrides.length === 0) && (
-                <Button variant="outline" mt={2}>
-                  Add override
-                </Button>
-              )}
+                            : item
+                        )
+                      }));
+                    }}
+                    resolvedValueType={editedToken.resolvedValueType}
+                    tokens={tokens}
+                    constraints={(editedToken as any).constraints ?? []}
+                    excludeTokenId={editedToken.id}
+                  />
+                  {editedToken.valuesByMode.every(vbm => !vbm.platformOverrides || vbm.platformOverrides.length === 0) && (
+                    <Button variant="outline" mt={2}>
+                      Add override
+                    </Button>
+                  )}
+                </Box>
+              </VStack>
             </Box>
           </VStack>
         </ModalBody>

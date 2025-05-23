@@ -1,12 +1,20 @@
 import React from "react";
-import { Flex, Heading, HStack, FormControl, FormLabel, Select, Button, Box } from '@chakra-ui/react';
+import { 
+  Flex, 
+  Heading, 
+  HStack, 
+  FormControl, 
+  FormLabel, 
+  Select, 
+  Button, 
+  Box
+} from '@chakra-ui/react';
 
 interface HeaderProps {
   dataSource: string;
   setDataSource: (v: string) => void;
   dataOptions: { label: string; value: string; filePath: string }[];
   handleResetData: () => void;
-  handleValidateData: () => void;
   handleExportData: () => void;
   activeView: string;
   onViewChange: (view: string) => void;
@@ -25,7 +33,6 @@ const Header: React.FC<HeaderProps> = ({
   setDataSource,
   dataOptions,
   handleResetData,
-  handleValidateData,
   handleExportData,
   activeView,
   onViewChange
@@ -63,9 +70,6 @@ const Header: React.FC<HeaderProps> = ({
           </FormControl>
           <Button onClick={handleResetData} colorScheme="gray">
             Reset Data
-          </Button>
-          <Button onClick={handleValidateData} colorScheme="blue">
-            Validate Data
           </Button>
           <Button onClick={handleExportData} colorScheme="green">
             Export Data

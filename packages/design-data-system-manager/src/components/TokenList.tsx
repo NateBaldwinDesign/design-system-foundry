@@ -30,7 +30,7 @@ import {
   useDisclosure,
   Flex
 } from '@chakra-ui/react';
-import { EditIcon, DeleteIcon } from '@chakra-ui/icons';
+import { EditIcon, DeleteIcon, AddIcon } from '@chakra-ui/icons';
 import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { ValueByModeTable } from './ValueByModeTable';
 import { PlatformOverridesTable } from './PlatformOverridesTable';
@@ -51,6 +51,7 @@ interface TokenListProps {
   onDelete: (tokenId: string) => void;
   taxonomies: Taxonomy[];
   resolvedValueTypes: { id: string; displayName: string }[];
+  onViewClassifications?: () => void;
 }
 
 interface TokenEditorProps {
@@ -64,6 +65,7 @@ interface TokenEditorProps {
   onSave: (token: ExtendedToken) => void;
   taxonomies: Taxonomy[];
   resolvedValueTypes: { id: string; displayName: string }[];
+  onViewClassifications?: () => void;
 }
 
 interface ContrastConstraint {
@@ -77,7 +79,7 @@ interface ContrastConstraint {
 
 type Constraint = ContrastConstraint;
 
-function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, resolvedValueTypes }: TokenEditorProps) {
+function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, resolvedValueTypes, onViewClassifications }: TokenEditorProps) {
   const [editedToken, setEditedToken] = useState<ExtendedToken & { constraints?: Constraint[] }>(token);
   const [newTaxonomyKey, setNewTaxonomyKey] = useState('');
   const [newTaxonomyValue, setNewTaxonomyValue] = useState('');
@@ -476,11 +478,12 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
       taxonomies={taxonomies}
       isNew={false}
       resolvedValueTypes={resolvedValueTypes}
+      onViewClassifications={onViewClassifications}
     />
   );
 }
 
-export function TokenList({ tokens, collections, modes, dimensions, platforms, onEdit, onDelete, taxonomies, resolvedValueTypes }: TokenListProps) {
+export function TokenList({ tokens, collections, modes, dimensions, platforms, onEdit, onDelete, taxonomies, resolvedValueTypes, onViewClassifications }: TokenListProps) {
   const [editingToken, setEditingToken] = useState<ExtendedToken | null>(null);
 
   // Filter state
@@ -550,9 +553,30 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
   };
 
   return (
-    <>
+    <Box>
+      <Flex justify="space-between" align="center" mb={4}>
+        <Text fontSize="2xl" fontWeight="bold">Tokens</Text>
+        <Button
+          leftIcon={<AddIcon />}
+          colorScheme="blue"
+          size="sm"
+          onClick={() => setEditingToken({
+            id: '',
+            displayName: '',
+            tokenCollectionId: '',
+            resolvedValueType: '',
+            valuesByMode: [],
+            status: 'experimental',
+            private: false,
+            themeable: false
+          })}
+        >
+          Add Token
+        </Button>
+      </Flex>
+
       {/* Filter Controls */}
-      <Flex direction='row'>
+      <Flex direction='row' mb={4}>
         <FormControl size="small" sx={{ minWidth: 140 }}>
           <FormLabel>Collection</FormLabel>
           <Select
@@ -612,83 +636,86 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
           </Select>
         </FormControl>
       </Flex>
+
       {/* Token Table */}
-      <Table variant="simple" size="sm">
-        <Thead>
-          <Tr>
-            <Th>Name</Th>
-            <Th>Collection</Th>
-            <Th>Type</Th>
-            <Th>Status</Th>
-            <Th>Private</Th>
-            <Th>Themeable</Th>
-            <Th>Values by Mode</Th>
-            <Th>Actions</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {filteredTokens.map((token) => (
-            <Tr key={token.id}>
-              <Td>
-                <Text fontWeight="bold">{token.displayName}</Text>
-                {token.description && (
-                  <Text fontSize="sm" color="gray.500">
-                    {token.description}
-                  </Text>
-                )}
-              </Td>
-              <Td>{getCollectionName(token.tokenCollectionId)}</Td>
-              <Td>
-                <Tag colorScheme="blue" size="sm">{token.resolvedValueType}</Tag>
-              </Td>
-              <Td>
-                {token.status && (
-                  <Tag colorScheme={
-                    token.status === 'stable'
-                      ? 'green'
-                      : token.status === 'experimental'
-                      ? 'yellow'
-                      : 'red'
-                  } size="sm">
-                    {token.status}
-                  </Tag>
-                )}
-              </Td>
-              <Td>
-                <Tag colorScheme={token.private ? 'gray' : 'green'} size="sm">
-                  {token.private ? 'Private' : 'Public'}
-                </Tag>
-              </Td>
-              <Td>
-                <Tag colorScheme={token.themeable ? 'green' : 'gray'} size="sm">
-                  {token.themeable ? 'Yes' : 'No'}
-                </Tag>
-              </Td>
-              <Td>
-                {token.valuesByMode.map((valueByMode, index) => (
-                  <Box key={index} mb={1}>
-                    <Text fontSize="xs" color="gray.500">
-                      {getModeNames(valueByMode.modeIds)}:
-                    </Text>
-                    <Box mt={1}>
-                      {getValueDisplay(valueByMode.value)}
-                    </Box>
-                  </Box>
-                ))}
-              </Td>
-              <Td>
-                <Box display="flex" gap={1}>
-                  <IconButton aria-label="Edit token" icon={<EditIcon />} onClick={() => setEditingToken(token)} size="sm" />
-                  <IconButton aria-label="Delete token" icon={<DeleteIcon />} onClick={() => onDelete(token.id)} size="sm" />
-                </Box>
-              </Td>
+      <Box p={0} borderWidth={0} borderRadius="md">
+        <Table variant="simple" size="sm">
+          <Thead>
+            <Tr>
+              <Th>Name</Th>
+              <Th>Collection</Th>
+              <Th>Type</Th>
+              <Th>Status</Th>
+              <Th>Private</Th>
+              <Th>Themeable</Th>
+              <Th>Values by Mode</Th>
+              <Th>Actions</Th>
             </Tr>
-          ))}
-        </Tbody>
-      </Table>
+          </Thead>
+          <Tbody>
+            {filteredTokens.map((token) => (
+              <Tr key={token.id}>
+                <Td>
+                  <Text fontWeight="bold">{token.displayName}</Text>
+                  {token.description && (
+                    <Text fontSize="sm" color="gray.500">
+                      {token.description}
+                    </Text>
+                  )}
+                </Td>
+                <Td>{getCollectionName(token.tokenCollectionId)}</Td>
+                <Td>
+                  <Tag colorScheme="blue" size="sm">{token.resolvedValueType}</Tag>
+                </Td>
+                <Td>
+                  {token.status && (
+                    <Tag colorScheme={
+                      token.status === 'stable'
+                        ? 'green'
+                        : token.status === 'experimental'
+                        ? 'yellow'
+                        : 'red'
+                    } size="sm">
+                      {token.status}
+                    </Tag>
+                  )}
+                </Td>
+                <Td>
+                  <Tag colorScheme={token.private ? 'gray' : 'green'} size="sm">
+                    {token.private ? 'Private' : 'Public'}
+                  </Tag>
+                </Td>
+                <Td>
+                  <Tag colorScheme={token.themeable ? 'green' : 'gray'} size="sm">
+                    {token.themeable ? 'Yes' : 'No'}
+                  </Tag>
+                </Td>
+                <Td>
+                  {token.valuesByMode.map((valueByMode, index) => (
+                    <Box key={index} mb={1}>
+                      <Text fontSize="xs" color="gray.500">
+                        {getModeNames(valueByMode.modeIds)}:
+                      </Text>
+                      <Box mt={1}>
+                        {getValueDisplay(valueByMode.value)}
+                      </Box>
+                    </Box>
+                  ))}
+                </Td>
+                <Td>
+                  <HStack spacing={1}>
+                    <IconButton aria-label="Edit token" icon={<EditIcon />} onClick={() => setEditingToken(token)} size="sm" />
+                    <IconButton aria-label="Delete token" icon={<DeleteIcon />} onClick={() => onDelete(token.id)} size="sm" />
+                  </HStack>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      </Box>
 
       {editingToken && (
-        <TokenEditor
+        <TokenEditorDialog
           token={editingToken}
           tokens={tokens}
           dimensions={dimensions || []}
@@ -701,9 +728,11 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
             onEdit(updatedToken);
             setEditingToken(null);
           }}
+          isNew={!editingToken.id}
           resolvedValueTypes={resolvedValueTypes || []}
+          onViewClassifications={onViewClassifications}
         />
       )}
-    </>
+    </Box>
   );
 } 
