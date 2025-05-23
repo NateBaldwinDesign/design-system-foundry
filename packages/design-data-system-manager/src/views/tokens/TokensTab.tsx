@@ -74,8 +74,8 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
   // Filtering logic
   const filteredTokens = useMemo(() => {
     return tokens.filter(token => {
-      if (collectionFilter && token.collectionId !== collectionFilter) return false;
-      if (typeFilter && token.valueType !== typeFilter) return false;
+      if (collectionFilter && token.tokenCollectionId !== collectionFilter) return false;
+      if (typeFilter && token.resolvedValueType !== typeFilter) return false;
       if (statusFilter && token.status !== statusFilter) return false;
       if (privateFilter && String(token.private) !== privateFilter) return false;
       if (themeableFilter && String(token.themeable) !== themeableFilter) return false;
@@ -208,8 +208,8 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
                     <Text fontSize="sm" color="gray.500">{token.description}</Text>
                   )}
                 </Td>
-                <Td>{getCollectionName(token.collectionId)}</Td>
-                <Td><Tag colorScheme="blue" size="sm">{token.valueType}</Tag></Td>
+                <Td>{getCollectionName(token.tokenCollectionId)}</Td>
+                <Td><Tag colorScheme="blue" size="sm">{token.resolvedValueType}</Tag></Td>
                 <Td>{token.status && (<Tag colorScheme={token.status === 'stable' ? 'green' : token.status === 'experimental' ? 'yellow' : 'red'} size="sm">{token.status}</Tag>)}</Td>
                 <Td><Tag colorScheme={token.private ? 'gray' : 'green'} size="sm">{token.private ? 'Private' : 'Public'}</Tag></Td>
                 <Td><Tag colorScheme={token.themeable ? 'green' : 'gray'} size="sm">{token.themeable ? 'Yes' : 'No'}</Tag></Td>
