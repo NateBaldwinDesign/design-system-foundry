@@ -1,32 +1,4 @@
-import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy } from '@token-model/data-model';
-
-const DEFAULT_MODES: Mode[] = [
-  {
-    id: "modeId-light",
-    name: "Light",
-    dimensionId: "dimensionId-0000-0000-0000"
-  },
-  {
-    id: "modeId-dark",
-    name: "Dark",
-    dimensionId: "dimensionId-0000-0000-0000"
-  },
-  {
-    id: "modeId-regular",
-    name: "Regular",
-    dimensionId: "dimensionId-1111-1111-1111"
-  },
-  {
-    id: "modeId-low",
-    name: "Low",
-    dimensionId: "dimensionId-1111-1111-1111"
-  },
-  {
-    id: "modeId-high",
-    name: "High",
-    dimensionId: "dimensionId-1111-1111-1111"
-  }
-];
+import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy, Theme } from '@token-model/data-model';
 
 const DEFAULT_VALUE_TYPES: string[] = [
   "valueType-0000-0000-0000",
@@ -58,27 +30,27 @@ export class StorageService {
     localStorage.setItem(key, JSON.stringify(value));
   }
 
-  static getTokens(): any[] {
+  static getTokens(): Token[] {
     return this.getItem(STORAGE_KEYS.TOKENS, []);
   }
 
-  static setTokens(tokens: any[]): void {
+  static setTokens(tokens: Token[]): void {
     localStorage.setItem(STORAGE_KEYS.TOKENS, JSON.stringify(tokens));
   }
 
-  static getCollections(): any[] {
+  static getCollections(): TokenCollection[] {
     return this.getItem(STORAGE_KEYS.COLLECTIONS, []);
   }
 
-  static setCollections(collections: any[]): void {
+  static setCollections(collections: TokenCollection[]): void {
     localStorage.setItem(STORAGE_KEYS.COLLECTIONS, JSON.stringify(collections));
   }
 
-  static getModes(): any[] {
+  static getModes(): Mode[] {
     return this.getItem(STORAGE_KEYS.MODES, []);
   }
 
-  static setModes(modes: any[]): void {
+  static setModes(modes: Mode[]): void {
     localStorage.setItem(STORAGE_KEYS.MODES, JSON.stringify(modes));
   }
 
@@ -90,35 +62,35 @@ export class StorageService {
     this.setItem(STORAGE_KEYS.VALUE_TYPES, valueTypes);
   }
 
-  static getDimensions(): any[] {
+  static getDimensions(): Dimension[] {
     return this.getItem(STORAGE_KEYS.DIMENSIONS, []);
   }
 
-  static setDimensions(dimensions: any[]): void {
+  static setDimensions(dimensions: Dimension[]): void {
     localStorage.setItem(STORAGE_KEYS.DIMENSIONS, JSON.stringify(dimensions));
   }
 
-  static getPlatforms(): any[] {
+  static getPlatforms(): Platform[] {
     return this.getItem(STORAGE_KEYS.PLATFORMS, []);
   }
 
-  static setPlatforms(platforms: any[]): void {
+  static setPlatforms(platforms: Platform[]): void {
     localStorage.setItem(STORAGE_KEYS.PLATFORMS, JSON.stringify(platforms));
   }
 
-  static getThemes(): any[] {
+  static getThemes(): Theme[] {
     return this.getItem(STORAGE_KEYS.THEMES, []);
   }
 
-  static setThemes(themes: any[]): void {
+  static setThemes(themes: Theme[]): void {
     localStorage.setItem(STORAGE_KEYS.THEMES, JSON.stringify(themes));
   }
 
-  static getTaxonomies(): any[] {
+  static getTaxonomies(): Taxonomy[] {
     return this.getItem(STORAGE_KEYS.TAXONOMIES, []);
   }
 
-  static setTaxonomies(taxonomies: any[]): void {
+  static setTaxonomies(taxonomies: Taxonomy[]): void {
     localStorage.setItem(STORAGE_KEYS.TAXONOMIES, JSON.stringify(taxonomies));
   }
 

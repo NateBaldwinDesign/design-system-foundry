@@ -55,6 +55,18 @@ export function createSchemaJsonFromLocalStorage() {
     ];
   }
 
+  // Normalize platforms to always include syntaxPatterns
+  const normalizedPlatforms = (platforms || []).map((p: any) => ({
+    ...p,
+    syntaxPatterns: {
+      prefix: p.syntaxPatterns?.prefix ?? '',
+      suffix: p.syntaxPatterns?.suffix ?? '',
+      delimiter: p.syntaxPatterns?.delimiter ?? '_',
+      capitalization: p.syntaxPatterns?.capitalization ?? 'none',
+      formatString: p.syntaxPatterns?.formatString ?? ''
+    }
+  }));
+
   // Compose the final schema-compliant object
   const schemaJson = {
     version,
@@ -62,7 +74,7 @@ export function createSchemaJsonFromLocalStorage() {
     tokenCollections,
     dimensions,
     tokens,
-    platforms,
+    platforms: normalizedPlatforms,
     themes,
     taxonomies,
     resolvedValueTypes: resolvedValueTypesArray,

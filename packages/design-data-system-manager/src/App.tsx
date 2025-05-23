@@ -164,7 +164,14 @@ export function App() {
     // Normalize platforms
     const normalizedPlatforms = (d.platforms || []).map((p: any) => ({
       ...p,
-      displayName: p.displayName || p.name || ''
+      displayName: p.displayName || p.name || '',
+      syntaxPatterns: {
+        prefix: p.syntaxPatterns?.prefix ?? '',
+        suffix: p.syntaxPatterns?.suffix ?? '',
+        delimiter: p.syntaxPatterns?.delimiter ?? '_',
+        capitalization: p.syntaxPatterns?.capitalization ?? 'none',
+        formatString: p.syntaxPatterns?.formatString ?? ''
+      }
     }));
 
     // Normalize collections with required fields
@@ -309,7 +316,24 @@ export function App() {
   };
 
   const handleResetData = () => {
+    // Clear all localStorage data
+    StorageService.clearAll();
+
+    // Clear in-memory state (including schema, platforms, naming rules)
     setTokens([]);
+    setCollections([]);
+    setModes([]);
+    setDimensions([]);
+    setResolvedValueTypes([]);
+    setPlatforms([]);
+    setThemes([]);
+    setTaxonomies([]);
+    setTaxonomyOrder([]);
+    // If you use a schema context or useSchema, also reset it here if possible
+    // For example: updateSchema({});
+
+    // Reload data from current source (this will re-initialize everything from the selected data source)
+    loadDataFromSource(dataSource);
   };
 
   const handleValidateData = () => {

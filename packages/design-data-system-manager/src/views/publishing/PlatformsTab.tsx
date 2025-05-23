@@ -1,24 +1,20 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  TableContainer,
-  Input,
-  Select,
-  FormControl,
+  Text,
+  VStack,
+  HStack,
   IconButton,
+  Tooltip,
   Button,
   useColorModeValue,
-  Text,
-  HStack
+  useColorMode
 } from '@chakra-ui/react';
-import { DeleteIcon, AddIcon } from '@chakra-ui/icons';
-import { useSchema } from '../../hooks/useSchema';
+import { DeleteIcon, EditIcon, AddIcon } from '@chakra-ui/icons';
+import { StorageService } from '../../services/storage';
+import { PlatformEditorDialog } from '../../components/PlatformEditorDialog';
+import { createUniqueId } from '../../utils/id';
+import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../../services/codeSyntax';
 
 interface Platform {
   id: string;
@@ -31,41 +27,59 @@ interface Platform {
     capitalization?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
     formatString?: string;
   };
+  valueFormatters?: {
+    color?: 'hex' | 'rgb' | 'rgba' | 'hsl' | 'hsla';
+    dimension?: 'px' | 'rem' | 'em' | 'pt' | 'dp' | 'sp';
+    numberPrecision?: number;
+  };
 }
 
-export const PlatformsTab: React.FC = () => {
-  const { schema, updateSchema } = useSchema();
-  const [newPlatformName, setNewPlatformName] = React.useState('');
-  const bg = useColorModeValue('white', 'gray.800');
+interface PlatformsTabProps {
+  onDataChange?: () => void;
+}
 
-  const handleUpdatePlatform = (
-    platformId: string,
-    field: keyof NonNullable<Platform['syntaxPatterns']>,
-    value: string
-  ) => {
-    updateSchema({
-      ...schema,
-      platforms: (schema.platforms || []).map((p: Platform) =>
-        p.id === platformId
-          ? {
-              ...p,
-              syntaxPatterns: {
-                ...p.syntaxPatterns,
-                [field]: value
-              }
-            }
-          : p
-      )
-    });
+export const PlatformsTab: React.FC<PlatformsTabProps> = ({ onDataChange }) => {
+  const { colorMode } = useColorMode();
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [editingPlatform, setEditingPlatform] = useState<Platform | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isNew, setIsNew] = useState(false);
+  const cardBg = useColorModeValue('gray.50', 'gray.800');
+  const cardBorder = useColorModeValue('gray.200', 'gray.600');
+
+  useEffect(() => {
+    const loaded = StorageService.getPlatforms() || [];
+    const normalized = loaded.map((p: Platform) => ({
+      ...p,
+      syntaxPatterns: {
+        prefix: p.syntaxPatterns?.prefix ?? '',
+        suffix: p.syntaxPatterns?.suffix ?? '',
+        delimiter: p.syntaxPatterns?.delimiter ?? '_',
+        capitalization: p.syntaxPatterns?.capitalization ?? 'none',
+        formatString: p.syntaxPatterns?.formatString ?? ''
+      }
+    }));
+    setPlatforms(normalized);
+    StorageService.setPlatforms(normalized);
+  }, []);
+
+  const handleDeletePlatform = (platformId: string) => {
+    const updated = platforms.filter((p: Platform) => p.id !== platformId);
+    setPlatforms(updated);
+    StorageService.setPlatforms(updated);
+  };
+
+  const handleEditPlatform = (platform: Platform) => {
+    setEditingPlatform(platform);
+    setIsDialogOpen(true);
+    setIsNew(false);
   };
 
   const handleAddPlatform = () => {
-    if (!newPlatformName.trim()) return;
-    const newId = newPlatformName.trim().replace(/\s+/g, '_').toLowerCase();
-    if (schema.platforms?.some((p: Platform) => p.id === newId)) return;
-    const newPlatform: Platform = {
-      id: newId,
-      displayName: newPlatformName.trim(),
+    setEditingPlatform({
+      id: createUniqueId('platform'),
+      displayName: '',
+      description: '',
       syntaxPatterns: {
         prefix: '',
         suffix: '',
@@ -73,166 +87,122 @@ export const PlatformsTab: React.FC = () => {
         capitalization: 'none',
         formatString: ''
       }
-    };
-    updateSchema({
-      ...schema,
-      platforms: [...(schema.platforms || []), newPlatform],
     });
-    setNewPlatformName('');
+    setIsDialogOpen(true);
+    setIsNew(true);
   };
 
-  const handleDeletePlatform = (platformId: string) => {
-    updateSchema({
-      ...schema,
-      platforms: (schema.platforms || []).filter((p: Platform) => p.id !== platformId),
-    });
-  };
+  const handleDialogSave = (updatedPlatform: Platform) => {
+    let updatedPlatforms;
+    let isPlatformNew = false;
+    if (isNew) {
+      const newId = updatedPlatform.displayName.trim().replace(/\s+/g, '_').toLowerCase() || `platform_${Date.now()}`;
+      updatedPlatforms = [
+        ...platforms,
+        {
+          ...updatedPlatform,
+          id: newId
+        }
+      ];
+      updatedPlatform = { ...updatedPlatform, id: newId };
+      isPlatformNew = true;
+    } else {
+      updatedPlatforms = platforms.map((p: Platform) =>
+        p.id === updatedPlatform.id ? updatedPlatform : p
+      );
+    }
+    setPlatforms(updatedPlatforms);
+    StorageService.setPlatforms(updatedPlatforms);
 
-  const handleEditPlatformName = (platformId: string, newName: string) => {
-    updateSchema({
-      ...schema,
-      platforms: (schema.platforms || []).map((p: Platform) =>
-        p.id === platformId ? { ...p, displayName: newName } : p
-      ),
+    // Update codeSyntax for all tokens in local storage
+    const allTokens = StorageService.getTokens();
+    const taxonomies = StorageService.getTaxonomies() || [];
+    let schema: { platforms: Platform[]; taxonomies: Taxonomy[]; namingRules?: any } = { platforms: updatedPlatforms, taxonomies };
+    if (typeof (StorageService as any).getNamingRules === 'function') {
+      schema.namingRules = (StorageService as any).getNamingRules();
+    }
+
+    const updatedTokens = allTokens.map(token => {
+      let codeSyntax = Array.isArray(token.codeSyntax) ? [...token.codeSyntax] : [];
+      if (isPlatformNew) {
+        // Add new codeSyntax entry for the new platform if missing
+        const exists = codeSyntax.some(cs => cs.platformId === updatedPlatform.id);
+        if (!exists) {
+          codeSyntax.push({
+            platformId: updatedPlatform.id,
+            formattedName: CodeSyntaxService.generateCodeSyntax(token, updatedPlatform.id, schema)
+          });
+        }
+      } else {
+        // Edit: update codeSyntax entry for the edited platform
+        codeSyntax = codeSyntax.map(cs =>
+          cs.platformId === updatedPlatform.id
+            ? {
+                platformId: updatedPlatform.id,
+                formattedName: CodeSyntaxService.generateCodeSyntax(token, updatedPlatform.id, schema)
+              }
+            : cs
+        );
+      }
+      return {
+        ...token,
+        codeSyntax
+      };
     });
+    StorageService.setTokens(updatedTokens);
+
+    if (onDataChange) onDataChange();
+    setIsDialogOpen(false);
+    setEditingPlatform(null);
+    setIsNew(false);
   };
 
   return (
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Platforms</Text>
-      <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={bg}>
-        <HStack mb={4} spacing={2}>
-          <Input
-            size="sm"
-            placeholder="New Platform Name"
-            value={newPlatformName}
-            onChange={e => setNewPlatformName(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleAddPlatform(); }}
-            maxW="250px"
-          />
-          <Button colorScheme="blue" size="sm" onClick={handleAddPlatform} leftIcon={<AddIcon boxSize={4} />}>
-            Add Platform
-          </Button>
-        </HStack>
-        <TableContainer>
-          <Table size="sm">
-            <Thead>
-              <Tr>
-                <Th>Platform Name</Th>
-                <Th>Prefix</Th>
-                <Th>Suffix</Th>
-                <Th>Delimiter</Th>
-                <Th>Capitalization</Th>
-                <Th>Format String</Th>
-                <Th>Preview</Th>
-                <Th>Actions</Th>
-              </Tr>
-            </Thead>
-            <Tbody>
-              {(schema.platforms || []).map((platform: Platform) => {
-                const syntax = platform.syntaxPatterns || {};
-                return (
-                  <Tr key={platform.id}>
-                    <Td>
-                      <Input
+      <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+        <Button size="sm" leftIcon={<AddIcon />} onClick={handleAddPlatform} colorScheme="blue" mb={4}>
+          Add Platform
+        </Button>
+        <VStack align="stretch" spacing={3}>
+          {platforms.map((platform: Platform) => {
+            const syntax = platform.syntaxPatterns || {};
+            return (
+              <Box
+                key={platform.id}
+                p={3}
+                borderWidth={1}
+                borderRadius="md"
+                bg={cardBg}
+                borderColor={cardBorder}
+              >
+                <HStack justify="space-between" align="flex-start">
+                  <Box flex={1} minW={0}>
+                    <Text fontSize="lg" fontWeight="medium">{platform.displayName}</Text>
+                    {platform.description && (
+                      <Text fontSize="sm" color="gray.500">{platform.description}</Text>
+                    )}
+                    <Box mt={2}>
+                      <Text fontWeight="bold" fontSize="sm" mb={1}>Syntax Patterns</Text>
+                      <HStack spacing={4} wrap="wrap">
+                        <Text fontSize="sm"><b>Prefix:</b> {syntax.prefix || <span style={{ color: '#888' }}>none</span>}</Text>
+                        <Text fontSize="sm"><b>Suffix:</b> {syntax.suffix || <span style={{ color: '#888' }}>none</span>}</Text>
+                        <Text fontSize="sm"><b>Delimiter:</b> {syntax.delimiter || <span style={{ color: '#888' }}>none</span>}</Text>
+                        <Text fontSize="sm"><b>Capitalization:</b> {syntax.capitalization || <span style={{ color: '#888' }}>none</span>}</Text>
+                        <Text fontSize="sm"><b>Format String:</b> {syntax.formatString || <span style={{ color: '#888' }}>none</span>}</Text>
+                      </HStack>
+                    </Box>
+                  </Box>
+                  <HStack spacing={2} align="flex-start">
+                    <Tooltip label="Edit Platform">
+                      <IconButton
+                        aria-label="Edit platform"
+                        icon={<EditIcon />}
                         size="sm"
-                        value={platform.displayName}
-                        onChange={e => handleEditPlatformName(platform.id, e.target.value)}
+                        onClick={() => handleEditPlatform(platform)}
                       />
-                    </Td>
-                    <Td>
-                      <Input
-                        size="sm"
-                        value={syntax.prefix ?? ''}
-                        onChange={e => handleUpdatePlatform(platform.id, 'prefix', e.target.value)}
-                        placeholder="e.g., TKN_"
-                      />
-                    </Td>
-                    <Td>
-                      <Input
-                        size="sm"
-                        value={syntax.suffix ?? ''}
-                        onChange={e => handleUpdatePlatform(platform.id, 'suffix', e.target.value)}
-                        placeholder="e.g., _SUF"
-                      />
-                    </Td>
-                    <Td>
-                      <FormControl size="sm">
-                        <Select
-                          size="sm"
-                          value={syntax.delimiter ?? ''}
-                          onChange={e => handleUpdatePlatform(platform.id, 'delimiter', e.target.value)}
-                        >
-                          <option value="">None (no delimiter)</option>
-                          <option value="_">Underscore (_)</option>
-                          <option value="-">Hyphen (-)</option>
-                          <option value=".">Dot (.)</option>
-                          <option value="/">Forward slash (/)</option>
-                        </Select>
-                      </FormControl>
-                    </Td>
-                    <Td>
-                      <FormControl size="sm">
-                        <Select
-                          size="sm"
-                          value={syntax.capitalization ?? 'none'}
-                          onChange={e => handleUpdatePlatform(platform.id, 'capitalization', e.target.value)}
-                        >
-                          <option value="none">None</option>
-                          <option value="uppercase">UPPERCASE</option>
-                          <option value="lowercase">lowercase</option>
-                          <option value="capitalize">Capitalize</option>
-                        </Select>
-                      </FormControl>
-                    </Td>
-                    <Td>
-                      <Input
-                        size="sm"
-                        value={syntax.formatString ?? ''}
-                        onChange={e => handleUpdatePlatform(platform.id, 'formatString', e.target.value)}
-                        placeholder="e.g., {prefix}{name}{suffix}"
-                      />
-                    </Td>
-                    <Td>
-                      {(() => {
-                        // Example token name parts
-                        const exampleParts = ['primary', 'color', 'background'];
-                        let name = exampleParts.join(syntax.delimiter ?? '_');
-                        // Format prefix and suffix with delimiter and capitalization
-                        let prefix = syntax.prefix ?? '';
-                        let suffix = syntax.suffix ?? '';
-                        if (prefix && syntax.delimiter) prefix = prefix.split(/\s+/).join(syntax.delimiter);
-                        if (suffix && syntax.delimiter) suffix = suffix.split(/\s+/).join(syntax.delimiter);
-                        switch (syntax.capitalization) {
-                          case 'uppercase':
-                            name = name.toUpperCase();
-                            prefix = prefix.toUpperCase();
-                            suffix = suffix.toUpperCase();
-                            break;
-                          case 'lowercase':
-                            name = name.toLowerCase();
-                            prefix = prefix.toLowerCase();
-                            suffix = suffix.toLowerCase();
-                            break;
-                          case 'capitalize':
-                            name = name.replace(/\b\w/g, c => c.toUpperCase());
-                            prefix = prefix.replace(/\b\w/g, c => c.toUpperCase());
-                            suffix = suffix.replace(/\b\w/g, c => c.toUpperCase());
-                            break;
-                          default:
-                            break;
-                        }
-                        let preview = `${prefix}${name}${suffix}`;
-                        if (syntax.formatString) {
-                          preview = syntax.formatString
-                            .replace('{prefix}', prefix)
-                            .replace('{name}', name)
-                            .replace('{suffix}', suffix);
-                        }
-                        return preview;
-                      })()}
-                    </Td>
-                    <Td>
+                    </Tooltip>
+                    <Tooltip label="Delete Platform">
                       <IconButton
                         aria-label="Delete platform"
                         colorScheme="red"
@@ -240,14 +210,27 @@ export const PlatformsTab: React.FC = () => {
                         icon={<DeleteIcon />}
                         onClick={() => handleDeletePlatform(platform.id)}
                       />
-                    </Td>
-                  </Tr>
-                );
-              })}
-            </Tbody>
-          </Table>
-        </TableContainer>
+                    </Tooltip>
+                  </HStack>
+                </HStack>
+              </Box>
+            );
+          })}
+        </VStack>
       </Box>
+      {editingPlatform && (
+        <PlatformEditorDialog
+          platform={editingPlatform}
+          open={isDialogOpen}
+          onClose={() => {
+            setIsDialogOpen(false);
+            setEditingPlatform(null);
+            setIsNew(false);
+          }}
+          onSave={handleDialogSave}
+          isNew={isNew}
+        />
+      )}
     </Box>
   );
 }; 

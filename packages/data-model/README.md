@@ -167,3 +167,24 @@ Theme overrides allow you to extend the core data set by providing alternate val
 **Usage Summary:**
 - **Core data** defines the full set of tokens and which are themeable.
 - **Theme overrides** provide a safe, schema-driven way to extend or customize only the tokens that are explicitly marked as themeable, ensuring data integrity and separation of concerns. 
+
+## Token
+
+- **codeSyntax**: Platform-specific naming conventions for this token. This is now an array of objects, each with a `platformId` (referencing a platform in the platforms array) and a `formattedName` string. This allows for custom platforms and explicit linkage, and is more scalable than the previous object-based approach.
+
+**Example:**
+```json
+{
+  "codeSyntax": [
+    { "platformId": "platform-figma", "formattedName": "ColorPrimary" },
+    { "platformId": "platform-web", "formattedName": "color-primary" },
+    { "platformId": "platform-ios", "formattedName": "ColorPrimaryIOS" },
+    { "platformId": "platform-android", "formattedName": "color_primary_android" }
+  ]
+}
+```
+
+**Rationale:**
+- Supports any number of platforms, including custom ones.
+- Explicitly links code syntax to platforms by ID, not by name.
+- Avoids hardcoding platform names and enables future extensibility. 

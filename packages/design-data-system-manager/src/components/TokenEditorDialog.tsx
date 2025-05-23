@@ -1,3 +1,4 @@
+import React from 'react';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Modal,
@@ -18,7 +19,6 @@ import {
   IconButton,
   VStack,
   HStack,
-  Stack,
   Flex,
   TableContainer,
   useColorMode,
@@ -27,17 +27,19 @@ import {
   Tr,
   Th,
   Tbody,
-  Td
+  Td,
+  Alert,
+  AlertIcon
 } from '@chakra-ui/react';
 import { DeleteIcon } from '@chakra-ui/icons';
 import { ValueByModeTable } from './ValueByModeTable';
 import { PlatformOverridesTable } from './PlatformOverridesTable';
 import { TokenValuePicker } from './TokenValuePicker';
 import { TaxonomyPicker } from './TaxonomyPicker';
-import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
+import type { Token, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { createUniqueId } from '../utils/id';
 import { useSchema } from '../hooks/useSchema';
-import { CodeSyntaxService } from '../services/codeSyntax';
+import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
 
 // Extend the Token type to include themeable
 export type ExtendedToken = Token & { themeable?: boolean; codeSyntax?: Record<string, string> };
@@ -113,9 +115,11 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     Array.isArray(token.taxonomies) ? token.taxonomies : []
   );
   
-  const codeSyntax = useMemo(() => {
+  const codeSyntaxArray = useMemo(() => {
     const tokenForSyntax = { ...token, ...editedToken, taxonomies: taxonomyEdits };
-    return CodeSyntaxService.generateAllCodeSyntaxes(tokenForSyntax, schemaForSyntax);
+    const result = CodeSyntaxService.generateAllCodeSyntaxes(tokenForSyntax, schemaForSyntax);
+    console.log('[DEBUG] TokenEditorDialog codeSyntaxArray:', result, { tokenForSyntax, schemaForSyntax });
+    return ensureCodeSyntaxArrayFormat(result);
   }, [token, editedToken, taxonomyEdits, schemaForSyntax]);
 
   // Track which dimensions are active for this token
@@ -149,9 +153,9 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     // Initialize active dimensions from current valuesByMode
     if (token.valuesByMode && token.valuesByMode.length > 0) {
       // Find all dimension IDs present in modeIds
-      const allModeIds = token.valuesByMode.flatMap(v => v.modeIds);
+      const allModeIds = token.valuesByMode.flatMap((v: any) => v.modeIds);
       const presentDims = dimensions.filter(dim =>
-        dim.modes.some(mode => allModeIds.includes(mode.id))
+        dim.modes.some((mode: Mode) => allModeIds.includes(mode.id))
       ).map(dim => dim.id);
       setActiveDimensionIds(presentDims);
     } else {
@@ -164,10 +168,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     if (!open) return;
     if (activeDimensionIds.length === 0) return;
     const activeDims = dimensions.filter(d => activeDimensionIds.includes(d.id));
-    const modeArrays = activeDims.map(d => d.modes.map(m => m.id));
+    const modeArrays = activeDims.map(d => d.modes.map((m: Mode) => m.id));
     const combos = modeArrays.length > 0 ? cartesianProduct(modeArrays) : [[]];
-    setEditedToken(prev => {
-      const prevMap = new Map(prev.valuesByMode.map(vbm => [vbm.modeIds.slice().sort().join(','), vbm.value]));
+    setEditedToken((prev: ExtendedToken) => {
+      const prevMap = new Map(prev.valuesByMode.map((vbm: { modeIds: string[]; value: TokenValue }) => [vbm.modeIds.slice().sort().join(','), vbm.value]));
       const newValuesByMode = combos.map(modeIds => {
         const key = modeIds.slice().sort().join(',');
         if (prevMap.has(key)) {
@@ -204,22 +208,22 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     if (isActive) {
       const dim = dimensions.find(d => d.id === dimensionId);
       if (!dim) return;
-      newActiveDims = activeDimensionIds.filter(id => id !== dimensionId);
+      newActiveDims = activeDimensionIds.filter((id: string) => id !== dimensionId);
       const defaultModeId = dim.defaultMode;
       const remainingDims = dimensions.filter(d => newActiveDims.includes(d.id));
-      const modeArrays = remainingDims.map(d => d.modes.map(m => m.id));
+      const modeArrays = remainingDims.map(d => d.modes.map((m: Mode) => m.id));
       const combos = modeArrays.length > 0 ? cartesianProduct(modeArrays) : [[]];
-      setEditedToken(prev => {
+      setEditedToken((prev: ExtendedToken) => {
         // Preserve all values that include the removed dimension
         const removedMap: Record<string, TokenValue> = {};
-        prev.valuesByMode.forEach(vbm => {
-          if (vbm.modeIds.includes(defaultModeId) || dim.modes.some(m => vbm.modeIds.includes(m.id))) {
+        prev.valuesByMode.forEach((vbm: { modeIds: string[]; value: TokenValue }) => {
+          if (vbm.modeIds.includes(defaultModeId) || dim.modes.some((mode: Mode) => vbm.modeIds.includes(mode.id))) {
             const key = vbm.modeIds.slice().sort().join(',');
             removedMap[key] = vbm.value;
           }
         });
         preservedValuesByRemovedDimension.current[dimensionId] = removedMap;
-        const prevMap = new Map(prev.valuesByMode.map(vbm => [vbm.modeIds.slice().sort().join(','), vbm.value]));
+        const prevMap = new Map(prev.valuesByMode.map((vbm: { modeIds: string[]; value: TokenValue }) => [vbm.modeIds.slice().sort().join(','), vbm.value]));
         const newValuesByMode = combos.map(modeIds => {
           const key = modeIds.slice().sort().join(',');
           if (prevMap.has(key)) {
@@ -227,11 +231,11 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
             return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueType) };
           }
           // Find all previous combos that are a superset of modeIds (i.e., modeIds + one from removed dimension)
-          const candidates = prev.valuesByMode.filter(vbm =>
+          const candidates = prev.valuesByMode.filter((vbm: { modeIds: string[]; value: TokenValue }) =>
             vbm.modeIds.length === modeIds.length + 1 &&
-            modeIds.every(id => vbm.modeIds.includes(id))
+            modeIds.every((id: string) => vbm.modeIds.includes(id))
           );
-          let found = candidates.find(vbm => vbm.modeIds.includes(defaultModeId));
+          let found = candidates.find((vbm: { modeIds: string[]; value: TokenValue }) => vbm.modeIds.includes(defaultModeId));
           if (!found && candidates.length > 0) found = candidates[0];
           if (found) {
             return { modeIds, value: found.value };
@@ -248,10 +252,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
       if (!dim) return;
       newActiveDims = [...activeDimensionIds, dimensionId];
       const activeDims = dimensions.filter(d => newActiveDims.includes(d.id));
-      const modeArrays = activeDims.map(d => d.modes.map(m => m.id));
+      const modeArrays = activeDims.map(d => d.modes.map((m: Mode) => m.id));
       const combos = cartesianProduct(modeArrays);
-      setEditedToken(prev => {
-        const prevMap = new Map(prev.valuesByMode.map(vbm => [vbm.modeIds.slice().sort().join(','), vbm.value]));
+      setEditedToken((prev: ExtendedToken) => {
+        const prevMap = new Map(prev.valuesByMode.map((vbm: { modeIds: string[]; value: TokenValue }) => [vbm.modeIds.slice().sort().join(','), vbm.value]));
         // Try to restore from preserved values if available
         const preserved = preservedValuesByRemovedDimension.current[dimensionId] || {};
         const newValuesByMode = combos.map(modeIds => {
@@ -300,7 +304,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           if (onChange) {
             onChange(newValue);
           } else {
-            setEditedToken(prev => ({
+            setEditedToken((prev: ExtendedToken) => ({
               ...prev,
               valuesByMode: prev.valuesByMode.map((item, i) =>
                 i === modeIndex ? { ...item, value: newValue } : item
@@ -354,6 +358,26 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     setTaxonomyEdits(newTaxonomies);
   }
 
+  // Validation: required fields and taxonomy error
+  const hasTaxonomyError = codeSyntaxArray.some(name => name === undefined);
+  const hasRequiredFieldError = !editedToken.displayName || !editedToken.resolvedValueType;
+
+  // Check for duplicate taxonomy assignments
+  function taxonomySet(arr: { taxonomyId: string; termId: string }[]) {
+    return new Set(arr.map(ref => `${ref.taxonomyId}:${ref.termId}`));
+  }
+  const currentTaxonomySet = taxonomySet(taxonomyEdits);
+  const duplicateTaxonomyToken = tokens.find(t =>
+    t.id !== editedToken.id &&
+    Array.isArray(t.taxonomies) &&
+    t.taxonomies.length === taxonomyEdits.length &&
+    taxonomySet(t.taxonomies).size === currentTaxonomySet.size &&
+    Array.from(currentTaxonomySet).every(pair => taxonomySet(t.taxonomies).has(pair))
+  );
+  const hasDuplicateTaxonomy = !!duplicateTaxonomyToken;
+
+  const hasError = hasTaxonomyError || hasRequiredFieldError || hasDuplicateTaxonomy;
+
   return (
     <Modal isOpen={open} onClose={onClose} size="xl">
       <ModalOverlay />
@@ -377,18 +401,18 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
               borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
             >
               <VStack spacing={3} align="stretch">
-                <FormControl>
+                <FormControl isRequired>
                   <FormLabel>Display Name</FormLabel>
                   <Input
                     value={editedToken.displayName}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken(prev => ({ ...prev, displayName: e.target.value }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, displayName: e.target.value }))}
                   />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Description</FormLabel>
                   <Input
                     value={editedToken.description || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken(prev => ({ ...prev, description: e.target.value }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, description: e.target.value }))}
                   />
                 </FormControl>
               </VStack>
@@ -406,7 +430,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
               <Flex direction="row" gap={6} align="flex-start">
                 {/* Taxonomy (left column) */}
                 <Box flex={1} minW={0}>
-                  <FormControl mb={3}>
+                  <FormControl isRequired mb={3}>
+                    <FormLabel>
+                      Taxonomies <Box as="span" color="red.500" aria-label="required">*</Box>
+                    </FormLabel>
                     <TaxonomyPicker
                       taxonomies={Array.isArray(taxonomies) ? taxonomies : []}
                       value={taxonomyEdits}
@@ -414,10 +441,22 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                       disabled={!Array.isArray(taxonomies) || taxonomies.length === 0}
                       onViewClassifications={onViewClassifications}
                     />
+                    {hasDuplicateTaxonomy && (
+                      <Alert status="error" mt={2}>
+                        <AlertIcon />
+                        Another token already uses this exact set of taxonomy assignments. Please choose a unique combination.
+                      </Alert>
+                    )}
                   </FormControl>
                 </Box>
                 {/* Generated names by platform (right column) */}
                 <Box flex={1} minW={0}>
+                  {hasTaxonomyError && (
+                    <Alert status="error" mb={2}>
+                      <AlertIcon />
+                      You must apply taxonomies to this token before a platform name can be generated.
+                    </Alert>
+                  )}
                   <Text fontSize="sm" fontWeight="medium" mb={1}>Generated names per platform</Text>
                   <Table size="sm" variant="simple">
                     <Thead>
@@ -427,12 +466,39 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                       </Tr>
                     </Thead>
                     <Tbody>
-                      {Object.entries(codeSyntax).map(([platform, name]) => (
-                        <Tr key={platform}>
-                          <Td>{platform}</Td>
-                          <Td><Text fontFamily="mono">{name}</Text></Td>
-                        </Tr>
-                      ))}
+                      {platforms.map(platform => {
+                        const syntaxEntry = codeSyntaxArray.find(cs => cs.platformId === platform.id);
+                        console.log('[DEBUG] Rendering generated name for platform:', platform.id, 'syntaxEntry:', syntaxEntry);
+                        return (
+                          <Tr key={platform.id}>
+                            <Td>{platform.displayName}</Td>
+                            <Td>
+                              <Input
+                                value={syntaxEntry?.formattedName || ''}
+                                onChange={(e) => {
+                                  const newCodeSyntax = [...codeSyntaxArray];
+                                  const existingIndex = newCodeSyntax.findIndex(cs => cs.platformId === platform.id);
+                                  if (existingIndex >= 0) {
+                                    newCodeSyntax[existingIndex] = {
+                                      platformId: platform.id,
+                                      formattedName: e.target.value
+                                    };
+                                  } else {
+                                    newCodeSyntax.push({
+                                      platformId: platform.id,
+                                      formattedName: e.target.value
+                                    });
+                                  }
+                                  setEditedToken(prev => ({
+                                    ...prev,
+                                    codeSyntax: newCodeSyntax
+                                  }));
+                                }}
+                              />
+                            </Td>
+                          </Tr>
+                        );
+                      })}
                     </Tbody>
                   </Table>
                 </Box>
@@ -451,13 +517,13 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
               <Flex direction="row" gap={6} align="flex-start">
                 {/* ValueType + Status (left column) */}
                 <VStack spacing={3} align="stretch" flex={1}>
-                  <FormControl>
+                  <FormControl isRequired>
                     <FormLabel>Value Type</FormLabel>
                     <Select
                       value={editedToken.resolvedValueType}
                       onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                         const newType = e.target.value;
-                        setEditedToken(prev => ({
+                        setEditedToken((prev: ExtendedToken) => ({
                           ...prev,
                           resolvedValueType: newType,
                           valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType) }]
@@ -473,7 +539,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     <FormLabel>Status</FormLabel>
                     <Select
                       value={editedToken.status || ''}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditedToken(prev => ({ ...prev, status: e.target.value }))}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, status: e.target.value }))}
                     >
                       <option value="">None</option>
                       <option value="draft">Draft</option>
@@ -486,13 +552,13 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                 <VStack spacing={3} align="stretch" flex={1}>
                   <Checkbox
                     isChecked={editedToken.private}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken(prev => ({ ...prev, private: e.target.checked }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, private: e.target.checked }))}
                   >
                     Private
                   </Checkbox>
                   <Checkbox
                     isChecked={!!editedToken.themeable}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken(prev => ({ ...prev, themeable: e.target.checked }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, themeable: e.target.checked }))}
                   >
                     Themeable
                   </Checkbox>
@@ -521,7 +587,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                         value={constraint.rule.minimum}
                         min={0}
                         step={0.1}
-                        onChange={e => handleConstraintChange(idx, 'minimum', e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleConstraintChange(idx, 'minimum', e.target.value)}
                         size="sm"
                       />
                     </FormControl>
@@ -531,7 +597,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                         resolvedValueType="COLOR"
                         value={constraint.rule.comparator}
                         tokens={tokens}
-                        onChange={newValue => handleConstraintChange(idx, 'comparator', newValue)}
+                        onChange={(newValue: TokenValue) => handleConstraintChange(idx, 'comparator', newValue)}
                         excludeTokenId={editedToken.id}
                       />
                     </FormControl>
@@ -539,7 +605,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                       <FormLabel fontSize="xs" mb={0}>Method</FormLabel>
                       <Select
                         value={constraint.rule.comparator.method || constraint.rule.method || 'WCAG21'}
-                        onChange={e => handleConstraintChange(idx, 'method', e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleConstraintChange(idx, 'method', e.target.value)}
                         size="sm"
                       >
                         <option value="WCAG21">WCAG21</option>
@@ -567,7 +633,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                       value={newConstraint.rule.minimum}
                       min={0}
                       step={0.1}
-                      onChange={e => setNewConstraint(nc => ({
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewConstraint(nc => ({
                         ...nc,
                         rule: { ...nc.rule, minimum: Number(e.target.value) }
                       }))}
@@ -580,7 +646,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                       resolvedValueType="COLOR"
                       value={newConstraint.rule.comparator}
                       tokens={tokens}
-                      onChange={newValue => setNewConstraint(nc => ({
+                      onChange={(newValue: TokenValue) => setNewConstraint(nc => ({
                         ...nc,
                         rule: { ...nc.rule, comparator: newValue }
                       }))}
@@ -591,7 +657,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     <FormLabel fontSize="xs" mb={0}>Method</FormLabel>
                     <Select
                       value={newConstraint.rule.comparator.method || newConstraint.rule.method || 'WCAG21'}
-                      onChange={e => setNewConstraint(nc => ({
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewConstraint(nc => ({
                         ...nc,
                         rule: {
                           ...nc.rule,
@@ -634,12 +700,12 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                 </HStack>
                 {activeDimensionIds.length === 0 ? (
                   (() => {
-                    const globalValue = editedToken.valuesByMode.find(vbm => Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0);
+                    const globalValue = editedToken.valuesByMode.find((vbm: { modeIds: string[]; value: TokenValue }) => Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0);
                     if (!globalValue) {
                       return (
                         <Button
                           variant="outline"
-                          onClick={() => setEditedToken(prev => ({
+                          onClick={() => setEditedToken((prev: ExtendedToken) => ({
                             ...prev,
                             valuesByMode: [
                               ...prev.valuesByMode,
@@ -659,21 +725,21 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                           tokens={tokens}
                           constraints={(editedToken as any).constraints ?? []}
                           excludeTokenId={editedToken.id}
-                          onChange={newValue => setEditedToken(prev => ({
+                          onChange={(newValue: TokenValue) => setEditedToken((prev: ExtendedToken) => ({
                             ...prev,
-                            valuesByMode: prev.valuesByMode.map(vbm =>
-                              Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0
-                                ? { ...vbm, value: newValue }
-                                : vbm
+                            valuesByMode: prev.valuesByMode.map((item, i) =>
+                              Array.isArray(item.modeIds) && item.modeIds.length === 0
+                                ? { ...item, value: newValue }
+                                : item
                             )
                           }))}
                         />
                         <IconButton
                           aria-label="Remove value"
                           icon={<DeleteIcon />}
-                          onClick={() => setEditedToken(prev => ({
+                          onClick={() => setEditedToken((prev: ExtendedToken) => ({
                             ...prev,
-                            valuesByMode: prev.valuesByMode.filter(vbm => !(Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0))
+                            valuesByMode: prev.valuesByMode.filter((vbm: { modeIds: string[]; value: TokenValue }) => !(Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0))
                           }))}
                         />
                       </HStack>
@@ -684,7 +750,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     valuesByMode={editedToken.valuesByMode}
                     modes={modes}
                     editable={true}
-                    onValueChange={(modeIndex, newValue) => setEditedToken(prev => ({
+                    onValueChange={(modeIndex, newValue) => setEditedToken((prev: ExtendedToken) => ({
                       ...prev,
                       valuesByMode: prev.valuesByMode.map((item, i) =>
                         i === modeIndex ? { ...item, value: newValue } : item
@@ -712,14 +778,14 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     modes={modes}
                     getValueEditor={getValueEditor}
                     onPlatformOverrideChange={(platformId, modeIndex, newValue) => {
-                      setEditedToken(prev => ({
+                      setEditedToken((prev: ExtendedToken) => ({
                         ...prev,
                         valuesByMode: prev.valuesByMode.map((item, i) =>
                           i === modeIndex
                             ? {
                                 ...item,
                                 platformOverrides: [
-                                  ...(item.platformOverrides || []).filter(p => p.platformId !== platformId),
+                                  ...(item.platformOverrides || []).filter((p: { platformId: string }) => p.platformId !== platformId),
                                   {
                                     platformId,
                                     value: typeof newValue === 'string' ? newValue : JSON.stringify(newValue)
@@ -735,7 +801,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     constraints={(editedToken as any).constraints ?? []}
                     excludeTokenId={editedToken.id}
                   />
-                  {editedToken.valuesByMode.every(vbm => !vbm.platformOverrides || vbm.platformOverrides.length === 0) && (
+                  {editedToken.valuesByMode.every((vbm: { platformOverrides?: { platformId: string }[] }) => !vbm.platformOverrides || vbm.platformOverrides.length === 0) && (
                     <Button variant="outline" mt={2}>
                       Add override
                     </Button>
@@ -749,7 +815,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           <Button variant="ghost" mr={3} onClick={onClose}>
             Cancel
           </Button>
-          <Button colorScheme="blue" onClick={handleSave}>
+          <Button colorScheme="blue" onClick={handleSave} disabled={hasError}>
             {isNew ? 'Create token' : 'Save'}
           </Button>
         </ModalFooter>

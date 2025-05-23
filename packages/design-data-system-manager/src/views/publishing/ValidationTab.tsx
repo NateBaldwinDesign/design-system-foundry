@@ -96,6 +96,7 @@ export function ValidationTab({ tokens = [], collections = [], dimensions = [], 
       version,
       versionHistory
     };
+    console.log('[DEBUG] handlePreviewJson data:', data);
     setJsonPreview(JSON.stringify(data, null, 2));
     setIsJsonPreviewOpen(true);
   };

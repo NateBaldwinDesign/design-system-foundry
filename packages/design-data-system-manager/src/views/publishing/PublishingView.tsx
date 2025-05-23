@@ -4,6 +4,7 @@ import { VerticalTabsLayout } from '../../components/VerticalTabsLayout';
 import { PlatformsTab } from './PlatformsTab';
 import { ValidationTab } from './ValidationTab';
 import { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
+import { StorageService } from '../../services/storage';
 
 interface PublishingViewProps {
   tokens?: Token[];
@@ -16,14 +17,32 @@ interface PublishingViewProps {
 }
 
 const PublishingView: React.FC<PublishingViewProps> = ({
-  tokens = [],
-  collections = [],
-  dimensions = [],
-  platforms = [],
-  taxonomies = [],
-  version = '1.0.0',
-  versionHistory = []
+  tokens: initialTokens = [],
+  collections: initialCollections = [],
+  dimensions: initialDimensions = [],
+  platforms: initialPlatforms = [],
+  taxonomies: initialTaxonomies = [],
+  version: initialVersion = '1.0.0',
+  versionHistory: initialVersionHistory = []
 }) => {
+  const [tokens, setTokens] = useState<Token[]>(initialTokens);
+  const [platforms, setPlatforms] = useState<Platform[]>(initialPlatforms);
+  const [collections, setCollections] = useState<TokenCollection[]>(initialCollections);
+  const [dimensions, setDimensions] = useState<Dimension[]>(initialDimensions);
+  const [taxonomies, setTaxonomies] = useState<Taxonomy[]>(initialTaxonomies);
+  const [version, setVersion] = useState<string>(initialVersion);
+  const [versionHistory, setVersionHistory] = useState<unknown[]>(initialVersionHistory);
+
+  const reloadAllData = () => {
+    setTokens(StorageService.getTokens() || []);
+    setPlatforms(StorageService.getPlatforms() || []);
+    setCollections(StorageService.getCollections ? StorageService.getCollections() : []);
+    setDimensions(StorageService.getDimensions ? StorageService.getDimensions() : []);
+    setTaxonomies(StorageService.getTaxonomies ? StorageService.getTaxonomies() : []);
+    setVersion(StorageService.getVersion ? StorageService.getVersion() : '1.0.0');
+    setVersionHistory(StorageService.getVersionHistory ? StorageService.getVersionHistory() : []);
+  };
+
   const [activeTab, setActiveTab] = useState(0);
 
   return (
@@ -32,7 +51,7 @@ const PublishingView: React.FC<PublishingViewProps> = ({
         {
           id: 'platforms',
           label: 'Platforms',
-          content: <PlatformsTab />
+          content: <PlatformsTab onDataChange={reloadAllData} />
         },
         {
           id: 'export-settings',

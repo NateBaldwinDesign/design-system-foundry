@@ -204,7 +204,10 @@ export const Token = z.object({
   status: TokenStatus.optional(),
   taxonomies: z.array(TokenTaxonomyRef),
   propertyTypes: z.array(z.string()),
-  codeSyntax: z.record(z.string()),
+  codeSyntax: z.array(z.object({
+    platformId: z.string(),
+    formattedName: z.string()
+  })),
   valuesByMode: z.array(
     z.object({
       modeIds: z.array(z.string()),

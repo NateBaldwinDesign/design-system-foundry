@@ -62,7 +62,6 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false, 
 
   return (
     <Box>
-      <Box as="span" fontWeight="medium" mb={2}>Taxonomy</Box>
       <HStack wrap="wrap" spacing={2} mb={2}>
         {value.map((assignment, idx) => {
           const taxonomy = taxonomies.find(t => t.id === assignment.taxonomyId);
