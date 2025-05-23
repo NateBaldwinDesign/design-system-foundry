@@ -344,8 +344,8 @@ export function App() {
 
   return (
     <Box minH="100vh" minW="100vw" bg="chakra-body-bg">
-      <Container maxW="100vw" py={4}>
-        <VStack spacing={6} align="stretch">
+      <Container maxW="100vw" p={0} height="100vh" display="flex" flexDirection="column">
+        <VStack spacing={0} align="stretch" flex="1">
           <Header
             dataSource={dataSource}
             setDataSource={setDataSource}

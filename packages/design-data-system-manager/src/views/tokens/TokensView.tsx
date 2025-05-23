@@ -8,6 +8,13 @@ import { ValidationTester } from '../../components/ValidationTester';
 import { TokenEditorDialog } from '../../components/TokenEditorDialog';
 import { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 
+interface Theme {
+  id: string;
+  displayName: string;
+  description?: string;
+  isDefault?: boolean;
+}
+
 interface TokensViewProps {
   tokens: Token[];
   collections: TokenCollection[];
@@ -16,9 +23,8 @@ interface TokensViewProps {
   platforms: Platform[];
   taxonomies: Taxonomy[];
   resolvedValueTypes: { id: string; displayName: string }[];
-  themes: any[];
+  themes: Theme[];
   taxonomyOrder: string[];
-  onEditToken: (token: Token) => void;
   onDeleteToken: (tokenId: string) => void;
   onSaveToken: (token: Token) => void;
   setCollections: (collections: TokenCollection[]) => void;
@@ -42,7 +48,6 @@ const TokensView: React.FC<TokensViewProps> = ({
   resolvedValueTypes,
   themes,
   taxonomyOrder,
-  onEditToken,
   onDeleteToken,
   onSaveToken,
   setCollections,
@@ -51,20 +56,46 @@ const TokensView: React.FC<TokensViewProps> = ({
   setTaxonomyOrder,
   setResolvedValueTypes,
   onViewSetupClassificationTab
-}) => {
+}: TokensViewProps) => {
   const [activeTab, setActiveTab] = useState(0);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  const handleOpenCreateDialog = () => setCreateDialogOpen(true);
-  const handleCloseCreateDialog = () => setCreateDialogOpen(false);
   const handleOpen = () => setIsOpen(true);
-  const handleClose = () => setIsOpen(false);
+  const handleClose = () => {
+    setIsOpen(false);
+    setSelectedToken(null);
+  };
 
   const handleEditToken = (token: Token) => {
-    setSelectedToken(token);
-    handleOpen();
+    if (!isOpen) {
+      setSelectedToken(token);
+      setIsOpen(true);
+    }
+  };
+
+  const handleAddToken = () => {
+    if (!isOpen) {
+      setSelectedToken({
+        id: '',
+        displayName: '',
+        valuesByMode: [],
+        resolvedValueType: 'COLOR',
+        tokenCollectionId: '',
+        private: false,
+        themeable: false,
+        taxonomies: [],
+        propertyTypes: [],
+        codeSyntax: {}
+      });
+      setIsOpen(true);
+    }
+  };
+
+  const handleSaveToken = (token: Token) => {
+    onSaveToken(token);
+    setIsOpen(false);
+    setSelectedToken(null);
   };
 
   // Handler for popover link: close dialog, then navigate
@@ -102,31 +133,25 @@ const TokensView: React.FC<TokensViewProps> = ({
                 resolvedValueTypes={resolvedValueTypes}
                 onViewClassifications={handleViewClassifications}
               />
-              <TokenEditorDialog
-                token={selectedToken || {
-                  id: '',
-                  displayName: '',
-                  valuesByMode: [],
-                  resolvedValueType: 'COLOR',
-                  tokenCollectionId: '',
-                  private: false,
-                  themeable: false,
-                  taxonomies: [],
-                  propertyTypes: [],
-                  codeSyntax: {}
-                }}
-                tokens={tokens}
-                dimensions={dimensions}
-                modes={modes}
-                platforms={platforms}
-                open={isOpen}
-                onClose={handleClose}
-                onSave={onSaveToken}
-                taxonomies={taxonomies}
-                resolvedValueTypes={resolvedValueTypes}
-                isNew={!selectedToken}
-                onViewClassifications={handleViewClassifications}
-              />
+              <Button colorScheme="blue" size="sm" onClick={handleAddToken} mb={4}>
+                Add Token
+              </Button>
+              {isOpen && selectedToken && (
+                <TokenEditorDialog
+                  token={selectedToken}
+                  tokens={tokens}
+                  dimensions={dimensions}
+                  modes={modes}
+                  platforms={platforms}
+                  open={isOpen}
+                  onClose={handleClose}
+                  onSave={handleSaveToken}
+                  taxonomies={taxonomies}
+                  resolvedValueTypes={resolvedValueTypes}
+                  isNew={!selectedToken.id}
+                  onViewClassifications={handleViewClassifications}
+                />
+              )}
             </>
           )
         },

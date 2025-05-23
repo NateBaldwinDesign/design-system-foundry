@@ -38,7 +38,7 @@ const Header: React.FC<HeaderProps> = ({
   onViewChange
 }) => {
   return (
-    <Box as="header" position="sticky" top={0} zIndex={1} bg="chakra-body-bg" borderBottom="1px" borderColor="chakra-border-color">
+    <Box as="header" position="sticky" top={0} zIndex={1} bg="chakra-body-bg" borderBottom="1px" borderColor="chakra-border-color" p={4}>
       <Flex justify="space-between" align="center">
         <Heading size="xl">DDSM</Heading>
         <HStack spacing={4}>

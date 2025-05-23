@@ -484,8 +484,6 @@ function TokenEditor({ token, tokens, dimensions, modes, platforms, open, onClos
 }
 
 export function TokenList({ tokens, collections, modes, dimensions, platforms, onEdit, onDelete, taxonomies, resolvedValueTypes, onViewClassifications }: TokenListProps) {
-  const [editingToken, setEditingToken] = useState<ExtendedToken | null>(null);
-
   // Filter state
   const [collectionFilter, setCollectionFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
@@ -560,7 +558,7 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
           leftIcon={<AddIcon />}
           colorScheme="blue"
           size="sm"
-          onClick={() => setEditingToken({
+          onClick={() => onEdit({
             id: '',
             displayName: '',
             tokenCollectionId: '',
@@ -704,7 +702,7 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
                 </Td>
                 <Td>
                   <HStack spacing={1}>
-                    <IconButton aria-label="Edit token" icon={<EditIcon />} onClick={() => setEditingToken(token)} size="sm" />
+                    <IconButton aria-label="Edit token" icon={<EditIcon />} onClick={() => onEdit(token)} size="sm" />
                     <IconButton aria-label="Delete token" icon={<DeleteIcon />} onClick={() => onDelete(token.id)} size="sm" />
                   </HStack>
                 </Td>
@@ -713,26 +711,6 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
           </Tbody>
         </Table>
       </Box>
-
-      {editingToken && (
-        <TokenEditorDialog
-          token={editingToken}
-          tokens={tokens}
-          dimensions={dimensions || []}
-          modes={modes}
-          platforms={platforms}
-          taxonomies={taxonomies}
-          open={true}
-          onClose={() => setEditingToken(null)}
-          onSave={(updatedToken) => {
-            onEdit(updatedToken);
-            setEditingToken(null);
-          }}
-          isNew={!editingToken.id}
-          resolvedValueTypes={resolvedValueTypes || []}
-          onViewClassifications={onViewClassifications}
-        />
-      )}
     </Box>
   );
 } 

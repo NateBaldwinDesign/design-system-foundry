@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box } from '@chakra-ui/react';
+import { Container, VStack, useColorMode } from '@chakra-ui/react';
 import { ThemesWorkflow } from '../../components/ThemesWorkflow';
 
 interface ThemesViewProps {
@@ -11,10 +11,19 @@ const ThemesView: React.FC<ThemesViewProps> = ({
   themes,
   setThemes
 }) => {
+  const { colorMode } = useColorMode();
   return (
-    <Box p={3} bg="chakra-body-bg" borderRadius="md" boxShadow="md">
-      <ThemesWorkflow themes={themes} setThemes={setThemes} />
-    </Box>
+    <VStack 
+      p={4} 
+      bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}
+      flex="1"
+      align="stretch"
+      spacing={0}
+    >
+      <Container maxW="1000px" p={0}>
+        <ThemesWorkflow themes={themes} setThemes={setThemes} />
+      </Container>
+    </VStack>
   );
 };
 

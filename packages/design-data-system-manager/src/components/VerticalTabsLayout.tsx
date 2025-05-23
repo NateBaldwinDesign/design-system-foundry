@@ -8,6 +8,7 @@ import {
   TabPanel,
   Flex,
   useColorModeValue,
+  useColorMode,
 } from '@chakra-ui/react';
 
 export interface TabItem {
@@ -34,24 +35,32 @@ export function VerticalTabsLayout({
   const borderColor = useColorModeValue('gray.200', 'gray.700');
   const selectedBg = useColorModeValue('blue.50', 'blue.900');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
+  const { colorMode } = useColorMode();
 
   return (
-    <Box width={width} height={height}>
+    <Box 
+      width={width} 
+      height={height}
+      display="flex"
+      flexDirection="column"
+      flex="1"
+    >
       <Tabs
         orientation="vertical"
-        variant="enclosed"
+        variant="line"
         index={activeTab}
         onChange={onChange}
         display="flex"
         flexDirection="row"
         height="100%"
+        flex="1"
       >
         <TabList
-          borderRight="1px"
-          borderColor={borderColor}
+          borderLeft="none"
           width="200px"
           height="100%"
           overflowY="auto"
+          flexShrink={0}
         >
           {tabs.map((tab) => (
             <Tab
@@ -72,9 +81,24 @@ export function VerticalTabsLayout({
           ))}
         </TabList>
 
-        <TabPanels flex="1" overflowY="auto">
+        <TabPanels 
+          flex="1" 
+          overflowY="auto" 
+          borderLeft="1px" 
+          borderColor={borderColor} 
+          height="100%"
+          display="flex"
+          flexDirection="column"
+          bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}
+        >
           {tabs.map((tab) => (
-            <TabPanel key={tab.id} p={4}>
+            <TabPanel 
+              key={tab.id} 
+              p={4}
+              flex="1"
+              display="flex"
+              flexDirection="column"
+            >
               {tab.content}
             </TabPanel>
           ))}

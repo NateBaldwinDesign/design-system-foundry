@@ -180,9 +180,9 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
                     <Text color="gray.500">No matching tokens available.</Text>
                   ) : (
                     <List spacing={1}>
-                      {filteredTokens.map(token => (
+                      {filteredTokens.map((token, idx) => (
                         <ListItem
-                          key={token.id}
+                          key={`${token.id}-${idx}`}
                           cursor="pointer"
                           _hover={{ bg: 'gray.100' }}
                           borderRadius="md"

@@ -123,16 +123,27 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
 
   const { colorMode } = useColorMode();
 
-  useEffect(() => {
-    if (open && isNew) {
-      setEditedToken({
-        ...token,
-        id: createUniqueId('token')
-      });
-    } else if (open && !isNew) {
-      setEditedToken(token);
+  // Constraints state
+  const [constraints, setConstraints] = useState(() => Array.isArray(token.constraints) ? token.constraints : []);
+
+  // Constraint editing state
+  const [newConstraint, setNewConstraint] = useState({
+    type: 'contrast',
+    rule: {
+      minimum: 3,
+      comparator: { type: 'COLOR', value: '#ffffff', method: 'WCAG21' },
+      method: 'WCAG21',
     }
-  }, [open, isNew, token]);
+  });
+
+  useEffect(() => {
+    setEditedToken({
+      ...token,
+      themeable: token.themeable ?? false,
+    });
+    setTaxonomyEdits(Array.isArray(token.taxonomies) ? token.taxonomies : []);
+    setConstraints(Array.isArray(token.constraints) ? token.constraints : []);
+  }, [token, open]);
 
   useEffect(() => {
     // Initialize active dimensions from current valuesByMode
@@ -179,6 +190,12 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
       };
     });
   }, [dimensions, activeDimensionIds, open]);
+
+  useEffect(() => {
+    if (open) {
+      setConstraints(Array.isArray(token.constraints) ? token.constraints : []);
+    }
+  }, [open, token]);
 
   // Add or remove a dimension from the token
   const handleToggleDimension = (dimensionId: string) => {
@@ -295,9 +312,42 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     );
   };
 
+  const handleAddConstraint = () => {
+    setConstraints(prev => [...prev, JSON.parse(JSON.stringify(newConstraint))]);
+    setNewConstraint({
+      type: 'contrast',
+      rule: {
+        minimum: 3,
+        comparator: { type: 'COLOR', value: '#ffffff', method: 'WCAG21' },
+        method: 'WCAG21',
+      }
+    });
+  };
+
+  const handleRemoveConstraint = (idx: number) => {
+    setConstraints(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleConstraintChange = (idx: number, field: string, value: any) => {
+    setConstraints(prev => prev.map((c, i) => {
+      if (i !== idx) return c;
+      if (field === 'minimum') {
+        return { ...c, rule: { ...c.rule, minimum: Number(value) } };
+      }
+      if (field === 'comparator') {
+        return { ...c, rule: { ...c.rule, comparator: value } };
+      }
+      if (field === 'method') {
+        return { ...c, rule: { ...c.rule, comparator: { ...c.rule.comparator, method: value }, method: value } };
+      }
+      return c;
+    }));
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({ ...editedToken, taxonomies: taxonomyEdits });
+    onSave({ ...editedToken, taxonomies: taxonomyEdits, constraints });
+    onClose();
   };
 
   function handleTaxonomyChange(newTaxonomies: any[]) {
@@ -448,6 +498,116 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                   </Checkbox>
                 </VStack>
               </Flex>
+            </Box>
+
+            {/* Constraints */}
+            <Text fontSize="lg" fontWeight="bold" mb={2}>Constraints</Text>
+            <Box
+              p={3}
+              borderWidth={1}
+              borderRadius="md"
+              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+            >
+              <VStack spacing={3} align="stretch">
+                {constraints.length === 0 && <Text color="gray.500">No constraints added.</Text>}
+                {constraints.map((constraint, idx) => (
+                  <HStack key={idx} spacing={3} align="center">
+                    <Text fontWeight="medium">Contrast</Text>
+                    <FormControl w="120px">
+                      <FormLabel fontSize="xs" mb={0}>Minimum</FormLabel>
+                      <Input
+                        type="number"
+                        value={constraint.rule.minimum}
+                        min={0}
+                        step={0.1}
+                        onChange={e => handleConstraintChange(idx, 'minimum', e.target.value)}
+                        size="sm"
+                      />
+                    </FormControl>
+                    <FormControl w="160px">
+                      <FormLabel fontSize="xs" mb={0}>Comparator Color</FormLabel>
+                      <TokenValuePicker
+                        resolvedValueType="COLOR"
+                        value={constraint.rule.comparator}
+                        tokens={tokens}
+                        onChange={newValue => handleConstraintChange(idx, 'comparator', newValue)}
+                        excludeTokenId={editedToken.id}
+                      />
+                    </FormControl>
+                    <FormControl w="120px">
+                      <FormLabel fontSize="xs" mb={0}>Method</FormLabel>
+                      <Select
+                        value={constraint.rule.comparator.method || constraint.rule.method || 'WCAG21'}
+                        onChange={e => handleConstraintChange(idx, 'method', e.target.value)}
+                        size="sm"
+                      >
+                        <option value="WCAG21">WCAG21</option>
+                        <option value="APCA">APCA</option>
+                        <option value="Lstar">Lstar</option>
+                      </Select>
+                    </FormControl>
+                    <IconButton
+                      aria-label="Remove constraint"
+                      icon={<DeleteIcon />}
+                      size="sm"
+                      colorScheme="red"
+                      onClick={() => handleRemoveConstraint(idx)}
+                    />
+                  </HStack>
+                ))}
+                <HStack spacing={3} align="center" mt={2}>
+                  <Button size="sm" onClick={handleAddConstraint} colorScheme="blue">
+                    Add Constraint
+                  </Button>
+                  <FormControl w="120px">
+                    <FormLabel fontSize="xs" mb={0}>Minimum</FormLabel>
+                    <Input
+                      type="number"
+                      value={newConstraint.rule.minimum}
+                      min={0}
+                      step={0.1}
+                      onChange={e => setNewConstraint(nc => ({
+                        ...nc,
+                        rule: { ...nc.rule, minimum: Number(e.target.value) }
+                      }))}
+                      size="sm"
+                    />
+                  </FormControl>
+                  <FormControl w="160px">
+                    <FormLabel fontSize="xs" mb={0}>Comparator Color</FormLabel>
+                    <TokenValuePicker
+                      resolvedValueType="COLOR"
+                      value={newConstraint.rule.comparator}
+                      tokens={tokens}
+                      onChange={newValue => setNewConstraint(nc => ({
+                        ...nc,
+                        rule: { ...nc.rule, comparator: newValue }
+                      }))}
+                      excludeTokenId={editedToken.id}
+                    />
+                  </FormControl>
+                  <FormControl w="120px">
+                    <FormLabel fontSize="xs" mb={0}>Method</FormLabel>
+                    <Select
+                      value={newConstraint.rule.comparator.method || newConstraint.rule.method || 'WCAG21'}
+                      onChange={e => setNewConstraint(nc => ({
+                        ...nc,
+                        rule: {
+                          ...nc.rule,
+                          comparator: { ...nc.rule.comparator, method: e.target.value },
+                          method: e.target.value
+                        }
+                      }))}
+                      size="sm"
+                    >
+                      <option value="WCAG21">WCAG21</option>
+                      <option value="APCA">APCA</option>
+                      <option value="Lstar">Lstar</option>
+                    </Select>
+                  </FormControl>
+                </HStack>
+              </VStack>
             </Box>
 
             {/* Values */}
