@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { Box, Button } from '@chakra-ui/react';
 import { VerticalTabsLayout } from '../../components/VerticalTabsLayout';
-import { TokenList } from '../../components/TokenList';
-import { CollectionsWorkflow } from '../../components/CollectionsWorkflow';
-import { SettingsWorkflow } from '../settings/SettingsWorkflow';
-import { ValidationTester } from '../../components/ValidationTester';
+import { TokensTab } from './TokensTab';
+import { CollectionsTab } from './CollectionsTab';
 import { TokenEditorDialog } from '../../components/TokenEditorDialog';
 import { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy } from '@token-model/data-model';
+import { AddIcon } from '@chakra-ui/icons';
 
 interface Theme {
   id: string;
@@ -121,7 +120,7 @@ const TokensView: React.FC<TokensViewProps> = ({
           label: 'Tokens',
           content: (
             <>
-              <TokenList
+              <TokensTab
                 tokens={tokens}
                 collections={collections}
                 modes={modes}
@@ -132,10 +131,12 @@ const TokensView: React.FC<TokensViewProps> = ({
                 taxonomies={taxonomies}
                 resolvedValueTypes={resolvedValueTypes}
                 onViewClassifications={handleViewClassifications}
+                renderAddTokenButton={
+                  <Button colorScheme="blue" size="sm" onClick={handleAddToken} leftIcon={<AddIcon />}>
+                    Add Token
+                  </Button>
+                }
               />
-              <Button colorScheme="blue" size="sm" onClick={handleAddToken} mb={4}>
-                Add Token
-              </Button>
               {isOpen && selectedToken && (
                 <TokenEditorDialog
                   token={selectedToken}
@@ -159,7 +160,7 @@ const TokensView: React.FC<TokensViewProps> = ({
           id: 'collections',
           label: 'Collections',
           content: (
-            <CollectionsWorkflow
+            <CollectionsTab
               collections={collections}
               modes={modes}
               onUpdate={setCollections}
@@ -171,36 +172,6 @@ const TokensView: React.FC<TokensViewProps> = ({
           label: 'Algorithms',
           content: (
             <Box>To be built...</Box>
-          )
-        },
-        {
-          id: 'settings',
-          label: 'Settings',
-          content: (
-            <SettingsWorkflow
-              collections={collections}
-              setCollections={setCollections}
-              modes={modes}
-              setModes={setModes}
-              themes={themes}
-              taxonomies={taxonomies}
-              setTaxonomies={setTaxonomies}
-              taxonomyOrder={taxonomyOrder}
-              setTaxonomyOrder={setTaxonomyOrder}
-              resolvedValueTypes={resolvedValueTypes}
-              setResolvedValueTypes={setResolvedValueTypes}
-            />
-          )
-        },
-        {
-          id: 'validation',
-          label: 'Validation',
-          content: (
-            <ValidationTester
-              tokens={tokens}
-              collections={collections}
-              onValidate={() => {}}
-            />
           )
         }
       ]}

@@ -45,27 +45,36 @@ export class CodeSyntaxService {
     }
     // Join parts with delimiter
     let name = parts.join(syntax.delimiter ?? '');
-    // Capitalization
+    // Apply delimiter and capitalization to prefix and suffix
+    let prefix = syntax.prefix ?? '';
+    let suffix = syntax.suffix ?? '';
+    // Delimit prefix and suffix if not empty
+    if (prefix && syntax.delimiter) prefix = prefix.split(/\s+/).join(syntax.delimiter);
+    if (suffix && syntax.delimiter) suffix = suffix.split(/\s+/).join(syntax.delimiter);
+    // Capitalization for prefix and suffix
     switch (syntax.capitalization) {
       case 'uppercase':
-        name = name.toUpperCase();
+        prefix = prefix.toUpperCase();
+        suffix = suffix.toUpperCase();
         break;
       case 'lowercase':
-        name = name.toLowerCase();
+        prefix = prefix.toLowerCase();
+        suffix = suffix.toLowerCase();
         break;
       case 'capitalize':
-        name = name.replace(/\b\w/g, c => c.toUpperCase());
+        prefix = prefix.replace(/\b\w/g, c => c.toUpperCase());
+        suffix = suffix.replace(/\b\w/g, c => c.toUpperCase());
         break;
       default:
         break;
     }
     // Format string or prefix/suffix
-    let result = `${syntax.prefix ?? ''}${name}${syntax.suffix ?? ''}`;
+    let result = `${prefix}${name}${suffix}`;
     if (syntax.formatString) {
       result = syntax.formatString
-        .replace('{prefix}', syntax.prefix ?? '')
+        .replace('{prefix}', prefix)
         .replace('{name}', name)
-        .replace('{suffix}', syntax.suffix ?? '');
+        .replace('{suffix}', suffix);
     }
     return result;
   }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Container, VStack, useColorMode } from '@chakra-ui/react';
-import { ThemesWorkflow } from '../../components/ThemesWorkflow';
+import { ThemesTab } from './ThemesTab';
 
 interface ThemesViewProps {
   themes: any[];
@@ -21,7 +21,7 @@ const ThemesView: React.FC<ThemesViewProps> = ({
       spacing={0}
     >
       <Container maxW="1000px" p={0}>
-        <ThemesWorkflow themes={themes} setThemes={setThemes} />
+        <ThemesTab themes={themes} setThemes={setThemes} />
       </Container>
     </VStack>
   );

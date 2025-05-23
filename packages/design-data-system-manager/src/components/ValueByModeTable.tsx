@@ -20,7 +20,7 @@ export function getModeName(modeId: string, modes: Mode[]): string {
   return mode.name;
 }
 
-interface ValueByMode {
+export interface ValueByMode {
   modeIds: string[];
   value: TokenValue;
 }

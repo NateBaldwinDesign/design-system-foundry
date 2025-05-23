@@ -27,13 +27,13 @@ import {
   Platform,
   Taxonomy
 } from '@token-model/data-model';
-import { TokenList } from './components/TokenList';
-import { CollectionsWorkflow } from './components/CollectionsWorkflow';
-import { DimensionsWorkflow } from './components/DimensionsWorkflow';
-import { ValueTypesWorkflow } from './components/ValueTypesWorkflow';
+import { TokensTab } from './components/TokensTab';
+import { CollectionsTab } from './components/CollectionsTab';
+import { DimensionsTab } from './components/DimensionsTab';
+import { ValueTypesTab } from './components/ValueTypesTab';
 import { SettingsWorkflow } from './views/settings/SettingsWorkflow';
 import { StorageService } from './services/storage';
-import { ValidationTester } from './components/ValidationTester';
+import { ValidationTab } from './components/ValidationTab';
 import { generateId, ID_PREFIXES } from './utils/id';
 import { TokenEditorDialog } from './components/TokenEditorDialog';
 import { exportAndValidateData } from './utils/validateAndExportData';
@@ -41,10 +41,10 @@ import { createSchemaJsonFromLocalStorage, validateSchemaJson, downloadSchemaJso
 import './App.css';
 import Header from './components/Header';
 import { VerticalTabsLayout } from './components/VerticalTabsLayout';
-import { SettingsTaxonomiesTab } from './views/settings/SettingsTaxonomiesTab';
-import { SettingsNamingRulesTab } from './views/settings/SettingsNamingRulesTab';
-import { SettingsThemesTab } from './views/settings/SettingsThemesTab';
-import { ThemesWorkflow } from './components/ThemesWorkflow';
+import { ClassificationTab } from './views/settings/SettingsTaxonomiesTab';
+import { NamingRulesTab } from './views/settings/SettingsNamingRulesTab';
+import { ThemesTab } from './views/settings/SettingsThemesTab';
+import { ThemesTab as ThemesWorkflowTab } from './components/ThemesTab';
 import PublishingView from './views/publishing/PublishingView';
 import TokensView from './views/tokens/TokensView';
 import SetupView from './views/setup/SetupView';
@@ -402,6 +402,11 @@ export function App() {
             <PublishingView
               tokens={tokens}
               collections={collections}
+              dimensions={dimensions}
+              platforms={platforms}
+              taxonomies={taxonomies}
+              version={'1.0.0'}
+              versionHistory={[]}
             />
           )}
           {activeView !== 'tokens' && activeView !== 'setup' && activeView !== 'themes' && activeView !== 'publishing' && <Box />}

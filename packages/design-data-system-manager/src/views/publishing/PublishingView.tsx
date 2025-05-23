@@ -1,18 +1,28 @@
 import React, { useState } from 'react';
 import { Box } from '@chakra-ui/react';
 import { VerticalTabsLayout } from '../../components/VerticalTabsLayout';
-import { SettingsPlatformsTab } from '../../components/SettingsPlatformsTab';
-import { ValidationTester } from '../../components/ValidationTester';
-import { Token, TokenCollection } from '@token-model/data-model';
+import { PlatformsTab } from './PlatformsTab';
+import { ValidationTab } from './ValidationTab';
+import { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 
 interface PublishingViewProps {
   tokens?: Token[];
   collections?: TokenCollection[];
+  dimensions?: Dimension[];
+  platforms?: Platform[];
+  taxonomies?: Taxonomy[];
+  version?: string;
+  versionHistory?: unknown[];
 }
 
 const PublishingView: React.FC<PublishingViewProps> = ({
   tokens = [],
-  collections = []
+  collections = [],
+  dimensions = [],
+  platforms = [],
+  taxonomies = [],
+  version = '1.0.0',
+  versionHistory = []
 }) => {
   const [activeTab, setActiveTab] = useState(0);
 
@@ -22,7 +32,7 @@ const PublishingView: React.FC<PublishingViewProps> = ({
         {
           id: 'platforms',
           label: 'Platforms',
-          content: <SettingsPlatformsTab />
+          content: <PlatformsTab />
         },
         {
           id: 'export-settings',
@@ -33,9 +43,14 @@ const PublishingView: React.FC<PublishingViewProps> = ({
           id: 'validation',
           label: 'Validation',
           content: (
-            <ValidationTester
+            <ValidationTab
               tokens={tokens}
               collections={collections}
+              dimensions={dimensions}
+              platforms={platforms}
+              taxonomies={taxonomies}
+              version={version}
+              versionHistory={versionHistory}
               onValidate={() => {}}
             />
           )

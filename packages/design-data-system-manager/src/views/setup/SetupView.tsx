@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Box } from '@chakra-ui/react';
 import { VerticalTabsLayout } from '../../components/VerticalTabsLayout';
-import { DimensionsWorkflow } from '../../components/DimensionsWorkflow';
-import { SettingsTaxonomiesTab } from '../settings/SettingsTaxonomiesTab';
-import { SettingsNamingRulesTab } from '../settings/SettingsNamingRulesTab';
-import { ValueTypesWorkflow } from '../../components/ValueTypesWorkflow';
+import { DimensionsTab } from './DimensionsTab';
+import { ValueTypesTab } from './ValueTypesTab';
+import { ClassificationTab } from './ClassificationTab';
+import { NamingRulesTab } from './NamingRulesTab';
 import { Dimension, Taxonomy } from '@token-model/data-model';
 
 interface SetupViewProps {
@@ -43,7 +43,7 @@ const SetupView: React.FC<SetupViewProps> = ({
           id: 'dimensions',
           label: 'Dimensions',
           content: (
-            <DimensionsWorkflow
+            <DimensionsTab
               dimensions={dimensions}
               setDimensions={setDimensions}
             />
@@ -53,7 +53,7 @@ const SetupView: React.FC<SetupViewProps> = ({
           id: 'classification',
           label: 'Classification',
           content: (
-            <SettingsTaxonomiesTab
+            <ClassificationTab
               taxonomies={taxonomies}
               setTaxonomies={setTaxonomies}
             />
@@ -63,7 +63,7 @@ const SetupView: React.FC<SetupViewProps> = ({
           id: 'naming-rules',
           label: 'Naming Rules',
           content: (
-            <SettingsNamingRulesTab
+            <NamingRulesTab
               taxonomies={taxonomies}
               taxonomyOrder={taxonomyOrder}
               setTaxonomyOrder={setTaxonomyOrder}
@@ -74,7 +74,7 @@ const SetupView: React.FC<SetupViewProps> = ({
           id: 'value-types',
           label: 'Value Types',
           content: (
-            <ValueTypesWorkflow
+            <ValueTypesTab
               valueTypes={resolvedValueTypes.map(vt => vt.id)}
               onUpdate={types => setResolvedValueTypes(types.map(id => ({ id, displayName: id })))}
             />
