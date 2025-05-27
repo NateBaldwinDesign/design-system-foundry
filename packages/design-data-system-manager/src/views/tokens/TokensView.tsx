@@ -31,6 +31,8 @@ interface TokensViewProps {
   setTaxonomies: (taxonomies: Taxonomy[]) => void;
   setTaxonomyOrder: (order: string[]) => void;
   setResolvedValueTypes: (types: { id: string; displayName: string }[]) => void;
+  activeTab: number;
+  onTabChange: (index: number) => void;
   /**
    * Callback to switch to SetupView and Classification tab
    */
@@ -54,9 +56,10 @@ const TokensView: React.FC<TokensViewProps> = ({
   setTaxonomies,
   setTaxonomyOrder,
   setResolvedValueTypes,
+  activeTab,
+  onTabChange,
   onViewSetupClassificationTab
 }: TokensViewProps) => {
-  const [activeTab, setActiveTab] = useState(0);
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -176,7 +179,7 @@ const TokensView: React.FC<TokensViewProps> = ({
         }
       ]}
       activeTab={activeTab}
-      onChange={setActiveTab}
+      onChange={onTabChange}
     />
   );
 };
