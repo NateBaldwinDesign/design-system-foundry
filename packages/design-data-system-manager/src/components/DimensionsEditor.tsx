@@ -1,26 +1,25 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Typography,
-  TextField,
+  Text,
+  Input,
   Button,
   IconButton,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  VStack,
+  HStack,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
   FormControl,
-  InputLabel,
+  FormLabel,
   Select,
-  MenuItem,
-  FormHelperText,
-  Chip
-} from '@mui/material';
-import { Delete, Add, Edit } from '@mui/icons-material';
+  useDisclosure
+} from '@chakra-ui/react';
+import { DeleteIcon, AddIcon, EditIcon } from '@chakra-ui/icons';
 import type { Dimension, Mode } from '@token-model/data-model';
 import { createUniqueId } from '../utils/id';
 
@@ -35,12 +34,13 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
   const [editingMode, setEditingMode] = useState<{ dimensionId: string; mode: Mode } | null>(null);
   const [isNewDimension, setIsNewDimension] = useState(false);
   const [isNewMode, setIsNewMode] = useState(false);
+  const { isOpen: isDimensionModalOpen, onOpen: onDimensionModalOpen, onClose: onDimensionModalClose } = useDisclosure();
+  const { isOpen: isModeModalOpen, onOpen: onModeModalOpen, onClose: onModeModalClose } = useDisclosure();
 
   useEffect(() => {
     onChange(editedDimensions);
   }, [editedDimensions, onChange]);
 
-  // Ensure a new ID is generated every time the add dialog is opened for a new dimension
   useEffect(() => {
     if (editingDimension && isNewDimension && !editingDimension.id) {
       setEditingDimension(prev => prev ? { ...prev, id: createUniqueId('dimension') } : null);
@@ -50,7 +50,7 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
   const handleAddDimension = () => {
     const newDimension: Dimension = {
       id: createUniqueId('dimension'),
-      type: 'COLOR_SCHEME', // Default type, can be changed in the UI
+      type: 'COLOR_SCHEME',
       displayName: '',
       description: '',
       modes: [],
@@ -59,6 +59,7 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
     };
     setEditingDimension(newDimension);
     setIsNewDimension(true);
+    onDimensionModalOpen();
   };
 
   const handleAddMode = (dimensionId: string) => {
@@ -70,6 +71,7 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
     };
     setEditingMode({ dimensionId, mode: newMode });
     setIsNewMode(true);
+    onModeModalOpen();
   };
 
   const handleDeleteDimension = (dimensionId: string) => {
@@ -102,6 +104,7 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
     }
     setEditingDimension(null);
     setIsNewDimension(false);
+    onDimensionModalClose();
   };
 
   const handleSaveMode = () => {
@@ -115,7 +118,6 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
           ? [...dim.modes, editingMode.mode]
           : dim.modes.map(m => (m.id === editingMode.mode.id ? editingMode.mode : m));
 
-        // If this is the first mode or the default mode was deleted, set it as default
         const defaultMode = dim.defaultMode && updatedModes.some(m => m.id === dim.defaultMode)
           ? dim.defaultMode
           : updatedModes[0]?.id || '';
@@ -130,214 +132,220 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
 
     setEditingMode(null);
     setIsNewMode(false);
+    onModeModalClose();
   };
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h6">Dimensions</Typography>
+      <HStack justify="space-between" align="center" mb={4}>
+        <Text fontSize="xl" fontWeight="bold">Dimensions</Text>
         <Button
-          variant="contained"
-          startIcon={<Add />}
+          leftIcon={<AddIcon />}
+          colorScheme="blue"
           onClick={handleAddDimension}
         >
           Add Dimension
         </Button>
-      </Box>
+      </HStack>
 
-      <List>
+      <VStack spacing={4} align="stretch">
         {editedDimensions.map(dimension => (
-          <ListItem
+          <Box
             key={dimension.id}
-            sx={{
-              flexDirection: 'column',
-              alignItems: 'stretch',
-              bgcolor: 'background.paper',
-              mb: 2,
-              borderRadius: 1
-            }}
+            p={4}
+            borderWidth={1}
+            borderRadius="md"
+            bg="white"
           >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="subtitle1">{dimension.displayName}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {dimension.description}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  ID: {dimension.id}
-                </Typography>
+            <HStack justify="space-between" align="start" mb={4}>
+              <Box flex={1}>
+                <Text fontSize="lg" fontWeight="medium">{dimension.displayName}</Text>
+                <Text fontSize="sm" color="gray.600">{dimension.description}</Text>
+                <Text fontSize="xs" color="gray.500">ID: {dimension.id}</Text>
               </Box>
-              <Box>
+              <HStack>
                 <IconButton
-                  size="small"
+                  aria-label="Edit dimension"
+                  icon={<EditIcon />}
+                  size="sm"
                   onClick={() => {
                     setEditingDimension(dimension);
                     setIsNewDimension(false);
+                    onDimensionModalOpen();
                   }}
-                >
-                  <Edit />
-                </IconButton>
+                />
                 <IconButton
-                  size="small"
-                  color="error"
+                  aria-label="Delete dimension"
+                  icon={<DeleteIcon />}
+                  size="sm"
+                  colorScheme="red"
                   onClick={() => handleDeleteDimension(dimension.id)}
-                >
-                  <Delete />
-                </IconButton>
-              </Box>
-            </Box>
+                />
+              </HStack>
+            </HStack>
 
-            <Box sx={{ mt: 2, width: '100%' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                <Typography variant="subtitle2">Modes</Typography>
+            <Box>
+              <HStack justify="space-between" align="center" mb={2}>
+                <Text fontSize="md" fontWeight="medium">Modes</Text>
                 <Button
-                  size="small"
-                  startIcon={<Add />}
+                  size="sm"
+                  leftIcon={<AddIcon />}
                   onClick={() => handleAddMode(dimension.id)}
                 >
                   Add Mode
                 </Button>
-              </Box>
-              <List dense>
+              </HStack>
+              <VStack spacing={2} align="stretch">
                 {dimension.modes.map(mode => (
-                  <ListItem key={mode.id}>
-                    <ListItemText
-                      primary={mode.name}
-                      secondary={
-                        <Box>
-                          <Typography variant="caption" display="block">
-                            {mode.description}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            ID: {mode.id}
-                          </Typography>
-                        </Box>
-                      }
-                    />
-                    <ListItemSecondaryAction>
+                  <HStack
+                    key={mode.id}
+                    p={2}
+                    borderWidth={1}
+                    borderRadius="md"
+                    justify="space-between"
+                  >
+                    <Box>
+                      <Text fontWeight="medium">{mode.name}</Text>
+                      <Text fontSize="sm" color="gray.600">{mode.description}</Text>
+                      <Text fontSize="xs" color="gray.500">ID: {mode.id}</Text>
+                    </Box>
+                    <HStack>
                       <IconButton
-                        size="small"
+                        aria-label="Edit mode"
+                        icon={<EditIcon />}
+                        size="sm"
                         onClick={() => {
                           setEditingMode({ dimensionId: dimension.id, mode });
                           setIsNewMode(false);
+                          onModeModalOpen();
                         }}
-                      >
-                        <Edit />
-                      </IconButton>
+                      />
                       <IconButton
-                        size="small"
-                        color="error"
+                        aria-label="Delete mode"
+                        icon={<DeleteIcon />}
+                        size="sm"
+                        colorScheme="red"
                         onClick={() => handleDeleteMode(dimension.id, mode.id)}
-                      >
-                        <Delete />
-                      </IconButton>
-                    </ListItemSecondaryAction>
-                  </ListItem>
+                      />
+                    </HStack>
+                  </HStack>
                 ))}
-              </List>
+              </VStack>
             </Box>
-          </ListItem>
+          </Box>
         ))}
-      </List>
+      </VStack>
 
-      {/* Dimension Editor Dialog */}
-      <Dialog open={!!editingDimension} onClose={() => setEditingDimension(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>{isNewDimension ? 'Add Dimension' : 'Edit Dimension'}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-            <TextField
-              label="Dimension ID"
-              value={editingDimension?.id || ''}
-              disabled
-              fullWidth
-              helperText="Dimension IDs are automatically generated and cannot be edited"
-            />
-            <FormControl fullWidth>
-              <InputLabel>Type</InputLabel>
-              <Select
-                value={editingDimension?.type || 'COLOR_SCHEME'}
-                label="Type"
-                onChange={(e) => setEditingDimension(prev => prev ? { ...prev, type: e.target.value as Dimension['type'] } : null)}
-              >
-                <MenuItem value="COLOR_SCHEME">Color Scheme</MenuItem>
-                <MenuItem value="CONTRAST">Contrast</MenuItem>
-                <MenuItem value="DEVICE_TYPE">Device Type</MenuItem>
-                <MenuItem value="BRAND">Brand</MenuItem>
-                <MenuItem value="THEME">Theme</MenuItem>
-                <MenuItem value="MOTION">Motion</MenuItem>
-                <MenuItem value="DENSITY">Density</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              label="Display Name"
-              value={editingDimension?.displayName || ''}
-              onChange={(e) => setEditingDimension(prev => prev ? { ...prev, displayName: e.target.value } : null)}
-              fullWidth
-            />
-            <TextField
-              label="Description"
-              value={editingDimension?.description || ''}
-              onChange={(e) => setEditingDimension(prev => prev ? { ...prev, description: e.target.value } : null)}
-              multiline
-              rows={2}
-              fullWidth
-            />
-            <FormControl>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography>Required:</Typography>
-                <Chip
-                  label={editingDimension?.required ? 'Yes' : 'No'}
-                  color={editingDimension?.required ? 'success' : 'default'}
-                  onClick={() => setEditingDimension(prev => prev ? { ...prev, required: !prev.required } : null)}
-                  clickable
+      {/* Dimension Editor Modal */}
+      <Modal isOpen={isDimensionModalOpen} onClose={onDimensionModalClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>{isNewDimension ? 'Add Dimension' : 'Edit Dimension'}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4}>
+              <FormControl>
+                <FormLabel>Dimension ID</FormLabel>
+                <Input
+                  value={editingDimension?.id || ''}
+                  isReadOnly
                 />
-              </Box>
-            </FormControl>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditingDimension(null)}>Cancel</Button>
-          <Button onClick={handleSaveDimension} variant="contained">
-            {isNewDimension ? 'Add Dimension' : 'Save Changes'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+              </FormControl>
+              <FormControl>
+                <FormLabel>Display Name</FormLabel>
+                <Input
+                  value={editingDimension?.displayName || ''}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingDimension(prev => prev ? { ...prev, displayName: e.target.value } : null)}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Description</FormLabel>
+                <Input
+                  value={editingDimension?.description || ''}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingDimension(prev => prev ? { ...prev, description: e.target.value } : null)}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Type</FormLabel>
+                <Select
+                  value={editingDimension?.type || 'COLOR_SCHEME'}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditingDimension(prev => prev ? { ...prev, type: e.target.value as Dimension['type'] } : null)}
+                >
+                  <option value="COLOR_SCHEME">Color Scheme</option>
+                  <option value="CONTRAST">Contrast</option>
+                  <option value="DEVICE_TYPE">Device Type</option>
+                  <option value="BRAND">Brand</option>
+                  <option value="THEME">Theme</option>
+                  <option value="MOTION">Motion</option>
+                  <option value="DENSITY">Density</option>
+                </Select>
+              </FormControl>
+              <FormControl>
+                <FormLabel>Default Mode</FormLabel>
+                <Select
+                  value={editingDimension?.defaultMode || ''}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditingDimension(prev => prev ? { ...prev, defaultMode: e.target.value } : null)}
+                >
+                  <option value="">None</option>
+                  {editingDimension?.modes.map(mode => (
+                    <option key={mode.id} value={mode.id}>{mode.name}</option>
+                  ))}
+                </Select>
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onDimensionModalClose}>
+              Cancel
+            </Button>
+            <Button colorScheme="blue" onClick={handleSaveDimension}>
+              Save
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
 
-      {/* Mode Editor Dialog */}
-      <Dialog open={!!editingMode} onClose={() => setEditingMode(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>{isNewMode ? 'Add Mode' : 'Edit Mode'}</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
-            <TextField
-              label="Mode ID"
-              value={editingMode?.mode.id || ''}
-              disabled
-              fullWidth
-              helperText="Mode IDs are automatically generated and cannot be edited"
-            />
-            <TextField
-              label="Name"
-              value={editingMode?.mode.name || ''}
-              onChange={(e) => setEditingMode(prev => prev ? { ...prev, mode: { ...prev.mode, name: e.target.value } } : null)}
-              fullWidth
-            />
-            <TextField
-              label="Description"
-              value={editingMode?.mode.description || ''}
-              onChange={(e) => setEditingMode(prev => prev ? { ...prev, mode: { ...prev.mode, description: e.target.value } } : null)}
-              multiline
-              rows={2}
-              fullWidth
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditingMode(null)}>Cancel</Button>
-          <Button onClick={handleSaveMode} variant="contained">
-            {isNewMode ? 'Add Mode' : 'Save Changes'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {/* Mode Editor Modal */}
+      <Modal isOpen={isModeModalOpen} onClose={onModeModalClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>{isNewMode ? 'Add Mode' : 'Edit Mode'}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4}>
+              <FormControl>
+                <FormLabel>Mode ID</FormLabel>
+                <Input
+                  value={editingMode?.mode.id || ''}
+                  isReadOnly
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Name</FormLabel>
+                <Input
+                  value={editingMode?.mode.name || ''}
+                  onChange={e => setEditingMode(prev => prev ? { ...prev, mode: { ...prev.mode, name: e.target.value } } : null)}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Description</FormLabel>
+                <Input
+                  value={editingMode?.mode.description || ''}
+                  onChange={e => setEditingMode(prev => prev ? { ...prev, mode: { ...prev.mode, description: e.target.value } } : null)}
+                />
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onModeModalClose}>
+              Cancel
+            </Button>
+            <Button colorScheme="blue" onClick={handleSaveMode}>
+              Save
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 } 

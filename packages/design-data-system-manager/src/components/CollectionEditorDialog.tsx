@@ -1,21 +1,25 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
   Button,
   Box,
-  Typography,
-  TextField,
+  Text,
+  Input,
   FormControl,
-  InputLabel,
+  FormLabel,
   Select,
-  MenuItem,
-  Chip,
   Checkbox,
-  FormControlLabel
-} from '@mui/material';
+  VStack,
+  HStack,
+  Tag,
+  useToast
+} from '@chakra-ui/react';
 import type { TokenCollection } from '@token-model/data-model';
 
 export interface CollectionEditorDialogProps {
@@ -35,6 +39,11 @@ interface CollectionEditorFormState {
   private: boolean;
 }
 
+// Extended TokenCollection type to include resolvedValueTypeIds
+interface ExtendedTokenCollection extends TokenCollection {
+  resolvedValueTypeIds?: string[];
+}
+
 export function CollectionEditorDialog({ open, onClose, onSave, collection, valueTypes, isNew = false }: CollectionEditorDialogProps) {
   const [editedCollection, setEditedCollection] = useState<CollectionEditorFormState>({
     name: '',
@@ -43,14 +52,16 @@ export function CollectionEditorDialog({ open, onClose, onSave, collection, valu
     private: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const toast = useToast();
 
   useEffect(() => {
     if (open) {
       if (collection) {
+        const extendedCollection = collection as ExtendedTokenCollection;
         setEditedCollection({
           name: collection.name || '',
           description: collection.description || '',
-          resolvedValueTypeIds: (collection as any).resolvedValueTypeIds || [],
+          resolvedValueTypeIds: extendedCollection.resolvedValueTypeIds || [],
           private: !!collection.private,
         });
       } else {
@@ -65,7 +76,7 @@ export function CollectionEditorDialog({ open, onClose, onSave, collection, valu
     }
   }, [open, collection]);
 
-  const handleChange = (field: keyof CollectionEditorFormState, value: any) => {
+  const handleChange = (field: keyof CollectionEditorFormState, value: string | boolean | string[]) => {
     setEditedCollection(prev => ({ ...prev, [field]: value }));
   };
 
@@ -73,10 +84,22 @@ export function CollectionEditorDialog({ open, onClose, onSave, collection, valu
     setErrors({});
     if (!editedCollection.name || !editedCollection.name.trim()) {
       setErrors({ name: 'Name is required' });
+      toast({
+        title: 'Validation Error',
+        description: 'Name is required',
+        status: 'error',
+        duration: 2000,
+      });
       return;
     }
     if (!Array.isArray(editedCollection.resolvedValueTypeIds) || editedCollection.resolvedValueTypeIds.length === 0) {
       setErrors({ resolvedValueTypeIds: 'At least one value type is required' });
+      toast({
+        title: 'Validation Error',
+        description: 'At least one value type is required',
+        status: 'error',
+        duration: 2000,
+      });
       return;
     }
     onSave({
@@ -90,76 +113,89 @@ export function CollectionEditorDialog({ open, onClose, onSave, collection, valu
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{isNew ? 'Create Collection' : 'Edit Collection'}</DialogTitle>
-      <DialogContent>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-          <TextField
-            label="Name"
-            value={editedCollection.name || ''}
-            onChange={e => handleChange('name', e.target.value)}
-            error={!!errors.name}
-            helperText={errors.name}
-            fullWidth
-          />
-          <TextField
-            label="Description"
-            value={editedCollection.description || ''}
-            onChange={e => handleChange('description', e.target.value)}
-            fullWidth
-            multiline
-            minRows={2}
-          />
-          <FormControl fullWidth error={!!errors.resolvedValueTypeIds}>
-            <InputLabel>Resolved Value Types</InputLabel>
-            <Select
-              multiple
-              value={editedCollection.resolvedValueTypeIds || []}
-              onChange={e => handleChange('resolvedValueTypeIds', e.target.value)}
-              renderValue={selected => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {Array.isArray(selected)
-                    ? selected.map((id: string) => {
-                        const vt = Array.isArray(valueTypes) ? valueTypes.find(v => v.id === id) : undefined;
-                        return <Chip key={id} label={vt ? vt.displayName : id} />;
-                      })
-                    : null}
-                </Box>
-              )}
-            >
-              {Array.isArray(valueTypes) && valueTypes.length > 0 ? (
-                valueTypes.map(vt => (
-                  <MenuItem key={vt.id} value={vt.id}>{vt.displayName}</MenuItem>
-                ))
-              ) : (
-                <MenuItem disabled value="">
-                  {valueTypes === undefined
-                    ? "No resolved value types available. Please configure them in the editor above."
-                    : "No resolved value types found."}
-                </MenuItem>
-              )}
-            </Select>
-            {errors.resolvedValueTypeIds && (
-              <Typography color="error" variant="caption">{errors.resolvedValueTypeIds}</Typography>
-            )}
-          </FormControl>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={!!editedCollection.private}
-                onChange={e => handleChange('private', e.target.checked)}
+    <Modal isOpen={open} onClose={onClose} size="md">
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>{isNew ? 'Create Collection' : 'Edit Collection'}</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <VStack spacing={4} align="stretch">
+            <FormControl isInvalid={!!errors.name} isRequired>
+              <FormLabel>Name</FormLabel>
+              <Input
+                value={editedCollection.name || ''}
+                onChange={e => handleChange('name', e.target.value)}
               />
-            }
-            label="Private"
-          />
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave} variant="contained" color="primary">
-          {isNew ? 'Create' : 'Save'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+              {errors.name && (
+                <Text color="red.500" fontSize="sm">{errors.name}</Text>
+              )}
+            </FormControl>
+            <FormControl>
+              <FormLabel>Description</FormLabel>
+              <Input
+                value={editedCollection.description || ''}
+                onChange={e => handleChange('description', e.target.value)}
+                as="textarea"
+                rows={2}
+              />
+            </FormControl>
+            <FormControl isInvalid={!!errors.resolvedValueTypeIds} isRequired>
+              <FormLabel>Resolved Value Types</FormLabel>
+              <Select
+                multiple
+                value={editedCollection.resolvedValueTypeIds || []}
+                onChange={e => {
+                  const values = Array.from(e.target.selectedOptions, option => option.value);
+                  handleChange('resolvedValueTypeIds', values);
+                }}
+              >
+                {Array.isArray(valueTypes) && valueTypes.length > 0 ? (
+                  valueTypes.map(vt => (
+                    <option key={vt.id} value={vt.id}>{vt.displayName}</option>
+                  ))
+                ) : (
+                  <option disabled value="">
+                    {valueTypes === undefined
+                      ? "No resolved value types available. Please configure them in the editor above."
+                      : "No resolved value types found."}
+                  </option>
+                )}
+              </Select>
+              <Box mt={2}>
+                <HStack spacing={2} wrap="wrap">
+                  {editedCollection.resolvedValueTypeIds.map((id: string) => {
+                    const vt = Array.isArray(valueTypes) ? valueTypes.find(v => v.id === id) : undefined;
+                    return (
+                      <Tag key={id} size="md" colorScheme="blue">
+                        {vt ? vt.displayName : id}
+                      </Tag>
+                    );
+                  })}
+                </HStack>
+              </Box>
+              {errors.resolvedValueTypeIds && (
+                <Text color="red.500" fontSize="sm">{errors.resolvedValueTypeIds}</Text>
+              )}
+            </FormControl>
+            <FormControl>
+              <Checkbox
+                isChecked={!!editedCollection.private}
+                onChange={e => handleChange('private', e.target.checked)}
+              >
+                Private
+              </Checkbox>
+            </FormControl>
+          </VStack>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" mr={3} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button colorScheme="blue" onClick={handleSave}>
+            {isNew ? 'Create' : 'Save'}
+          </Button>
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
   );
 } 

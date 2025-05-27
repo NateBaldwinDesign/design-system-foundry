@@ -52,4 +52,34 @@ The schema must support a set of value types that are semantically meaningful, i
 ## Application
 - Use the standard types for all common design token needs.
 - When introducing a custom type, document its purpose and how it should be transformed for each platform.
-- Update the schema and documentation as new types are added or standardized. 
+- Update the schema and documentation as new types are added or standardized.
+
+# Technical Decisions: Token codeSyntax Structure
+
+## Context
+Tokens need to support platform-specific naming conventions (code syntax) for any number of platforms, including custom ones.
+
+## Decision
+Instead of using an object/map with platform names as keys (e.g., Figma, Web, iOS, Android), the schema now defines `codeSyntax` as an array of objects, each with a `platformId` and a `formattedName` string.
+
+## Rationale
+- **Scalability:** Supports any number of platforms, including custom and future platforms, without schema changes.
+- **Explicit linkage:** Each code syntax entry is directly linked to a platform by its ID, not by a string name, ensuring referential integrity.
+- **Extensibility:** New platforms can be added without changing the schema or breaking validation.
+- **Stability:** Avoids hardcoding platform names and enables future-proofing.
+
+## Example
+```json
+{
+  "codeSyntax": [
+    { "platformId": "platform-figma", "formattedName": "ColorPrimary" },
+    { "platformId": "platform-web", "formattedName": "color-primary" },
+    { "platformId": "platform-ios", "formattedName": "ColorPrimaryIOS" },
+    { "platformId": "platform-android", "formattedName": "color_primary_android" }
+  ]
+}
+```
+
+## Application
+- All code and UI should treat `codeSyntax` as an array of `{ platformId, formattedName }` objects.
+- When displaying or editing code syntax, map over the platforms array and find the corresponding code syntax entry by `platformId`. 

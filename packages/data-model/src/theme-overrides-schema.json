@@ -4,8 +4,12 @@
   "title": "Theme Override Schema",
   "description": "Schema for theme override files, referenced from the main schema's themes[].overrideFileUri property.",
   "type": "object",
-  "required": ["themeId", "tokenOverrides"],
+  "required": ["systemId", "themeId", "tokenOverrides"],
   "properties": {
+    "systemId": {
+      "type": "string",
+      "description": "ID of the core token system this theme override is for. Used to identify which core data the overrides should be merged with."
+    },
     "themeId": {
       "type": "string",
       "description": "ID of the theme these overrides belong to"

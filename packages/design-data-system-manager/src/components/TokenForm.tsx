@@ -1,22 +1,20 @@
-import { useState, useEffect } from 'react';
-import { 
-  Box, 
-  TextField, 
-  Button, 
-  FormControl, 
-  InputLabel, 
-  Select, 
-  MenuItem, 
-  Typography,
-  IconButton,
-  FormControlLabel,
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Text,
+  Input,
+  Button,
+  FormControl,
+  FormLabel,
+  Select,
   Switch,
-  Grid,
-  Chip,
-  SelectChangeEvent,
-  FormHelperText
-} from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+  VStack,
+  HStack,
+  IconButton,
+  useToast,
+  Checkbox
+} from '@chakra-ui/react';
+import { AddIcon, DeleteIcon } from '@chakra-ui/icons';
 import type { Token, TokenCollection, Mode, TokenValue, Dimension, Taxonomy, TokenTaxonomyRef } from '@token-model/data-model';
 import { TaxonomyPicker } from './TaxonomyPicker';
 import { useSchema } from '../hooks/useSchema';
@@ -33,9 +31,9 @@ interface TokenFormProps {
 }
 
 export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, onSubmit, initialData }: TokenFormProps) {
-  // Ensure taxonomies is always an array
   const safeTaxonomies = Array.isArray(taxonomies) ? taxonomies : [];
-  const [formData, setFormData] = useState<Omit<Token, 'id'>>({
+  const [formData, setFormData] = useState<Token>(() => ({
+    id: crypto.randomUUID(),
     displayName: '',
     description: '',
     tokenCollectionId: '',
@@ -46,11 +44,10 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
     propertyTypes: ['ALL_PROPERTY_TYPES'],
     codeSyntax: {},
     valuesByMode: []
-  });
-
+  }));
   const { schema } = useSchema();
+  const toast = useToast();
 
-  // Initialize form data from initialData if provided
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -62,7 +59,6 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
     }
   }, [initialData]);
 
-  // Clean up invalid taxonomy/term references when taxonomies change
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
@@ -73,85 +69,32 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
     }));
   }, [safeTaxonomies]);
 
-  const handleInputChange = (field: keyof Omit<Token, 'id'>, value: any) => {
+  const handleInputChange = (field: keyof Token, value: string | string[] | boolean | TokenTaxonomyRef[]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
-  const handleTaxonomyRefChange = (index: number, field: 'taxonomyId' | 'termId', value: string) => {
+  const handleValueByModeChange = (index: number, field: 'modeIds' | 'value', value: string[] | TokenValue) => {
     setFormData(prev => ({
       ...prev,
-      taxonomies: prev.taxonomies.map((ref: TokenTaxonomyRef, i: number) =>
-        i === index
-          ? field === 'taxonomyId'
-            ? { taxonomyId: value, termId: '' } // Reset termId if taxonomy changes
-            : { ...ref, termId: value }
-          : ref
-      )
-    }));
-  };
-
-  const handleAddTaxonomyRef = () => {
-    // Only allow adding taxonomies that haven't been selected yet
-    const availableTaxonomies = safeTaxonomies.filter(tax =>
-      !formData.taxonomies.some(ref => ref.taxonomyId === tax.id)
-    );
-    if (availableTaxonomies.length === 0) return;
-    setFormData(prev => ({
-      ...prev,
-      taxonomies: [
-        ...prev.taxonomies,
-        { taxonomyId: '', termId: '' } as TokenTaxonomyRef
-      ]
-    }));
-  };
-
-  const handleRemoveTaxonomyRef = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      taxonomies: prev.taxonomies.filter((_, i) => i !== index)
-    }));
-  };
-
-  const getAvailableModes = (selectedModeIds: string[]) => {
-    const requiredDimensions = dimensions.filter(d => d.required);
-    const optionalDimensions = dimensions.filter(d => !d.required);
-    
-    // Get modes for required dimensions that haven't been selected yet
-    const requiredModes = requiredDimensions
-      .flatMap(d => modes.filter(m => m.dimensionId === d.id))
-      .filter(m => !selectedModeIds.includes(m.id));
-
-    // Get modes for optional dimensions
-    const optionalModes = optionalDimensions
-      .flatMap(d => modes.filter(m => m.dimensionId === d.id));
-
-    return [...requiredModes, ...optionalModes];
-  };
-
-  const handleValueByModeChange = (index: number, field: 'modeIds' | 'value', value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      valuesByMode: (prev.valuesByMode || []).map((item, i) => 
+      valuesByMode: (prev.valuesByMode || []).map((item, i) =>
         i === index ? { ...item, [field]: value } : item
       )
     }));
   };
 
   const addValueByMode = () => {
-    // Start with required dimensions
     const requiredModeIds = dimensions
       .filter(d => d.required)
       .map(d => modes.find(m => m.dimensionId === d.id && m.name === d.defaultMode)?.id)
       .filter(Boolean) as string[];
-
     setFormData(prev => ({
       ...prev,
-      valuesByMode: [...(prev.valuesByMode || []), { 
+      valuesByMode: [...(prev.valuesByMode || []), {
         modeIds: requiredModeIds,
-        value: { type: 'COLOR', value: '' } 
+        value: { type: 'COLOR', value: '' }
       }]
     }));
   };
@@ -165,80 +108,80 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Validate taxonomy assignments before submitting
     const validTaxonomies = formData.taxonomies.filter(ref =>
       safeTaxonomies.some(tax => tax.id === ref.taxonomyId) &&
       (ref.termId === '' || safeTaxonomies.find(tax => tax.id === ref.taxonomyId)?.terms.some(term => term.id === ref.termId))
     );
-    // Generate codeSyntax for all platforms
     const codeSyntax = CodeSyntaxService.generateAllCodeSyntaxes(
-      { ...formData, taxonomies: validTaxonomies } as any,
-      schema as any
+      { ...formData, taxonomies: validTaxonomies },
+      schema
     );
     onSubmit({ ...formData, taxonomies: validTaxonomies, codeSyntax });
+    toast({ title: 'Token saved', status: 'success', duration: 2000 });
   };
 
   const getValueInput = (value: TokenValue, onChange: (value: TokenValue) => void) => {
     switch (value.type) {
       case 'COLOR':
         return (
-          <TextField
-            label="Color Value"
-            value={value.value}
-            onChange={(e) => onChange({ type: 'COLOR', value: e.target.value })}
+          <Input
             type="color"
+            value={value.value}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'COLOR', value: e.target.value })}
+            size="sm"
+            w="100px"
           />
         );
       case 'FLOAT':
         return (
-          <TextField
-            label="Float Value"
-            value={value.value}
-            onChange={(e) => onChange({ type: 'FLOAT', value: parseFloat(e.target.value) })}
+          <Input
             type="number"
-            inputProps={{ step: '0.1' }}
+            value={value.value}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'FLOAT', value: parseFloat(e.target.value) })}
+            size="sm"
+            w="120px"
           />
         );
       case 'INTEGER':
         return (
-          <TextField
-            label="Integer Value"
-            value={value.value}
-            onChange={(e) => onChange({ type: 'INTEGER', value: parseInt(e.target.value) })}
+          <Input
             type="number"
+            value={value.value}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'INTEGER', value: parseInt(e.target.value) })}
+            size="sm"
+            w="120px"
           />
         );
       case 'STRING':
         return (
-          <TextField
-            label="String Value"
+          <Input
             value={value.value}
-            onChange={(e) => onChange({ type: 'STRING', value: e.target.value })}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'STRING', value: e.target.value })}
+            size="sm"
+            w="200px"
           />
         );
       case 'BOOLEAN':
         return (
-          <FormControlLabel
-            control={
-              <Switch
-                checked={value.value}
-                onChange={(e) => onChange({ type: 'BOOLEAN', value: e.target.checked })}
-              />
-            }
-            label="Boolean Value"
-          />
+          <FormControl display="flex" alignItems="center">
+            <FormLabel mb={0}>Boolean Value</FormLabel>
+            <Switch
+              isChecked={value.value}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'BOOLEAN', value: e.target.checked })}
+              size="md"
+            />
+          </FormControl>
         );
       case 'ALIAS':
         return (
-          <FormControl fullWidth>
-            <InputLabel>Alias Token</InputLabel>
+          <FormControl>
+            <FormLabel>Alias Token</FormLabel>
             <Select
               value={value.tokenId}
-              label="Alias Token"
-              onChange={(e) => onChange({ type: 'ALIAS', tokenId: e.target.value })}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange({ type: 'ALIAS', tokenId: e.target.value })}
             >
               {tokens.map(token => (
-                <MenuItem key={token.id} value={token.id}>{token.displayName}</MenuItem>
+                <option key={token.id} value={token.id}>{token.displayName}</option>
               ))}
             </Select>
           </FormControl>
@@ -248,215 +191,120 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
     }
   };
 
-  const handleValueTypeChange = (index: number, type: TokenValue['type']) => {
-    setFormData(prev => ({
-      ...prev,
-      valuesByMode: (prev.valuesByMode || []).map((item, i) => 
-        i === index ? { 
-          ...item, 
-          value: type === 'COLOR' 
-            ? { type: 'COLOR', value: '' }
-            : type === 'FLOAT'
-            ? { type: 'FLOAT', value: 0 }
-            : type === 'INTEGER'
-            ? { type: 'INTEGER', value: 0 }
-            : type === 'STRING'
-            ? { type: 'STRING', value: '' }
-            : type === 'ALIAS'
-            ? { type: 'ALIAS', tokenId: '' }
-            : { type: 'BOOLEAN', value: false }
-        } : item
-      )
-    }));
-  };
-
   return (
-    <Box component="form" onSubmit={handleSubmit} sx={{ maxWidth: 800 }}>
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Display Name"
+    <Box as="form" onSubmit={handleSubmit} maxW="800px" mx="auto" p={4}>
+      <VStack align="stretch" spacing={4}>
+        <Text fontSize="xl" fontWeight="bold">{initialData ? 'Edit Token' : 'Create Token'}</Text>
+        <FormControl isRequired>
+          <FormLabel>Display Name</FormLabel>
+          <Input
             value={formData.displayName}
-            onChange={(e) => handleInputChange('displayName', e.target.value)}
-            required
+            onChange={e => handleInputChange('displayName', e.target.value)}
           />
-        </Grid>
-
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Description"
+        </FormControl>
+        <FormControl>
+          <FormLabel>Description</FormLabel>
+          <Input
             value={formData.description}
-            onChange={(e) => handleInputChange('description', e.target.value)}
-            multiline
-            rows={2}
+            onChange={e => handleInputChange('description', e.target.value)}
           />
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <FormControl fullWidth required>
-            <InputLabel>Collection</InputLabel>
-            <Select
-              value={formData.tokenCollectionId}
-              label="Collection"
-              onChange={(e) => handleInputChange('tokenCollectionId', e.target.value)}
-            >
-              {collections.map(collection => (
-                <MenuItem key={collection.id} value={collection.id}>
-                  {collection.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        <Grid item xs={12} sm={6}>
-          <FormControl fullWidth required>
-            <InputLabel>Value Type</InputLabel>
-            <Select
-              value={formData.resolvedValueType}
-              label="Value Type"
-              onChange={(e) => handleInputChange('resolvedValueType', e.target.value)}
-            >
-              {['COLOR', 'FLOAT', 'INTEGER', 'STRING', 'BOOLEAN', 'ALIAS'].map(type => (
-                <MenuItem key={type} value={type}>
-                  {type}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        <Grid item xs={12}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={formData.private}
-                onChange={(e) => handleInputChange('private', e.target.checked)}
-              />
-            }
-            label="Private Token"
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <Typography variant="h6" gutterBottom>
-            Taxonomies
-          </Typography>
-          <FormHelperText sx={{ mb: 2 }}>
-            Select taxonomies and terms to categorize this token. Each taxonomy can only be selected once.
-          </FormHelperText>
-          <TaxonomyPicker
-            taxonomies={safeTaxonomies}
-            value={formData.taxonomies}
-            onChange={newTaxonomies => setFormData(prev => ({ ...prev, taxonomies: newTaxonomies }))}
-            disabled={safeTaxonomies.length === 0}
-          />
-        </Grid>
-
-        <Grid item xs={12}>
-          <Typography variant="h6" gutterBottom>
-            Code Syntax (auto-generated)
-          </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {Object.entries(CodeSyntaxService.generateAllCodeSyntaxes(formData as any, schema as any)).map(([platform, syntax]) => (
-              <Box key={platform} sx={{ display: 'flex', gap: 2 }}>
-                <TextField
-                  label={platform}
-                  value={syntax}
-                  InputProps={{ readOnly: true }}
-                />
-              </Box>
+        </FormControl>
+        <FormControl isRequired>
+          <FormLabel>Collection</FormLabel>
+          <Select
+            value={formData.tokenCollectionId}
+            onChange={e => handleInputChange('tokenCollectionId', e.target.value)}
+            placeholder="Select collection"
+          >
+            {collections.map(collection => (
+              <option key={collection.id} value={collection.id}>{collection.name}</option>
             ))}
-          </Box>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Typography variant="h6" gutterBottom>
-            Values by Mode
-          </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {(formData.valuesByMode || []).map((valueByMode, index) => (
-              <Box key={index} sx={{ display: 'flex', gap: 2 }}>
-                <FormControl sx={{ minWidth: 200 }}>
-                  <InputLabel>Modes</InputLabel>
+          </Select>
+        </FormControl>
+        <FormControl isRequired>
+          <FormLabel>Resolved Value Type</FormLabel>
+          <Select
+            value={formData.resolvedValueType}
+            onChange={e => handleInputChange('resolvedValueType', e.target.value)}
+            placeholder="Select value type"
+          >
+            <option value="COLOR">Color</option>
+            <option value="FLOAT">Float</option>
+            <option value="INTEGER">Integer</option>
+            <option value="STRING">String</option>
+            <option value="BOOLEAN">Boolean</option>
+            <option value="ALIAS">Alias</option>
+          </Select>
+        </FormControl>
+        <FormControl>
+          <Checkbox
+            isChecked={!!formData.private}
+            onChange={e => handleInputChange('private', e.target.checked)}
+          >
+            Private
+          </Checkbox>
+        </FormControl>
+        <FormControl>
+          <Checkbox
+            isChecked={!!formData.themeable}
+            onChange={e => handleInputChange('themeable', e.target.checked)}
+          >
+            Themeable
+          </Checkbox>
+        </FormControl>
+        <FormControl>
+          <FormLabel>Property Types (comma separated)</FormLabel>
+          <Input
+            value={(formData.propertyTypes || []).join(',')}
+            onChange={e => handleInputChange('propertyTypes', e.target.value.split(',').map((v: string) => v.trim()))}
+          />
+        </FormControl>
+        <Text fontSize="lg" fontWeight="medium">Taxonomies</Text>
+        <TaxonomyPicker
+          taxonomies={taxonomies}
+          value={Array.isArray(formData.taxonomies) ? formData.taxonomies : []}
+          onChange={newTaxonomies => handleInputChange('taxonomies', newTaxonomies)}
+          disabled={taxonomies.length === 0}
+        />
+        <Text fontSize="lg" fontWeight="medium">Values By Mode</Text>
+        <VStack align="stretch" spacing={2}>
+          {(formData.valuesByMode || []).map((valueByMode, index) => (
+            <Box key={index} p={2} borderWidth={1} borderRadius="md" bg="gray.50">
+              <HStack spacing={2} mb={2}>
+                <FormControl>
+                  <FormLabel>Mode IDs</FormLabel>
                   <Select
                     multiple
                     value={valueByMode.modeIds}
-                    label="Modes"
-                    onChange={(e) => handleValueByModeChange(index, 'modeIds', e.target.value)}
-                    renderValue={(selected) => (
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {selected.map((modeId) => {
-                          const mode = modes.find(m => m.id === modeId);
-                          const dimension = dimensions.find(d => d.id === mode?.dimensionId);
-                          return (
-                            <Chip 
-                              key={modeId} 
-                              label={`${dimension?.displayName || 'Unknown'}: ${mode?.name || modeId}`}
-                              color={dimension?.required ? 'primary' : 'default'}
-                            />
-                          );
-                        })}
-                      </Box>
-                    )}
+                    onChange={e => handleValueByModeChange(index, 'modeIds', Array.from(e.target.selectedOptions, option => option.value))}
                   >
-                    {getAvailableModes(valueByMode.modeIds).map(mode => {
-                      const dimension = dimensions.find(d => d.id === mode.dimensionId);
-                      return (
-                        <MenuItem key={mode.id} value={mode.id}>
-                          {dimension?.displayName || 'Unknown'}: {mode.name}
-                          {dimension?.required && ' (Required)'}
-                        </MenuItem>
-                      );
-                    })}
-                  </Select>
-                  <FormHelperText>
-                    Required dimensions are marked with (Required)
-                  </FormHelperText>
-                </FormControl>
-                <FormControl sx={{ minWidth: 200 }}>
-                  <InputLabel>Value Type</InputLabel>
-                  <Select
-                    value={valueByMode.value.type}
-                    label="Value Type"
-                    onChange={(e) => handleValueTypeChange(index, e.target.value as TokenValue['type'])}
-                  >
-                    <MenuItem value="COLOR">Color</MenuItem>
-                    <MenuItem value="FLOAT">Float</MenuItem>
-                    <MenuItem value="INTEGER">Integer</MenuItem>
-                    <MenuItem value="STRING">String</MenuItem>
-                    <MenuItem value="BOOLEAN">Boolean</MenuItem>
-                    <MenuItem value="ALIAS">Alias</MenuItem>
+                    {modes.map(mode => (
+                      <option key={mode.id} value={mode.id}>{mode.name}</option>
+                    ))}
                   </Select>
                 </FormControl>
-                {getValueInput(valueByMode.value, (value) => handleValueByModeChange(index, 'value', value))}
-                <IconButton onClick={() => removeValueByMode(index)}>
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
-            ))}
-            <Button
-              startIcon={<AddIcon />}
-              onClick={addValueByMode}
-            >
-              Add Value by Mode
-            </Button>
-          </Box>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Button
-            type="submit"
-            variant="contained"
-            color="primary"
-            size="large"
-          >
-            {initialData ? 'Update Token' : 'Create Token'}
+                <FormControl>
+                  <FormLabel>Value</FormLabel>
+                  {getValueInput(valueByMode.value, (v) => handleValueByModeChange(index, 'value', v))}
+                </FormControl>
+                <IconButton
+                  aria-label="Delete value by mode"
+                  icon={<DeleteIcon />}
+                  size="sm"
+                  colorScheme="red"
+                  onClick={() => removeValueByMode(index)}
+                />
+              </HStack>
+            </Box>
+          ))}
+          <Button leftIcon={<AddIcon />} onClick={addValueByMode} colorScheme="blue" size="sm">
+            Add Value by Mode
           </Button>
-        </Grid>
-      </Grid>
+        </VStack>
+        <Button type="submit" colorScheme="blue" size="lg" mt={4}>
+          {initialData ? 'Update Token' : 'Create Token'}
+        </Button>
+      </VStack>
     </Box>
   );
 } 

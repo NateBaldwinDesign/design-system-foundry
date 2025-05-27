@@ -4,6 +4,8 @@ This package defines the canonical JSON schema and TypeScript types for the Toke
 
 ## Schema Overview
 
+- **systemName**: Human-readable name for this token system. (Required)
+- **systemId**: Unique identifier for this token system, using the same pattern as other IDs. (Required)
 - **Dimension**: Represents a dimension (e.g., color scheme, contrast) with a set of modes.
 - **Mode**: Represents a mode within a dimension (e.g., Light, Dark).
 - **TokenCollection**: A group of tokens, with value type and mode resolution strategy.
@@ -44,6 +46,8 @@ This ensures a token can have either a single global value or multiple mode-spec
 ```
 
 ## Validation
+
+The schema requires the following top-level fields: `systemName`, `systemId`, `tokenCollections`, `dimensions`, `tokens`, `platforms`, `version`, and `versionHistory`.
 
 The package provides a utility function to validate the above rule:
 
@@ -105,6 +109,7 @@ The core data instance (e.g., `core-data.json`) defines all tokens, collections,
 
 Theme overrides allow you to extend the core data set by providing alternate values for tokens that are marked as `"themeable": true`. This is achieved using separate theme override files, each conforming to the [`theme-overrides-schema.json`](src/theme-overrides-schema.json).
 
+- **systemId** (required): The ID of the core token system this theme override is for. This field is used to identify which core data the theme overrides should be merged with in order to produce a full dataset. It must match the `systemId` of the core data file.
 - **Core tokens** and their `"themeable"` status are defined in the main data file (e.g., `core-data.json`).
 - **Theme override files** (e.g., `brand-a-overrides.json`) provide overrides for only those tokens that are themeable.
 
@@ -145,6 +150,7 @@ Theme overrides allow you to extend the core data set by providing alternate val
 - Theme override files must reference existing theme IDs and token IDs.
 - Override values must follow the correct type constraints.
 - Core token maintainers have access to the main schema file; theme designers have access only to their theme override files.
+- Theme override files must include a `systemId` field that matches the core data set they are intended to override.
 
 #### Extensibility Benefits
 
@@ -161,3 +167,24 @@ Theme overrides allow you to extend the core data set by providing alternate val
 **Usage Summary:**
 - **Core data** defines the full set of tokens and which are themeable.
 - **Theme overrides** provide a safe, schema-driven way to extend or customize only the tokens that are explicitly marked as themeable, ensuring data integrity and separation of concerns. 
+
+## Token
+
+- **codeSyntax**: Platform-specific naming conventions for this token. This is now an array of objects, each with a `platformId` (referencing a platform in the platforms array) and a `formattedName` string. This allows for custom platforms and explicit linkage, and is more scalable than the previous object-based approach.
+
+**Example:**
+```json
+{
+  "codeSyntax": [
+    { "platformId": "platform-figma", "formattedName": "ColorPrimary" },
+    { "platformId": "platform-web", "formattedName": "color-primary" },
+    { "platformId": "platform-ios", "formattedName": "ColorPrimaryIOS" },
+    { "platformId": "platform-android", "formattedName": "color_primary_android" }
+  ]
+}
+```
+
+**Rationale:**
+- Supports any number of platforms, including custom ones.
+- Explicitly links code syntax to platforms by ID, not by name.
+- Avoids hardcoding platform names and enables future extensibility. 

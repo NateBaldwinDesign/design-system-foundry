@@ -437,31 +437,20 @@
               "items": { "type": "string" }
             },
             "codeSyntax": {
-              "type": "object",
-              "description": "Platform-specific naming conventions",
-              "additionalProperties": { "type": "string" },
-              "properties": {
-                "Figma": {
-                  "type": "string",
-                  "description": "Figma-specific naming convention"
-                },
-                "Web": {
-                  "type": "string",
-                  "description": "Web-specific naming convention"
-                },
-                "iOS": {
-                  "type": "string",
-                  "description": "iOS-specific naming convention"
-                },
-                "Android": {
-                  "type": "string",
-                  "description": "Android-specific naming convention"
-                }
-              },
-              "patternProperties": {
-                "^[a-zA-Z0-9-_]+$": {
-                  "type": "string",
-                  "description": "Custom platform-specific naming convention"
+              "type": "array",
+              "description": "Platform-specific naming conventions for this token.",
+              "items": {
+                "type": "object",
+                "required": ["platformId", "formattedName"],
+                "properties": {
+                  "platformId": {
+                    "type": "string",
+                    "description": "ID of the platform this code syntax applies to (must match a platform in the platforms array)"
+                  },
+                  "formattedName": {
+                    "type": "string",
+                    "description": "The formatted code syntax for this platform."
+                  }
                 }
               }
             },

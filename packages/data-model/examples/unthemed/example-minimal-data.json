@@ -1,4 +1,6 @@
 {
+  "systemName": "Simple design system",
+  "systemId": "simple-design-system",
     "tokenCollections": [
       {
         "id": "tokenCollection-AAAA-AAAA-AAAA",
@@ -347,10 +349,52 @@
       }
     ],
     "platforms": [
-      { "id": "platform-000000", "displayName": "Figma" },
-      { "id": "platform-111111", "displayName": "Web" },
-      { "id": "platform-222222", "displayName": "iOS" },
-      { "id": "platform-333333", "displayName": "Android" }
+      { 
+        "id": "platform-000000", 
+        "displayName": "Figma",
+        "syntaxPatterns": {
+            "prefix": "",
+            "suffix": "",
+            "delimiter": "/",
+            "capitalization": "capitalize",
+            "formatString": ""
+        }
+      },
+      { 
+        "id": "platform-111111", 
+        "displayName": "Web",
+        "syntaxPatterns": {
+            "prefix": "--sp",
+            "suffix": "",
+            "delimiter": "-",
+            "capitalization": "lowercase",
+            "formatString": ""
+        }
+        
+      },
+      { 
+        "id": "platform-222222", 
+        "displayName": "iOS" ,
+        "syntaxPatterns": {
+            "prefix": "sp",
+            "suffix": "",
+            "delimiter": "_",
+            "capitalization": "capitalize",
+            "formatString": ""
+        }
+        
+      },
+      { 
+        "id": "platform-333333", 
+        "displayName": "Android",
+        "syntaxPatterns": {
+            "prefix": "sp",
+            "suffix": "",
+            "delimiter": "_",
+            "capitalization": "uppercase",
+            "formatString": ""
+        }
+      }
     ],
     "namingRules": { 
       "taxonomyOrder": [

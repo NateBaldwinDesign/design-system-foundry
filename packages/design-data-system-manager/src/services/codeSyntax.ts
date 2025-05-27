@@ -19,11 +19,11 @@ export class CodeSyntaxService {
     const usedTaxonomyIds = new Set<string>();
     if (Array.isArray(token.taxonomies) && token.taxonomies.length > 0) {
       // Always use taxonomyOrder from schema.namingRules
-      taxonomyOrder.forEach(taxId => {
-        const ref = token.taxonomies.find(t => t.taxonomyId === taxId);
+      taxonomyOrder.forEach((taxId: string) => {
+        const ref = token.taxonomies.find((t: { taxonomyId: string }) => t.taxonomyId === taxId);
         if (ref) {
-          const taxonomy = taxonomies.find(tax => tax.id === ref.taxonomyId);
-          const term = taxonomy?.terms.find(term => term.id === ref.termId);
+          const taxonomy = taxonomies.find((tax: Taxonomy) => tax.id === ref.taxonomyId);
+          const term = taxonomy?.terms.find((term: { id: string }) => term.id === ref.termId);
           if (term) {
             parts.push(term.name);
             usedTaxonomyIds.add(taxId);
@@ -31,51 +31,73 @@ export class CodeSyntaxService {
         }
       });
       // Add any remaining taxonomies not in the order, in the order they appear in token.taxonomies
-      token.taxonomies.forEach(ref => {
+      token.taxonomies.forEach((ref: { taxonomyId: string; termId: string }) => {
         if (!usedTaxonomyIds.has(ref.taxonomyId)) {
-          const taxonomy = taxonomies.find(tax => tax.id === ref.taxonomyId);
-          const term = taxonomy?.terms.find(term => term.id === ref.termId);
+          const taxonomy = taxonomies.find((tax: Taxonomy) => tax.id === ref.taxonomyId);
+          const term = taxonomy?.terms.find((term: { id: string }) => term.id === ref.termId);
           if (term) parts.push(term.name);
         }
       });
     }
     // Fallback to displayName if no taxonomy terms
     if (parts.length === 0) {
-      parts.push(token.displayName);
+      return '';
     }
-    // Join parts with delimiter
-    let name = parts.join(syntax.delimiter ?? '');
-    // Capitalization
+    // Capitalization for each part
+    let processedParts = parts;
     switch (syntax.capitalization) {
       case 'uppercase':
-        name = name.toUpperCase();
+        processedParts = parts.map((p: string) => p.toUpperCase());
         break;
       case 'lowercase':
-        name = name.toLowerCase();
+        processedParts = parts.map((p: string) => p.toLowerCase());
         break;
       case 'capitalize':
-        name = name.replace(/\b\w/g, c => c.toUpperCase());
+        processedParts = parts.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase());
+        break;
+      default:
+        break;
+    }
+    // Join parts with delimiter
+    const name = processedParts.join(syntax.delimiter ?? '');
+    // Apply delimiter and capitalization to prefix and suffix
+    let prefix = syntax.prefix ?? '';
+    let suffix = syntax.suffix ?? '';
+    if (prefix && syntax.delimiter) prefix = prefix.split(/\s+/).join(syntax.delimiter);
+    if (suffix && syntax.delimiter) suffix = suffix.split(/\s+/).join(syntax.delimiter);
+    // Capitalization for prefix and suffix
+    switch (syntax.capitalization) {
+      case 'uppercase':
+        prefix = prefix.toUpperCase();
+        suffix = suffix.toUpperCase();
+        break;
+      case 'lowercase':
+        prefix = prefix.toLowerCase();
+        suffix = suffix.toLowerCase();
+        break;
+      case 'capitalize':
+        prefix = prefix.replace(/\b\w/g, (c: string) => c.toUpperCase());
+        suffix = suffix.replace(/\b\w/g, (c: string) => c.toUpperCase());
         break;
       default:
         break;
     }
     // Format string or prefix/suffix
-    let result = `${syntax.prefix ?? ''}${name}${syntax.suffix ?? ''}`;
+    let result = `${prefix}${name}${suffix}`;
     if (syntax.formatString) {
       result = syntax.formatString
-        .replace('{prefix}', syntax.prefix ?? '')
+        .replace('{prefix}', prefix)
         .replace('{name}', name)
-        .replace('{suffix}', syntax.suffix ?? '');
+        .replace('{suffix}', suffix);
     }
     return result;
   }
 
-  static generateAllCodeSyntaxes(token: Token, schema: Schema): Record<string, string> {
-    const syntaxes: Record<string, string> = {};
-    (schema.platforms || []).forEach(platform => {
-      syntaxes[platform.id] = this.generateCodeSyntax(token, platform.id, schema);
-    });
-    return syntaxes;
+  static generateAllCodeSyntaxes(token: Token, schema: Schema): Array<{ platformId: string, formattedName: string }> {
+    return (schema.platforms || []).map(platform => ({
+      platformId: platform.id,
+      formattedName: this.generateCodeSyntax(token, platform.id, schema) || ''
+    }));
   }
 
   static updateCodeSyntax(token: Token, platform: string, syntax: string): Token {
@@ -87,4 +109,31 @@ export class CodeSyntaxService {
       }
     };
   }
+}
+
+/**
+ * Converts a codeSyntax object to the standard array format
+ * @param codeSyntaxObj Object with platform IDs as keys and formatted names as values
+ * @returns Array of { platformId, formattedName } objects
+ */
+export function convertCodeSyntaxToArray(codeSyntaxObj: Record<string, string>): Array<{ platformId: string; formattedName: string }> {
+  return Object.entries(codeSyntaxObj).map(([platformId, formattedName]) => ({
+    platformId,
+    formattedName
+  }));
+}
+
+/**
+ * Ensures codeSyntax is in the correct array format
+ * @param codeSyntax Either an array of { platformId, formattedName } or an object with platform IDs as keys
+ * @returns Array of { platformId, formattedName } objects
+ */
+export function ensureCodeSyntaxArrayFormat(codeSyntax: any): Array<{ platformId: string; formattedName: string }> {
+  if (Array.isArray(codeSyntax)) {
+    return codeSyntax;
+  }
+  if (typeof codeSyntax === 'object' && codeSyntax !== null) {
+    return convertCodeSyntaxToArray(codeSyntax);
+  }
+  return [];
 } 

@@ -9,7 +9,9 @@ const schema = JSON.parse(readFileSync(schemaPath, 'utf-8'));
 
 // Load the unified default data
 const dataPath = path.resolve(__dirname, '../../web-app/src/services/data/default-data.json');
-const data = JSON.parse(readFileSync(dataPath, 'utf-8'));
+let data = JSON.parse(readFileSync(dataPath, 'utf-8'));
+if (!data.systemName) data.systemName = 'Test System';
+if (!data.systemId) data.systemId = 'test-system';
 
 const ajv = new Ajv({ allErrors: true, strict: false });
 addFormats(ajv);

@@ -1,60 +1,39 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Container,
-  Typography,
   Box,
-  Tabs,
-  Tab,
-  Paper,
-  Button,
-  CircularProgress,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel
-} from '@mui/material';
-import { TokenCollection, Mode, Token, Dimension, Platform, Taxonomy } from '@token-model/data-model';
-import { TokenList } from './components/TokenList';
-import { CollectionsWorkflow } from './components/CollectionsWorkflow';
-import { ModesWorkflow } from './components/ModesWorkflow';
-import { ValueTypesWorkflow } from './components/ValueTypesWorkflow';
-import { SettingsWorkflow } from './views/settings/SettingsWorkflow';
+  Container,
+  VStack,
+  Spinner,
+  ChakraProvider
+} from '@chakra-ui/react';
+import {
+  TokenCollection,
+  Mode,
+  Token,
+  Dimension,
+  Platform,
+  Taxonomy
+} from '@token-model/data-model';
 import { StorageService } from './services/storage';
-import { ValidationTester } from './components/ValidationTester';
-import { generateId, ID_PREFIXES } from './utils/id';
-import Dialog from '@mui/material/Dialog';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import { TokenEditorDialog } from './components/TokenEditorDialog';
-import { exportAndValidateData } from './utils/validateAndExportData';
-import { createSchemaJsonFromLocalStorage, validateSchemaJson, downloadSchemaJsonFromLocalStorage } from './services/createJson';
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`main-tabpanel-${index}`}
-      aria-labelledby={`main-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
+import PublishingView from './views/publishing/PublishingView';
+import TokensView from './views/tokens/TokensView';
+import SetupView from './views/setup/SetupView';
+import ThemesView from './views/themes/ThemesView';
+import DashboardView from './views/dashboard/DashboardView';
+import './App.css';
+import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from './services/codeSyntax';
+import { AppLayout } from './components/AppLayout';
+import theme from './theme';
+import { TokensTab } from './views/tokens/TokensTab';
+import { CollectionsTab } from './views/tokens/CollectionsTab';
+import AlgorithmsTab from './views/tokens/AlgorithmsTab';
+import { DimensionsTab } from './views/setup/DimensionsTab';
+import { ClassificationTab } from './views/setup/ClassificationTab';
+import { NamingRulesTab } from './views/setup/NamingRulesTab';
+import { ValueTypesTab } from './views/setup/ValueTypesTab';
+import { PlatformsTab } from './views/publishing/PlatformsTab';
+import { ValidationTab } from './views/publishing/ValidationTab';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // TypeScript declaration for import.meta.glob
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -62,146 +41,126 @@ function TabPanel(props: TabPanelProps) {
 const exampleDataFiles = import.meta.glob('../../data-model/examples/**/*.json', { as: 'raw' });
 
 function getDataSourceOptions() {
-  // Convert file paths to user-friendly labels
   return Object.keys(exampleDataFiles).map((filePath) => {
-    // e.g., ../../data-model/examples/themed/core-data.json -> themed/core-data.json
-    const relPath = filePath.replace(/^\.\.\/\.\.\/data-model\/examples\//, '');
-    // Label: Themed / Core Data
-    const label = relPath
-      .replace(/\//g, ' / ')
-      .replace(/-/g, ' ')
-      .replace(/\.json$/, '')
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-    return { label, value: relPath, filePath };
+    // Extract just the file name (no directory, no extension)
+    const fileName = filePath.split('/').pop()?.replace(/\.json$/, '') || filePath;
+    // Capitalize first letter and replace dashes/underscores with spaces
+    const label = fileName.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    return { label, value: filePath, filePath };
   });
 }
 
-function App() {
-  const [activeTab, setActiveTab] = useState(0);
-  const [dataSource, setDataSource] = useState<string>('themed/core-data.json');
+const TOKENS_TABS = ['tokens', 'collections', 'algorithms'];
+const SETUP_TABS = ['dimensions', 'classification', 'naming-rules', 'value-types'];
+const PUBLISHING_TABS = ['platforms', 'export-settings', 'validation', 'version-history'];
+
+const App: React.FC = () => {
+  const [dataSource, setDataSource] = useState<string>('../../data-model/examples/themed/core-data.json');
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
   const [resolvedValueTypes, setResolvedValueTypes] = useState<{ id: string; displayName: string }[]>([]);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
-  const [themes, setThemes] = useState<any[]>([]);
+  const [themes, setThemes] = useState<unknown[]>([]);
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [dataOptions, setDataOptions] = useState<{ label: string; value: string; filePath: string }[]>([]);
-  const [validationDialogOpen, setValidationDialogOpen] = useState(false);
-  const [validationResult, setValidationResult] = useState<{ valid: boolean; result?: any; error?: any } | null>(null);
-  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
-  const [downloadOption, setDownloadOption] = useState('raw');
   const [taxonomyOrder, setTaxonomyOrder] = useState<string[]>([]);
 
-  // Discover data files on mount
   useEffect(() => {
     setDataOptions(getDataSourceOptions());
   }, []);
 
-  // Helper to load data from the selected source
-  const loadDataFromSource = async (source: string) => {
+  const loadDataFromSource = async (filePath: string) => {
     setLoading(true);
-    let rawData = await exampleDataFiles[`../../data-model/examples/${source}`]();
+    const rawData = await exampleDataFiles[filePath]();
     let d = JSON.parse(rawData);
 
-    // Normalize platforms
-    const normalizedPlatforms = (d.platforms || []).map((p: any) => ({
-      ...p,
-      displayName: p.displayName || p.name || ''
-    }));
-
-    // Normalize collections with required fields
-    const normalizedCollections = (d.tokenCollections || []).map((c: any) => ({
-      ...c,
-      resolvedValueTypes: c.resolvedValueTypes || []
-    }));
-
-    // Normalize tokens with proper value types
-    const normalizedTokens = (d.tokens || []).map((t: any) => {
-      // Ensure valuesByMode has proper value types
-      const normalizedValuesByMode = (t.valuesByMode || []).map((v: any) => {
-        if (v.value) {
-          // Convert DIMENSION and FONT_FAMILY to STRING type
-          if (v.value.type === 'DIMENSION' || v.value.type === 'FONT_FAMILY') {
-            return {
-              ...v,
-              value: {
-                type: 'STRING',
-                value: v.value.value
-              }
-            };
-          }
-          // Ensure ALIAS type has tokenId
-          if (v.value.type === 'ALIAS' && !v.value.tokenId) {
-            return {
-              ...v,
-              value: {
-                type: 'STRING',
-                value: v.value.value || ''
-              }
-            };
-          }
+    // If this is a theme override file, merge with the full core data object
+    if (
+      d &&
+      typeof d === 'object' &&
+      d.systemId &&
+      d.themeId &&
+      Array.isArray(d.tokenOverrides) &&
+      !Array.isArray(d.tokens)
+    ) {
+      // Search ALL files for a matching core data file (not just same directory)
+      const candidates = Object.keys(exampleDataFiles);
+      let coreData: Record<string, unknown> | null = null;
+      for (const file of candidates) {
+        if (file === filePath) continue;
+        const fileRaw = await exampleDataFiles[file]();
+        let fileData: Record<string, unknown> | undefined;
+        try { fileData = JSON.parse(fileRaw); } catch { continue; }
+        if (
+          fileData &&
+          typeof fileData === 'object' &&
+          (fileData as { systemId?: string; tokens?: Token[] }).systemId === d.systemId &&
+          Array.isArray((fileData as { tokens?: Token[] }).tokens)
+        ) {
+          coreData = fileData;
+          break;
         }
-        return v;
+      }
+      if (!coreData) {
+        alert('No matching core data file found for systemId: ' + d.systemId);
+        setLoading(false);
+        return;
+      }
+      // Merge tokens: apply overrides to core tokens
+      const mergedTokens: Token[] = ((coreData as { tokens: Token[] }).tokens).map((token: Token) => {
+        const override = (d.tokenOverrides as { tokenId: string; value: unknown }[]).find((o) => o.tokenId === token.id);
+        if (override && token.themeable) {
+          return {
+            ...token,
+            valuesByMode: [
+              {
+                modeIds: [],
+                value: override.value
+              }
+            ]
+          };
+        }
+        return token;
       });
+      // Merge: use all fields from coreData, but replace tokens with mergedTokens
+      d = { ...coreData, ...d, tokens: mergedTokens };
+    }
 
-      return {
-        themeable: t.themeable ?? false,
-        ...t,
-        valuesByMode: normalizedValuesByMode
-      };
-    });
+    // Normalize and set state
+    const normalizedCollections = (d as { tokenCollections?: TokenCollection[] }).tokenCollections ?? [];
+    const normalizedDimensions = (d as { dimensions?: Dimension[] }).dimensions ?? [];
+    const normalizedTokens = (d as { tokens?: Token[] }).tokens ?? [];
+    const normalizedPlatforms = (d as { platforms?: Platform[] }).platforms ?? [];
 
-    // Normalize dimensions
-    const normalizedDimensions = (d.dimensions || []).map((dim: any) => ({
-      type: dim.type || 'COLOR_SCHEME',
-      ...dim
-    }));
-
-    // Construct global modes array from all dimensions
-    const allModes = normalizedDimensions.flatMap((d: any) => d.modes || []);
-
-    // Ensure required top-level fields
-    const normalizedData = {
-      ...d,
-      tokenCollections: normalizedCollections,
-      tokens: normalizedTokens,
-      dimensions: normalizedDimensions,
-      platforms: normalizedPlatforms,
-      tokenGroups: d.tokenGroups || [],
-      tokenVariants: d.tokenVariants || [],
-      themeOverrides: d.themeOverrides || {}
-    };
+    const allModes: Mode[] = normalizedDimensions.flatMap((d: Dimension) => (d as { modes?: Mode[] }).modes || []);
 
     setCollections(normalizedCollections);
     setModes(allModes);
     setDimensions(normalizedDimensions);
-    setResolvedValueTypes((d as any).resolvedValueTypes ?? []);
+    setResolvedValueTypes((d as { resolvedValueTypes?: { id: string; displayName: string }[] }).resolvedValueTypes ?? []);
     setTokens(normalizedTokens);
     setPlatforms(normalizedPlatforms);
-    setThemes((d as any).themes ?? []);
-    setTaxonomies((d as any).taxonomies ?? []);
+    setThemes((d as { themes?: unknown[] }).themes ?? []);
+    setTaxonomies((d as { taxonomies?: Taxonomy[] }).taxonomies ?? []);
     setLoading(false);
 
-    // Naming rules/taxonomy order
-    const namingRules = (d as any).namingRules || {};
+    const namingRules = (d as { namingRules?: { taxonomyOrder?: string[] } }).namingRules || {};
     const order = namingRules.taxonomyOrder || [];
     setTaxonomyOrder(order);
 
-    // Sync to localStorage for validation
     StorageService.setCollections(normalizedCollections);
     StorageService.setModes(allModes);
     StorageService.setDimensions(normalizedDimensions);
-    StorageService.setValueTypes((d as any).resolvedValueTypes ?? []);
+    // @ts-expect-error: StorageService.setValueTypes expects string[] but schema uses objects
+    StorageService.setValueTypes((d as { resolvedValueTypes?: { id: string; displayName: string }[] }).resolvedValueTypes ?? []);
     StorageService.setTokens(normalizedTokens);
     StorageService.setPlatforms(normalizedPlatforms);
-    StorageService.setThemes((d as any).themes ?? []);
-    StorageService.setTaxonomies((d as any).taxonomies ?? []);
+    StorageService.setThemes((d as { themes?: unknown[] }).themes ?? []);
+    StorageService.setTaxonomies((d as { taxonomies?: Taxonomy[] }).taxonomies ?? []);
 
-    // Also sync namingRules to localStorage:token-model:root
     const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
     localStorage.setItem('token-model:root', JSON.stringify({
       ...root,
@@ -214,253 +173,93 @@ function App() {
 
   useEffect(() => {
     if (dataSource) {
-    loadDataFromSource(dataSource);
+      loadDataFromSource(dataSource);
     }
   }, [dataSource]);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-  };
-
-  const handleOpenCreateDialog = () => setCreateDialogOpen(true);
-  const handleCloseCreateDialog = () => setCreateDialogOpen(false);
-
-  const handleCreateToken = (tokenData: Omit<Token, 'id'>) => {
-    const newToken: Token = {
-      ...tokenData,
-      id: generateId(ID_PREFIXES.TOKEN)
-    };
-    const newTokens = [...tokens, newToken];
-    setTokens(newTokens);
-    StorageService.setTokens(newTokens);
-    setCreateDialogOpen(false);
-  };
-
-  const handleEditToken = (updatedToken: Token) => {
-    const newTokens = tokens.map(t => t.id === updatedToken.id ? updatedToken : t);
-    setTokens(newTokens);
-    StorageService.setTokens(newTokens);
-  };
-
-  const handleReset = () => {
+  const handleResetData = () => {
+    // Clear all localStorage data
+    localStorage.clear();
+    sessionStorage.clear();
     StorageService.clearAll();
+    setTokens([]);
+    setCollections([]);
+    setModes([]);
+    setDimensions([]);
+    setResolvedValueTypes([]);
+    setPlatforms([]);
+    setThemes([]);
+    setTaxonomies([]);
+    setTaxonomyOrder([]);
+    if ('caches' in window) {
+      caches.keys().then(cacheNames => {
+        cacheNames.forEach(cacheName => {
+          caches.delete(cacheName);
+        });
+      });
+    }
     window.location.reload();
   };
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <Spinner />
       </Box>
     );
   }
 
   return (
-    <Container>
-      <Box sx={{ my: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Design Data System Manager
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <FormControl size="small">
-            <InputLabel>Data Source</InputLabel>
-            <Select
-              value={dataSource}
-              label="Data Source"
-              onChange={e => setDataSource(e.target.value as string)}
-              sx={{ minWidth: 220 }}
+    <ChakraProvider theme={theme}>
+      <BrowserRouter>
+        <Box h="100vh" display="flex" flexDirection="column">
+          <Box flex="1" position="relative">
+            <AppLayout
+              dataSource={dataSource}
+              setDataSource={setDataSource}
+              dataOptions={dataOptions}
+              onResetData={handleResetData}
+              onExportData={() => {}}
             >
-              {dataOptions.map(ds => (
-                <MenuItem key={ds.value} value={ds.value}>{ds.label}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={() => {
-              const schemaData = createSchemaJsonFromLocalStorage();
-              const result = validateSchemaJson(schemaData);
-              setValidationResult(result);
-              setValidationDialogOpen(true);
-            }}
-            sx={{ ml: 2 }}
-          >
-            Validate data
-          </Button>
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={() => setDownloadDialogOpen(true)}
-            sx={{ ml: 2 }}
-          >
-            Download
-          </Button>
-          <Button variant="outlined" color="error" onClick={handleReset} sx={{ ml: 2 }}>
-            Reset Data
-          </Button>
-        </Box>
-      </Box>
-
-      <Paper sx={{ width: '100%', mb: 4 }}>
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          aria-label="main tabs"
-          centered
-        >
-          <Tab label="Tokens" />
-          <Tab label="Settings" />
-        </Tabs>
-      </Paper>
-
-      <TabPanel value={activeTab} index={0}>
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h5" gutterBottom>
-              Tokens
-            </Typography>
-            <Button variant="contained" color="primary" onClick={handleOpenCreateDialog}>
-              Add token
-            </Button>
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<DashboardView />} />
+                <Route path="/tokens" element={<Navigate to="/tokens/tokens" replace />} />
+                <Route path="/tokens/tokens" element={<TokensTab
+                  tokens={tokens}
+                  collections={collections}
+                  modes={modes}
+                  dimensions={dimensions}
+                  platforms={platforms}
+                  onEdit={() => {}}
+                  onDelete={(tokenId) => setTokens(tokens.filter(t => t.id !== tokenId))}
+                  taxonomies={taxonomies}
+                  resolvedValueTypes={resolvedValueTypes}
+                  onViewClassifications={() => {}}
+                  renderAddTokenButton={null}
+                />} />
+                <Route path="/tokens/collections" element={<CollectionsTab collections={collections} modes={modes} onUpdate={setCollections} />} />
+                <Route path="/tokens/algorithms" element={<AlgorithmsTab />} />
+                <Route path="/setup" element={<Navigate to="/setup/dimensions" replace />} />
+                <Route path="/setup/dimensions" element={<DimensionsTab dimensions={dimensions} setDimensions={setDimensions} />} />
+                <Route path="/setup/classification" element={<ClassificationTab taxonomies={taxonomies} setTaxonomies={setTaxonomies} />} />
+                <Route path="/setup/naming-rules" element={<NamingRulesTab taxonomies={taxonomies} taxonomyOrder={taxonomyOrder} setTaxonomyOrder={setTaxonomyOrder} />} />
+                <Route path="/setup/value-types" element={<ValueTypesTab valueTypes={resolvedValueTypes.map(vt => vt.id)} onUpdate={types => setResolvedValueTypes(types.map(id => ({ id, displayName: id })))} />} />
+                <Route path="/themes" element={<ThemesView themes={themes} setThemes={setThemes} />} />
+                <Route path="/publishing" element={<Navigate to="/publishing/platforms" replace />} />
+                <Route path="/publishing/platforms" element={<PlatformsTab platforms={platforms} setPlatforms={setPlatforms} tokens={tokens} setTokens={setTokens} taxonomies={taxonomies} />} />
+                <Route path="/publishing/export-settings" element={<Box p={4}>Export settings content coming soon...</Box>} />
+                <Route path="/publishing/validation" element={<ValidationTab tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />} />
+                <Route path="/publishing/version-history" element={<Box p={4}>Version history content coming soon...</Box>} />
+                <Route path="/access" element={<Box p={4}>Access management coming soon...</Box>} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </AppLayout>
           </Box>
-          <TokenList
-            tokens={tokens}
-            collections={collections}
-            modes={modes}
-            dimensions={dimensions}
-            platforms={platforms}
-            onEdit={handleEditToken}
-            onDelete={(tokenId) => {
-              const newTokens = tokens.filter(t => t.id !== tokenId);
-              setTokens(newTokens);
-              StorageService.setTokens(newTokens);
-            }}
-            taxonomies={taxonomies}
-            resolvedValueTypes={resolvedValueTypes}
-          />
         </Box>
-
-        {/* Create Token Dialog */}
-        <TokenEditorDialog
-          token={{
-            id: '',
-            displayName: '',
-            description: '',
-            tokenCollectionId: collections[0]?.id || '',
-            resolvedValueType: (resolvedValueTypes[0]?.id || 'COLOR') as Token['resolvedValueType'],
-            private: false,
-            valuesByMode: [],
-            taxonomies: [],
-            propertyTypes: [],
-            codeSyntax: {},
-            themeable: false,
-          }}
-          tokens={tokens}
-          dimensions={dimensions}
-          modes={modes}
-          platforms={platforms}
-          open={createDialogOpen}
-          onClose={handleCloseCreateDialog}
-          onSave={tokenData => {
-            const newToken = {
-              ...tokenData,
-              id: generateId(ID_PREFIXES.TOKEN)
-            };
-            const newTokens = [...tokens, newToken];
-            setTokens(newTokens);
-            StorageService.setTokens(newTokens);
-            setCreateDialogOpen(false);
-          }}
-          taxonomies={taxonomies}
-          resolvedValueTypes={resolvedValueTypes}
-          isNew={true}
-        />
-      </TabPanel>
-
-      <TabPanel value={activeTab} index={1}>
-        <SettingsWorkflow
-          collections={collections}
-          setCollections={setCollections}
-          dimensions={dimensions}
-          setDimensions={setDimensions}
-          modes={modes}
-          setModes={setModes}
-          themes={themes}
-          taxonomies={taxonomies}
-          setTaxonomies={setTaxonomies}
-          taxonomyOrder={taxonomyOrder}
-          setTaxonomyOrder={setTaxonomyOrder}
-          resolvedValueTypes={resolvedValueTypes}
-          setResolvedValueTypes={setResolvedValueTypes}
-        />
-      </TabPanel>
-
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h5" gutterBottom>
-          Validation Tester
-        </Typography>
-        <ValidationTester
-          tokens={tokens}
-          collections={collections}
-          modes={modes}
-          onValidate={(result) => {
-            console.log('Validation result:', result);
-          }}
-        />
-      </Box>
-
-      <Dialog open={validationDialogOpen} onClose={() => setValidationDialogOpen(false)}>
-        <DialogTitle>Validation Result</DialogTitle>
-        <DialogContent>
-          {validationResult?.valid ? (
-            <Typography color="success.main">Data is valid!</Typography>
-          ) : (
-            <Box>
-              <Typography color="error.main">Validation failed:</Typography>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{validationResult?.error}</Typography>
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setValidationDialogOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Download Dialog */}
-      <Dialog open={downloadDialogOpen} onClose={() => setDownloadDialogOpen(false)}>
-        <DialogTitle>Download Data</DialogTitle>
-        <DialogContent>
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel id="download-option-label">Download Option</InputLabel>
-            <Select
-              labelId="download-option-label"
-              value={downloadOption}
-              label="Download Option"
-              onChange={e => setDownloadOption(e.target.value)}
-            >
-              <MenuItem value="raw">Raw data</MenuItem>
-              {/* Future options can be added here */}
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDownloadDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              if (downloadOption === 'raw') {
-                downloadSchemaJsonFromLocalStorage();
-              }
-              setDownloadDialogOpen(false);
-            }}
-          >
-            Download
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+      </BrowserRouter>
+    </ChakraProvider>
   );
-}
+};
 
 export default App; 

@@ -261,6 +261,8 @@ colorFamilies.forEach(family => {
 
 // --- Compose the full data object ---
 const data = {
+  systemName: 'Example Token System',
+  systemId: 'example-token-system',
   tokenCollections,
   dimensions,
   tokens,

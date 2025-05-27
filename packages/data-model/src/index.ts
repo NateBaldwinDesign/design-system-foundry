@@ -45,7 +45,7 @@ export { TokenTaxonomyRef } from './schema';
  * Otherwise, all entries must have modeIds.length > 0.
  * Returns true if valid, or an error message string if invalid.
  */
-export function validateTokenValuesByMode(valuesByMode: { modeIds: string[]; value: any }[]): true | string {
+export function validateTokenValuesByMode(valuesByMode: { modeIds: string[]; value: import('./schema').TokenValue }[]): true | string {
   if (!Array.isArray(valuesByMode) || valuesByMode.length === 0) {
     return 'valuesByMode must be a non-empty array.';
   }
