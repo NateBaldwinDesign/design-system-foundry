@@ -8,13 +8,15 @@ import {
   Tooltip,
   Button,
   useColorModeValue,
-  useColorMode
+  useColorMode,
+  useToast
 } from '@chakra-ui/react';
 import { DeleteIcon, EditIcon, AddIcon } from '@chakra-ui/icons';
 import { PlatformEditorDialog } from '../../components/PlatformEditorDialog';
 import { createUniqueId } from '../../utils/id';
 import { CodeSyntaxService } from '../../services/codeSyntax';
-import { Platform, Token, Taxonomy } from '@token-model/data-model';
+import { Platform, Token, Taxonomy, TokenCollection, Dimension } from '@token-model/data-model';
+import { ValidationService } from '../../services/validation';
 
 interface PlatformsTabProps {
   platforms: Platform[];
@@ -37,10 +39,46 @@ export const PlatformsTab: React.FC<PlatformsTabProps> = ({
   const [isNew, setIsNew] = useState(false);
   const cardBg = useColorModeValue('gray.50', 'gray.800');
   const cardBorder = useColorModeValue('gray.200', 'gray.600');
+  const toast = useToast();
+  const collections: TokenCollection[] = [];
+  const dimensions: Dimension[] = [];
+
+  const validateAndSetPlatforms = (updatedPlatforms: Platform[]) => {
+    const data = {
+      tokenCollections: collections,
+      dimensions,
+      tokens,
+      platforms: updatedPlatforms,
+      taxonomies,
+      version: '1.0.0',
+      versionHistory: []
+    };
+    const result = ValidationService.validateData(data);
+    if (!result.isValid) {
+      toast({
+        title: 'Schema Validation Failed',
+        description: result.errors?.map(e => e.message).join('\n') || 'Your change would make the data invalid. See the Validation tab for details.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return false;
+    }
+    setPlatforms(updatedPlatforms);
+    return true;
+  };
 
   const handleDeletePlatform = (platformId: string) => {
+    const platformToDelete = initialPlatforms.find((p: Platform) => p.id === platformId);
     const updated = initialPlatforms.filter((p: Platform) => p.id !== platformId);
-    setPlatforms(updated);
+    if (!validateAndSetPlatforms(updated)) return;
+    toast({ 
+      title: 'Platform Deleted', 
+      description: `Successfully deleted platform "${platformToDelete?.displayName}"`,
+      status: 'info', 
+      duration: 3000,
+      isClosable: true 
+    });
   };
 
   const handleEditPlatform = (platform: Platform) => {
@@ -82,11 +120,9 @@ export const PlatformsTab: React.FC<PlatformsTabProps> = ({
         p.id === updatedPlatform.id ? updatedPlatform : p
       );
     }
-
-    // Update platforms in state
-    setPlatforms(updatedPlatforms);
-
-    // Update codeSyntax for all tokens for all platforms
+    if (!validateAndSetPlatforms(updatedPlatforms)) {
+      return;
+    }
     const schema = { platforms: updatedPlatforms, taxonomies };
     const updatedTokens = tokens.map((token: Token) => {
       const codeSyntax = updatedPlatforms.map((platform: Platform) => ({
@@ -99,7 +135,6 @@ export const PlatformsTab: React.FC<PlatformsTabProps> = ({
       };
     });
     setTokens(updatedTokens);
-
     setIsDialogOpen(false);
     setEditingPlatform(null);
     setIsNew(false);

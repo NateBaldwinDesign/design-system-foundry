@@ -22,6 +22,7 @@ import {
 import { AddIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
 import type { Taxonomy } from '@token-model/data-model';
 import { createUniqueId } from '../../utils/id';
+import { ValidationService } from '../../services/validation';
 
 interface ClassificationTabProps {
   taxonomies: Taxonomy[];
@@ -47,6 +48,13 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
   const [termDialogOpen, setTermDialogOpen] = useState(false);
   const [termEditIndex, setTermEditIndex] = useState<number | null>(null);
   const toast = useToast();
+  // Assume tokens, collections, dimensions, platforms, value types, and themes are available via props or context (for this edit, use empty arrays as placeholders)
+  const tokens = [];
+  const collections = [];
+  const dimensions = [];
+  const platforms = [];
+  const resolvedValueTypes = [];
+  const themes = [];
 
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
@@ -78,32 +86,59 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const validateAndSetTaxonomies = (updatedTaxonomies: Taxonomy[]) => {
+    const data = {
+      tokenCollections: collections,
+      dimensions,
+      tokens,
+      platforms,
+      taxonomies: updatedTaxonomies,
+      resolvedValueTypes,
+      themes,
+      version: '1.0.0',
+      versionHistory: []
+    };
+    const result = ValidationService.validateData(data);
+    if (!result.isValid) {
+      toast({
+        title: 'Schema Validation Failed',
+        description: 'Your change would make the data invalid. See the Validation tab for details.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+      return false;
+    }
+    setTaxonomies(updatedTaxonomies);
+    return true;
+  };
+
   const handleSave = () => {
     if (!form.name.trim()) {
       toast({ title: 'Name is required', status: 'error', duration: 2000 });
       return;
     }
-
     const newTaxonomies = [...taxonomies];
     const taxonomyToSave = {
       ...form,
       terms: form.terms || []
     };
-
     if (editingIndex !== null) {
       newTaxonomies[editingIndex] = taxonomyToSave;
     } else {
       newTaxonomies.push(taxonomyToSave);
     }
-
-    setTaxonomies(newTaxonomies);
+    if (!validateAndSetTaxonomies(newTaxonomies)) {
+      return;
+    }
     setOpen(false);
     setEditingIndex(null);
     toast({ title: 'Taxonomy saved', status: 'success', duration: 2000 });
   };
 
   const handleDelete = (index: number) => {
-    setTaxonomies(taxonomies.filter((_: Taxonomy, i: number) => i !== index));
+    const updated = taxonomies.filter((_: Taxonomy, i: number) => i !== index);
+    if (!validateAndSetTaxonomies(updated)) return;
     toast({ title: 'Taxonomy deleted', status: 'info', duration: 2000 });
   };
 

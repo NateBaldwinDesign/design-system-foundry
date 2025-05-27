@@ -21,8 +21,9 @@ import {
   useColorMode
 } from '@chakra-ui/react';
 import { AddIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
-import type { Dimension, Mode, DimensionType } from '@token-model/data-model';
+import type { Dimension, Mode, DimensionType, Token, TokenCollection, Platform, Taxonomy } from '@token-model/data-model';
 import { createUniqueId } from '../../utils/id';
+import { ValidationService } from '../../services/validation';
 
 interface DimensionsTabProps {
   dimensions: Dimension[];
@@ -62,6 +63,11 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
   const [modeDialogOpen, setModeDialogOpen] = useState(false);
   const [modeEditIndex, setModeEditIndex] = useState<number | null>(null);
   const toast = useToast();
+  // Assume tokens, collections, platforms, and taxonomies are available via props or context (for this edit, use empty arrays as placeholders)
+  const tokens: Token[] = [];
+  const collections: TokenCollection[] = [];
+  const platforms: Platform[] = [];
+  const taxonomies: Taxonomy[] = [];
 
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
@@ -92,13 +98,28 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
   };
 
   const handleFormChange = (field: keyof DimensionFormData, value: string) => {
-    setForm(prev => ({ ...prev, [field]: value }));
+    setForm((prev: DimensionFormData) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = () => {
-    if (!form.id || !form.displayName) return;
+    if (!form.id || !form.displayName) {
+      toast({ 
+        title: 'Required Fields Missing', 
+        description: 'ID and display name are required fields.',
+        status: 'error', 
+        duration: 4000,
+        isClosable: true 
+      });
+      return;
+    }
     if (!form.defaultMode || !form.modes.some(m => m.id === form.defaultMode)) {
-      toast({ title: 'Please select a valid default mode.', status: 'error', duration: 2000 });
+      toast({ 
+        title: 'Invalid Default Mode', 
+        description: 'Please select a valid default mode from the available modes.',
+        status: 'error', 
+        duration: 4000,
+        isClosable: true 
+      });
       return;
     }
     const newDims = [...dimensions];
@@ -113,15 +134,70 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
     } else {
       newDims.push(dimToSave);
     }
+    // Compose the full data object for validation
+    const data = {
+      tokenCollections: collections,
+      dimensions: newDims,
+      tokens,
+      platforms,
+      taxonomies,
+      version: '1.0.0',
+      versionHistory: []
+    };
+    const result = ValidationService.validateData(data);
+    if (!result.isValid) {
+      toast({
+        title: 'Schema Validation Failed',
+        description: result.errors?.map(e => e.message).join('\n') || 'Your change would make the data invalid. See the Validation tab for details.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
     setDimensions(newDims);
     setOpen(false);
     setEditingIndex(null);
-    toast({ title: 'Dimension saved', status: 'success', duration: 2000 });
+    toast({ 
+      title: 'Dimension Saved', 
+      description: `Successfully ${editingIndex !== null ? 'updated' : 'created'} dimension "${form.displayName}"`,
+      status: 'success', 
+      duration: 3000,
+      isClosable: true 
+    });
   };
 
   const handleDelete = (index: number) => {
-    setDimensions(dimensions.filter((_, i) => i !== index));
-    toast({ title: 'Dimension deleted', status: 'info', duration: 2000 });
+    const dimToDelete = dimensions[index];
+    const newDims = dimensions.filter((_, i) => i !== index);
+    const data = {
+      tokenCollections: collections,
+      dimensions: newDims,
+      tokens,
+      platforms,
+      taxonomies,
+      version: '1.0.0',
+      versionHistory: []
+    };
+    const result = ValidationService.validateData(data);
+    if (!result.isValid) {
+      toast({
+        title: 'Cannot Delete Dimension',
+        description: result.errors?.map(e => e.message).join('\n') || 'This dimension cannot be deleted as it would make the data invalid. See the Validation tab for details.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    setDimensions(newDims);
+    toast({ 
+      title: 'Dimension Deleted', 
+      description: `Successfully deleted dimension "${dimToDelete.displayName}"`,
+      status: 'info', 
+      duration: 3000,
+      isClosable: true 
+    });
   };
 
   // Mode management for a dimension
@@ -142,7 +218,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
   };
 
   const handleModeFormChange = (field: keyof typeof modeForm, value: string) => {
-    setModeForm(prev => ({ ...prev, [field]: value }));
+    setModeForm((prev: typeof modeForm) => ({ ...prev, [field]: value }));
   };
 
   const handleModeSave = () => {
@@ -163,8 +239,8 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
   };
 
   const handleModeDelete = (index: number) => {
-    setForm(prev => {
-      const newModes = (prev.modes || []).filter((_, i) => i !== index);
+    setForm((prev: DimensionFormData) => {
+      const newModes = (prev.modes || []).filter((_: Mode, i: number) => i !== index);
       let newDefault = prev.defaultMode;
       if (prev.modes[index]?.id === prev.defaultMode) {
         newDefault = newModes[0]?.id || '';
@@ -181,7 +257,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
           Add Dimension
         </Button>
         <VStack align="stretch" spacing={2}>
-          {dimensions.map((dim, i) => (
+          {dimensions.map((dim: Dimension, i: number) => (
             <Box 
               key={dim.id} 
               p={3} 
@@ -193,7 +269,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
               <HStack justify="space-between" align="center">
                 <Box>
                   <Text fontSize="lg" fontWeight="medium">{dim.displayName}</Text>
-                  <Text fontSize="sm" color="gray.600">Modes: {dim.modes.map(m => m.name).join(', ')}</Text>
+                  <Text fontSize="sm" color="gray.600">Modes: {dim.modes.map((m: Mode) => m.name).join(', ')}</Text>
                 </Box>
                 <HStack>
                   <IconButton aria-label="Edit dimension" icon={<EditIcon />} size="sm" onClick={() => handleOpen(i)} />
@@ -245,7 +321,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
                   onChange={e => handleFormChange('defaultMode', e.target.value)}
                 >
                   <option value="">None</option>
-                  {form.modes.map(mode => (
+                  {form.modes.map((mode: Mode) => (
                     <option key={mode.id} value={mode.id}>{mode.name}</option>
                   ))}
                 </Select>
@@ -256,7 +332,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
                   Add Mode
                 </Button>
                 <VStack align="stretch" spacing={1}>
-                  {form.modes.map((mode, idx) => (
+                  {form.modes.map((mode: Mode, idx: number) => (
                     <HStack key={mode.id}>
                       <Text>{mode.name}</Text>
                       <IconButton aria-label="Edit mode" icon={<EditIcon />} size="xs" onClick={() => handleModeDialogOpen(idx)} />

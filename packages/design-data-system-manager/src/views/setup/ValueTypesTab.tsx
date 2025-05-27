@@ -22,6 +22,8 @@ import {
   useColorMode
 } from '@chakra-ui/react';
 import { DeleteIcon, EditIcon, AddIcon } from '@chakra-ui/icons';
+import { ValidationService } from '../../services/validation';
+import type { Token, TokenCollection, Dimension, Platform, Taxonomy, Theme } from '@token-model/data-model';
 
 interface ValueTypeItem {
   name: string;
@@ -41,9 +43,16 @@ export function ValueTypesTab({ valueTypes, onUpdate }: ValueTypesTabProps) {
   const [type, setType] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const toast = useToast();
+  // Assume tokens, collections, dimensions, platforms, taxonomies, and themes are available via props or context (for this edit, use empty arrays as placeholders)
+  const tokens: Token[] = [];
+  const collections: TokenCollection[] = [];
+  const dimensions: Dimension[] = [];
+  const platforms: Platform[] = [];
+  const taxonomies: Taxonomy[] = [];
+  const themes: Theme[] = [];
 
   // For demo, treat valueTypes as array of names, but you can adapt to array of objects if needed
-  const valueTypeList: ValueTypeItem[] = valueTypes.map((vt) => ({ name: vt, type: 'STRING' }));
+  const valueTypeList: ValueTypeItem[] = valueTypes.map((vt: string) => ({ name: vt, type: 'STRING' }));
 
   const handleOpenCreate = () => {
     setEditingType(null);
@@ -59,23 +68,78 @@ export function ValueTypesTab({ valueTypes, onUpdate }: ValueTypesTabProps) {
     setDialogOpen(true);
   };
 
+  const validateAndSetValueTypes = (updatedValueTypes: string[]) => {
+    const data = {
+      tokenCollections: collections,
+      dimensions,
+      tokens,
+      platforms,
+      taxonomies,
+      themes,
+      resolvedValueTypes: updatedValueTypes.map(id => ({ id, displayName: id })),
+      version: '1.0.0',
+      versionHistory: []
+    };
+    const result = ValidationService.validateData(data);
+    if (!result.isValid) {
+      toast({
+        title: 'Schema Validation Failed',
+        description: 'Your change would make the data invalid. See the Validation tab for details.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+      return false;
+    }
+    onUpdate(updatedValueTypes);
+    return true;
+  };
+
   const handleDialogSave = () => {
     setErrors({});
     if (!name.trim()) {
       setErrors({ name: 'Name is required' });
+      toast({
+        title: 'Required Field Missing',
+        description: 'Value type name is required.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true
+      });
       return;
     }
     if (!type) {
       setErrors({ type: 'Type is required' });
+      toast({
+        title: 'Required Field Missing',
+        description: 'Value type must be selected.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true
+      });
       return;
     }
     const newType: string = name.trim();
     if (editingType) {
-      onUpdate(valueTypes.map(t => t === editingType ? newType : t));
-      toast({ title: 'Value type updated', status: 'success', duration: 2000 });
+      const updated = valueTypes.map(t => t === editingType ? newType : t);
+      if (!validateAndSetValueTypes(updated)) return;
+      toast({ 
+        title: 'Value Type Updated', 
+        description: `Successfully updated value type "${newType}"`,
+        status: 'success', 
+        duration: 3000,
+        isClosable: true 
+      });
     } else {
-      onUpdate([...valueTypes, newType]);
-      toast({ title: 'Value type created', status: 'success', duration: 2000 });
+      const updated = [...valueTypes, newType];
+      if (!validateAndSetValueTypes(updated)) return;
+      toast({ 
+        title: 'Value Type Created', 
+        description: `Successfully created value type "${newType}"`,
+        status: 'success', 
+        duration: 3000,
+        isClosable: true 
+      });
     }
     setDialogOpen(false);
   };
@@ -85,8 +149,15 @@ export function ValueTypesTab({ valueTypes, onUpdate }: ValueTypesTabProps) {
   };
 
   const handleDelete = (valueType: string) => {
-    onUpdate(valueTypes.filter(t => t !== valueType));
-    toast({ title: 'Value type deleted', status: 'info', duration: 2000 });
+    const updated = valueTypes.filter(t => t !== valueType);
+    if (!validateAndSetValueTypes(updated)) return;
+    toast({ 
+      title: 'Value Type Deleted', 
+      description: `Successfully deleted value type "${valueType}"`,
+      status: 'info', 
+      duration: 3000,
+      isClosable: true 
+    });
   };
 
   return (

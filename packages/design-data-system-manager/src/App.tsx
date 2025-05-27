@@ -42,13 +42,11 @@ const exampleDataFiles = import.meta.glob('../../data-model/examples/**/*.json',
 
 function getDataSourceOptions() {
   return Object.keys(exampleDataFiles).map((filePath) => {
-    const relPath = filePath.replace(/^e\/\.\.\/data-model\/examples\//, '');
-    const label = relPath
-      .replace(/\//g, ' / ')
-      .replace(/-/g, ' ')
-      .replace(/\.json$/, '')
-      .replace(/\b\w/g, (c) => c.toUpperCase());
-    return { label, value: relPath, filePath };
+    // Extract just the file name (no directory, no extension)
+    const fileName = filePath.split('/').pop()?.replace(/\.json$/, '') || filePath;
+    // Capitalize first letter and replace dashes/underscores with spaces
+    const label = fileName.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    return { label, value: filePath, filePath };
   });
 }
 
@@ -57,7 +55,7 @@ const SETUP_TABS = ['dimensions', 'classification', 'naming-rules', 'value-types
 const PUBLISHING_TABS = ['platforms', 'export-settings', 'validation', 'version-history'];
 
 const App: React.FC = () => {
-  const [dataSource, setDataSource] = useState<string>('themed/core-data.json');
+  const [dataSource, setDataSource] = useState<string>('../../data-model/examples/themed/core-data.json');
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
@@ -74,11 +72,12 @@ const App: React.FC = () => {
     setDataOptions(getDataSourceOptions());
   }, []);
 
-  const loadDataFromSource = async (source: string) => {
+  const loadDataFromSource = async (filePath: string) => {
     setLoading(true);
-    const rawData = await exampleDataFiles[`../../data-model/examples/${source}`]();
+    const rawData = await exampleDataFiles[filePath]();
     let d = JSON.parse(rawData);
 
+    // If this is a theme override file, merge with the full core data object
     if (
       d &&
       typeof d === 'object' &&
@@ -87,11 +86,11 @@ const App: React.FC = () => {
       Array.isArray(d.tokenOverrides) &&
       !Array.isArray(d.tokens)
     ) {
-      const dirPrefix = source.substring(0, source.lastIndexOf('/') + 1);
-      const candidates = Object.keys(exampleDataFiles).filter(f => f.startsWith(`../../data-model/examples/${dirPrefix}`));
+      // Search ALL files for a matching core data file (not just same directory)
+      const candidates = Object.keys(exampleDataFiles);
       let coreData: Record<string, unknown> | null = null;
       for (const file of candidates) {
-        if (file === `../../data-model/examples/${source}`) continue;
+        if (file === filePath) continue;
         const fileRaw = await exampleDataFiles[file]();
         let fileData: Record<string, unknown> | undefined;
         try { fileData = JSON.parse(fileRaw); } catch { continue; }
@@ -110,6 +109,7 @@ const App: React.FC = () => {
         setLoading(false);
         return;
       }
+      // Merge tokens: apply overrides to core tokens
       const mergedTokens: Token[] = ((coreData as { tokens: Token[] }).tokens).map((token: Token) => {
         const override = (d.tokenOverrides as { tokenId: string; value: unknown }[]).find((o) => o.tokenId === token.id);
         if (override && token.themeable) {
@@ -125,6 +125,7 @@ const App: React.FC = () => {
         }
         return token;
       });
+      // Merge: use all fields from coreData, but replace tokens with mergedTokens
       d = { ...coreData, ...d, tokens: mergedTokens };
     }
 

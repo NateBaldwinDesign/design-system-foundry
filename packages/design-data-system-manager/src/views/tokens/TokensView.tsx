@@ -6,13 +6,8 @@ import { CollectionsTab } from './CollectionsTab';
 import { TokenEditorDialog } from '../../components/TokenEditorDialog';
 import { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { AddIcon } from '@chakra-ui/icons';
-
-interface Theme {
-  id: string;
-  displayName: string;
-  description?: string;
-  isDefault?: boolean;
-}
+import { ValidationService } from '../../services/validation';
+import { useToast } from '@chakra-ui/react';
 
 interface TokensViewProps {
   tokens: Token[];
@@ -22,15 +17,9 @@ interface TokensViewProps {
   platforms: Platform[];
   taxonomies: Taxonomy[];
   resolvedValueTypes: { id: string; displayName: string }[];
-  themes: Theme[];
-  taxonomyOrder: string[];
   onDeleteToken: (tokenId: string) => void;
   onSaveToken: (token: Token) => void;
   setCollections: (collections: TokenCollection[]) => void;
-  setModes: (modes: Mode[]) => void;
-  setTaxonomies: (taxonomies: Taxonomy[]) => void;
-  setTaxonomyOrder: (order: string[]) => void;
-  setResolvedValueTypes: (types: { id: string; displayName: string }[]) => void;
   activeTab: number;
   onTabChange: (index: number) => void;
   /**
@@ -47,27 +36,16 @@ const TokensView: React.FC<TokensViewProps> = ({
   platforms,
   taxonomies,
   resolvedValueTypes,
-  themes,
-  taxonomyOrder,
   onDeleteToken,
   onSaveToken,
   setCollections,
-  setModes,
-  setTaxonomies,
-  setTaxonomyOrder,
-  setResolvedValueTypes,
   activeTab,
   onTabChange,
   onViewSetupClassificationTab
 }: TokensViewProps) => {
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-
-  const handleOpen = () => setIsOpen(true);
-  const handleClose = () => {
-    setIsOpen(false);
-    setSelectedToken(null);
-  };
+  const toast = useToast();
 
   const handleEditToken = (token: Token) => {
     if (!isOpen) {
@@ -95,9 +73,59 @@ const TokensView: React.FC<TokensViewProps> = ({
   };
 
   const handleSaveToken = (token: Token) => {
+    // Compose the new tokens array
+    const newTokens = token.id
+      ? tokens.map(t => t.id === token.id ? token : t)
+      : [...tokens, token];
+    // Compose the full data object for validation
+    const data = {
+      tokenCollections: collections,
+      dimensions,
+      tokens: newTokens,
+      platforms,
+      taxonomies,
+      version: '1.0.0',
+      versionHistory: []
+    };
+    const result = ValidationService.validateData(data);
+    if (!result.isValid) {
+      toast({
+        title: 'Schema Validation Failed',
+        description: 'Your change would make the data invalid. See the Validation tab for details.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+      return;
+    }
     onSaveToken(token);
     setIsOpen(false);
     setSelectedToken(null);
+  };
+
+  // Wrap setCollections with schema validation
+  const handleUpdateCollections = (newCollections: TokenCollection[]) => {
+    const data = {
+      tokenCollections: newCollections,
+      dimensions,
+      tokens,
+      platforms,
+      taxonomies,
+      version: '1.0.0',
+      versionHistory: []
+    };
+    const result = ValidationService.validateData(data);
+    if (!result.isValid) {
+      toast({
+        title: 'Schema Validation Failed',
+        description: 'Your change would make the data invalid. See the Validation tab for details.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+      return;
+    }
+    setCollections(newCollections);
   };
 
   // Handler for popover link: close dialog, then navigate
@@ -113,6 +141,11 @@ const TokensView: React.FC<TokensViewProps> = ({
         console.log('onViewSetupClassificationTab is not defined');
       }
     }, 0);
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+    setSelectedToken(null);
   };
 
   return (
@@ -166,7 +199,7 @@ const TokensView: React.FC<TokensViewProps> = ({
             <CollectionsTab
               collections={collections}
               modes={modes}
-              onUpdate={setCollections}
+              onUpdate={handleUpdateCollections}
             />
           )
         },

@@ -103,6 +103,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     const Icon = item.icon;
     const content = (
       <Box
+        as={Link}
+        to={item.route}
         display="flex"
         alignItems="center"
         p={2}
@@ -116,8 +118,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         role="menuitem"
         aria-current={isActive ? 'page' : undefined}
         tabIndex={0}
-        as={Link}
-        to={item.route}
+        textDecoration="none"
       >
         <Icon boxSize={5} />
         {!isCollapsed && (
@@ -199,61 +200,80 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           {NAV_ITEMS.map((item) => {
             if (item.children) {
               return (
-                <Accordion
-                  key={item.id}
-                  allowToggle
-                  defaultIndex={location.pathname.startsWith(item.route) ? [0] : []}
-                >
-                  <AccordionItem border="none">
-                    <AccordionButton
-                      p={0}
-                      _hover={{ bg: 'transparent' }}
-                      _expanded={{ bg: 'transparent' }}
-                      tabIndex={-1}
+                <React.Fragment key={item.id}>
+                  {/* Section Heading */}
+                  <Text
+                    fontWeight="bold"
+                    fontSize="sm"
+                    color={colorMode === 'dark' ? 'gray.300' : 'gray.600'}
+                    mt={4}
+                    mb={1}
+                    pl={isCollapsed ? 0 : 2}
+                    textTransform="uppercase"
+                    letterSpacing="wider"
+                  >
+                    {item.label}
+                  </Text>
+                  {item.children.map((child) => (
+                    <Box
+                      key={child.id}
+                      as={Link}
+                      to={child.route}
+                      display="flex"
+                      alignItems="center"
+                      p={2}
+                      borderRadius="md"
+                      bg={location.pathname === child.route ? 'blue.500' : 'transparent'}
+                      color={location.pathname === child.route ? 'white' : 'inherit'}
+                      _hover={{
+                        bg: location.pathname === child.route ? 'blue.600' : colorMode === 'dark' ? 'gray.700' : 'gray.100',
+                      }}
+                      cursor="pointer"
+                      role="menuitem"
+                      aria-current={location.pathname === child.route ? 'page' : undefined}
+                      tabIndex={0}
+                      textDecoration="none"
                     >
-                      <Box
-                        display="flex"
-                        alignItems="center"
-                        flex={1}
-                        p={2}
-                        borderRadius="md"
-                        bg={location.pathname.startsWith(item.route) ? 'blue.500' : 'transparent'}
-                        color={location.pathname.startsWith(item.route) ? 'white' : 'inherit'}
-                        _hover={{
-                          bg: location.pathname.startsWith(item.route)
-                            ? 'blue.600'
-                            : colorMode === 'dark'
-                            ? 'gray.700'
-                            : 'gray.100',
-                        }}
-                      >
-                        <item.icon boxSize={5} />
-                        {!isCollapsed && (
-                          <>
-                            <Text ml={3} fontSize="sm" flex={1}>
-                              {item.label}
-                            </Text>
-                            <AccordionIcon />
-                          </>
-                        )}
-                      </Box>
-                    </AccordionButton>
-                    {!isCollapsed && (
-                      <AccordionPanel p={0} pl={4}>
-                        <VStack spacing={1} align="stretch">
-                          {item.children.map((child) => (
-                            <React.Fragment key={child.id}>
-                              {renderNavItem(child, true)}
-                            </React.Fragment>
-                          ))}
-                        </VStack>
-                      </AccordionPanel>
-                    )}
-                  </AccordionItem>
-                </Accordion>
+                      <child.icon boxSize={5} />
+                      {!isCollapsed && (
+                        <Text ml={3} fontSize="sm">
+                          {child.label}
+                        </Text>
+                      )}
+                    </Box>
+                  ))}
+                </React.Fragment>
               );
             }
-            return <React.Fragment key={item.id}>{renderNavItem(item)}</React.Fragment>;
+            // Render non-section nav items
+            return (
+              <Box
+                key={item.id}
+                as={Link}
+                to={item.route}
+                display="flex"
+                alignItems="center"
+                p={2}
+                borderRadius="md"
+                bg={location.pathname === item.route ? 'blue.500' : 'transparent'}
+                color={location.pathname === item.route ? 'white' : 'inherit'}
+                _hover={{
+                  bg: location.pathname === item.route ? 'blue.600' : colorMode === 'dark' ? 'gray.700' : 'gray.100',
+                }}
+                cursor="pointer"
+                role="menuitem"
+                aria-current={location.pathname === item.route ? 'page' : undefined}
+                tabIndex={0}
+                textDecoration="none"
+              >
+                <item.icon boxSize={5} />
+                {!isCollapsed && (
+                  <Text ml={3} fontSize="sm">
+                    {item.label}
+                  </Text>
+                )}
+              </Box>
+            );
           })}
         </VStack>
         {/* Export Button (optional) */}

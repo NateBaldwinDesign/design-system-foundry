@@ -22,6 +22,8 @@ import {
 } from '@chakra-ui/react';
 import { AddIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
 import { StorageService } from '../../services/storage';
+import { ValidationService } from '../../services/validation';
+import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 
 interface Theme {
   id: string;
@@ -46,6 +48,12 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
     isDefault: false
   });
   const toast = useToast();
+  // Assume tokens, collections, dimensions, platforms, and taxonomies are available via props or context (for this edit, use empty arrays as placeholders)
+  const tokens: Token[] = [];
+  const collections: TokenCollection[] = [];
+  const dimensions: Dimension[] = [];
+  const platforms: Platform[] = [];
+  const taxonomies: Taxonomy[] = [];
 
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
@@ -68,34 +76,68 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
   };
 
   const handleFormChange = (field: keyof Theme, value: string | boolean) => {
-    setForm(prev => ({ ...prev, [field]: value }));
+    setForm((prev: Theme) => ({ ...prev, [field]: value }));
+  };
+
+  const validateAndSetThemes = (updatedThemes: Theme[]) => {
+    const data = {
+      tokenCollections: collections,
+      dimensions,
+      tokens,
+      platforms,
+      taxonomies,
+      themes: updatedThemes,
+      version: '1.0.0',
+      versionHistory: []
+    };
+    const result = ValidationService.validateData(data);
+    if (!result.isValid) {
+      toast({
+        title: 'Schema Validation Failed',
+        description: 'Your change would make the data invalid. See the Validation tab for details.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true,
+      });
+      return false;
+    }
+    setThemes(updatedThemes);
+    return true;
   };
 
   const handleSave = () => {
     if (!form.displayName.trim()) {
-      toast({ title: 'Display name is required', status: 'error', duration: 2000 });
+      toast({ 
+        title: 'Required Field Missing', 
+        description: 'Display name is required for themes.',
+        status: 'error', 
+        duration: 4000,
+        isClosable: true 
+      });
       return;
     }
-
     const id = form.id || form.displayName.trim().replace(/\s+/g, '_').toLowerCase();
     if (!form.id && themes.some(t => t.id === id)) {
-      toast({ title: 'A theme with this name already exists', status: 'error', duration: 2000 });
+      toast({ 
+        title: 'Duplicate Theme', 
+        description: 'A theme with this name already exists. Please choose a different name.',
+        status: 'error', 
+        duration: 4000,
+        isClosable: true 
+      });
       return;
     }
-
     const newThemes = [...themes];
     const themeToSave = {
       ...form,
       id,
       isDefault: form.isDefault
     };
-
     if (editingIndex !== null) {
       newThemes[editingIndex] = themeToSave;
     } else {
       newThemes.push(themeToSave);
     }
-
     // If this theme is set as default, unset any other default themes
     if (themeToSave.isDefault) {
       newThemes.forEach(t => {
@@ -104,19 +146,33 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
         }
       });
     }
-
-    setThemes(newThemes);
-    StorageService.setThemes(newThemes);
+    if (!validateAndSetThemes(newThemes)) {
+      return;
+    }
     setOpen(false);
     setEditingIndex(null);
-    toast({ title: 'Theme saved', status: 'success', duration: 2000 });
+    toast({ 
+      title: 'Theme Saved', 
+      description: `Successfully ${editingIndex !== null ? 'updated' : 'created'} theme "${form.displayName}"`,
+      status: 'success', 
+      duration: 3000,
+      isClosable: true 
+    });
   };
 
   const handleDelete = (index: number) => {
+    const themeToDelete = themes[index];
     const newThemes = themes.filter((_, i) => i !== index);
-    setThemes(newThemes);
-    StorageService.setThemes(newThemes);
-    toast({ title: 'Theme deleted', status: 'info', duration: 2000 });
+    if (!validateAndSetThemes(newThemes)) {
+      return;
+    }
+    toast({ 
+      title: 'Theme Deleted', 
+      description: `Successfully deleted theme "${themeToDelete.displayName}"`,
+      status: 'info', 
+      duration: 3000,
+      isClosable: true 
+    });
   };
 
   return (
