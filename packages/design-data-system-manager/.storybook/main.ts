@@ -14,25 +14,6 @@ const config: StorybookConfig = {
   "framework": {
     "name": "@storybook/react-vite",
     "options": {}
-  },
-  "docs": {
-    "autodocs": "tag"
-  },
-  "typescript": {
-    "reactDocgen": "react-docgen-typescript",
-    "reactDocgenTypescriptOptions": {
-      "compilerOptions": {
-        "allowSyntheticDefaultImports": false,
-        "esModuleInterop": false,
-      },
-      "propFilter": (prop) => {
-        if (prop.parent) {
-          return !prop.parent.fileName.includes('node_modules');
-        }
-        return true;
-      },
-    },
-  },
+  }
 };
-
 export default config;
