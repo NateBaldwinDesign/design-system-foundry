@@ -117,3 +117,35 @@ Once these issues are resolved, the codebase will have:
 - Consistent function signatures
 - Better type safety
 - More reliable build process 
+
+# Validation Handling and Data Integrity Improvements
+
+## Context
+Recent updates have focused on ensuring that all data mutations and data loading operations are schema-compliant and robust, in line with the project's schema-driven development philosophy.
+
+## Improvements
+
+### 1. Schema Validation on All Mutations
+- All major mutation handlers (tokens, collections, dimensions, platforms, themes, value types, taxonomies) now validate the full data object against the schema before updating state.
+- If a mutation would result in invalid data, the update is prevented and the user receives a clear, actionable error message via a toast notification.
+- ValidationService is used as the single point of schema validation, ensuring consistency and maintainability.
+
+### 2. Robust Theme Override Merging
+- When a theme override file is selected as a data source, the loader now searches all available example data files for a matching core data file (by `systemId` and presence of a `tokens` array), not just those in the same directory.
+- The loader merges the override into the full core data object, resulting in a schema-compliant object that includes all required fields.
+- This ensures that theme overrides always produce a valid, complete data set, regardless of file placement or naming.
+
+### 3. User Feedback and Error Handling
+- All validation errors and important user actions are surfaced via standardized Chakra UI toast notifications.
+- Error messages are descriptive and actionable, helping users quickly resolve issues.
+- Success and info messages are also standardized for consistency and clarity.
+
+### 4. Alignment with Schema and Technical Decisions
+- All validation and merging logic is strictly aligned with the schema (`schema.json`) and the principles outlined in this document.
+- No alternative models or keys are introduced; all data flows are schema-driven.
+- Referential integrity and required relationships are enforced at every mutation and load step.
+
+## Outcome
+- The app now provides robust, user-friendly validation and data integrity guarantees.
+- Users are prevented from making invalid changes and are always informed of the reason for any failure.
+- Theme overrides are seamlessly merged, and all data sources are loaded in a schema-compliant way. 

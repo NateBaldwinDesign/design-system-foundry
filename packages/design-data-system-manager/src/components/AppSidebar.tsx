@@ -168,7 +168,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 onChange={(e) => setDataSource(e.target.value)}
               >
                 {dataOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
+                  <option key={option.filePath} value={option.filePath}>
                     {option.label}
                   </option>
                 ))}
