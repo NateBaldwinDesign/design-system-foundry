@@ -14,7 +14,7 @@ import {
   Flex,
   FormControl,
   FormLabel,
-  Select
+  Select,
 } from '@chakra-ui/react';
 import { EditIcon, DeleteIcon } from '@chakra-ui/icons';
 import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
@@ -129,47 +129,47 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
       </Flex>
       {/* Filter Controls */}
       <HStack spacing={4} wrap="wrap" align="flex-start" mb={4}>
-        <FormControl width="240px">
+        <FormControl maxW="240px" flex="none">
           <FormLabel>Collection</FormLabel>
           <Select size="sm" value={collectionFilter} onChange={e => setCollectionFilter(e.target.value)}>
-            <option value="">All</option>
+            <option key="collection-all" value="">All</option>
             {collections.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={`collection-${c.id}`} value={c.id}>{c.name}</option>
             ))}
           </Select>
         </FormControl>
-        <FormControl width="240px">
+        <FormControl maxW="240px" flex="none">
           <FormLabel>Type</FormLabel>
           <Select size="sm" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-            <option value="">All</option>
+            <option key="type-all" value="">All</option>
             {typeOptions.map(type => (
-              <option key={type} value={type}>{type}</option>
+              <option key={`type-${type}`} value={type}>{type}</option>
             ))}
           </Select>
         </FormControl>
-        <FormControl width="240px">
+        <FormControl maxW="240px" flex="none">
           <FormLabel>Status</FormLabel>
           <Select size="sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-            <option value="">All</option>
+            <option key="status-all" value="">All</option>
             {statusOptions.map(status => (
-              <option key={status} value={status}>{status}</option>
+              <option key={`status-${status}`} value={status}>{status}</option>
             ))}
           </Select>
         </FormControl>
-        <FormControl width="240px">
+        <FormControl maxW="240px" flex="none">
           <FormLabel>Private</FormLabel>
           <Select size="sm" value={privateFilter} onChange={e => setPrivateFilter(e.target.value)}>
-            <option value="">All</option>
-            <option value="true">Private</option>
-            <option value="false">Public</option>
+            <option key="private-all" value="">All</option>
+            <option key="private-true" value="true">Private</option>
+            <option key="private-false" value="false">Public</option>
           </Select>
         </FormControl>
-        <FormControl width="240px">
+        <FormControl maxW="240px" flex="none">
           <FormLabel>Themeable</FormLabel>
           <Select size="sm" value={themeableFilter} onChange={e => setThemeableFilter(e.target.value)}>
-            <option value="">All</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
+            <option key="themeable-all" value="">All</option>
+            <option key="themeable-true" value="true">Yes</option>
+            <option key="themeable-false" value="false">No</option>
           </Select>
         </FormControl>
       </HStack>

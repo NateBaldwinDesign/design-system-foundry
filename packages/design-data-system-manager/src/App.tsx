@@ -19,6 +19,7 @@ import PublishingView from './views/publishing/PublishingView';
 import TokensView from './views/tokens/TokensView';
 import SetupView from './views/setup/SetupView';
 import ThemesView from './views/themes/ThemesView';
+import DashboardView from './views/dashboard/DashboardView';
 import './App.css';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from './services/codeSyntax';
 
@@ -412,7 +413,10 @@ export function App() {
               setTaxonomyOrder={updateTaxonomyOrder}
             />
           )}
-          {activeView !== 'tokens' && activeView !== 'setup' && activeView !== 'themes' && activeView !== 'publishing' && <Box />}
+          {activeView === 'dashboard' && (
+            <DashboardView />
+          )}
+          {activeView !== 'tokens' && activeView !== 'setup' && activeView !== 'themes' && activeView !== 'publishing' && activeView !== 'dashboard' && <Box />}
         </VStack>
       </Container>
     </Box>

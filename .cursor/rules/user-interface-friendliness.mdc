@@ -7,3 +7,4 @@ summary: Favor user-friendly UI organization, especially for complex relationshi
 details:
 - Organize UI for clarity and usability, even if it means deviating from schema structure for presentation.
 - Use pre-existing components and patterns where possible.
+- Use Chakra-ui components

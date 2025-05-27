@@ -21,6 +21,7 @@ interface HeaderProps {
 }
 
 const NAV_VIEWS = [
+  { key: 'dashboard', label: 'Dashboard' },
   { key: 'tokens', label: 'Tokens' },
   { key: 'setup', label: 'Setup' },
   { key: 'themes', label: 'Themes' },
