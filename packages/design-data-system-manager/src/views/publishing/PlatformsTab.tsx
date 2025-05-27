@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Text,
@@ -11,62 +11,36 @@ import {
   useColorMode
 } from '@chakra-ui/react';
 import { DeleteIcon, EditIcon, AddIcon } from '@chakra-ui/icons';
-import { StorageService } from '../../services/storage';
 import { PlatformEditorDialog } from '../../components/PlatformEditorDialog';
 import { createUniqueId } from '../../utils/id';
-import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../../services/codeSyntax';
-
-interface Platform {
-  id: string;
-  displayName: string;
-  description?: string;
-  syntaxPatterns?: {
-    prefix?: string;
-    suffix?: string;
-    delimiter?: string;
-    capitalization?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
-    formatString?: string;
-  };
-  valueFormatters?: {
-    color?: 'hex' | 'rgb' | 'rgba' | 'hsl' | 'hsla';
-    dimension?: 'px' | 'rem' | 'em' | 'pt' | 'dp' | 'sp';
-    numberPrecision?: number;
-  };
-}
+import { CodeSyntaxService } from '../../services/codeSyntax';
+import { Platform, Token, Taxonomy } from '@token-model/data-model';
 
 interface PlatformsTabProps {
-  onDataChange?: () => void;
+  platforms: Platform[];
+  setPlatforms: (platforms: Platform[]) => void;
+  tokens: Token[];
+  setTokens: (tokens: Token[]) => void;
+  taxonomies: Taxonomy[];
 }
 
-export const PlatformsTab: React.FC<PlatformsTabProps> = ({ onDataChange }) => {
+export const PlatformsTab: React.FC<PlatformsTabProps> = ({ 
+  platforms: initialPlatforms, 
+  setPlatforms,
+  tokens,
+  setTokens,
+  taxonomies
+}) => {
   const { colorMode } = useColorMode();
-  const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [editingPlatform, setEditingPlatform] = useState<Platform | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isNew, setIsNew] = useState(false);
   const cardBg = useColorModeValue('gray.50', 'gray.800');
   const cardBorder = useColorModeValue('gray.200', 'gray.600');
 
-  useEffect(() => {
-    const loaded = StorageService.getPlatforms() || [];
-    const normalized = loaded.map((p: Platform) => ({
-      ...p,
-      syntaxPatterns: {
-        prefix: p.syntaxPatterns?.prefix ?? '',
-        suffix: p.syntaxPatterns?.suffix ?? '',
-        delimiter: p.syntaxPatterns?.delimiter ?? '_',
-        capitalization: p.syntaxPatterns?.capitalization ?? 'none',
-        formatString: p.syntaxPatterns?.formatString ?? ''
-      }
-    }));
-    setPlatforms(normalized);
-    StorageService.setPlatforms(normalized);
-  }, []);
-
   const handleDeletePlatform = (platformId: string) => {
-    const updated = platforms.filter((p: Platform) => p.id !== platformId);
+    const updated = initialPlatforms.filter((p: Platform) => p.id !== platformId);
     setPlatforms(updated);
-    StorageService.setPlatforms(updated);
   };
 
   const handleEditPlatform = (platform: Platform) => {
@@ -94,64 +68,38 @@ export const PlatformsTab: React.FC<PlatformsTabProps> = ({ onDataChange }) => {
 
   const handleDialogSave = (updatedPlatform: Platform) => {
     let updatedPlatforms;
-    let isPlatformNew = false;
     if (isNew) {
       const newId = updatedPlatform.displayName.trim().replace(/\s+/g, '_').toLowerCase() || `platform_${Date.now()}`;
       updatedPlatforms = [
-        ...platforms,
+        ...initialPlatforms,
         {
           ...updatedPlatform,
           id: newId
         }
       ];
-      updatedPlatform = { ...updatedPlatform, id: newId };
-      isPlatformNew = true;
     } else {
-      updatedPlatforms = platforms.map((p: Platform) =>
+      updatedPlatforms = initialPlatforms.map((p: Platform) =>
         p.id === updatedPlatform.id ? updatedPlatform : p
       );
     }
+
+    // Update platforms in state
     setPlatforms(updatedPlatforms);
-    StorageService.setPlatforms(updatedPlatforms);
 
-    // Update codeSyntax for all tokens in local storage
-    const allTokens = StorageService.getTokens();
-    const taxonomies = StorageService.getTaxonomies() || [];
-    let schema: { platforms: Platform[]; taxonomies: Taxonomy[]; namingRules?: any } = { platforms: updatedPlatforms, taxonomies };
-    if (typeof (StorageService as any).getNamingRules === 'function') {
-      schema.namingRules = (StorageService as any).getNamingRules();
-    }
-
-    const updatedTokens = allTokens.map(token => {
-      let codeSyntax = Array.isArray(token.codeSyntax) ? [...token.codeSyntax] : [];
-      if (isPlatformNew) {
-        // Add new codeSyntax entry for the new platform if missing
-        const exists = codeSyntax.some(cs => cs.platformId === updatedPlatform.id);
-        if (!exists) {
-          codeSyntax.push({
-            platformId: updatedPlatform.id,
-            formattedName: CodeSyntaxService.generateCodeSyntax(token, updatedPlatform.id, schema)
-          });
-        }
-      } else {
-        // Edit: update codeSyntax entry for the edited platform
-        codeSyntax = codeSyntax.map(cs =>
-          cs.platformId === updatedPlatform.id
-            ? {
-                platformId: updatedPlatform.id,
-                formattedName: CodeSyntaxService.generateCodeSyntax(token, updatedPlatform.id, schema)
-              }
-            : cs
-        );
-      }
+    // Update codeSyntax for all tokens for all platforms
+    const schema = { platforms: updatedPlatforms, taxonomies };
+    const updatedTokens = tokens.map((token: Token) => {
+      const codeSyntax = updatedPlatforms.map((platform: Platform) => ({
+        platformId: platform.id,
+        formattedName: CodeSyntaxService.generateCodeSyntax(token, platform.id, schema)
+      }));
       return {
         ...token,
         codeSyntax
       };
     });
-    StorageService.setTokens(updatedTokens);
+    setTokens(updatedTokens);
 
-    if (onDataChange) onDataChange();
     setIsDialogOpen(false);
     setEditingPlatform(null);
     setIsNew(false);
@@ -165,7 +113,7 @@ export const PlatformsTab: React.FC<PlatformsTabProps> = ({ onDataChange }) => {
           Add Platform
         </Button>
         <VStack align="stretch" spacing={3}>
-          {platforms.map((platform: Platform) => {
+          {initialPlatforms.map((platform: Platform) => {
             const syntax = platform.syntaxPatterns || {};
             return (
               <Box

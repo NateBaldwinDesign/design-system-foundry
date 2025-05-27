@@ -1,23 +1,9 @@
-import React from "react";
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Container,
-  Heading,
   VStack,
-  HStack,
-  Button,
-  useDisclosure,
-  Flex,
-  Spinner,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  FormControl,
-  FormLabel,
-  Select
+  Spinner
 } from '@chakra-ui/react';
 import {
   TokenCollection,
@@ -27,28 +13,14 @@ import {
   Platform,
   Taxonomy
 } from '@token-model/data-model';
-import { TokensTab } from './components/TokensTab';
-import { CollectionsTab } from './components/CollectionsTab';
-import { DimensionsTab } from './components/DimensionsTab';
-import { ValueTypesTab } from './components/ValueTypesTab';
-import { SettingsWorkflow } from './views/settings/SettingsWorkflow';
 import { StorageService } from './services/storage';
-import { ValidationTab } from './components/ValidationTab';
-import { generateId, ID_PREFIXES } from './utils/id';
-import { TokenEditorDialog } from './components/TokenEditorDialog';
-import { exportAndValidateData } from './utils/validateAndExportData';
-import { createSchemaJsonFromLocalStorage, validateSchemaJson, downloadSchemaJsonFromLocalStorage } from './services/createJson';
-import './App.css';
 import Header from './components/Header';
-import { VerticalTabsLayout } from './components/VerticalTabsLayout';
-import { ClassificationTab } from './views/settings/SettingsTaxonomiesTab';
-import { NamingRulesTab } from './views/settings/SettingsNamingRulesTab';
-import { ThemesTab } from './views/settings/SettingsThemesTab';
-import { ThemesTab as ThemesWorkflowTab } from './components/ThemesTab';
 import PublishingView from './views/publishing/PublishingView';
 import TokensView from './views/tokens/TokensView';
 import SetupView from './views/setup/SetupView';
 import ThemesView from './views/themes/ThemesView';
+import './App.css';
+import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from './services/codeSyntax';
 
 // TypeScript declaration for import.meta.glob
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -56,11 +28,8 @@ import ThemesView from './views/themes/ThemesView';
 const exampleDataFiles = import.meta.glob('../../data-model/examples/**/*.json', { as: 'raw' });
 
 function getDataSourceOptions() {
-  // Convert file paths to user-friendly labels
   return Object.keys(exampleDataFiles).map((filePath) => {
-    // e.g., ../../data-model/examples/themed/core-data.json -> themed/core-data.json
-    const relPath = filePath.replace(/^\.\.\/\.\.\/data-model\/examples\//, '');
-    // Label: Themed / Core Data
+    const relPath = filePath.replace(/^e\/\.\.\/data-model\/examples\//, '');
     const label = relPath
       .replace(/\//g, ' / ')
       .replace(/-/g, ' ')
@@ -71,7 +40,6 @@ function getDataSourceOptions() {
 }
 
 export function App() {
-  const [activeTab, setActiveTab] = useState(0);
   const [dataSource, setDataSource] = useState<string>('themed/core-data.json');
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
@@ -79,34 +47,100 @@ export function App() {
   const [resolvedValueTypes, setResolvedValueTypes] = useState<{ id: string; displayName: string }[]>([]);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
-  const [themes, setThemes] = useState<any[]>([]);
+  const [themes, setThemes] = useState<unknown[]>([]);
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [dataOptions, setDataOptions] = useState<{ label: string; value: string; filePath: string }[]>([]);
-  const [validationDialogOpen, setValidationDialogOpen] = useState(false);
-  const [validationResult, setValidationResult] = useState<{ valid: boolean; result?: any; error?: any } | null>(null);
-  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
-  const [downloadOption, setDownloadOption] = useState('raw');
   const [taxonomyOrder, setTaxonomyOrder] = useState<string[]>([]);
-  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
-  const { isOpen, onOpen, onClose } = useDisclosure();
   const [activeView, setActiveView] = useState<string>('tokens');
   const [setupActiveTab, setSetupActiveTab] = useState<number>(0);
 
-  // Discover data files on mount
   useEffect(() => {
     setDataOptions(getDataSourceOptions());
   }, []);
 
-  // Helper to load data from the selected source
+  useEffect(() => {
+    // Normalize codeSyntax for all tokens on load
+    let loadedTokens = StorageService.getTokens() || [];
+    let tokensWereNormalized = false;
+    loadedTokens = loadedTokens.map(token => {
+      if (!Array.isArray(token.codeSyntax)) {
+        tokensWereNormalized = true;
+        return {
+          ...token,
+          codeSyntax: ensureCodeSyntaxArrayFormat(token.codeSyntax || {})
+        };
+      }
+      return token;
+    });
+    if (tokensWereNormalized) {
+      StorageService.setTokens(loadedTokens);
+    }
+    setTokens(loadedTokens);
+    setPlatforms(StorageService.getPlatforms() || []);
+    setCollections(StorageService.getCollections ? StorageService.getCollections() : []);
+    setDimensions(StorageService.getDimensions ? StorageService.getDimensions() : []);
+    setTaxonomies(StorageService.getTaxonomies ? StorageService.getTaxonomies() : []);
+    setResolvedValueTypes(StorageService.getValueTypes ? StorageService.getValueTypes() : []);
+    setThemes(StorageService.getThemes ? StorageService.getThemes() : []);
+    setModes(StorageService.getModes ? StorageService.getModes() : []);
+    const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
+    setTaxonomyOrder(root.namingRules?.taxonomyOrder || []);
+    setLoading(false);
+  }, []);
+
+  // Helper: update state and persist to local storage
+  const updateTokens = (newTokens: Token[]) => {
+    setTokens(newTokens);
+    StorageService.setTokens(newTokens);
+  };
+  const updatePlatforms = (newPlatforms: Platform[]) => {
+    setPlatforms(newPlatforms);
+    StorageService.setPlatforms(newPlatforms);
+  };
+  const updateCollections = (newCollections: TokenCollection[]) => {
+    setCollections(newCollections);
+    StorageService.setCollections(newCollections);
+  };
+  const updateDimensions = (newDimensions: Dimension[]) => {
+    setDimensions(newDimensions);
+    StorageService.setDimensions(newDimensions);
+  };
+  const updateTaxonomies = (newTaxonomies: Taxonomy[]) => {
+    setTaxonomies(newTaxonomies);
+    StorageService.setTaxonomies(newTaxonomies);
+  };
+  // TODO: setValueTypes expects string[], but schema uses {id, displayName}[]
+  const updateResolvedValueTypes = (newTypes: { id: string; displayName: string }[]) => {
+    setResolvedValueTypes(newTypes);
+    // @ts-expect-error: StorageService.setValueTypes expects string[] but schema uses objects
+    StorageService.setValueTypes(newTypes);
+  };
+  const updateThemes = (newThemes: unknown[]) => {
+    setThemes(newThemes);
+    StorageService.setThemes(newThemes);
+  };
+  const updateModes = (newModes: Mode[]) => {
+    setModes(newModes);
+    StorageService.setModes(newModes);
+  };
+  const updateTaxonomyOrder = (order: string[]) => {
+    setTaxonomyOrder(order);
+    const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
+    localStorage.setItem('token-model:root', JSON.stringify({
+      ...root,
+      namingRules: {
+        ...root.namingRules,
+        taxonomyOrder: order
+      }
+    }));
+  };
+
   const loadDataFromSource = async (source: string) => {
     setLoading(true);
-    let rawData = await exampleDataFiles[`../../data-model/examples/${source}`]();
+    const rawData = await exampleDataFiles[`../../data-model/examples/${source}`]();
     let d = JSON.parse(rawData);
 
-    // --- THEME OVERRIDE MERGE LOGIC ---
-    // If this is a theme override file (has systemId, themeId, tokenOverrides, and no tokens array)
     if (
       d &&
       typeof d === 'object' &&
@@ -115,20 +149,19 @@ export function App() {
       Array.isArray(d.tokenOverrides) &&
       !Array.isArray(d.tokens)
     ) {
-      // Find all files in the same directory
       const dirPrefix = source.substring(0, source.lastIndexOf('/') + 1);
       const candidates = Object.keys(exampleDataFiles).filter(f => f.startsWith(`../../data-model/examples/${dirPrefix}`));
-      let coreData = null;
+      let coreData: Record<string, unknown> | null = null;
       for (const file of candidates) {
         if (file === `../../data-model/examples/${source}`) continue;
         const fileRaw = await exampleDataFiles[file]();
-        let fileData;
+        let fileData: Record<string, unknown> | undefined;
         try { fileData = JSON.parse(fileRaw); } catch { continue; }
         if (
           fileData &&
           typeof fileData === 'object' &&
-          fileData.systemId === d.systemId &&
-          Array.isArray(fileData.tokens)
+          (fileData as { systemId?: string; tokens?: Token[] }).systemId === d.systemId &&
+          Array.isArray((fileData as { tokens?: Token[] }).tokens)
         ) {
           coreData = fileData;
           break;
@@ -139,11 +172,9 @@ export function App() {
         setLoading(false);
         return;
       }
-      // Merge tokenOverrides into coreData tokens (only for themeable tokens)
-      const mergedTokens = coreData.tokens.map((token: any) => {
-        const override = d.tokenOverrides.find((o: any) => o.tokenId === token.id);
+      const mergedTokens: Token[] = ((coreData as { tokens: Token[] }).tokens).map((token: Token) => {
+        const override = (d.tokenOverrides as { tokenId: string; value: unknown }[]).find((o) => o.tokenId === token.id);
         if (override && token.themeable) {
-          // Replace the valuesByMode with the override value (global, modeIds: [])
           return {
             ...token,
             valuesByMode: [
@@ -156,15 +187,12 @@ export function App() {
         }
         return token;
       });
-      // Use the merged data for the UI
       d = { ...coreData, ...d, tokens: mergedTokens };
     }
-    // --- END THEME OVERRIDE MERGE LOGIC ---
 
-    // Normalize platforms
-    const normalizedPlatforms = (d.platforms || []).map((p: any) => ({
+    const normalizedPlatforms: Platform[] = (d.platforms || []).map((p: Platform) => ({
       ...p,
-      displayName: p.displayName || p.name || '',
+      displayName: p.displayName || (p as { name?: string }).name || '',
       syntaxPatterns: {
         prefix: p.syntaxPatterns?.prefix ?? '',
         suffix: p.syntaxPatterns?.suffix ?? '',
@@ -174,41 +202,36 @@ export function App() {
       }
     }));
 
-    // Normalize collections with required fields
-    const normalizedCollections = (d.tokenCollections || []).map((c: any) => ({
+    const normalizedCollections: TokenCollection[] = (d.tokenCollections || []).map((c: TokenCollection) => ({
       ...c,
       resolvedValueTypes: c.resolvedValueTypes || []
     }));
 
-    // Normalize tokens with proper value types
-    const normalizedTokens = (d.tokens || []).map((t: any) => {
-      // Ensure valuesByMode has proper value types
-      const normalizedValuesByMode = (t.valuesByMode || []).map((v: any) => {
-        if (v.value) {
-          // Convert DIMENSION and FONT_FAMILY to STRING type
-          if (v.value.type === 'DIMENSION' || v.value.type === 'FONT_FAMILY') {
+    const normalizedTokens: Token[] = (d.tokens || []).map((t: Token) => {
+      const normalizedValuesByMode = (t.valuesByMode || []).map((v: { value: unknown; modeIds: string[] }) => {
+        if (v.value && typeof v.value === 'object' && v.value !== null) {
+          const valueObj = v.value as { type?: string; value?: unknown; tokenId?: string };
+          if (valueObj.type === 'DIMENSION' || valueObj.type === 'FONT_FAMILY') {
             return {
               ...v,
               value: {
                 type: 'STRING',
-                value: v.value.value
+                value: valueObj.value
               }
             };
           }
-          // Ensure ALIAS type has tokenId
-          if (v.value.type === 'ALIAS' && !v.value.tokenId) {
+          if (valueObj.type === 'ALIAS' && !valueObj.tokenId) {
             return {
               ...v,
               value: {
                 type: 'STRING',
-                value: v.value.value || ''
+                value: valueObj.value || ''
               }
             };
           }
         }
         return v;
       });
-
       return {
         themeable: t.themeable ?? false,
         ...t,
@@ -216,53 +239,37 @@ export function App() {
       };
     });
 
-    // Normalize dimensions
-    const normalizedDimensions = (d.dimensions || []).map((dim: any) => ({
-      type: dim.type || 'COLOR_SCHEME',
+    const normalizedDimensions: Dimension[] = (d.dimensions || []).map((dim: Dimension) => ({
+      type: (dim as { type?: string }).type || 'COLOR_SCHEME',
       ...dim
     }));
 
-    // Construct global modes array from all dimensions
-    const allModes = normalizedDimensions.flatMap((d: any) => d.modes || []);
-
-    // Ensure required top-level fields
-    const normalizedData = {
-      ...d,
-      tokenCollections: normalizedCollections,
-      tokens: normalizedTokens,
-      dimensions: normalizedDimensions,
-      platforms: normalizedPlatforms,
-      tokenGroups: d.tokenGroups || [],
-      tokenVariants: d.tokenVariants || [],
-      themeOverrides: d.themeOverrides || {}
-    };
+    const allModes: Mode[] = normalizedDimensions.flatMap((d: Dimension) => (d as { modes?: Mode[] }).modes || []);
 
     setCollections(normalizedCollections);
     setModes(allModes);
     setDimensions(normalizedDimensions);
-    setResolvedValueTypes((d as any).resolvedValueTypes ?? []);
+    setResolvedValueTypes((d as { resolvedValueTypes?: { id: string; displayName: string }[] }).resolvedValueTypes ?? []);
     setTokens(normalizedTokens);
     setPlatforms(normalizedPlatforms);
-    setThemes((d as any).themes ?? []);
-    setTaxonomies((d as any).taxonomies ?? []);
+    setThemes((d as { themes?: unknown[] }).themes ?? []);
+    setTaxonomies((d as { taxonomies?: Taxonomy[] }).taxonomies ?? []);
     setLoading(false);
 
-    // Naming rules/taxonomy order
-    const namingRules = (d as any).namingRules || {};
+    const namingRules = (d as { namingRules?: { taxonomyOrder?: string[] } }).namingRules || {};
     const order = namingRules.taxonomyOrder || [];
     setTaxonomyOrder(order);
 
-    // Sync to localStorage for validation
     StorageService.setCollections(normalizedCollections);
     StorageService.setModes(allModes);
     StorageService.setDimensions(normalizedDimensions);
-    StorageService.setValueTypes((d as any).resolvedValueTypes ?? []);
+    // @ts-expect-error: StorageService.setValueTypes expects string[] but schema uses objects
+    StorageService.setValueTypes((d as { resolvedValueTypes?: { id: string; displayName: string }[] }).resolvedValueTypes ?? []);
     StorageService.setTokens(normalizedTokens);
     StorageService.setPlatforms(normalizedPlatforms);
-    StorageService.setThemes((d as any).themes ?? []);
-    StorageService.setTaxonomies((d as any).taxonomies ?? []);
+    StorageService.setThemes((d as { themes?: unknown[] }).themes ?? []);
+    StorageService.setTaxonomies((d as { taxonomies?: Taxonomy[] }).taxonomies ?? []);
 
-    // Also sync namingRules to localStorage:token-model:root
     const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
     localStorage.setItem('token-model:root', JSON.stringify({
       ...root,
@@ -275,51 +282,31 @@ export function App() {
 
   useEffect(() => {
     if (dataSource) {
-    loadDataFromSource(dataSource);
+      loadDataFromSource(dataSource);
     }
   }, [dataSource]);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
+  const handleViewSetupClassificationTab = () => {
+    setActiveView('setup');
+    setSetupActiveTab(1);
   };
 
-  const handleOpenCreateDialog = () => setCreateDialogOpen(true);
-  const handleCloseCreateDialog = () => setCreateDialogOpen(false);
-
-  const handleCreateToken = (tokenData: Omit<Token, 'id'>) => {
-    const newToken: Token = {
-      ...tokenData,
-      id: generateId(ID_PREFIXES.TOKEN)
-    };
-    const newTokens = [...tokens, newToken];
-    setTokens(newTokens);
-    StorageService.setTokens(newTokens);
-    setCreateDialogOpen(false);
-  };
-
-  const handleEditToken = (token: Token) => {
-    setSelectedToken(token);
-    onOpen();
-  };
-
-  const handleSaveToken = (token: Token) => {
-    if (selectedToken) {
-      setTokens(tokens.map(t => t.id === token.id ? token : t));
-    } else {
-      setTokens([...tokens, token]);
+  const handleViewChange = (view: string) => {
+    if (view === 'setup') {
+      setSetupActiveTab(0);
     }
-    onClose();
-  };
-
-  const handleDeleteToken = (tokenId: string) => {
-    setTokens(tokens.filter(t => t.id !== tokenId));
+    setActiveView(view);
   };
 
   const handleResetData = () => {
     // Clear all localStorage data
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // Clear all StorageService data
     StorageService.clearAll();
-
-    // Clear in-memory state (including schema, platforms, naming rules)
+    
+    // Clear all in-memory state
     setTokens([]);
     setCollections([]);
     setModes([]);
@@ -329,33 +316,18 @@ export function App() {
     setThemes([]);
     setTaxonomies([]);
     setTaxonomyOrder([]);
-    // If you use a schema context or useSchema, also reset it here if possible
-    // For example: updateSchema({});
-
-    // Reload data from current source (this will re-initialize everything from the selected data source)
-    loadDataFromSource(dataSource);
-  };
-
-  const handleValidateData = () => {
-    // Placeholder logic for validateData
-  };
-
-  const handleExportData = () => {
-    // Placeholder logic for exportData
-  };
-
-  // Handler for popover link: close dialog, then navigate
-  const handleViewSetupClassificationTab = () => {
-    setActiveView('setup');
-    setSetupActiveTab(1); // Set to Classifications tab (index 1)
-  };
-
-  // Updated: Synchronously reset tab index on user navigation
-  const handleViewChange = (view: string) => {
-    if (view === 'setup') {
-      setSetupActiveTab(0); // Reset tab index synchronously
+    
+    // Clear browser cache for this domain
+    if ('caches' in window) {
+      caches.keys().then(cacheNames => {
+        cacheNames.forEach(cacheName => {
+          caches.delete(cacheName);
+        });
+      });
     }
-    setActiveView(view);
+    
+    // Reload the page to ensure a clean state
+    window.location.reload();
   };
 
   if (loading) {
@@ -375,8 +347,8 @@ export function App() {
             setDataSource={setDataSource}
             dataOptions={dataOptions}
             handleResetData={handleResetData}
-            handleValidateData={handleValidateData}
-            handleExportData={handleExportData}
+            handleValidateData={() => {}}
+            handleExportData={() => {}}
             activeView={activeView}
             onViewChange={handleViewChange}
           />
@@ -391,9 +363,9 @@ export function App() {
               resolvedValueTypes={resolvedValueTypes}
               themes={themes}
               taxonomyOrder={taxonomyOrder}
-              onEditToken={handleEditToken}
-              onDeleteToken={handleDeleteToken}
-              onSaveToken={handleSaveToken}
+              onEditToken={() => {}}
+              onDeleteToken={() => {}}
+              onSaveToken={() => {}}
               setCollections={setCollections}
               setModes={setModes}
               setTaxonomies={setTaxonomies}
@@ -425,12 +397,19 @@ export function App() {
           {activeView === 'publishing' && (
             <PublishingView
               tokens={tokens}
+              platforms={platforms}
               collections={collections}
               dimensions={dimensions}
-              platforms={platforms}
               taxonomies={taxonomies}
-              version={'1.0.0'}
-              versionHistory={[]}
+              setTokens={updateTokens}
+              setPlatforms={updatePlatforms}
+              setCollections={updateCollections}
+              setDimensions={updateDimensions}
+              setTaxonomies={updateTaxonomies}
+              setResolvedValueTypes={updateResolvedValueTypes}
+              setThemes={updateThemes}
+              setModes={updateModes}
+              setTaxonomyOrder={updateTaxonomyOrder}
             />
           )}
           {activeView !== 'tokens' && activeView !== 'setup' && activeView !== 'themes' && activeView !== 'publishing' && <Box />}

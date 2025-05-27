@@ -10,29 +10,14 @@ import {
   Thead,
   Tag,
   HStack,
-  VStack,
   IconButton,
-  Tooltip,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
+  Flex,
   FormControl,
   FormLabel,
-  FormErrorMessage,
-  Select,
-  useDisclosure,
-  Flex
+  Select
 } from '@chakra-ui/react';
-import { EditIcon, DeleteIcon, AddIcon } from '@chakra-ui/icons';
+import { EditIcon, DeleteIcon } from '@chakra-ui/icons';
 import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
-import { ValueByModeTable } from '../../components/ValueByModeTable';
-import type { ValueByMode } from '../../components/ValueByModeTable';
-import { PlatformOverridesTable } from '../../components/PlatformOverridesTable';
-import { TokenValuePicker } from '../../components/TokenValuePicker';
-import { TaxonomyPicker } from '../../components/TaxonomyPicker';
 import { TokenEditorDialog } from '../../components/TokenEditorDialog';
 
 // Extend the Token type to include themeable
@@ -95,9 +80,14 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
     setIsEditorOpen(true);
   };
 
+  const handleClose = () => {
+    setIsEditorOpen(false);
+    setSelectedToken(null);
+  };
+
   const handleSave = (token: ExtendedToken) => {
     onEdit(token);
-    setIsEditorOpen(false);
+    handleClose();
   };
 
   const getCollectionName = (tokenCollectionId: string) => {
@@ -138,48 +128,48 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
         {renderAddTokenButton}
       </Flex>
       {/* Filter Controls */}
-      <HStack spacing={4} wrap="nowrap" align="flex-start" mb={4}>
-        <FormControl minW="140px">
+      <HStack spacing={4} wrap="wrap" align="flex-start" mb={4}>
+        <FormControl width="240px">
           <FormLabel>Collection</FormLabel>
-          <Select value={collectionFilter} onChange={e => setCollectionFilter(e.target.value)}>
-            <option key="collection-all" value="">All</option>
+          <Select size="sm" value={collectionFilter} onChange={e => setCollectionFilter(e.target.value)}>
+            <option value="">All</option>
             {collections.map(c => (
-              <option key={`collection-${c.id}`} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </Select>
         </FormControl>
-        <FormControl minW="120px">
+        <FormControl width="240px">
           <FormLabel>Type</FormLabel>
-          <Select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-            <option key="type-all" value="">All</option>
+          <Select size="sm" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+            <option value="">All</option>
             {typeOptions.map(type => (
-              <option key={`type-${type}`} value={type}>{type}</option>
+              <option key={type} value={type}>{type}</option>
             ))}
           </Select>
         </FormControl>
-        <FormControl minW="120px">
+        <FormControl width="240px">
           <FormLabel>Status</FormLabel>
-          <Select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-            <option key="status-all" value="">All</option>
+          <Select size="sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <option value="">All</option>
             {statusOptions.map(status => (
-              <option key={`status-${status}`} value={status}>{status}</option>
+              <option key={status} value={status}>{status}</option>
             ))}
           </Select>
         </FormControl>
-        <FormControl minW="120px">
+        <FormControl width="240px">
           <FormLabel>Private</FormLabel>
-          <Select value={privateFilter} onChange={e => setPrivateFilter(e.target.value)}>
-            <option key="private-all" value="">All</option>
-            <option key="private-true" value="true">Private</option>
-            <option key="private-false" value="false">Public</option>
+          <Select size="sm" value={privateFilter} onChange={e => setPrivateFilter(e.target.value)}>
+            <option value="">All</option>
+            <option value="true">Private</option>
+            <option value="false">Public</option>
           </Select>
         </FormControl>
-        <FormControl minW="120px">
+        <FormControl width="240px">
           <FormLabel>Themeable</FormLabel>
-          <Select value={themeableFilter} onChange={e => setThemeableFilter(e.target.value)}>
-            <option key="themeable-all" value="">All</option>
-            <option key="themeable-true" value="true">Yes</option>
-            <option key="themeable-false" value="false">No</option>
+          <Select size="sm" value={themeableFilter} onChange={e => setThemeableFilter(e.target.value)}>
+            <option value="">All</option>
+            <option value="true">Yes</option>
+            <option value="false">No</option>
           </Select>
         </FormControl>
       </HStack>
@@ -219,7 +209,7 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
                     <HStack spacing={1} wrap="wrap">
                       {token.taxonomies.map((ref: { taxonomyId: string; termId: string }) => {
                         const taxonomy = taxonomies.find(tax => tax.id === ref.taxonomyId);
-                        const term = taxonomy?.terms.find(term => term.id === ref.termId);
+                        const term: { id: string; name: string } | undefined = taxonomy?.terms.find((term: { id: string; name: string }) => term.id === ref.termId);
                         if (!taxonomy || !term) return null;
                         return (
                           <Tag key={`${ref.taxonomyId}-${ref.termId}`} size="sm" colorScheme="blue">
@@ -257,12 +247,11 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
           modes={modes}
           platforms={platforms}
           open={isEditorOpen}
-          onClose={() => setIsEditorOpen(false)}
+          onClose={handleClose}
           onSave={handleSave}
           taxonomies={taxonomies}
           resolvedValueTypes={resolvedValueTypes}
           onViewClassifications={onViewClassifications}
-          collections={collections}
         />
       )}
     </Box>

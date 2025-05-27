@@ -550,6 +550,24 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
     }
   };
 
+  const [selectedToken, setSelectedToken] = useState<ExtendedToken | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  const handleEdit = (token: ExtendedToken) => {
+    setSelectedToken(token);
+    setIsEditorOpen(true);
+  };
+
+  const handleClose = () => {
+    setIsEditorOpen(false);
+    setSelectedToken(null);
+  };
+
+  const handleSave = (token: ExtendedToken) => {
+    onEdit(token);
+    handleClose();
+  };
+
   return (
     <Box>
       <Flex justify="space-between" align="center" mb={4}>
@@ -702,7 +720,7 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
                 </Td>
                 <Td>
                   <HStack spacing={1}>
-                    <IconButton aria-label="Edit token" icon={<EditIcon />} onClick={() => onEdit(token)} size="sm" />
+                    <IconButton aria-label="Edit token" icon={<EditIcon />} onClick={() => handleEdit(token)} size="sm" />
                     <IconButton aria-label="Delete token" icon={<DeleteIcon />} onClick={() => onDelete(token.id)} size="sm" />
                   </HStack>
                 </Td>
@@ -711,6 +729,22 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
           </Tbody>
         </Table>
       </Box>
+
+      {selectedToken && (
+        <TokenEditorDialog
+          token={selectedToken}
+          tokens={tokens}
+          dimensions={dimensions}
+          modes={modes}
+          platforms={platforms}
+          open={isEditorOpen}
+          onClose={handleClose}
+          onSave={handleSave}
+          taxonomies={taxonomies}
+          resolvedValueTypes={resolvedValueTypes}
+          onViewClassifications={onViewClassifications}
+        />
+      )}
     </Box>
   );
 } 

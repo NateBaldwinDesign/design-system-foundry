@@ -126,12 +126,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Blue/50",
-        "WEB": "--blue-50",
-        "iOS": "Blue50",
-        "ANDROID": "BLUE_50"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Blue/50"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--blue-50"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Blue50"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "BLUE_50"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -164,12 +176,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Blue/100",
-        "WEB": "--blue-100",
-        "iOS": "Blue100",
-        "ANDROID": "BLUE_100"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Blue/100"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--blue-100"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Blue100"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "BLUE_100"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -202,12 +226,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Blue/200",
-        "WEB": "--blue-200",
-        "iOS": "Blue200",
-        "ANDROID": "BLUE_200"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Blue/200"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--blue-200"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Blue200"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "BLUE_200"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -240,12 +276,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Blue/300",
-        "WEB": "--blue-300",
-        "iOS": "Blue300",
-        "ANDROID": "BLUE_300"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Blue/300"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--blue-300"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Blue300"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "BLUE_300"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -278,12 +326,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Blue/400",
-        "WEB": "--blue-400",
-        "iOS": "Blue400",
-        "ANDROID": "BLUE_400"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Blue/400"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--blue-400"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Blue400"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "BLUE_400"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -316,12 +376,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Blue/500",
-        "WEB": "--blue-500",
-        "iOS": "Blue500",
-        "ANDROID": "BLUE_500"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Blue/500"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--blue-500"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Blue500"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "BLUE_500"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -354,12 +426,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Red/50",
-        "WEB": "--red-50",
-        "iOS": "Red50",
-        "ANDROID": "RED_50"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Red/50"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--red-50"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Red50"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "RED_50"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -392,12 +476,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Red/100",
-        "WEB": "--red-100",
-        "iOS": "Red100",
-        "ANDROID": "RED_100"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Red/100"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--red-100"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Red100"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "RED_100"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -430,12 +526,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Red/200",
-        "WEB": "--red-200",
-        "iOS": "Red200",
-        "ANDROID": "RED_200"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Red/200"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--red-200"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Red200"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "RED_200"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -468,12 +576,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Red/300",
-        "WEB": "--red-300",
-        "iOS": "Red300",
-        "ANDROID": "RED_300"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Red/300"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--red-300"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Red300"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "RED_300"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -506,12 +626,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Red/400",
-        "WEB": "--red-400",
-        "iOS": "Red400",
-        "ANDROID": "RED_400"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Red/400"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--red-400"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Red400"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "RED_400"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -544,12 +676,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Red/500",
-        "WEB": "--red-500",
-        "iOS": "Red500",
-        "ANDROID": "RED_500"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Red/500"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--red-500"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Red500"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "RED_500"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -582,12 +726,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Green/50",
-        "WEB": "--green-50",
-        "iOS": "Green50",
-        "ANDROID": "GREEN_50"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Green/50"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--green-50"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Green50"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GREEN_50"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -620,12 +776,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Green/100",
-        "WEB": "--green-100",
-        "iOS": "Green100",
-        "ANDROID": "GREEN_100"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Green/100"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--green-100"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Green100"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GREEN_100"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -658,12 +826,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Green/200",
-        "WEB": "--green-200",
-        "iOS": "Green200",
-        "ANDROID": "GREEN_200"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Green/200"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--green-200"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Green200"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GREEN_200"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -696,12 +876,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Green/300",
-        "WEB": "--green-300",
-        "iOS": "Green300",
-        "ANDROID": "GREEN_300"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Green/300"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--green-300"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Green300"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GREEN_300"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -734,12 +926,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Green/400",
-        "WEB": "--green-400",
-        "iOS": "Green400",
-        "ANDROID": "GREEN_400"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Green/400"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--green-400"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Green400"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GREEN_400"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -772,12 +976,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Green/500",
-        "WEB": "--green-500",
-        "iOS": "Green500",
-        "ANDROID": "GREEN_500"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Green/500"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--green-500"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Green500"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GREEN_500"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -810,12 +1026,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Gray/50",
-        "WEB": "--gray-50",
-        "iOS": "Gray50",
-        "ANDROID": "GRAY_50"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Gray/50"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--gray-50"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Gray50"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GRAY_50"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -848,12 +1076,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Gray/100",
-        "WEB": "--gray-100",
-        "iOS": "Gray100",
-        "ANDROID": "GRAY_100"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Gray/100"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--gray-100"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Gray100"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GRAY_100"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -886,12 +1126,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Gray/200",
-        "WEB": "--gray-200",
-        "iOS": "Gray200",
-        "ANDROID": "GRAY_200"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Gray/200"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--gray-200"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Gray200"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GRAY_200"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -924,12 +1176,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Gray/300",
-        "WEB": "--gray-300",
-        "iOS": "Gray300",
-        "ANDROID": "GRAY_300"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Gray/300"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--gray-300"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Gray300"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GRAY_300"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -962,12 +1226,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Gray/400",
-        "WEB": "--gray-400",
-        "iOS": "Gray400",
-        "ANDROID": "GRAY_400"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Gray/400"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--gray-400"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Gray400"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GRAY_400"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1000,12 +1276,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Gray/500",
-        "WEB": "--gray-500",
-        "iOS": "Gray500",
-        "ANDROID": "GRAY_500"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Gray/500"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--gray-500"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Gray500"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GRAY_500"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1038,12 +1326,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Gray/500",
-        "WEB": "--gray-500",
-        "iOS": "Gray500",
-        "ANDROID": "GRAY_500"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Gray/500"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--gray-500"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Gray500"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "GRAY_500"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1067,12 +1367,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Spacing/8",
-        "WEB": "--spacing-8",
-        "iOS": "Spacing8",
-        "ANDROID": "SPACING_8"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Spacing/8"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--spacing-8"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Spacing8"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "SPACING_8"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1096,12 +1408,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Spacing/16",
-        "WEB": "--spacing-16",
-        "iOS": "Spacing16",
-        "ANDROID": "SPACING_16"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Spacing/16"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--spacing-16"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Spacing16"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "SPACING_16"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1125,12 +1449,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Spacing/24",
-        "WEB": "--spacing-24",
-        "iOS": "Spacing24",
-        "ANDROID": "SPACING_24"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Spacing/24"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--spacing-24"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Spacing24"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "SPACING_24"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1154,12 +1490,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Spacing/32",
-        "WEB": "--spacing-32",
-        "iOS": "Spacing32",
-        "ANDROID": "SPACING_32"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Spacing/32"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--spacing-32"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Spacing32"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "SPACING_32"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1183,12 +1531,24 @@
       "propertyTypes": [
         "ALL_PROPERTY_TYPES"
       ],
-      "codeSyntax": {
-        "Figma": "Spacing/40",
-        "WEB": "--spacing-40",
-        "iOS": "Spacing40",
-        "ANDROID": "SPACING_40"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Spacing/40"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "--spacing-40"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Spacing40"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "SPACING_40"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1212,12 +1572,24 @@
       "propertyTypes": [
         "font-family"
       ],
-      "codeSyntax": {
-        "Figma": "Inter",
-        "WEB": "inter",
-        "iOS": "Inter",
-        "ANDROID": "INTER"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Inter"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "inter"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Inter"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "INTER"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1241,12 +1613,24 @@
       "propertyTypes": [
         "font-family"
       ],
-      "codeSyntax": {
-        "Figma": "Roboto",
-        "WEB": "roboto",
-        "iOS": "Roboto",
-        "ANDROID": "ROBOTO"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "Roboto"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "roboto"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "Roboto"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "ROBOTO"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1270,12 +1654,24 @@
       "propertyTypes": [
         "font-family"
       ],
-      "codeSyntax": {
-        "Figma": "SF Pro",
-        "WEB": "sf-pro",
-        "iOS": "SFPro",
-        "ANDROID": "SF_PRO"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "SF Pro"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "sf-pro"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "SFPro"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "SF_PRO"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1299,12 +1695,24 @@
       "propertyTypes": [
         "font-family"
       ],
-      "codeSyntax": {
-        "Figma": "SF Pro",
-        "WEB": "sf-pro",
-        "iOS": "SFPro",
-        "ANDROID": "SF_PRO"
-      },
+      "codeSyntax": [
+        {
+          "platformId": "platform-figma",
+          "formattedName": "SF Pro"
+        },
+        {
+          "platformId": "platform-web",
+          "formattedName": "sf-pro"
+        },
+        {
+          "platformId": "platform-ios",
+          "formattedName": "SFPro"
+        },
+        {
+          "platformId": "platform-android",
+          "formattedName": "SF_PRO"
+        }
+      ],
       "valuesByMode": [
         {
           "modeIds": [],

@@ -1,5 +1,4 @@
-import React from "react";
-import { useState } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Text,
@@ -51,6 +50,22 @@ export function ValidationTab({ tokens = [], collections = [], dimensions = [], 
   const cancelRef = React.useRef<HTMLButtonElement>(null);
   const toast = useToast();
 
+  // Refresh JSON preview when data changes
+  useEffect(() => {
+    if (isJsonPreviewOpen) {
+      const data = {
+        tokenCollections: collections,
+        dimensions,
+        tokens,
+        platforms,
+        taxonomies,
+        version,
+        versionHistory
+      };
+      setJsonPreview(JSON.stringify(data, null, 2));
+    }
+  }, [isJsonPreviewOpen, collections, dimensions, tokens, platforms, taxonomies, version, versionHistory]);
+
   const handleGlobalValidate = () => {
     try {
       const data = {
@@ -87,17 +102,6 @@ export function ValidationTab({ tokens = [], collections = [], dimensions = [], 
   };
 
   const handlePreviewJson = () => {
-    const data = {
-      tokenCollections: collections,
-      dimensions,
-      tokens,
-      platforms,
-      taxonomies,
-      version,
-      versionHistory
-    };
-    console.log('[DEBUG] handlePreviewJson data:', data);
-    setJsonPreview(JSON.stringify(data, null, 2));
     setIsJsonPreviewOpen(true);
   };
 
