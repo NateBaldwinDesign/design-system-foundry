@@ -1727,19 +1727,43 @@
   "platforms": [
     {
       "id": "platform-figma",
-      "displayName": "Figma"
+      "displayName": "Figma",
+      "syntaxPatterns": {
+          "prefix": "",
+          "suffix": "",
+          "delimiter": "/",
+          "capitalization": "capitalize"
+      }
     },
     {
       "id": "platform-web",
-      "displayName": "Web"
+      "displayName": "Web",
+      "syntaxPatterns": {
+          "prefix": "--",
+          "suffix": "",
+          "delimiter": "-",
+          "capitalization": "lowercase"
+      }
     },
     {
       "id": "platform-ios",
-      "displayName": "iOS"
+      "displayName": "iOS",
+      "syntaxPatterns": {
+          "prefix": "",
+          "suffix": "",
+          "delimiter": "",
+          "capitalization": "capitalize"
+      }
     },
     {
       "id": "platform-android",
-      "displayName": "Android"
+      "displayName": "Android",
+      "syntaxPatterns": {
+          "prefix": "",
+          "suffix": "",
+          "delimiter": ".",
+          "capitalization": "uppercase"
+      }
     }
   ],
   "taxonomies": [

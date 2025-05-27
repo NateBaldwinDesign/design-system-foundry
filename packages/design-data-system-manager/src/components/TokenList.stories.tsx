@@ -1,0 +1,91 @@
+import React from 'react';
+import { TokenList } from './TokenList';
+import { ChakraProvider } from '@chakra-ui/react';
+
+export default {
+  title: 'Components/TokenList',
+  component: TokenList,
+  argTypes: {
+    tokens: { control: 'object' },
+    onEdit: { action: 'onEdit' },
+    onDelete: { action: 'onDelete' },
+    onSelect: { action: 'onSelect' },
+    selectedTokenId: { control: 'text' },
+    showActions: { control: 'boolean' },
+    showCollection: { control: 'boolean' },
+    showResolvedValue: { control: 'boolean' },
+    showStatus: { control: 'boolean' },
+    showThemeable: { control: 'boolean' },
+    showTaxonomies: { control: 'boolean' },
+    showPlatform: { control: 'boolean' },
+    showCodeSyntax: { control: 'boolean' },
+    showDescription: { control: 'boolean' },
+    showPrivate: { control: 'boolean' },
+    showType: { control: 'boolean' },
+    showValue: { control: 'boolean' },
+    showEdit: { control: 'boolean' },
+    showDelete: { control: 'boolean' },
+    showAdd: { control: 'boolean' },
+    showBulkActions: { control: 'boolean' },
+    showSearch: { control: 'boolean' },
+    showFilter: { control: 'boolean' },
+    showSort: { control: 'boolean' },
+    showExport: { control: 'boolean' },
+    showImport: { control: 'boolean' },
+    showReset: { control: 'boolean' },
+    showSelectAll: { control: 'boolean' },
+    showDeselectAll: { control: 'boolean' },
+    showSelectInverse: { control: 'boolean' },
+    showSelectNone: { control: 'boolean' },
+    showSelectAllVisible: { control: 'boolean' },
+    showSelectNoneVisible: { control: 'boolean' },
+    showSelectInverseVisible: { control: 'boolean' },
+    showSelectAllSelected: { control: 'boolean' },
+    showSelectNoneSelected: { control: 'boolean' },
+    showSelectInverseSelected: { control: 'boolean' },
+    showSelectAllUnselected: { control: 'boolean' },
+    showSelectNoneUnselected: { control: 'boolean' },
+    showSelectInverseUnselected: { control: 'boolean' },
+    showSelectAllIndeterminate: { control: 'boolean' },
+    showSelectNoneIndeterminate: { control: 'boolean' },
+    showSelectInverseIndeterminate: { control: 'boolean' },
+    showSelectAllPartial: { control: 'boolean' },
+    showSelectNonePartial: { control: 'boolean' },
+    showSelectInversePartial: { control: 'boolean' },
+    showSelectAllMixed: { control: 'boolean' },
+    showSelectNoneMixed: { control: 'boolean' },
+    showSelectInverseMixed: { control: 'boolean' },
+    showSelectAllCustom: { control: 'boolean' },
+    showSelectNoneCustom: { control: 'boolean' },
+    showSelectInverseCustom: { control: 'boolean' },
+    showSelectAllCustomVisible: { control: 'boolean' },
+    showSelectNoneCustomVisible: { control: 'boolean' },
+    showSelectInverseCustomVisible: { control: 'boolean' },
+    showSelectAllCustomSelected: { control: 'boolean' },
+    showSelectNoneCustomSelected: { control: 'boolean' },
+    showSelectInverseCustomSelected: { control: 'boolean' },
+    showSelectAllCustomUnselected: { control: 'boolean' },
+    showSelectNoneCustomUnselected: { control: 'boolean' },
+    showSelectInverseCustomUnselected: { control: 'boolean' },
+    showSelectAllCustomIndeterminate: { control: 'boolean' },
+    showSelectNoneCustomIndeterminate: { control: 'boolean' },
+    showSelectInverseCustomIndeterminate: { control: 'boolean' },
+    showSelectAllCustomPartial: { control: 'boolean' },
+    showSelectNoneCustomPartial: { control: 'boolean' },
+    showSelectInverseCustomPartial: { control: 'boolean' },
+    showSelectAllCustomMixed: { control: 'boolean' },
+    showSelectNoneCustomMixed: { control: 'boolean' },
+    showSelectInverseCustomMixed: { control: 'boolean' },
+  },
+};
+
+const Template = (args) => (
+  <ChakraProvider>
+    <TokenList {...args} />
+  </ChakraProvider>
+);
+
+export const Default = Template.bind({});
+Default.args = {
+  tokens: [],
+}; 
