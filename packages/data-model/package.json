@@ -15,12 +15,15 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "lint": "eslint src --ext .ts",
-    "test": "jest",
-    "validate-data": "node scripts/validate-data.cjs"
+    "test": "jest && npm run validate-data && npm run validate-theme-overrides",
+    "validate-data": "node scripts/validate-data.cjs",
+    "validate-theme-overrides": "node scripts/validate-theme-overrides.js"
   },
   "dependencies": {
     "react-router-dom": "^7.6.1",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",

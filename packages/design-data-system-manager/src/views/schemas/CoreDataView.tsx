@@ -1,11 +1,11 @@
 import React from 'react';
-import { Box, Tabs, TabList, TabPanels, Tab, TabPanel, Heading, Text, VStack } from '@chakra-ui/react';
+import { Box, Tabs, TabList, TabPanels, Tab, TabPanel, Heading, Text, VStack, Container } from '@chakra-ui/react';
 import { CoreDataPropertiesTab } from './CoreDataPropertiesTab';
 import { CoreDataExampleTab } from './CoreDataExampleTab';
 
 const CoreDataView: React.FC = () => {
   return (
-    <Box p={4}>
+    <Container maxW="1000px" p={0}>
       <VStack spacing={4} align="stretch" mb={6}>
         <Heading size="lg">Core Data Schema</Heading>
         <Text>
@@ -30,7 +30,7 @@ const CoreDataView: React.FC = () => {
           </TabPanel>
         </TabPanels>
       </Tabs>
-    </Box>
+    </Container>
   );
 };
 

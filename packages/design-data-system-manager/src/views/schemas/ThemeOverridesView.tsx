@@ -1,11 +1,11 @@
 import React from 'react';
-import { Box, Tabs, TabList, TabPanels, Tab, TabPanel, Heading, Text, VStack } from '@chakra-ui/react';
+import { Box, Tabs, TabList, TabPanels, Tab, TabPanel, Heading, Text, VStack, Container } from '@chakra-ui/react';
 import { ThemeOverridesPropertiesTab } from './ThemeOverridesPropertiesTab';
 import { ThemeOverridesExampleTab } from './ThemeOverridesExampleTab';
 
 const ThemeOverridesView: React.FC = () => {
   return (
-    <Box p={4}>
+    <Container maxW="1000px" p={0}>
       <VStack spacing={4} align="stretch" mb={6}>
         <Heading size="lg">Theme Overrides Schema</Heading>
         <Text>
@@ -30,7 +30,7 @@ const ThemeOverridesView: React.FC = () => {
           </TabPanel>
         </TabPanels>
       </Tabs>
-    </Box>
+    </Container>
   );
 };
 

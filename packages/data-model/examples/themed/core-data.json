@@ -61,7 +61,6 @@
     "dimensions": [
       {
         "id": "dimension-color-scheme",
-        "type": "COLOR_SCHEME",
         "displayName": "Color Scheme",
         "modes": [
           {
@@ -84,7 +83,6 @@
       },
       {
         "id": "dimension-contrast",
-        "type": "CONTRAST",
         "displayName": "Contrast",
         "modes": [
           {

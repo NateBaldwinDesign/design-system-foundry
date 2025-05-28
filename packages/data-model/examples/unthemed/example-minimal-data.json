@@ -42,7 +42,6 @@
     "dimensions": [
       {
         "id": "dimensionId-0000-0000-0000",
-        "type": "COLOR_SCHEME",
         "displayName": "Color Scheme",
         "modes": [
           { "id": "modeId-light", "name": "Light", "dimensionId": "dimensionId-0000-0000-0000" },
@@ -54,7 +53,6 @@
       },
       {
         "id": "dimensionId-1111-1111-1111",
-        "type": "CONTRAST",
         "displayName": "Contrast",
         "modes": [
           { "id": "modeId-regular", "name": "Regular", "dimensionId": "dimensionId-1111-1111-1111" },
@@ -62,11 +60,11 @@
           { "id": "modeId-high", "name": "High", "dimensionId": "dimensionId-1111-1111-1111" }
         ],
         "required": false,
-        "defaultMode": "modeId-regular"
+        "defaultMode": "modeId-regular",
+        "resolvedValueTypeIds": ["valueTypeId-COLOR", "valueTypeId-OPACITY"]
       },
       {
         "id": "dimensionId-2222-2222-2222",
-        "type": "LANGUAGE",
         "displayName": "Language",
         "modes": [
           { "id": "modeId-latin", "name": "Latin", "dimensionId": "dimensionId-2222-2222-2222" },
@@ -75,7 +73,8 @@
           { "id": "modeId-hebrew", "name": "Hebrew", "dimensionId": "dimensionId-2222-2222-2222" }
         ],
         "required": false,
-        "defaultMode": "modeId-latin"
+        "defaultMode": "modeId-latin",
+        "resolvedValueTypeIds": ["valueTypeId-FONT", "valueTypeId-LINE_HEIGHT", "valueTypeId-FONT_WEIGHT"]
       }
     ],
     "themes": [

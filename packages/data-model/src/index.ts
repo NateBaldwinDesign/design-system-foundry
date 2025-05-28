@@ -2,7 +2,6 @@ export * from './schema';
 
 // Re-export specific types for convenience
 export type { 
-  DimensionType,
   ResolvedValueType,
   TokenStatus,
   FallbackStrategy,

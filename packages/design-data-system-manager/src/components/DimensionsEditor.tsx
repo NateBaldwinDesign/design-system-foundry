@@ -17,7 +17,12 @@ import {
   FormControl,
   FormLabel,
   Select,
-  useDisclosure
+  useDisclosure,
+  Switch,
+  Tag,
+  TagLabel,
+  TagCloseButton,
+  Wrap
 } from '@chakra-ui/react';
 import { Trash2, Plus, Pencil } from 'lucide-react';
 import type { Dimension, Mode } from '@token-model/data-model';
@@ -26,9 +31,10 @@ import { createUniqueId } from '../utils/id';
 interface DimensionsEditorProps {
   dimensions: Dimension[];
   onChange: (dimensions: Dimension[]) => void;
+  resolvedValueTypes: { id: string; name: string }[];
 }
 
-export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps) {
+export function DimensionsEditor({ dimensions, onChange, resolvedValueTypes }: DimensionsEditorProps) {
   const [editedDimensions, setEditedDimensions] = useState<Dimension[]>(dimensions);
   const [editingDimension, setEditingDimension] = useState<Dimension | null>(null);
   const [editingMode, setEditingMode] = useState<{ dimensionId: string; mode: Mode } | null>(null);
@@ -50,12 +56,12 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
   const handleAddDimension = () => {
     const newDimension: Dimension = {
       id: createUniqueId('dimension'),
-      type: 'COLOR_SCHEME',
       displayName: '',
       description: '',
       modes: [],
       defaultMode: '',
-      required: false
+      required: false,
+      resolvedValueTypeIds: []
     };
     setEditingDimension(newDimension);
     setIsNewDimension(true);
@@ -135,6 +141,22 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
     onModeModalClose();
   };
 
+  const handleAddValueType = (valueTypeId: string) => {
+    if (!editingDimension) return;
+    setEditingDimension(prev => prev ? {
+      ...prev,
+      resolvedValueTypeIds: [...(prev.resolvedValueTypeIds || []), valueTypeId]
+    } : null);
+  };
+
+  const handleRemoveValueType = (valueTypeId: string) => {
+    if (!editingDimension) return;
+    setEditingDimension(prev => prev ? {
+      ...prev,
+      resolvedValueTypeIds: (prev.resolvedValueTypeIds || []).filter(id => id !== valueTypeId)
+    } : null);
+  };
+
   return (
     <Box>
       <HStack justify="space-between" align="center" mb={4}>
@@ -162,6 +184,18 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
                 <Text fontSize="lg" fontWeight="medium">{dimension.displayName}</Text>
                 <Text fontSize="sm" color="gray.600">{dimension.description}</Text>
                 <Text fontSize="xs" color="gray.500">ID: {dimension.id}</Text>
+                {dimension.resolvedValueTypeIds && dimension.resolvedValueTypeIds.length > 0 && (
+                  <Wrap mt={2} spacing={2}>
+                    {dimension.resolvedValueTypeIds.map(typeId => {
+                      const type = resolvedValueTypes.find(t => t.id === typeId);
+                      return type ? (
+                        <Tag key={typeId} size="sm" borderRadius="full" variant="solid" colorScheme="blue">
+                          <TagLabel>{type.name}</TagLabel>
+                        </Tag>
+                      ) : null;
+                    })}
+                  </Wrap>
+                )}
               </Box>
               <HStack>
                 <IconButton
@@ -265,20 +299,12 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingDimension(prev => prev ? { ...prev, description: e.target.value } : null)}
                 />
               </FormControl>
-              <FormControl>
-                <FormLabel>Type</FormLabel>
-                <Select
-                  value={editingDimension?.type || 'COLOR_SCHEME'}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditingDimension(prev => prev ? { ...prev, type: e.target.value as Dimension['type'] } : null)}
-                >
-                  <option value="COLOR_SCHEME">Color Scheme</option>
-                  <option value="CONTRAST">Contrast</option>
-                  <option value="DEVICE_TYPE">Device Type</option>
-                  <option value="BRAND">Brand</option>
-                  <option value="THEME">Theme</option>
-                  <option value="MOTION">Motion</option>
-                  <option value="DENSITY">Density</option>
-                </Select>
+              <FormControl display="flex" alignItems="center">
+                <FormLabel mb="0">Required</FormLabel>
+                <Switch
+                  isChecked={editingDimension?.required || false}
+                  onChange={(e) => setEditingDimension(prev => prev ? { ...prev, required: e.target.checked } : null)}
+                />
               </FormControl>
               <FormControl>
                 <FormLabel>Default Mode</FormLabel>
@@ -291,6 +317,36 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
                     <option key={mode.id} value={mode.id}>{mode.name}</option>
                   ))}
                 </Select>
+              </FormControl>
+              <FormControl>
+                <FormLabel>Value Types</FormLabel>
+                <Select
+                  value=""
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                    if (e.target.value) {
+                      handleAddValueType(e.target.value);
+                      e.target.value = '';
+                    }
+                  }}
+                >
+                  <option value="">Add a value type...</option>
+                  {resolvedValueTypes
+                    .filter(type => !editingDimension?.resolvedValueTypeIds?.includes(type.id))
+                    .map(type => (
+                      <option key={type.id} value={type.id}>{type.name}</option>
+                    ))}
+                </Select>
+                <Wrap mt={2} spacing={2}>
+                  {editingDimension?.resolvedValueTypeIds?.map(typeId => {
+                    const type = resolvedValueTypes.find(t => t.id === typeId);
+                    return type ? (
+                      <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
+                        <TagLabel>{type.name}</TagLabel>
+                        <TagCloseButton onClick={() => handleRemoveValueType(typeId)} />
+                      </Tag>
+                    ) : null;
+                  })}
+                </Wrap>
               </FormControl>
             </VStack>
           </ModalBody>

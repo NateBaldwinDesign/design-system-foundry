@@ -1,16 +1,6 @@
 import { z } from 'zod';
 
 // Enums
-export const DimensionType = z.enum([
-  'COLOR_SCHEME',
-  'CONTRAST',
-  'DEVICE_TYPE',
-  'BRAND',
-  'THEME',
-  'MOTION',
-  'DENSITY'
-]);
-
 export const ResolvedValueType = z.enum([
   'COLOR',
   'DIMENSION',
@@ -160,12 +150,12 @@ export const Mode = z.object({
 
 export const Dimension = z.object({
   id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
-  type: DimensionType,
   displayName: z.string(),
   description: z.string().optional(),
   modes: z.array(Mode).min(1),
   required: z.boolean().default(false),
-  defaultMode: z.string()
+  defaultMode: z.string(),
+  resolvedValueTypeIds: z.array(z.string()).optional()
 });
 
 export const TokenCollection = z.object({
@@ -176,7 +166,7 @@ export const TokenCollection = z.object({
   private: z.boolean().default(false),
   defaultModeIds: z.array(z.string().regex(/^[a-zA-Z0-9-_]+$/)).optional(),
   modeResolutionStrategy: z.object({
-    priorityByType: z.array(DimensionType),
+    priorityByType: z.array(z.string()),
     fallbackStrategy: FallbackStrategy
   }).optional()
 });
@@ -435,7 +425,6 @@ export function validateTokenTaxonomiesReferentialIntegrity(
   return errors;
 }
 
-export type DimensionType = z.infer<typeof DimensionType>;
 export type ResolvedValueType = z.infer<typeof ResolvedValueType>;
 export type TokenStatus = z.infer<typeof TokenStatus>;
 export type FallbackStrategy = z.infer<typeof FallbackStrategy>;

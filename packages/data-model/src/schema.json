@@ -292,7 +292,7 @@
       },
       "dimensions": {
         "type": "array",
-        "description": "Dimensions that can modify token values",
+        "description": "List of dimensions that can be used to organize and resolve token values",
         "items": {
           "type": "object",
           "required": ["id", "displayName", "modes", "required", "defaultMode"],
@@ -302,25 +302,17 @@
               "description": "Unique identifier for the dimension",
               "pattern": "^[a-zA-Z0-9-_]+$"
             },
-            "displayName": { 
+            "displayName": {
               "type": "string",
-              "description": "Human-readable name for the dimension" 
+              "description": "Human-readable name for the dimension"
             },
-            "description": { 
+            "description": {
               "type": "string",
-              "description": "Detailed description of the dimension" 
-            },
-            "required": {
-              "type": "boolean",
-              "description": "Whether this dimension must always be specified in mode combinations"
-            },
-            "defaultMode": {
-              "type": "string",
-              "description": "The mode to use when this dimension is not specified in a combination"
+              "description": "Optional description of the dimension's purpose"
             },
             "modes": {
               "type": "array",
-              "description": "Available modes for this dimension",
+              "description": "List of modes available for this dimension",
               "minItems": 1,
               "items": {
                 "type": "object",
@@ -331,25 +323,35 @@
                     "description": "Unique identifier for the mode",
                     "pattern": "^[a-zA-Z0-9-_]+$"
                   },
-                  "name": { 
+                  "name": {
                     "type": "string",
-                    "description": "Display name for the mode" 
+                    "description": "Human-readable name for the mode"
                   },
-                  "description": { 
+                  "description": {
                     "type": "string",
-                    "description": "Detailed description of the mode" 
+                    "description": "Optional description of the mode"
                   },
                   "dimensionId": {
                     "type": "string",
-                    "description": "Reference to the parent dimension",
+                    "description": "ID of the parent dimension",
                     "pattern": "^[a-zA-Z0-9-_]+$"
                   }
                 }
               }
             },
+            "required": {
+              "type": "boolean",
+              "description": "Whether this dimension must be specified when resolving tokens",
+              "default": false
+            },
+            "defaultMode": {
+              "type": "string",
+              "description": "ID of the default mode for this dimension",
+              "pattern": "^[a-zA-Z0-9-_]+$"
+            },
             "resolvedValueTypeIds": {
               "type": "array",
-              "description": "IDs of resolved value types this dimension supports or is associated with.",
+              "description": "IDs of resolved value types this dimension supports or is associated with",
               "items": { "type": "string" },
               "uniqueItems": true
             }

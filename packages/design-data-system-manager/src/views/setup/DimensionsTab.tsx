@@ -18,10 +18,14 @@ import {
   ModalBody,
   ModalFooter,
   ModalCloseButton,
-  useColorMode
+  useColorMode,
+  Tag,
+  TagLabel,
+  TagCloseButton,
+  Wrap
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
-import type { Dimension, Mode, DimensionType, Token, TokenCollection, Platform, Taxonomy } from '@token-model/data-model';
+import type { Dimension, Mode, Token, TokenCollection, Platform, Taxonomy } from '@token-model/data-model';
 import { createUniqueId } from '../../utils/id';
 import { ValidationService } from '../../services/validation';
 
@@ -30,14 +34,20 @@ interface DimensionsTabProps {
   setDimensions: (dims: Dimension[]) => void;
 }
 
-const DIMENSION_TYPES: DimensionType[] = [
-  'COLOR_SCHEME',
-  'CONTRAST',
-  'DEVICE_TYPE',
-  'BRAND',
-  'THEME',
-  'MOTION',
-  'DENSITY'
+const resolvedValueTypes = [
+  { id: 'COLOR', name: 'Color' },
+  { id: 'DIMENSION', name: 'Dimension' },
+  { id: 'FONT_FAMILY', name: 'Font Family' },
+  { id: 'FONT_WEIGHT', name: 'Font Weight' },
+  { id: 'FONT_STYLE', name: 'Font Style' },
+  { id: 'DURATION', name: 'Duration' },
+  { id: 'CUBIC_BEZIER', name: 'Cubic Bezier' },
+  { id: 'BORDER_WIDTH', name: 'Border Width' },
+  { id: 'CORNER_ROUNDING', name: 'Corner Rounding' },
+  { id: 'ELEVATION', name: 'Elevation' },
+  { id: 'SHADOW', name: 'Shadow' },
+  { id: 'OPACITY', name: 'Opacity' },
+  { id: 'NUMBER', name: 'Number' }
 ];
 
 interface DimensionFormData {
@@ -46,6 +56,7 @@ interface DimensionFormData {
   description: string;
   modes: Mode[];
   defaultMode: string;
+  resolvedValueTypeIds: string[];
 }
 
 export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps) {
@@ -58,6 +69,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
     description: '',
     modes: [],
     defaultMode: '',
+    resolvedValueTypeIds: [],
   });
   const [modeForm, setModeForm] = useState({ id: '', name: '', description: '' });
   const [modeDialogOpen, setModeDialogOpen] = useState(false);
@@ -79,6 +91,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
         description: dim.description || '',
         modes: dim.modes,
         defaultMode: dim.defaultMode || (dim.modes[0]?.id ?? ''),
+        resolvedValueTypeIds: dim.resolvedValueTypeIds || [],
       });
     } else {
       setForm({
@@ -87,6 +100,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
         description: '',
         modes: [],
         defaultMode: '',
+        resolvedValueTypeIds: [],
       });
     }
     setOpen(true);
@@ -127,7 +141,8 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
       ...form,
       modes: form.modes || [],
       required: true,
-      defaultMode: form.defaultMode
+      defaultMode: form.defaultMode,
+      resolvedValueTypeIds: form.resolvedValueTypeIds,
     } as Dimension;
     if (editingIndex !== null) {
       newDims[editingIndex] = dimToSave;
@@ -249,6 +264,20 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
     });
   };
 
+  const handleAddValueType = (valueTypeId: string) => {
+    setForm(prev => ({
+      ...prev,
+      resolvedValueTypeIds: [...(prev.resolvedValueTypeIds || []), valueTypeId],
+    }));
+  };
+
+  const handleRemoveValueType = (valueTypeId: string) => {
+    setForm(prev => ({
+      ...prev,
+      resolvedValueTypeIds: (prev.resolvedValueTypeIds || []).filter(id => id !== valueTypeId),
+    }));
+  };
+
   return (
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Dimensions</Text>
@@ -270,6 +299,19 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
                 <Box>
                   <Text fontSize="lg" fontWeight="medium">{dim.displayName}</Text>
                   <Text fontSize="sm" color="gray.600">Modes: {dim.modes.map((m: Mode) => m.name).join(', ')}</Text>
+                  <Text fontSize="xs" color="gray.500">ID: {dim.id}</Text>
+                  {Array.isArray(dim.resolvedValueTypeIds) && dim.resolvedValueTypeIds.length > 0 && (
+                    <Wrap mt={2} spacing={2}>
+                      {dim.resolvedValueTypeIds.map((typeId: string) => {
+                        const type = resolvedValueTypes.find(t => t.id === typeId);
+                        return type ? (
+                          <Tag key={typeId} size="sm" borderRadius="full" variant="solid" colorScheme="blue">
+                            <TagLabel>{type.name}</TagLabel>
+                          </Tag>
+                        ) : null;
+                      })}
+                    </Wrap>
+                  )}
                 </Box>
                 <HStack>
                   <IconButton aria-label="Edit dimension" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
@@ -303,18 +345,6 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
                 />
               </FormControl>
               <FormControl isRequired>
-                <FormLabel>Type</FormLabel>
-                <Select
-                  value={form.id ? (dimensions.find(d => d.id === form.id)?.type || 'COLOR_SCHEME') : 'COLOR_SCHEME'}
-                  onChange={() => {}}
-                  isReadOnly
-                >
-                  {DIMENSION_TYPES.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </Select>
-              </FormControl>
-              <FormControl isRequired>
                 <FormLabel>Default Mode</FormLabel>
                 <Select
                   value={form.defaultMode}
@@ -341,6 +371,35 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
                   ))}
                 </VStack>
               </Box>
+              <FormControl>
+                <FormLabel>Value Types</FormLabel>
+                <Select
+                  value=""
+                  onChange={e => {
+                    if (e.target.value) {
+                      handleAddValueType(e.target.value);
+                    }
+                  }}
+                >
+                  <option value="">Add a value type...</option>
+                  {resolvedValueTypes
+                    .filter(type => !form.resolvedValueTypeIds.includes(type.id))
+                    .map(type => (
+                      <option key={type.id} value={type.id}>{type.name}</option>
+                    ))}
+                </Select>
+                <Wrap mt={2} spacing={2}>
+                  {form.resolvedValueTypeIds.map(typeId => {
+                    const type = resolvedValueTypes.find(t => t.id === typeId);
+                    return type ? (
+                      <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
+                        <TagLabel>{type.name}</TagLabel>
+                        <TagCloseButton onClick={() => handleRemoveValueType(typeId)} />
+                      </Tag>
+                    ) : null;
+                  })}
+                </Wrap>
+              </FormControl>
             </VStack>
           </ModalBody>
           <ModalFooter>
