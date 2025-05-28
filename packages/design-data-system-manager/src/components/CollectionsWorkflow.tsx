@@ -9,7 +9,7 @@ import {
   useToast,
   useColorMode
 } from '@chakra-ui/react';
-import { DeleteIcon, EditIcon } from '@chakra-ui/icons';
+import { Trash2, Pencil } from 'lucide-react';
 import type { TokenCollection, Mode } from '@token-model/data-model';
 import { CollectionEditorDialog } from './CollectionEditorDialog';
 
@@ -84,8 +84,8 @@ export function CollectionsWorkflow({ collections, modes, onUpdate }: Collection
                   <Text fontSize="lg" fontWeight="medium">{collection.name}</Text>
                 </Box>
                 <HStack>
-                  <IconButton aria-label="Edit collection" icon={<EditIcon />} size="sm" onClick={() => handleOpenEdit(collection)} />
-                  <IconButton aria-label="Delete collection" icon={<DeleteIcon />} size="sm" colorScheme="red" onClick={() => handleDeleteCollection(collection.id)} />
+                  <IconButton aria-label="Edit collection" icon={<Pencil />} size="sm" onClick={() => handleOpenEdit(collection)} />
+                  <IconButton aria-label="Delete collection" icon={<Trash2 />} size="sm" colorScheme="red" onClick={() => handleDeleteCollection(collection.id)} />
                 </HStack>
               </HStack>
               <VStack align="start" spacing={1} mt={2} ml={2}>

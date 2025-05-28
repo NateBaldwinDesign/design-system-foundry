@@ -19,7 +19,7 @@ import {
   Select,
   useDisclosure
 } from '@chakra-ui/react';
-import { DeleteIcon, AddIcon, EditIcon } from '@chakra-ui/icons';
+import { Trash2, Plus, Pencil } from 'lucide-react';
 import type { Dimension, Mode } from '@token-model/data-model';
 import { createUniqueId } from '../utils/id';
 
@@ -140,7 +140,7 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
       <HStack justify="space-between" align="center" mb={4}>
         <Text fontSize="xl" fontWeight="bold">Dimensions</Text>
         <Button
-          leftIcon={<AddIcon />}
+          leftIcon={<Plus />}
           colorScheme="blue"
           onClick={handleAddDimension}
         >
@@ -166,7 +166,7 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
               <HStack>
                 <IconButton
                   aria-label="Edit dimension"
-                  icon={<EditIcon />}
+                  icon={<Pencil />}
                   size="sm"
                   onClick={() => {
                     setEditingDimension(dimension);
@@ -176,7 +176,7 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
                 />
                 <IconButton
                   aria-label="Delete dimension"
-                  icon={<DeleteIcon />}
+                  icon={<Trash2 />}
                   size="sm"
                   colorScheme="red"
                   onClick={() => handleDeleteDimension(dimension.id)}
@@ -189,7 +189,7 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
                 <Text fontSize="md" fontWeight="medium">Modes</Text>
                 <Button
                   size="sm"
-                  leftIcon={<AddIcon />}
+                  leftIcon={<Plus />}
                   onClick={() => handleAddMode(dimension.id)}
                 >
                   Add Mode
@@ -212,7 +212,7 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
                     <HStack>
                       <IconButton
                         aria-label="Edit mode"
-                        icon={<EditIcon />}
+                        icon={<Pencil />}
                         size="sm"
                         onClick={() => {
                           setEditingMode({ dimensionId: dimension.id, mode });
@@ -222,7 +222,7 @@ export function DimensionsEditor({ dimensions, onChange }: DimensionsEditorProps
                       />
                       <IconButton
                         aria-label="Delete mode"
-                        icon={<DeleteIcon />}
+                        icon={<Trash2 />}
                         size="sm"
                         colorScheme="red"
                         onClick={() => handleDeleteMode(dimension.id, mode.id)}

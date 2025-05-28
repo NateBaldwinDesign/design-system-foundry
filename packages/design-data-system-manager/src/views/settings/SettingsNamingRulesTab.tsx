@@ -13,7 +13,7 @@ import {
   Divider,
   useColorMode
 } from '@chakra-ui/react';
-import { DragHandleIcon, DeleteIcon, ChevronUpIcon, ChevronDownIcon } from '@chakra-ui/icons';
+import { LuGripVertical, LuTrash2, LuChevronUp, LuChevronDown } from 'react-icons/lu';
 import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided } from '@hello-pangea/dnd';
 import type { Taxonomy } from '@token-model/data-model';
 
@@ -143,13 +143,13 @@ export function SettingsNamingRulesTab({
                                 {index + 1}
                               </Box>
                               <Box {...provided.dragHandleProps} cursor="grab">
-                                <DragHandleIcon />
+                                <LuGripVertical />
                               </Box>
                               <Text flex={1}>{taxonomy.name}</Text>
                               <HStack spacing={1}>
                                 <IconButton
                                   aria-label="Move up"
-                                  icon={<ChevronUpIcon />}
+                                  icon={<LuChevronUp />}
                                   size="sm"
                                   variant="ghost"
                                   isDisabled={index === 0}
@@ -157,7 +157,7 @@ export function SettingsNamingRulesTab({
                                 />
                                 <IconButton
                                   aria-label="Move down"
-                                  icon={<ChevronDownIcon />}
+                                  icon={<LuChevronDown />}
                                   size="sm"
                                   variant="ghost"
                                   isDisabled={index === filteredOrder.length - 1}
@@ -165,7 +165,7 @@ export function SettingsNamingRulesTab({
                                 />
                                 <IconButton
                                   aria-label="Remove taxonomy"
-                                  icon={<DeleteIcon />}
+                                  icon={<LuTrash2 />}
                                   size="sm"
                                   variant="ghost"
                                   colorScheme="red"

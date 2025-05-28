@@ -30,7 +30,7 @@ import {
   Alert,
   AlertIcon
 } from '@chakra-ui/react';
-import { DeleteIcon } from '@chakra-ui/icons';
+import { Trash2 } from 'lucide-react';
 import { ValueByModeTable } from './ValueByModeTable';
 import { PlatformOverridesTable } from './PlatformOverridesTable';
 import { TokenValuePicker } from './TokenValuePicker';
@@ -606,7 +606,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     </FormControl>
                     <IconButton
                       aria-label="Remove constraint"
-                      icon={<DeleteIcon />}
+                      icon={<Trash2 />}
                       size="sm"
                       colorScheme="red"
                       onClick={() => handleRemoveConstraint(idx)}
@@ -727,7 +727,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                         />
                         <IconButton
                           aria-label="Remove value"
-                          icon={<DeleteIcon />}
+                          icon={<Trash2 />}
                           onClick={() => setEditedToken(prev => ({
                             ...prev,
                             valuesByMode: prev.valuesByMode.filter(vbm => !(Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0))

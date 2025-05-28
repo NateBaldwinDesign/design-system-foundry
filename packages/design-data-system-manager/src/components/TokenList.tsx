@@ -30,7 +30,7 @@ import {
   useDisclosure,
   Flex
 } from '@chakra-ui/react';
-import { EditIcon, DeleteIcon, AddIcon } from '@chakra-ui/icons';
+import { LuPencil, LuTrash2, LuPlus } from 'react-icons/lu';
 import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { ValueByModeTable } from './ValueByModeTable';
 import { PlatformOverridesTable } from './PlatformOverridesTable';
@@ -573,7 +573,7 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
       <Flex justify="space-between" align="center" mb={4}>
         <Text fontSize="2xl" fontWeight="bold">Tokens</Text>
         <Button
-          leftIcon={<AddIcon />}
+          leftIcon={<LuPlus />}
           colorScheme="blue"
           size="sm"
           onClick={() => onEdit({
@@ -720,8 +720,8 @@ export function TokenList({ tokens, collections, modes, dimensions, platforms, o
                 </Td>
                 <Td>
                   <HStack spacing={1}>
-                    <IconButton aria-label="Edit token" icon={<EditIcon />} onClick={() => handleEdit(token)} size="sm" />
-                    <IconButton aria-label="Delete token" icon={<DeleteIcon />} onClick={() => onDelete(token.id)} size="sm" />
+                    <IconButton aria-label="Edit token" icon={<LuPencil />} onClick={() => handleEdit(token)} size="sm" />
+                    <IconButton aria-label="Delete token" icon={<LuTrash2 />} onClick={() => onDelete(token.id)} size="sm" />
                   </HStack>
                 </Td>
               </Tr>

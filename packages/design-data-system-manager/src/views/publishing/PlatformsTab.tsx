@@ -11,7 +11,7 @@ import {
   useColorMode,
   useToast
 } from '@chakra-ui/react';
-import { DeleteIcon, EditIcon, AddIcon } from '@chakra-ui/icons';
+import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
 import { PlatformEditorDialog } from '../../components/PlatformEditorDialog';
 import { createUniqueId } from '../../utils/id';
 import { CodeSyntaxService } from '../../services/codeSyntax';
@@ -144,7 +144,7 @@ export const PlatformsTab: React.FC<PlatformsTabProps> = ({
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Platforms</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" leftIcon={<AddIcon />} onClick={handleAddPlatform} colorScheme="blue" mb={4}>
+        <Button size="sm" leftIcon={<LuPlus />} onClick={handleAddPlatform} colorScheme="blue" mb={4}>
           Add Platform
         </Button>
         <VStack align="stretch" spacing={3}>
@@ -180,7 +180,7 @@ export const PlatformsTab: React.FC<PlatformsTabProps> = ({
                     <Tooltip label="Edit Platform">
                       <IconButton
                         aria-label="Edit platform"
-                        icon={<EditIcon />}
+                        icon={<LuPencil />}
                         size="sm"
                         onClick={() => handleEditPlatform(platform)}
                       />
@@ -190,7 +190,7 @@ export const PlatformsTab: React.FC<PlatformsTabProps> = ({
                         aria-label="Delete platform"
                         colorScheme="red"
                         size="sm"
-                        icon={<DeleteIcon />}
+                        icon={<LuTrash2 />}
                         onClick={() => handleDeletePlatform(platform.id)}
                       />
                     </Tooltip>

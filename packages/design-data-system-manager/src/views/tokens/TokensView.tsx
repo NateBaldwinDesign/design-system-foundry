@@ -5,7 +5,7 @@ import { TokensTab } from './TokensTab';
 import { CollectionsTab } from './CollectionsTab';
 import { TokenEditorDialog } from '../../components/TokenEditorDialog';
 import { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy } from '@token-model/data-model';
-import { AddIcon } from '@chakra-ui/icons';
+import { LuPlus } from 'react-icons/lu';
 import { ValidationService } from '../../services/validation';
 import { useToast } from '@chakra-ui/react';
 
@@ -168,7 +168,7 @@ const TokensView: React.FC<TokensViewProps> = ({
                 resolvedValueTypes={resolvedValueTypes}
                 onViewClassifications={handleViewClassifications}
                 renderAddTokenButton={
-                  <Button colorScheme="blue" size="sm" onClick={handleAddToken} leftIcon={<AddIcon />}>
+                  <Button colorScheme="blue" size="sm" onClick={handleAddToken} leftIcon={<LuPlus />}>
                     Add Token
                   </Button>
                 }

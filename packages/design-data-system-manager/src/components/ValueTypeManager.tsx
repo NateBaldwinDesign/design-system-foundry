@@ -9,7 +9,7 @@ import {
   IconButton,
   useToast
 } from '@chakra-ui/react';
-import { DeleteIcon } from '@chakra-ui/icons';
+import { Trash2 } from 'lucide-react';
 
 interface ValueTypeManagerProps {
   onSave: (valueTypes: string[]) => void;
@@ -66,7 +66,7 @@ export function ValueTypeManager({ onSave }: ValueTypeManagerProps) {
               <Text>{type}</Text>
               <IconButton
                 aria-label={`Delete ${type}`}
-                icon={<DeleteIcon />}
+                icon={<Trash2 />}
                 size="sm"
                 colorScheme="red"
                 onClick={() => handleDeleteValueType(type)}

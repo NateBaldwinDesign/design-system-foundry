@@ -14,7 +14,7 @@ import {
   Tooltip,
   HStack
 } from '@chakra-ui/react';
-import { EditIcon, DeleteIcon } from '@chakra-ui/icons';
+import { LuPencil, LuTrash2 } from 'react-icons/lu';
 import { StorageService } from '../services/storage';
 import { CodeSyntaxService } from '../services/codeSyntax';
 import type { Platform, Taxonomy } from '@token-model/data-model';
@@ -147,7 +147,7 @@ export function PlatformsTab() {
                   <Tooltip label="Edit Platform">
                     <IconButton
                       aria-label="Edit platform"
-                      icon={<EditIcon />}
+                      icon={<LuPencil />}
                       size="sm"
                       onClick={() => handleEdit(platform)}
                     />
@@ -155,7 +155,7 @@ export function PlatformsTab() {
                   <Tooltip label="Delete Platform">
                     <IconButton
                       aria-label="Delete platform"
-                      icon={<DeleteIcon />}
+                      icon={<LuTrash2 />}
                       size="sm"
                       colorScheme="red"
                       onClick={() => handleDelete(platform.id)}

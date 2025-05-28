@@ -21,7 +21,7 @@ import {
   FormErrorMessage,
   useColorMode
 } from '@chakra-ui/react';
-import { DeleteIcon, EditIcon } from '@chakra-ui/icons';
+import { LuTrash2, LuPencil } from 'react-icons/lu';
 
 interface ValueTypeItem {
   name: string;
@@ -112,8 +112,8 @@ export function ValueTypesWorkflow({ valueTypes, onUpdate }: ValueTypesWorkflowP
                   <Text fontSize="sm" color="gray.600">Type: {valueType.type}</Text>
                 </Box>
                 <HStack>
-                  <IconButton aria-label="Edit value type" icon={<EditIcon />} size="sm" onClick={() => handleOpenEdit(valueType)} />
-                  <IconButton aria-label="Delete value type" icon={<DeleteIcon />} size="sm" colorScheme="red" onClick={() => handleDelete(valueType.name)} />
+                  <IconButton aria-label="Edit value type" icon={<LuPencil />} size="sm" onClick={() => handleOpenEdit(valueType)} />
+                  <IconButton aria-label="Delete value type" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(valueType.name)} />
                 </HStack>
               </HStack>
             </Box>

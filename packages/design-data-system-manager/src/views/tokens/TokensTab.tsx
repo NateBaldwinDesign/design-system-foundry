@@ -222,7 +222,7 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
                 </Td>
                 <Td>
                   {token.valuesByMode.map((valueByMode: ValueByMode, index: number) => (
-                    <Box key={index} mb={1}>
+                    <Box key={`${token.id}-${index}`} mb={1}>
                       <Text fontSize="xs" color="gray.500">{getModeNames(valueByMode.modeIds)}:</Text>
                       <Box mt={1}>{getValueDisplay(valueByMode.value)}</Box>
                     </Box>

@@ -15,17 +15,31 @@ import {
   Select,
 } from '@chakra-ui/react';
 import {
-  ViewIcon,
-  StarIcon,
-  EditIcon,
-  UnlockIcon,
-  DownloadIcon,
-  RepeatIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  SettingsIcon,
-  InfoIcon,
-} from '@chakra-ui/icons';
+  Eye,
+  Star,
+  Pencil,
+  Lock,
+  Download,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  Settings,
+  Info,
+  LayoutDashboard,
+  Hexagon,
+  Folders,
+  Ratio,
+  SquareFunction,
+  Tag,
+  SquareStack,
+  ListOrdered,
+  PencilRuler,
+  Palette,
+  MonitorSmartphone,
+  CircleCheckBig,
+  History,
+  Users
+} from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
 interface NavItem {
@@ -45,44 +59,44 @@ interface AppSidebarProps {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: ViewIcon, route: '/dashboard' },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard' },
   {
     id: 'tokens',
     label: 'Tokens',
-    icon: StarIcon,
+    icon: Star,
     route: '/tokens',
     children: [
-      { id: 'tokens', label: 'Tokens', icon: EditIcon, route: '/tokens/tokens' },
-      { id: 'collections', label: 'Collections', icon: InfoIcon, route: '/tokens/collections' },
-      { id: 'algorithms', label: 'Algorithms', icon: SettingsIcon, route: '/tokens/algorithms' },
+      { id: 'tokens', label: 'Tokens', icon: Hexagon, route: '/tokens/tokens' },
+      { id: 'collections', label: 'Collections', icon: Folders, route: '/tokens/collections' },
+      { id: 'algorithms', label: 'Algorithms', icon: SquareFunction, route: '/tokens/algorithms' },
     ],
   },
   {
     id: 'setup',
     label: 'Setup',
-    icon: SettingsIcon,
+    icon: Settings,
     route: '/setup',
     children: [
-      { id: 'dimensions', label: 'Dimensions', icon: InfoIcon, route: '/setup/dimensions' },
-      { id: 'classification', label: 'Classification', icon: InfoIcon, route: '/setup/classification' },
-      { id: 'naming-rules', label: 'Naming Rules', icon: InfoIcon, route: '/setup/naming-rules' },
-      { id: 'value-types', label: 'Value Types', icon: InfoIcon, route: '/setup/value-types' },
+      { id: 'dimensions', label: 'Dimensions', icon: SquareStack, route: '/setup/dimensions' },
+      { id: 'classification', label: 'Classification', icon: Tag, route: '/setup/classification' },
+      { id: 'naming-rules', label: 'Naming Rules', icon: ListOrdered, route: '/setup/naming-rules' },
+      { id: 'value-types', label: 'Value Types', icon: PencilRuler, route: '/setup/value-types' },
     ],
   },
-  { id: 'themes', label: 'Themes', icon: EditIcon, route: '/themes' },
+  { id: 'themes', label: 'Themes', icon: Palette, route: '/themes' },
   {
     id: 'publishing',
     label: 'Publishing',
-    icon: DownloadIcon,
+    icon: Download,
     route: '/publishing',
     children: [
-      { id: 'platforms', label: 'Platforms', icon: InfoIcon, route: '/publishing/platforms' },
-      { id: 'export-settings', label: 'Export Settings', icon: InfoIcon, route: '/publishing/export-settings' },
-      { id: 'validation', label: 'Validation', icon: InfoIcon, route: '/publishing/validation' },
-      { id: 'version-history', label: 'Version History', icon: InfoIcon, route: '/publishing/version-history' },
+      { id: 'platforms', label: 'Platforms', icon: MonitorSmartphone, route: '/publishing/platforms' },
+      { id: 'export-settings', label: 'Export Settings', icon: Settings, route: '/publishing/export-settings' },
+      { id: 'validation', label: 'Validation', icon: CircleCheckBig, route: '/publishing/validation' },
+      { id: 'version-history', label: 'Version History', icon: History, route: '/publishing/version-history' },
     ],
   },
-  { id: 'access', label: 'Access', icon: UnlockIcon, route: '/access' },
+  { id: 'access', label: 'Access', icon: Users, route: '/access' },
 ];
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({
@@ -120,7 +134,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         tabIndex={0}
         textDecoration="none"
       >
-        <Icon boxSize={5} />
+        <Icon size={20} />
         {!isCollapsed && (
           <Text ml={3} fontSize="sm">
             {item.label}
@@ -175,7 +189,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               </Select>
               <Button
                 size="sm"
-                leftIcon={<RepeatIcon />}
+                leftIcon={<RefreshCw size={16} />}
                 onClick={onResetData}
                 variant="outline"
               >
@@ -188,7 +202,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         <Box p={2} borderBottom="1px" borderColor={borderColor}>
           <IconButton
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            icon={isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+            icon={isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
             variant="ghost"
             size="sm"
             onClick={() => setIsCollapsed(!isCollapsed)}
@@ -201,19 +215,21 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             if (item.children) {
               return (
                 <React.Fragment key={item.id}>
-                  {/* Section Heading */}
-                  <Text
-                    fontWeight="bold"
-                    fontSize="sm"
-                    color={colorMode === 'dark' ? 'gray.300' : 'gray.600'}
-                    mt={4}
-                    mb={1}
-                    pl={isCollapsed ? 0 : 2}
-                    textTransform="uppercase"
-                    letterSpacing="wider"
-                  >
-                    {item.label}
-                  </Text>
+                  {/* Section Heading (hidden when collapsed) */}
+                  {!isCollapsed && (
+                    <Text
+                      fontWeight="bold"
+                      fontSize="sm"
+                      color={colorMode === 'dark' ? 'gray.300' : 'gray.600'}
+                      mt={4}
+                      mb={1}
+                      pl={2}
+                      textTransform="uppercase"
+                      letterSpacing="wider"
+                    >
+                      {item.label}
+                    </Text>
+                  )}
                   {item.children.map((child) => (
                     <Box
                       key={child.id}
@@ -234,7 +250,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                       tabIndex={0}
                       textDecoration="none"
                     >
-                      <child.icon boxSize={5} />
+                      <child.icon size={20} />
                       {!isCollapsed && (
                         <Text ml={3} fontSize="sm">
                           {child.label}
@@ -266,7 +282,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 tabIndex={0}
                 textDecoration="none"
               >
-                <item.icon boxSize={5} />
+                <item.icon size={20} />
                 {!isCollapsed && (
                   <Text ml={3} fontSize="sm">
                     {item.label}
@@ -281,7 +297,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           <Box p={2} borderTop="1px" borderColor={borderColor}>
             <Button
               size="sm"
-              leftIcon={<DownloadIcon />}
+              leftIcon={<Download size={16} />}
               onClick={onExportData}
               variant="outline"
               w="full"

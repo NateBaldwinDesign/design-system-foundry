@@ -9,7 +9,7 @@ import {
   useToast,
   useColorMode
 } from '@chakra-ui/react';
-import { DeleteIcon, EditIcon, AddIcon } from '@chakra-ui/icons';
+import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
 import type { TokenCollection, Mode } from '@token-model/data-model';
 import { CollectionEditorDialog } from '../../components/CollectionEditorDialog';
 
@@ -66,7 +66,7 @@ export function CollectionsTab({ collections, modes, onUpdate }: CollectionsTabP
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Collections</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4} leftIcon={<AddIcon />}>
+        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4} leftIcon={<LuPlus />}>
           Create New Collection
         </Button>
         <VStack align="stretch" spacing={2}>
@@ -84,8 +84,8 @@ export function CollectionsTab({ collections, modes, onUpdate }: CollectionsTabP
                   <Text fontSize="lg" fontWeight="medium">{collection.name}</Text>
                 </Box>
                 <HStack>
-                  <IconButton aria-label="Edit collection" icon={<EditIcon />} size="sm" onClick={() => handleOpenEdit(collection)} />
-                  <IconButton aria-label="Delete collection" icon={<DeleteIcon />} size="sm" colorScheme="red" onClick={() => handleDeleteCollection(collection.id)} />
+                  <IconButton aria-label="Edit collection" icon={<LuPencil />} size="sm" onClick={() => handleOpenEdit(collection)} />
+                  <IconButton aria-label="Delete collection" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDeleteCollection(collection.id)} />
                 </HStack>
               </HStack>
               <VStack align="start" spacing={1} mt={2} ml={2}>

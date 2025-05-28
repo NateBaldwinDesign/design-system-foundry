@@ -20,7 +20,7 @@ import {
   ModalCloseButton,
   useColorMode
 } from '@chakra-ui/react';
-import { AddIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
+import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 import type { Dimension, Mode, DimensionType } from '@token-model/data-model';
 import { createUniqueId } from '../utils/id';
 
@@ -177,7 +177,7 @@ export function DimensionsWorkflow({ dimensions, setDimensions }: DimensionsWork
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Dimensions</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button leftIcon={<AddIcon />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+        <Button leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
           Add Dimension
         </Button>
         <VStack align="stretch" spacing={2}>
@@ -196,8 +196,8 @@ export function DimensionsWorkflow({ dimensions, setDimensions }: DimensionsWork
                   <Text fontSize="sm" color="gray.600">Modes: {dim.modes.map(m => m.name).join(', ')}</Text>
                 </Box>
                 <HStack>
-                  <IconButton aria-label="Edit dimension" icon={<EditIcon />} size="sm" onClick={() => handleOpen(i)} />
-                  <IconButton aria-label="Delete dimension" icon={<DeleteIcon />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
+                  <IconButton aria-label="Edit dimension" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
+                  <IconButton aria-label="Delete dimension" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
                 </HStack>
               </HStack>
             </Box>
@@ -268,12 +268,12 @@ export function DimensionsWorkflow({ dimensions, setDimensions }: DimensionsWork
                       <Text fontSize="sm" color="gray.600">{mode.description}</Text>
                     </Box>
                     <HStack>
-                      <IconButton aria-label="Edit mode" icon={<EditIcon />} size="sm" onClick={() => handleModeDialogOpen(idx)} />
-                      <IconButton aria-label="Delete mode" icon={<DeleteIcon />} size="sm" colorScheme="red" onClick={() => handleModeDelete(idx)} />
+                      <IconButton aria-label="Edit mode" icon={<LuPencil />} size="sm" onClick={() => handleModeDialogOpen(idx)} />
+                      <IconButton aria-label="Delete mode" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleModeDelete(idx)} />
                     </HStack>
                   </HStack>
                 ))}
-                <Button leftIcon={<AddIcon />} onClick={() => handleModeDialogOpen(null)} colorScheme="blue" size="sm">
+                <Button leftIcon={<LuPlus />} onClick={() => handleModeDialogOpen(null)} colorScheme="blue" size="sm">
                   Add Mode
                 </Button>
               </VStack>

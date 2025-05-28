@@ -19,7 +19,7 @@ import {
   ModalCloseButton,
   useColorMode
 } from '@chakra-ui/react';
-import { AddIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
+import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 import type { Taxonomy } from '@token-model/data-model';
 import { createUniqueId } from '../../utils/id';
 import { ValidationService } from '../../services/validation';
@@ -191,7 +191,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Classification</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" leftIcon={<AddIcon />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+        <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
           Add Taxonomy
         </Button>
         <VStack align="stretch" spacing={2}>
@@ -211,8 +211,8 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
                   <Text fontSize="sm" color="gray.600">Terms: {taxonomy.terms.map((t: { name: string }) => t.name).join(', ')}</Text>
                 </Box>
                 <HStack>
-                  <IconButton aria-label="Edit taxonomy" icon={<EditIcon />} size="sm" onClick={() => handleOpen(i)} />
-                  <IconButton aria-label="Delete taxonomy" icon={<DeleteIcon />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
+                  <IconButton aria-label="Edit taxonomy" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
+                  <IconButton aria-label="Delete taxonomy" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
                 </HStack>
               </HStack>
             </Box>
@@ -244,15 +244,15 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
               </FormControl>
               <Box>
                 <Text fontWeight="bold" mb={2}>Terms</Text>
-                <Button leftIcon={<AddIcon />} size="sm" onClick={() => handleTermDialogOpen(null)} mb={2}>
+                <Button leftIcon={<LuPlus />} size="sm" onClick={() => handleTermDialogOpen(null)} mb={2}>
                   Add Term
                 </Button>
                 <VStack align="stretch" spacing={1}>
                   {form.terms.map((term, idx) => (
                     <HStack key={term.id}>
                       <Text>{term.name}</Text>
-                      <IconButton aria-label="Edit term" icon={<EditIcon />} size="xs" onClick={() => handleTermDialogOpen(idx)} />
-                      <IconButton aria-label="Delete term" icon={<DeleteIcon />} size="xs" colorScheme="red" onClick={() => handleTermDelete(idx)} />
+                      <IconButton aria-label="Edit term" icon={<LuPencil />} size="xs" onClick={() => handleTermDialogOpen(idx)} />
+                      <IconButton aria-label="Delete term" icon={<LuTrash2 />} size="xs" colorScheme="red" onClick={() => handleTermDelete(idx)} />
                     </HStack>
                   ))}
                 </VStack>

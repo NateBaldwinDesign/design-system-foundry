@@ -14,7 +14,7 @@ import {
   useToast,
   Checkbox
 } from '@chakra-ui/react';
-import { AddIcon, DeleteIcon } from '@chakra-ui/icons';
+import { Plus, Trash2 } from 'lucide-react';
 import type { Token, TokenCollection, Mode, TokenValue, Dimension, Taxonomy, TokenTaxonomyRef } from '@token-model/data-model';
 import { TaxonomyPicker } from './TaxonomyPicker';
 import { useSchema } from '../hooks/useSchema';
@@ -289,7 +289,7 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
                 </FormControl>
                 <IconButton
                   aria-label="Delete value by mode"
-                  icon={<DeleteIcon />}
+                  icon={<Trash2 />}
                   size="sm"
                   colorScheme="red"
                   onClick={() => removeValueByMode(index)}
@@ -297,7 +297,7 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
               </HStack>
             </Box>
           ))}
-          <Button leftIcon={<AddIcon />} onClick={addValueByMode} colorScheme="blue" size="sm">
+          <Button leftIcon={<Plus />} onClick={addValueByMode} colorScheme="blue" size="sm">
             Add Value by Mode
           </Button>
         </VStack>

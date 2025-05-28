@@ -17,7 +17,7 @@ import {
   Text,
   HStack
 } from '@chakra-ui/react';
-import { DeleteIcon } from '@chakra-ui/icons';
+import { LuTrash2 } from 'react-icons/lu';
 import { useSchema } from '../hooks/useSchema';
 
 interface Platform {
@@ -110,7 +110,7 @@ export const SettingsPlatformsTab: React.FC = () => {
             onKeyDown={e => { if (e.key === 'Enter') handleAddPlatform(); }}
             maxW="250px"
           />
-          <Button colorScheme="blue" size="sm" onClick={handleAddPlatform} leftIcon={<DeleteIcon boxSize={4} />}>
+          <Button colorScheme="blue" size="sm" onClick={handleAddPlatform} leftIcon={<LuTrash2 size={16} />}>
             Add Platform
           </Button>
         </HStack>
@@ -226,7 +226,7 @@ export const SettingsPlatformsTab: React.FC = () => {
                         aria-label="Delete platform"
                         colorScheme="red"
                         size="sm"
-                        icon={<DeleteIcon />}
+                        icon={<LuTrash2 />}
                         onClick={() => handleDeletePlatform(platform.id)}
                       />
                     </Td>

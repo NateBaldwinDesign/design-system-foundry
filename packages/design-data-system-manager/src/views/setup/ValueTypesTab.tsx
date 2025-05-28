@@ -21,7 +21,7 @@ import {
   FormErrorMessage,
   useColorMode
 } from '@chakra-ui/react';
-import { DeleteIcon, EditIcon, AddIcon } from '@chakra-ui/icons';
+import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
 import { ValidationService } from '../../services/validation';
 import type { Token, TokenCollection, Dimension, Platform, Taxonomy, Theme } from '@token-model/data-model';
 
@@ -164,7 +164,7 @@ export function ValueTypesTab({ valueTypes, onUpdate }: ValueTypesTabProps) {
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Value Types</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4} leftIcon={<AddIcon />}>
+        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4} leftIcon={<LuPlus />}>
           Create New Value Type
         </Button>
         <VStack align="stretch" spacing={2}>
@@ -183,8 +183,8 @@ export function ValueTypesTab({ valueTypes, onUpdate }: ValueTypesTabProps) {
                   <Text fontSize="sm" color="gray.600">Type: {valueType.type}</Text>
                 </Box>
                 <HStack>
-                  <IconButton aria-label="Edit value type" icon={<EditIcon />} size="sm" onClick={() => handleOpenEdit(valueType)} />
-                  <IconButton aria-label="Delete value type" icon={<DeleteIcon />} size="sm" colorScheme="red" onClick={() => handleDelete(valueType.name)} />
+                  <IconButton aria-label="Edit value type" icon={<LuPencil />} size="sm" onClick={() => handleOpenEdit(valueType)} />
+                  <IconButton aria-label="Delete value type" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(valueType.name)} />
                 </HStack>
               </HStack>
             </Box>

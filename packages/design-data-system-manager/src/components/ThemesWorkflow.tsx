@@ -20,7 +20,7 @@ import {
   Tag,
   useColorMode
 } from '@chakra-ui/react';
-import { AddIcon, DeleteIcon, EditIcon } from '@chakra-ui/icons';
+import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 import { StorageService } from '../services/storage';
 
 interface Theme {
@@ -123,7 +123,7 @@ export function ThemesWorkflow({ themes, setThemes }: ThemesWorkflowProps) {
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Themes</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button leftIcon={<AddIcon />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+        <Button leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
           Add Theme
         </Button>
         <VStack align="stretch" spacing={2}>
@@ -149,14 +149,14 @@ export function ThemesWorkflow({ themes, setThemes }: ThemesWorkflowProps) {
                 <HStack>
                   <IconButton 
                     aria-label="Edit theme" 
-                    icon={<EditIcon />} 
+                    icon={<LuPencil />} 
                     size="sm" 
                     onClick={() => handleOpen(i)}
                     colorScheme={colorMode === 'dark' ? 'blue' : 'gray'}
                   />
                   <IconButton 
                     aria-label="Delete theme" 
-                    icon={<DeleteIcon />} 
+                    icon={<LuTrash2 />} 
                     size="sm" 
                     colorScheme="red" 
                     onClick={() => handleDelete(i)}
