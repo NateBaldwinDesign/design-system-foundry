@@ -122,4 +122,54 @@ Dimensions in the token system need to be flexible and extensible while maintain
 }
 ```
 
-This approach allows the "theme" dimension to support color, dimension, and spacing values, making it more flexible than the previous type-based approach. 
+This approach allows the "theme" dimension to support color, dimension, and spacing values, making it more flexible than the previous type-based approach.
+
+# Technical Decisions: System Name, ID, and Description as Top-Level Properties
+
+## Context
+To ensure every design token system is uniquely and clearly identified, the schema now requires `systemName` and `systemId` as top-level properties, and allows an optional `description` at the top level.
+
+## Rationale
+- **Clarity:** `systemName` and `systemId` are fundamental identifiers for the design system and should always be present.
+- **Validation:** Making these required at the top level ensures all data sets are uniquely and consistently identified.
+- **Documentation:** A top-level `description` provides a clear, human-readable summary of the system.
+
+## Application
+- `systemName` (required): Human-readable name for the design system.
+- `systemId` (required): Unique identifier for the design system, using the same pattern as other IDs.
+- `description` (optional): Human-readable description of the design system.
+
+All core data and theme override files must include these fields at the top level, and validation scripts will enforce their presence.
+
+# Technical Decisions: Resolved Value Type Referencing
+
+## Context
+Previously, the schema used both an enum (UPPER_CASE) for token value types and a camelCase ID for resolved value types, leading to confusion and poor extensibility.
+
+## Decision
+- Tokens now use a `resolvedValueTypeId` field, which must match an `id` in the top-level `resolvedValueTypes` array.
+- The `resolvedValueTypes[].id` field is a string (pattern: ^[a-zA-Z0-9-_]+$), not an enum, allowing for extensibility and tool-generated IDs.
+- All references to value types in tokens, collections, and dimensions are by ID, not by hardcoded value or casing.
+
+## Rationale
+- **Referential Integrity:** Ensures all references are valid and unique within the dataset.
+- **Extensibility:** New value types can be added without changing the schema or code.
+- **Clarity:** No confusion about casing or allowed values; IDs are always referenced by ID.
+
+## Application
+- When creating or editing a token, set `resolvedValueTypeId` to the ID of the value type it uses.
+- When defining collections or dimensions, use the IDs from `resolvedValueTypes` in `resolvedValueTypeIds` arrays.
+- Validation scripts enforce that all references are valid.
+
+## Example
+```json
+{
+  "resolvedValueTypes": [
+    { "id": "color", "displayName": "Color" },
+    { "id": "fontFamily", "displayName": "Font Family" }
+  ],
+  "tokens": [
+    { "id": "token-blue-500", "resolvedValueTypeId": "color", ... }
+  ]
+}
+``` 

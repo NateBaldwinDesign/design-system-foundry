@@ -6,11 +6,34 @@ This package defines the canonical JSON schema and TypeScript types for the Toke
 
 - **systemName**: Human-readable name for this token system. (Required)
 - **systemId**: Unique identifier for this token system, using the same pattern as other IDs. (Required)
+- **description**: Human-readable description of this token system. (Optional)
 - **Dimension**: Represents a dimension (e.g., color scheme, contrast) with a set of modes.
 - **Mode**: Represents a mode within a dimension (e.g., Light, Dark).
 - **TokenCollection**: A group of tokens, with value type and mode resolution strategy.
-- **Token**: The core design token object, with support for global and mode-specific values.
+- **Token**: The core design token object, with support for global and mode-specific values. Each token references its value type by `resolvedValueTypeId`, which must match an ID in the top-level `resolvedValueTypes` array.
 - **TokenValue**: The value of a token (e.g., COLOR, FLOAT, INTEGER, STRING, BOOLEAN, ALIAS).
+
+### Example Top-Level Properties
+```json
+{
+  "systemName": "Acme Design System",
+  "systemId": "acme-design-system",
+  "description": "The canonical design token set for Acme Corp."
+}
+```
+
+### Example Token Referencing Value Type
+```json
+{
+  "resolvedValueTypes": [
+    { "id": "color", "displayName": "Color" },
+    { "id": "fontFamily", "displayName": "Font Family" }
+  ],
+  "tokens": [
+    { "id": "token-blue-500", "resolvedValueTypeId": "color", ... }
+  ]
+}
+```
 
 ## valuesByMode: Global vs. Mode-Specific Values
 

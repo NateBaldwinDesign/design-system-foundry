@@ -4,8 +4,21 @@
     "title": "Design Token System Schema",
     "description": "Schema for design tokens with multi-dimensional modes and flexible resolution",
     "type": "object",
-    "required": ["tokenCollections", "dimensions", "tokens", "platforms", "version", "versionHistory"],
+    "required": ["systemName", "systemId", "tokenCollections", "dimensions", "tokens", "platforms", "version", "versionHistory"],
     "properties": {
+      "systemName": {
+        "type": "string",
+        "description": "Name of the design system"
+      },
+      "systemId": {
+        "type": "string",
+        "description": "Unique identifier for the design system",
+        "pattern": "^[a-zA-Z0-9-_]+$"
+      },
+      "description": {
+        "type": "string",
+        "description": "Description of the design system"
+      },
       "version": {
         "type": "string",
         "description": "Semantic version of the token set",
@@ -363,7 +376,7 @@
         "description": "Design tokens with values that can vary by mode",
         "items": {
           "type": "object",
-          "required": ["id", "displayName", "tokenCollectionId", "resolvedValueType", "valuesByMode"],
+          "required": ["id", "displayName", "tokenCollectionId", "resolvedValueTypeId", "valuesByMode"],
           "properties": {
             "id": {
               "type": "string",
@@ -383,22 +396,10 @@
               "description": "Reference to the parent token collection",
               "pattern": "^[a-zA-Z0-9-_]+$"
             },
-            "resolvedValueType": {
+            "resolvedValueTypeId": {
               "type": "string",
               "description": "Type of value this token resolves to",
-              "enum": [
-                "COLOR", 
-                "DIMENSION", 
-                "FONT_FAMILY", 
-                "FONT_WEIGHT", 
-                "DURATION", 
-                "CUBIC_BEZIER", 
-                "BORDER", 
-                "SHADOW", 
-                "OPACITY", 
-                "NUMBER",
-                "TYPOGRAPHY"
-              ]
+              "pattern": "^[a-zA-Z0-9-_]+$"
             },
             "private": {
               "type": "boolean",
@@ -782,21 +783,8 @@
             "id": {
               "type": "string",
               "description": "Unique identifier for the resolved value type.",
-              "enum": [
-                "color",
-                "dimension",
-                "spacing",
-                "fontFamily",
-                "fontWeight",
-                "fontSize",
-                "lineHeight",
-                "letterSpacing",
-                "duration",
-                "cubicBezier",
-                "blur",
-                "spread",
-                "radius"
-              ]
+              "pattern": "^[a-zA-Z0-9-_]+$",
+              "description": "IDs must be unique and referenced by tokens."
             },
             "displayName": {
               "type": "string",

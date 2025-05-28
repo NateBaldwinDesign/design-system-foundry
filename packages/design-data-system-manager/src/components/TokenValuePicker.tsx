@@ -32,8 +32,12 @@ interface Constraint {
   };
 }
 
+interface TokenWithCompat extends Token {
+  resolvedValueTypeId?: string;
+}
+
 interface TokenValuePickerProps {
-  resolvedValueType: string;
+  resolvedValueTypeId: string;
   value: TokenValue | string;
   tokens: Token[];
   constraints?: Constraint[];
@@ -76,7 +80,7 @@ function satisfiesConstraints(token: Token, constraints?: Constraint[]): boolean
 }
 
 export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
-  resolvedValueType,
+  resolvedValueTypeId,
   value,
   tokens,
   constraints,
@@ -87,9 +91,9 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
   const [tabIndex, setTabIndex] = useState(0);
 
   // Filter tokens for the "token" tab
-  const filteredTokens = tokens.filter(
+  const filteredTokens = (tokens as TokenWithCompat[]).filter(
     t =>
-      t.resolvedValueType === resolvedValueType &&
+      (t.resolvedValueTypeId || t.resolvedValueType) === resolvedValueTypeId &&
       t.id !== excludeTokenId &&
       satisfiesConstraints(t, constraints)
   );
@@ -132,7 +136,7 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
             <TabPanels>
               <TabPanel px={0}>
                 <VStack align="stretch" spacing={3} mt={2}>
-                  {resolvedValueType === 'COLOR' && (
+                  {resolvedValueTypeId === 'COLOR' && (
                     <VStack>
                       <Input
                         type="color"
@@ -148,22 +152,22 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
                       />
                     </VStack>
                   )}
-                  {(resolvedValueType === 'FLOAT' || resolvedValueType === 'INTEGER') && (
+                  {(resolvedValueTypeId === 'FLOAT' || resolvedValueTypeId === 'INTEGER') && (
                     <Input
                       type="number"
                       size="sm"
                       value={typeof value === 'object' && (value.type === 'FLOAT' || value.type === 'INTEGER') ? value.value : ''}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: resolvedValueType as 'FLOAT' | 'INTEGER', value: Number(e.target.value) })}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: resolvedValueTypeId as 'FLOAT' | 'INTEGER', value: Number(e.target.value) })}
                     />
                   )}
-                  {resolvedValueType === 'STRING' && (
+                  {resolvedValueTypeId === 'STRING' && (
                     <Input
                       size="sm"
                       value={typeof value === 'object' && value.type === 'STRING' ? value.value : ''}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'STRING', value: e.target.value })}
                     />
                   )}
-                  {resolvedValueType === 'BOOLEAN' && (
+                  {resolvedValueTypeId === 'BOOLEAN' && (
                     <Button
                       colorScheme={typeof value === 'object' && value.type === 'BOOLEAN' && value.value ? 'green' : 'red'}
                       onClick={() => onChange({ type: 'BOOLEAN', value: !(typeof value === 'object' && value.type === 'BOOLEAN' ? value.value : false) })}

@@ -37,7 +37,7 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
     displayName: '',
     description: '',
     tokenCollectionId: '',
-    resolvedValueType: 'COLOR',
+    resolvedValueTypeId: 'COLOR',
     private: false,
     themeable: false,
     taxonomies: [] as TokenTaxonomyRef[],
@@ -224,8 +224,8 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
         <FormControl isRequired>
           <FormLabel>Resolved Value Type</FormLabel>
           <Select
-            value={formData.resolvedValueType}
-            onChange={e => handleInputChange('resolvedValueType', e.target.value)}
+            value={formData.resolvedValueTypeId}
+            onChange={e => handleInputChange('resolvedValueTypeId', e.target.value)}
             placeholder="Select value type"
           >
             <option value="COLOR">Color</option>

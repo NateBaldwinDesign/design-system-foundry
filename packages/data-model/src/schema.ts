@@ -188,7 +188,7 @@ export const Token = z.object({
   displayName: z.string(),
   description: z.string().optional(),
   tokenCollectionId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
-  resolvedValueType: ResolvedValueType,
+  resolvedValueTypeId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
   private: z.boolean().default(false),
   themeable: z.boolean().default(false),
   status: TokenStatus.optional(),
@@ -318,6 +318,9 @@ export const DimensionEvolution = z.object({
 
 // Update TokenSystem to require platforms
 export const TokenSystem = z.object({
+  systemName: z.string(),
+  systemId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  description: z.string().optional(),
   version: z.string(),
   versionHistory: z.array(VersionHistoryEntry),
   dimensionEvolution: DimensionEvolution.optional(),

@@ -170,17 +170,17 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
         const key = modeIds.slice().sort().join(',');
         if (prevMap.has(key)) {
           const val = prevMap.get(key);
-          return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueType) };
+          return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
         }
         for (let i = 0; i < modeIds.length; i++) {
           const parentIds = modeIds.slice(0, i).concat(modeIds.slice(i + 1));
           const parentKey = parentIds.slice().sort().join(',');
           if (prevMap.has(parentKey)) {
             const val = prevMap.get(parentKey);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueType) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
           }
         }
-        return { modeIds, value: getDefaultTokenValue(prev.resolvedValueType) };
+        return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId) };
       });
       return {
         ...prev,
@@ -216,7 +216,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           const key = modeIds.slice().sort().join(',');
           if (prevMap.has(key)) {
             const val = prevMap.get(key);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueType) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
           }
           // Find all previous combos that are a superset of modeIds
           const candidates = prev.valuesByMode.filter(vbm =>
@@ -228,7 +228,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           if (found) {
             return { modeIds, value: found.value };
           }
-          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueType) };
+          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId) };
         });
         return {
           ...prev,
@@ -250,7 +250,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           const key = modeIds.slice().sort().join(',');
           if (prevMap.has(key)) {
             const val = prevMap.get(key);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueType) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
           }
           // Try to restore from preserved
           if (preserved[key]) {
@@ -262,10 +262,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
             const parentKey = parentIds.slice().sort().join(',');
             if (prevMap.has(parentKey)) {
               const val = prevMap.get(parentKey);
-              return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueType) };
+              return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
             }
           }
-          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueType) };
+          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId) };
         });
         return {
           ...prev,
@@ -283,7 +283,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
 
     return (
       <TokenValuePicker
-        resolvedValueType={editedToken.resolvedValueType}
+        resolvedValueTypeId={editedToken.resolvedValueTypeId}
         value={value}
         tokens={tokens}
         constraints={constraints}
@@ -371,7 +371,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   // Validation: required fields and taxonomy error
   const codeSyntaxArray = ensureCodeSyntaxArrayFormat(editedToken.codeSyntax);
   const hasTaxonomyError = codeSyntaxArray.some(name => name === undefined);
-  const hasRequiredFieldError = !editedToken.displayName || !editedToken.resolvedValueType;
+  const hasRequiredFieldError = !editedToken.displayName || !editedToken.resolvedValueTypeId;
 
   // Check for duplicate taxonomy assignments
   function taxonomySet(arr: { taxonomyId: string; termId: string }[]) {
@@ -511,12 +511,12 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                   <FormControl isRequired>
                     <FormLabel>Value Type</FormLabel>
                     <Select
-                      value={editedToken.resolvedValueType}
+                      value={editedToken.resolvedValueTypeId}
                       onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                         const newType = e.target.value;
                         setEditedToken(prev => ({
                           ...prev,
-                          resolvedValueType: newType,
+                          resolvedValueTypeId: newType,
                           valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType) }]
                         }));
                       }}
@@ -585,7 +585,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     <FormControl w="160px">
                       <FormLabel fontSize="xs" mb={0}>Comparator Color</FormLabel>
                       <TokenValuePicker
-                        resolvedValueType="COLOR"
+                        resolvedValueTypeId="COLOR"
                         value={constraint.rule.comparator}
                         tokens={tokens}
                         onChange={(newValue: TokenValue) => handleConstraintChange(idx, 'comparator', newValue)}
@@ -634,7 +634,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                   <FormControl w="160px">
                     <FormLabel fontSize="xs" mb={0}>Comparator Color</FormLabel>
                     <TokenValuePicker
-                      resolvedValueType="COLOR"
+                      resolvedValueTypeId="COLOR"
                       value={newConstraint.rule.comparator}
                       tokens={tokens}
                       onChange={(newValue: TokenValue) => setNewConstraint(nc => ({
@@ -700,7 +700,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                             ...prev,
                             valuesByMode: [
                               ...prev.valuesByMode,
-                              { modeIds: [], value: getDefaultTokenValue(prev.resolvedValueType) }
+                              { modeIds: [], value: getDefaultTokenValue(prev.resolvedValueTypeId) }
                             ]
                           }))}
                         >
@@ -711,7 +711,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     return (
                       <HStack spacing={2}>
                         <TokenValuePicker
-                          resolvedValueType={editedToken.resolvedValueType}
+                          resolvedValueTypeId={editedToken.resolvedValueTypeId}
                           value={globalValue.value}
                           tokens={tokens}
                           constraints={constraints}
@@ -747,7 +747,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                       )
                     }))}
                     getValueEditor={getValueEditor}
-                    resolvedValueType={editedToken.resolvedValueType}
+                    resolvedValueTypeId={editedToken.resolvedValueTypeId}
                     tokens={tokens}
                     constraints={constraints}
                     excludeTokenId={editedToken.id}
@@ -786,7 +786,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                         )
                       }));
                     }}
-                    resolvedValueType={editedToken.resolvedValueType}
+                    resolvedValueTypeId={editedToken.resolvedValueTypeId}
                     tokens={tokens}
                     constraints={constraints}
                     excludeTokenId={editedToken.id}

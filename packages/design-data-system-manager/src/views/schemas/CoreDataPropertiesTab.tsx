@@ -17,6 +17,21 @@ export const CoreDataPropertiesTab: React.FC = () => {
   return (
     <VStack spacing={6} align="stretch">
       <Box>
+        <Heading size="md" mb={4}>System Name & ID</Heading>
+        <Text mb={2}>
+          <b>systemName</b> (required): Human-readable name for the design token system.<br />
+          <b>systemId</b> (required): Unique identifier for the design token system, using the same pattern as other IDs.<br />
+          <b>description</b> (optional): Human-readable description of the design token system.<br /><br />
+          These fields are required at the top level of every token data file. They ensure that every data set is uniquely and clearly identified, and provide a summary for documentation and discovery.
+        </Text>
+        <JsonSyntaxHighlighter code={JSON.stringify({
+          systemName: "Acme Design System",
+          systemId: "acme-design-system",
+          description: "The canonical design token set for Acme Corp."
+        }, null, 2)} />
+      </Box>
+
+      <Box>
         <Heading size="md" mb={4}>Version</Heading>
         <Text mb={2}>
           <b>Semantic version of the token set.</b> This follows the standard <a href="https://semver.org/" target="_blank" rel="noopener noreferrer">semantic versioning</a> format (e.g., 1.0.0). It is required for tracking changes, supporting migrations, and ensuring compatibility across different versions of your design token data. Each time the schema or data changes, the version should be incremented. This helps both humans and tools understand what has changed and when.
@@ -98,7 +113,7 @@ export const CoreDataPropertiesTab: React.FC = () => {
               id: "token-blue-500",
               displayName: "Blue 500",
               tokenCollectionId: "collection-color",
-              resolvedValueType: "COLOR",
+              resolvedValueTypeId: "color",
               valuesByMode: [
                 {
                   modeIds: [],
@@ -109,6 +124,10 @@ export const CoreDataPropertiesTab: React.FC = () => {
                 }
               ]
             }
+          ],
+          resolvedValueTypes: [
+            { id: "color", displayName: "Color" },
+            { id: "fontFamily", displayName: "Font Family" }
           ]
         }, null, 2)} />
       </Box>

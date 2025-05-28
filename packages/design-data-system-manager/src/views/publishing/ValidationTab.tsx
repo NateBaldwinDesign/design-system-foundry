@@ -38,6 +38,37 @@ interface ValidationTabProps {
   onValidate: (token: Token) => void;
 }
 
+interface ResolvedValueType {
+  id: string;
+  displayName: string;
+}
+
+interface TokenSystemData {
+  systemName: string;
+  systemId: string;
+  description: string;
+  tokenCollections: TokenCollection[];
+  dimensions: Dimension[];
+  tokens: Token[];
+  platforms: Platform[];
+  taxonomies: Taxonomy[];
+  version: string;
+  versionHistory: Array<{
+    version: string;
+    dimensions: string[];
+    date: string;
+  }>;
+  resolvedValueTypes: ResolvedValueType[];
+  themes: any[];
+  themeOverrides: Record<string, any>;
+  extensions: {
+    tokenGroups: any[];
+    tokenVariants: Record<string, any>;
+  };
+  tokenGroups: any[]; // Required by schema
+  tokenVariants: any[]; // Required by schema
+}
+
 export function ValidationTab({ tokens = [], collections = [], dimensions = [], platforms = [], taxonomies = [], version = '1.0.0', versionHistory = [], onValidate }: ValidationTabProps) {
   const { colorMode } = useColorMode();
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
@@ -68,15 +99,108 @@ export function ValidationTab({ tokens = [], collections = [], dimensions = [], 
 
   const handleGlobalValidate = () => {
     try {
-      const data = {
-        tokenCollections: collections,
-        dimensions,
-        tokens,
+      // First, collect all unique resolved value types from tokens
+      const uniqueValueTypes = new Set<string>();
+      tokens.forEach(token => {
+        if (token.resolvedValueTypeId) {
+          uniqueValueTypes.add(token.resolvedValueTypeId);
+        }
+      });
+
+      // Create resolvedValueTypes array with unique items
+      const resolvedValueTypes = Array.from(uniqueValueTypes).map(id => ({
+        id,
+        displayName: id
+      }));
+
+      // Construct data according to schema requirements
+      const data: TokenSystemData = {
+        systemName: "Design System", // Required by schema
+        systemId: "design-system", // Required by schema
+        description: "Design system tokens and configurations", // Required by schema
+        tokenCollections: collections.map(collection => ({
+          id: collection.id,
+          name: collection.name,
+          description: collection.description,
+          resolvedValueTypeIds: collection.resolvedValueTypeIds || collection.resolvedValueTypes || [], // Map old field to new if needed
+          private: collection.private || false,
+          defaultModeIds: collection.defaultModeIds || [],
+          modeResolutionStrategy: {
+            priorityByType: (collection.modeResolutionStrategy?.priorityByType || [])
+              .map(type => {
+                // Map any non-standard types to COLOR_SCHEME as default
+                if (!['COLOR_SCHEME', 'CONTRAST', 'DEVICE_TYPE', 'BRAND', 'THEME', 'MOTION', 'DENSITY'].includes(type)) {
+                  return 'COLOR_SCHEME';
+                }
+                return type;
+              }),
+            fallbackStrategy: collection.modeResolutionStrategy?.fallbackStrategy || 'DEFAULT_VALUE'
+          }
+        })),
+        dimensions: dimensions.map(dimension => {
+          const base = {
+            ...dimension,
+            type: dimension.type || 'COLOR_SCHEME', // Add required type field
+            required: dimension.required || false,
+            defaultMode: dimension.defaultMode || dimension.modes[0]?.id || ''
+          };
+          if (Array.isArray((dimension as any).resolvedValueTypeIds)) {
+            return {
+              ...base,
+              resolvedValueTypeIds: (dimension as any).resolvedValueTypeIds
+            };
+          }
+          return base;
+        }),
+        tokens: tokens.map(token => ({
+          ...token,
+          private: token.private || false,
+          themeable: token.themeable || false,
+          taxonomies: token.taxonomies || [],
+          propertyTypes: token.propertyTypes || [],
+          resolvedValueTypeId: token.resolvedValueTypeId, // Only use the correct field
+          // Convert codeSyntax object to array format
+          codeSyntax: typeof token.codeSyntax === 'object' && !Array.isArray(token.codeSyntax) 
+            ? Object.entries(token.codeSyntax).map(([platformId, formattedName]) => ({
+                platformId,
+                formattedName: String(formattedName)
+              }))
+            : token.codeSyntax || [],
+          valuesByMode: token.valuesByMode || []
+        })),
         platforms,
-        taxonomies,
+        taxonomies: taxonomies.map(taxonomy => ({
+          ...taxonomy,
+          terms: taxonomy.terms || []
+        })),
         version,
-        versionHistory
+        versionHistory: Array.isArray(versionHistory) && versionHistory.length > 0 ? 
+          versionHistory.map(entry => ({
+            version: typeof entry === 'object' && entry !== null && 'version' in entry ? 
+              String(entry.version) : version,
+            dimensions: Array.isArray(entry) && entry.length > 0 ? 
+              entry.map(d => String(d)) : 
+              dimensions.map(d => d.id),
+            date: typeof entry === 'object' && entry !== null && 'date' in entry ? 
+              String(entry.date) : 
+              new Date().toISOString().slice(0, 10)
+          })) : 
+          [{
+            version,
+            dimensions: dimensions.map(d => d.id),
+            date: new Date().toISOString().slice(0, 10)
+          }],
+        resolvedValueTypes,
+        themes: [], // Will be populated if needed
+        themeOverrides: {}, // Will be populated if needed
+        extensions: {
+          tokenGroups: [], // Required array
+          tokenVariants: {} // Required object
+        },
+        tokenGroups: [], // Required by schema
+        tokenVariants: [] // Required by schema
       };
+
       const result = ValidationService.validateData(data);
       if (result.isValid) {
         toast({
@@ -190,7 +314,7 @@ export function ValidationTab({ tokens = [], collections = [], dimensions = [], 
                     Collection: {collections?.find(c => c.id === selectedToken.tokenCollectionId)?.name}
                   </Text>
                   <Text fontSize="sm">
-                    Value Type: {selectedToken.resolvedValueType}
+                    Value Type: {selectedToken.resolvedValueTypeId}
                   </Text>
                   <Button
                     colorScheme="blue"

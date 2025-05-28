@@ -1,11 +1,7 @@
-import path from 'path';
-import fs from 'fs';
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const path = require('path');
+const fs = require('fs');
+const Ajv = require('ajv');
+const addFormats = require('ajv-formats');
 
 const schemaPath = path.resolve(__dirname, '../src/theme-overrides-schema.json');
 const schema = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));

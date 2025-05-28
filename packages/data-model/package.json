@@ -15,9 +15,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "lint": "eslint src --ext .ts",
-    "test": "jest && npm run validate-data && npm run validate-theme-overrides",
-    "validate-data": "node scripts/validate-data.cjs",
-    "validate-theme-overrides": "node scripts/validate-theme-overrides.js"
+    "test": "node scripts/validate-data.cjs && node scripts/validate-theme-overrides.cjs"
   },
   "dependencies": {
     "react-router-dom": "^7.6.1",

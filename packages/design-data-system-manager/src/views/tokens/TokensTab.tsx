@@ -20,8 +20,16 @@ import { Pencil, Trash2 } from 'lucide-react';
 import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { TokenEditorDialog } from '../../components/TokenEditorDialog';
 
-// Extend the Token type to include themeable
-type ExtendedToken = Token & { themeable?: boolean };
+// Extend the Token type to include themeable and resolvedValueTypeId for compatibility
+export type ExtendedToken = Token & { themeable?: boolean; resolvedValueTypeId?: string };
+
+// Define ValueByMode type if not imported
+interface ValueByMode {
+  modeIds: string[];
+  value: TokenValue;
+  metadata?: Record<string, unknown>;
+  platformOverrides?: any[];
+}
 
 interface TokensTabProps {
   tokens: ExtendedToken[];
@@ -60,7 +68,7 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
   const filteredTokens = useMemo(() => {
     return tokens.filter(token => {
       if (collectionFilter && token.tokenCollectionId !== collectionFilter) return false;
-      if (typeFilter && token.resolvedValueType !== typeFilter) return false;
+      if (typeFilter && (token.resolvedValueTypeId || token.resolvedValueType) !== typeFilter) return false;
       if (statusFilter && token.status !== statusFilter) return false;
       if (privateFilter && String(token.private) !== privateFilter) return false;
       if (themeableFilter && String(token.themeable) !== themeableFilter) return false;
@@ -69,7 +77,7 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
   }, [tokens, collectionFilter, typeFilter, statusFilter, privateFilter, themeableFilter]);
 
   // Unique values for filters
-  const typeOptions = Array.from(new Set(tokens.map(t => t.valueType))).sort();
+  const typeOptions = Array.from(new Set(tokens.map(t => t.resolvedValueTypeId || t.resolvedValueType))).sort();
   const statusOptions = Array.from(new Set(tokens.map(t => t.status).filter(Boolean))).sort();
 
   const [selectedToken, setSelectedToken] = useState<ExtendedToken | null>(null);
@@ -199,7 +207,7 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
                   )}
                 </Td>
                 <Td>{getCollectionName(token.tokenCollectionId)}</Td>
-                <Td><Tag colorScheme="blue" size="sm">{token.resolvedValueType}</Tag></Td>
+                <Td><Tag colorScheme="blue" size="sm">{token.resolvedValueTypeId || token.resolvedValueType}</Tag></Td>
                 <Td>{token.status && (<Tag colorScheme={token.status === 'stable' ? 'green' : token.status === 'experimental' ? 'yellow' : 'red'} size="sm">{token.status}</Tag>)}</Td>
                 <Td><Tag colorScheme={token.private ? 'gray' : 'green'} size="sm">{token.private ? 'Private' : 'Public'}</Tag></Td>
                 <Td><Tag colorScheme={token.themeable ? 'green' : 'gray'} size="sm">{token.themeable ? 'Yes' : 'No'}</Tag></Td>
@@ -241,8 +249,8 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
       </Box>
       {selectedToken && (
         <TokenEditorDialog
-          token={selectedToken}
-          tokens={tokens}
+          token={{ ...selectedToken, codeSyntax: Array.isArray(selectedToken.codeSyntax) ? Object.fromEntries(selectedToken.codeSyntax.map((cs: any) => [cs.platformId, cs.formattedName])) : selectedToken.codeSyntax }}
+          tokens={tokens.map(t => ({ ...t, codeSyntax: Array.isArray(t.codeSyntax) ? Object.fromEntries(t.codeSyntax.map((cs: any) => [cs.platformId, cs.formattedName])) : t.codeSyntax }))}
           dimensions={dimensions}
           modes={modes}
           platforms={platforms}

@@ -1,6 +1,4 @@
-import Ajv from 'ajv';
-import addFormats from 'ajv-formats';
-import schema from '@token-model/data-model/src/schema.json';
+import { validateTokenSystem } from '@token-model/data-model';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -8,23 +6,16 @@ export interface ValidationResult {
 }
 
 export class ValidationService {
-  private static validate: any;
-
-  static initialize() {
-    const ajv = new Ajv({ allErrors: true, strict: false });
-    addFormats(ajv);
-    this.validate = ajv.compile(schema);
-  }
-
   static validateData(data: any): ValidationResult {
-    if (!this.validate) {
-      this.initialize();
+    try {
+      validateTokenSystem(data);
+      return { isValid: true };
+    } catch (error: any) {
+      // Zod errors have .errors array, fallback to message otherwise
+      if (error.errors) {
+        return { isValid: false, errors: error.errors };
+      }
+      return { isValid: false, errors: [error.message || error] };
     }
-
-    const valid = this.validate(data);
-    return {
-      isValid: valid,
-      errors: valid ? undefined : this.validate.errors
-    };
   }
 } 

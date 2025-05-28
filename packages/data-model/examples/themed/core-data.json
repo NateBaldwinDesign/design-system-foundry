@@ -8,7 +8,7 @@
         "id": "collection-color",
         "name": "Color",
         "resolvedValueTypeIds": [
-          "COLOR"
+          "color"
         ],
         "private": false,
         "supportedDimensionIds": [
@@ -31,7 +31,7 @@
         "id": "collection-spacing",
         "name": "Spacing",
         "resolvedValueTypeIds": [
-          "DIMENSION"
+          "dimension"
         ],
         "private": false,
         "supportedDimensionIds": [],
@@ -45,9 +45,9 @@
         "id": "collection-typography",
         "name": "Typography",
         "resolvedValueTypeIds": [
-          "FONT_FAMILY",
-          "FONT_WEIGHT",
-          "TYPOGRAPHY"
+          "font_family",
+          "font_weight",
+          "typography"
         ],
         "private": false,
         "supportedDimensionIds": [],
@@ -77,8 +77,8 @@
         "required": true,
         "defaultMode": "mode-light",
         "resolvedValueTypeIds": [
-          "COLOR",
-          "OPACITY"
+          "color",
+          "opacity"
         ]
       },
       {
@@ -99,7 +99,7 @@
         "required": false,
         "defaultMode": "mode-regular",
         "resolvedValueTypeIds": [
-          "COLOR"
+          "color"
         ]
       }
     ],
@@ -109,7 +109,7 @@
         "displayName": "Blue 50",
         "description": "Blue color, scale 50",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -148,7 +148,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#8db324"
             }
           }
@@ -159,7 +159,7 @@
         "displayName": "Blue 100",
         "description": "Blue color, scale 100",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -198,7 +198,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#2e37e6"
             }
           }
@@ -209,7 +209,7 @@
         "displayName": "Blue 200",
         "description": "Blue color, scale 200",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -248,7 +248,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#c58b5c"
             }
           }
@@ -259,7 +259,7 @@
         "displayName": "Blue 300",
         "description": "Blue color, scale 300",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -298,7 +298,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#6b0e16"
             }
           }
@@ -309,7 +309,7 @@
         "displayName": "Blue 400",
         "description": "Blue color, scale 400",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -348,7 +348,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#c0df2c"
             }
           }
@@ -359,7 +359,7 @@
         "displayName": "Blue 500",
         "description": "Blue color, scale 500",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -398,7 +398,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#6afda3"
             }
           }
@@ -409,7 +409,7 @@
         "displayName": "Red 50",
         "description": "Red color, scale 50",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -448,7 +448,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#f82a05"
             }
           }
@@ -459,7 +459,7 @@
         "displayName": "Red 100",
         "description": "Red color, scale 100",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -498,7 +498,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#0ccca1"
             }
           }
@@ -509,7 +509,7 @@
         "displayName": "Red 200",
         "description": "Red color, scale 200",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -548,7 +548,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#c31121"
             }
           }
@@ -559,7 +559,7 @@
         "displayName": "Red 300",
         "description": "Red color, scale 300",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -598,7 +598,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#763250"
             }
           }
@@ -609,7 +609,7 @@
         "displayName": "Red 400",
         "description": "Red color, scale 400",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -648,7 +648,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#53c10d"
             }
           }
@@ -659,7 +659,7 @@
         "displayName": "Red 500",
         "description": "Red color, scale 500",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -698,7 +698,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#68ee6a"
             }
           }
@@ -709,7 +709,7 @@
         "displayName": "Green 50",
         "description": "Green color, scale 50",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -748,7 +748,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#fae300"
             }
           }
@@ -759,7 +759,7 @@
         "displayName": "Green 100",
         "description": "Green color, scale 100",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -798,7 +798,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#63d7d5"
             }
           }
@@ -809,7 +809,7 @@
         "displayName": "Green 200",
         "description": "Green color, scale 200",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -848,7 +848,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#a93955"
             }
           }
@@ -859,7 +859,7 @@
         "displayName": "Green 300",
         "description": "Green color, scale 300",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -898,7 +898,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#b19702"
             }
           }
@@ -909,7 +909,7 @@
         "displayName": "Green 400",
         "description": "Green color, scale 400",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -948,7 +948,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#a05a28"
             }
           }
@@ -959,7 +959,7 @@
         "displayName": "Green 500",
         "description": "Green color, scale 500",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -998,7 +998,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#cb89e0"
             }
           }
@@ -1009,7 +1009,7 @@
         "displayName": "Gray 50",
         "description": "Gray color, scale 50",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1048,7 +1048,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#80b9f5"
             }
           }
@@ -1059,7 +1059,7 @@
         "displayName": "Gray 100",
         "description": "Gray color, scale 100",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1098,7 +1098,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#acd673"
             }
           }
@@ -1109,7 +1109,7 @@
         "displayName": "Gray 200",
         "description": "Gray color, scale 200",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1148,7 +1148,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#c04795"
             }
           }
@@ -1159,7 +1159,7 @@
         "displayName": "Gray 300",
         "description": "Gray color, scale 300",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1198,7 +1198,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#0e04be"
             }
           }
@@ -1209,7 +1209,7 @@
         "displayName": "Gray 400",
         "description": "Gray color, scale 400",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1248,7 +1248,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#6dfebe"
             }
           }
@@ -1259,7 +1259,7 @@
         "displayName": "Gray 500",
         "description": "Gray color, scale 500",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1298,7 +1298,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "COLOR",
+              "type": "color",
               "value": "#ca76e2"
             }
           }
@@ -1309,7 +1309,7 @@
         "displayName": "Accent",
         "description": "Themable color",
         "tokenCollectionId": "collection-color",
-        "resolvedValueType": "COLOR",
+        "resolvedValueTypeId": "color",
         "private": false,
         "status": "stable",
         "themeable": true,
@@ -1349,7 +1349,7 @@
             "modeIds": [],
             "value": {
               "type": "ALIAS",
-              "alias": "token-blue-500"
+              "tokenId": "token-blue-500"
             }
           }
         ]
@@ -1359,7 +1359,7 @@
         "displayName": "Spacing 8",
         "description": "Spacing of 8px",
         "tokenCollectionId": "collection-spacing",
-        "resolvedValueType": "DIMENSION",
+        "resolvedValueTypeId": "dimension",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1389,7 +1389,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "DIMENSION",
+              "type": "dimension",
               "value": "8px"
             }
           }
@@ -1400,7 +1400,7 @@
         "displayName": "Spacing 16",
         "description": "Spacing of 16px",
         "tokenCollectionId": "collection-spacing",
-        "resolvedValueType": "DIMENSION",
+        "resolvedValueTypeId": "dimension",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1430,7 +1430,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "DIMENSION",
+              "type": "dimension",
               "value": "16px"
             }
           }
@@ -1441,7 +1441,7 @@
         "displayName": "Spacing 24",
         "description": "Spacing of 24px",
         "tokenCollectionId": "collection-spacing",
-        "resolvedValueType": "DIMENSION",
+        "resolvedValueTypeId": "dimension",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1471,7 +1471,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "DIMENSION",
+              "type": "dimension",
               "value": "24px"
             }
           }
@@ -1482,7 +1482,7 @@
         "displayName": "Spacing 32",
         "description": "Spacing of 32px",
         "tokenCollectionId": "collection-spacing",
-        "resolvedValueType": "DIMENSION",
+        "resolvedValueTypeId": "dimension",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1512,7 +1512,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "DIMENSION",
+              "type": "dimension",
               "value": "32px"
             }
           }
@@ -1523,7 +1523,7 @@
         "displayName": "Spacing 40",
         "description": "Spacing of 40px",
         "tokenCollectionId": "collection-spacing",
-        "resolvedValueType": "DIMENSION",
+        "resolvedValueTypeId": "dimension",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1553,7 +1553,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "DIMENSION",
+              "type": "dimension",
               "value": "40px"
             }
           }
@@ -1564,7 +1564,7 @@
         "displayName": "Font Family Inter",
         "description": "Font family: Inter",
         "tokenCollectionId": "collection-typography",
-        "resolvedValueType": "FONT_FAMILY",
+        "resolvedValueTypeId": "font_family",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1594,7 +1594,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "FONT_FAMILY",
+              "type": "font_family",
               "value": "Inter"
             }
           }
@@ -1605,7 +1605,7 @@
         "displayName": "Font Family Roboto",
         "description": "Font family: Roboto",
         "tokenCollectionId": "collection-typography",
-        "resolvedValueType": "FONT_FAMILY",
+        "resolvedValueTypeId": "font_family",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1635,7 +1635,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "FONT_FAMILY",
+              "type": "font_family",
               "value": "Roboto"
             }
           }
@@ -1646,7 +1646,7 @@
         "displayName": "Font Family SF Pro",
         "description": "Font family: SF Pro",
         "tokenCollectionId": "collection-typography",
-        "resolvedValueType": "FONT_FAMILY",
+        "resolvedValueTypeId": "font_family",
         "private": false,
         "status": "stable",
         "themeable": false,
@@ -1676,7 +1676,7 @@
           {
             "modeIds": [],
             "value": {
-              "type": "FONT_FAMILY",
+              "type": "font_family",
               "value": "SF Pro"
             }
           }
@@ -1687,7 +1687,7 @@
         "displayName": "Font primary",
         "description": "Themeable font",
         "tokenCollectionId": "collection-typography",
-        "resolvedValueType": "FONT_FAMILY",
+        "resolvedValueTypeId": "font_family",
         "private": false,
         "status": "stable",
         "themeable": true,
@@ -1718,7 +1718,7 @@
             "modeIds": [],
             "value": {
               "type": "ALIAS",
-              "alias": "token-font-sf-pro"
+              "tokenId": "token-font-sf-pro"
             }
           }
         ]
@@ -1928,43 +1928,43 @@
     },
     "resolvedValueTypes": [
       {
-        "id": "COLOR",
+        "id": "color",
         "displayName": "Color"
       },
       {
-        "id": "DIMENSION",
+        "id": "dimension",
         "displayName": "Dimension"
       },
       {
-        "id": "FONT_FAMILY",
+        "id": "font_family",
         "displayName": "Font Family"
       },
       {
-        "id": "FONT_WEIGHT",
+        "id": "font_weight",
         "displayName": "Font Weight"
       },
       {
-        "id": "DURATION",
+        "id": "duration",
         "displayName": "Duration"
       },
       {
-        "id": "BORDER",
+        "id": "border",
         "displayName": "Border"
       },
       {
-        "id": "SHADOW",
+        "id": "shadow",
         "displayName": "Shadow"
       },
       {
-        "id": "OPACITY",
+        "id": "opacity",
         "displayName": "Opacity"
       },
       {
-        "id": "NUMBER",
+        "id": "number",
         "displayName": "Number"
       },
       {
-        "id": "TYPOGRAPHY",
+        "id": "typography",
         "displayName": "Typography"
       }
     ],
