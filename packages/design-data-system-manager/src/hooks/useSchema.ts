@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStorage } from './useStorage';
-import coreData from '@token-model/data-model/examples/themed/core-data.json';
+import { exampleData } from '@token-model/data-model';
 
 export interface ExportConfiguration {
   prefix: string;
@@ -43,17 +43,33 @@ export const useSchema = () => {
   const [schema, setSchema] = useState<any>(() => {
     const stored = getItem('schema');
     if (stored) return JSON.parse(stored);
-    return coreData; // Use the full data instance as the default
+    return null; // We'll load the default data asynchronously
   });
 
   useEffect(() => {
-    setItem('schema', JSON.stringify(schema));
+    const loadDefaultSchema = async () => {
+      if (!schema) {
+        try {
+          const coreData = await exampleData.core();
+          setSchema(coreData.default);
+        } catch (err) {
+          console.error('Failed to load default schema:', err);
+        }
+      }
+    };
+    loadDefaultSchema();
+  }, [schema]);
+
+  useEffect(() => {
+    if (schema) {
+      setItem('schema', JSON.stringify(schema));
+    }
   }, [schema, setItem]);
 
   // Debug: log platforms
   useEffect(() => {
-    console.log('Loaded platforms:', schema.platforms);
-  }, [schema.platforms]);
+    console.log('Loaded platforms:', schema?.platforms);
+  }, [schema?.platforms]);
 
   const updateSchema = (newSchema: Schema) => {
     setSchema(newSchema);

@@ -18,15 +18,16 @@
   },
   "packageManager": "pnpm@9.10.0+sha512.73a29afa36a0d092ece5271de5177ecbf8318d454ecd701343131b8ebc0c1a91c487da46ab77c8e596d6acf1461e3594ced4becedf8921b074fbd8653ed7051c",
   "dependencies": {
-    "@chakra-ui/icons": "^2.2.4",
     "@chakra-ui/react": "^3.19.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
+    "@types/react-syntax-highlighter": "^15.5.13",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "framer-motion": "^12.12.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-syntax-highlighter": "^15.6.1",
     "ts-node": "^10.9.2"
   }
 }

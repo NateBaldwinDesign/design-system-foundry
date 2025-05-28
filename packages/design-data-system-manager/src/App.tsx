@@ -34,6 +34,8 @@ import { ValueTypesTab } from './views/setup/ValueTypesTab';
 import { PlatformsTab } from './views/publishing/PlatformsTab';
 import { ValidationTab } from './views/publishing/ValidationTab';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import CoreDataView from './views/schemas/CoreDataView';
+import ThemeOverridesView from './views/schemas/ThemeOverridesView';
 
 // TypeScript declaration for import.meta.glob
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -240,6 +242,9 @@ const App: React.FC = () => {
                 />} />
                 <Route path="/tokens/collections" element={<CollectionsTab collections={collections} modes={modes} onUpdate={setCollections} />} />
                 <Route path="/tokens/algorithms" element={<AlgorithmsTab />} />
+                <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />
+                <Route path="/schemas/core-data" element={<CoreDataView />} />
+                <Route path="/schemas/theme-overrides" element={<ThemeOverridesView />} />
                 <Route path="/setup" element={<Navigate to="/setup/dimensions" replace />} />
                 <Route path="/setup/dimensions" element={<DimensionsTab dimensions={dimensions} setDimensions={setDimensions} />} />
                 <Route path="/setup/classification" element={<ClassificationTab taxonomies={taxonomies} setTaxonomies={setTaxonomies} />} />

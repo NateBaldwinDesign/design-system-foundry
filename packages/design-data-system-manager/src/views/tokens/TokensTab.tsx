@@ -16,7 +16,7 @@ import {
   FormLabel,
   Select,
 } from '@chakra-ui/react';
-import { EditIcon, DeleteIcon } from '@chakra-ui/icons';
+import { Pencil, Trash2 } from 'lucide-react';
 import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { TokenEditorDialog } from '../../components/TokenEditorDialog';
 
@@ -230,8 +230,8 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
                 </Td>
                 <Td>
                   <HStack spacing={1}>
-                    <IconButton aria-label="Edit token" icon={<EditIcon />} onClick={() => handleEdit(token)} size="sm" />
-                    <IconButton aria-label="Delete token" icon={<DeleteIcon />} onClick={() => onDelete(token.id)} size="sm" />
+                    <IconButton aria-label="Edit token" icon={<Pencil size={18} />} onClick={() => handleEdit(token)} size="sm" />
+                    <IconButton aria-label="Delete token" icon={<Trash2 size={18} />} onClick={() => onDelete(token.id)} size="sm" />
                   </HStack>
                 </Td>
               </Tr>

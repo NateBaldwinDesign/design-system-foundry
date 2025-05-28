@@ -5,6 +5,12 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "index.js",
+    "examples"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",

@@ -38,7 +38,9 @@ import {
   MonitorSmartphone,
   CircleCheckBig,
   History,
-  Users
+  Users,
+  FileJson,
+  FileCode
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -69,6 +71,16 @@ const NAV_ITEMS: NavItem[] = [
       { id: 'tokens', label: 'Tokens', icon: Hexagon, route: '/tokens/tokens' },
       { id: 'collections', label: 'Collections', icon: Folders, route: '/tokens/collections' },
       { id: 'algorithms', label: 'Algorithms', icon: SquareFunction, route: '/tokens/algorithms' },
+    ],
+  },
+  {
+    id: 'schemas',
+    label: 'Schemas',
+    icon: FileJson,
+    route: '/schemas',
+    children: [
+      { id: 'core-data', label: 'Core Data', icon: FileCode, route: '/schemas/core-data' },
+      { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode, route: '/schemas/theme-overrides' },
     ],
   },
   {

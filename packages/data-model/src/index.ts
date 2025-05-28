@@ -60,4 +60,12 @@ export function validateTokenValuesByMode(valuesByMode: { modeIds: string[]; val
     }
   }
   return true;
-} 
+}
+
+// Export example data
+export const exampleData = {
+  core: () => import('../examples/themed/core-data.json'),
+  brandAOverrides: () => import('../examples/themed/brand-a-overrides.json'),
+  brandBOverrides: () => import('../examples/themed/brand-b-overrides.json'),
+  minimal: () => import('../examples/unthemed/example-minimal-data.json')
+} as const; 
