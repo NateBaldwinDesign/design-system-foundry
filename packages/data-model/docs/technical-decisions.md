@@ -82,4 +82,44 @@ Instead of using an object/map with platform names as keys (e.g., Figma, Web, iO
 
 ## Application
 - All code and UI should treat `codeSyntax` as an array of `{ platformId, formattedName }` objects.
-- When displaying or editing code syntax, map over the platforms array and find the corresponding code syntax entry by `platformId`. 
+- When displaying or editing code syntax, map over the platforms array and find the corresponding code syntax entry by `platformId`.
+
+# Technical Decisions: Dimensions and Value Types
+
+## Context
+Dimensions in the token system need to be flexible and extensible while maintaining clear relationships with the value types they support. The schema has evolved to remove the rigid `type` field from dimensions and instead use `resolvedValueTypeIds` to establish these relationships.
+
+## Decision
+- Removed the `type` field from dimensions that previously restricted dimensions to specific categories (COLOR_SCHEME, CONTRAST, etc.)
+- Introduced `resolvedValueTypeIds` as an array of strings that references the supported value types for a dimension
+- This allows dimensions to support multiple value types and be more flexible in their usage
+
+## Rationale
+- **Flexibility:** Dimensions can now support multiple value types, making them more versatile
+- **Extensibility:** New value types can be added without requiring schema changes to dimensions
+- **Clarity:** The relationship between dimensions and value types is explicit through the `resolvedValueTypeIds` array
+- **Validation:** The schema ensures that referenced value types exist in the system
+- **Future-proofing:** Removes artificial constraints on how dimensions can be used
+
+## Application
+- When creating or editing a dimension, specify which value types it supports using `resolvedValueTypeIds`
+- Use this relationship to validate token values and ensure they match the supported types
+- Consider the supported value types when designing UI for dimension management
+- Use this information to guide users in creating valid token values for each dimension
+
+## Example
+```json
+{
+  "dimensions": [
+    {
+      "id": "theme",
+      "displayName": "Theme",
+      "modes": [...],
+      "resolvedValueTypeIds": ["color", "dimension", "spacing"],
+      "defaultMode": "light"
+    }
+  ]
+}
+```
+
+This approach allows the "theme" dimension to support color, dimension, and spacing values, making it more flexible than the previous type-based approach. 

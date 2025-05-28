@@ -51,14 +51,15 @@ export const CoreDataPropertiesTab: React.FC = () => {
       <Box>
         <Heading size="md" mb={4}>Dimensions</Heading>
         <Text mb={2}>
-          <b>Dimensions that can modify token values.</b> A dimension represents a context or axis along which token values can vary, such as color scheme (light/dark), device type, or brand. Each dimension contains one or more <b>modes</b> (e.g., Light, Dark for color scheme).<br /><br />
+          <b>Dimensions that can modify token values.</b> A dimension represents a context or axis along which token values can vary, such as color scheme (light/dark), device type, or brand. Each dimension contains one or more <b>modes</b> (e.g., Light, Dark for color scheme) and specifies which value types it supports through <Code colorScheme="purple">resolvedValueTypeIds</Code>.<br /><br />
           <b>Why dimensions?</b>
           <UnorderedList mt={1} mb={1}>
             <ListItem>Enables powerful theming and adaptation for different contexts.</ListItem>
+            <ListItem>Supports multiple value types per dimension (e.g., a theme dimension might handle colors, dimensions, and spacing).</ListItem>
             <ListItem>Ensures tokens can be resolved for any combination of modes (e.g., dark mode on mobile).</ListItem>
-            <ListItem>Supports future extensibility (e.g., adding new dimensions like density or motion).</ListItem>
+            <ListItem>Provides flexibility through value type associations rather than rigid categorization.</ListItem>
           </UnorderedList>
-          <b>Technical note:</b> Dimensions and modes are always arrays to support multiple options and combinations. The <Code colorScheme="purple">id</Code> and <Code colorScheme="purple">modeIds</Code> fields follow the <b>ID field naming convention</b> for referential integrity.
+          <b>Technical note:</b> Dimensions and modes are always arrays to support multiple options and combinations. The <Code colorScheme="purple">id</Code> and <Code colorScheme="purple">modeIds</Code> fields follow the <b>ID field naming convention</b> for referential integrity. The <Code colorScheme="purple">resolvedValueTypeIds</Code> array allows dimensions to support multiple value types, making them more versatile and future-proof.
         </Text>
         <JsonSyntaxHighlighter code={JSON.stringify({
           dimensions: [
@@ -70,7 +71,10 @@ export const CoreDataPropertiesTab: React.FC = () => {
                   id: "mode-light",
                   name: "Light"
                 }
-              ]
+              ],
+              resolvedValueTypeIds: ["color", "dimension", "spacing"],
+              defaultMode: "mode-light",
+              required: true
             }
           ]
         }, null, 2)} />

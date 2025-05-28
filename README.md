@@ -73,3 +73,38 @@ These types are recommended for use in the `resolvedValueTypes` array in your sc
 - Use the standard types for all common design token needs.
 - For custom types, document their purpose and how they should be transformed for each platform.
 - Update the schema and documentation as new types are added or standardized.
+
+# Dimensions
+
+Dimensions are a core concept in the token system that allows for organizing and resolving token values across different contexts. Each dimension can support multiple value types through the `resolvedValueTypeIds` array.
+
+## Key Features
+- **Flexible Value Type Support:** Dimensions can support multiple value types (e.g., a theme dimension might support colors, dimensions, and spacing)
+- **Mode-based Organization:** Each dimension contains modes that represent different states or contexts
+- **Default Mode:** Every dimension must specify a default mode for fallback purposes
+- **Required Flag:** Dimensions can be marked as required, ensuring they are always specified when resolving tokens
+
+## Example
+```json
+{
+  "dimensions": [
+    {
+      "id": "theme",
+      "displayName": "Theme",
+      "modes": [
+        { "id": "light", "name": "Light Theme" },
+        { "id": "dark", "name": "Dark Theme" }
+      ],
+      "resolvedValueTypeIds": ["color", "dimension", "spacing"],
+      "defaultMode": "light",
+      "required": true
+    }
+  ]
+}
+```
+
+**Best Practices:**
+- Use descriptive IDs and display names for dimensions and modes
+- Specify all relevant value types in `resolvedValueTypeIds`
+- Always provide a default mode
+- Consider which dimensions should be required based on your design system's needs
