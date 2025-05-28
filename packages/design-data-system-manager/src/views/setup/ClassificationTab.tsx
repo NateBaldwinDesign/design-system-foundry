@@ -20,58 +20,62 @@ import {
   useColorMode
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
-import type { Taxonomy } from '@token-model/data-model';
+import type { Taxonomy, Token, TokenCollection, Dimension, Platform } from '@token-model/data-model';
 import { createUniqueId } from '../../utils/id';
 import { ValidationService } from '../../services/validation';
+import { TaxonomyEditorDialog } from '../../components/TaxonomyEditorDialog';
+import { TermEditorDialog } from '../../components/TermEditorDialog';
 
 interface ClassificationTabProps {
   taxonomies: Taxonomy[];
   setTaxonomies: (taxonomies: Taxonomy[]) => void;
 }
 
+// Utility to ensure all terms have a string description
+function normalizeTerms(terms: any[]): { id: string; name: string; description: string }[] {
+  return terms.map(term => ({
+    ...term,
+    description: typeof term.description === 'string' ? term.description : ''
+  }));
+}
+
 export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationTabProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [form, setForm] = useState<{
-    id: string;
-    name: string;
-    description: string;
-    terms: { id: string; name: string; description: string }[];
-  }>({
+  const [form, setForm] = useState({
     id: '',
     name: '',
     description: '',
-    terms: []
+    terms: normalizeTerms([]),
   });
   const [termForm, setTermForm] = useState({ id: '', name: '', description: '' });
   const [termDialogOpen, setTermDialogOpen] = useState(false);
   const [termEditIndex, setTermEditIndex] = useState<number | null>(null);
   const toast = useToast();
-  // Assume tokens, collections, dimensions, platforms, value types, and themes are available via props or context (for this edit, use empty arrays as placeholders)
-  const tokens = [];
-  const collections = [];
-  const dimensions = [];
-  const platforms = [];
-  const resolvedValueTypes = [];
-  const themes = [];
+  const tokens: Token[] = [];
+  const collections: TokenCollection[] = [];
+  const dimensions: Dimension[] = [];
+  const platforms: Platform[] = [];
+  const resolvedValueTypes: { id: string; name: string }[] = [];
+  const themes: { id: string; name: string }[] = [];
 
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
     if (index !== null) {
-      const tax = taxonomies[index];
+      const taxonomy = taxonomies[index];
       setForm({
-        id: tax.id,
-        name: tax.name,
-        description: tax.description,
-        terms: tax.terms
+        id: taxonomy.id,
+        name: taxonomy.name,
+        description: taxonomy.description || '',
+        terms: normalizeTerms(taxonomy.terms || []),
       });
     } else {
       setForm({
         id: createUniqueId('taxonomy'),
         name: '',
         description: '',
-        terms: []
+        terms: normalizeTerms([]),
       });
     }
     setOpen(true);
@@ -82,8 +86,13 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
     setEditingIndex(null);
   };
 
-  const handleFormChange = (field: keyof typeof form, value: string) => {
-    setForm(prev => ({ ...prev, [field]: value }));
+  const handleFormChange = (field: string, value: any) => {
+    setForm(prev => {
+      if (field === 'terms') {
+        return { ...prev, terms: normalizeTerms(value) };
+      }
+      return { ...prev, [field]: value };
+    });
   };
 
   const validateAndSetTaxonomies = (updatedTaxonomies: Taxonomy[]) => {
@@ -114,14 +123,40 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
   };
 
   const handleSave = () => {
+    // Ensure taxonomy has an id
+    let taxonomyId = form.id && form.id.trim() ? form.id : createUniqueId('taxonomy');
     if (!form.name.trim()) {
       toast({ title: 'Name is required', status: 'error', duration: 2000 });
+      return;
+    }
+    // Ensure all terms have id and name, and generate id if missing
+    const termsWithIds = (form.terms || []).map(term => ({
+      ...term,
+      id: term.id && term.id.trim() ? term.id : createUniqueId('term'),
+      name: term.name && term.name.trim() ? term.name : ''
+    }));
+    // Check for missing term names
+    if (termsWithIds.some(term => !term.name.trim())) {
+      toast({ title: 'All terms must have a name', status: 'error', duration: 2000 });
+      return;
+    }
+    // Check for duplicate term ids
+    const termIds = termsWithIds.map(t => t.id);
+    if (new Set(termIds).size !== termIds.length) {
+      toast({ title: 'Term IDs must be unique', status: 'error', duration: 2000 });
+      return;
+    }
+    // Check for duplicate term names
+    const termNames = termsWithIds.map(t => t.name.trim().toLowerCase());
+    if (new Set(termNames).size !== termNames.length) {
+      toast({ title: 'Term names must be unique', status: 'error', duration: 2000 });
       return;
     }
     const newTaxonomies = [...taxonomies];
     const taxonomyToSave = {
       ...form,
-      terms: form.terms || []
+      id: taxonomyId,
+      terms: termsWithIds
     };
     if (editingIndex !== null) {
       newTaxonomies[editingIndex] = taxonomyToSave;
@@ -143,15 +178,15 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
   };
 
   // Term management
-  const handleTermDialogOpen = (index: number | null = null) => {
-    setTermEditIndex(index);
-    if (index !== null && form.terms) {
-      const term = form.terms[index];
-      setTermForm({ id: term.id, name: term.name, description: term.description || '' });
+  const handleTermDialogOpen = (index: number | null) => {
+    if (index !== null && form.terms[index]) {
+      const t = form.terms[index];
+      setTermForm({ id: t.id, name: t.name, description: t.description || '' });
     } else {
       setTermForm({ id: createUniqueId('term'), name: '', description: '' });
     }
     setTermDialogOpen(true);
+    setTermEditIndex(index);
   };
 
   const handleTermDialogClose = () => {
@@ -159,21 +194,31 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
     setTermEditIndex(null);
   };
 
-  const handleTermFormChange = (field: keyof typeof termForm, value: string) => {
+  const handleTermFormChange = (field: string, value: string) => {
     setTermForm(prev => ({ ...prev, [field]: value }));
   };
 
   const handleTermSave = () => {
+    // Ensure term has an id
+    let termId = termForm.id && termForm.id.trim() ? termForm.id : createUniqueId('term');
     if (!termForm.name.trim()) {
       toast({ title: 'Term name is required', status: 'error', duration: 2000 });
       return;
     }
-
+    // Check for duplicate term names (case-insensitive)
     const newTerms = form.terms ? [...form.terms] : [];
+    const termNames = newTerms.map(t => t.name.trim().toLowerCase());
+    if (
+      (termEditIndex === null && termNames.includes(termForm.name.trim().toLowerCase())) ||
+      (termEditIndex !== null && termNames.filter((n, i) => i !== termEditIndex).includes(termForm.name.trim().toLowerCase()))
+    ) {
+      toast({ title: 'Term names must be unique', status: 'error', duration: 2000 });
+      return;
+    }
     if (termEditIndex !== null) {
-      newTerms[termEditIndex] = { ...termForm };
+      newTerms[termEditIndex] = { ...termForm, id: termId };
     } else {
-      newTerms.push({ ...termForm });
+      newTerms.push({ ...termForm, id: termId });
     }
     setForm(prev => ({ ...prev, terms: newTerms }));
     setTermDialogOpen(false);
@@ -220,90 +265,23 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
         </VStack>
       </Box>
 
-      {/* Taxonomy Editor Modal */}
-      <Modal isOpen={open} onClose={handleClose} size="lg">
-        <ModalOverlay />
-        <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-          <ModalHeader>{editingIndex !== null ? 'Edit Taxonomy' : 'Add Taxonomy'}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4} align="stretch">
-              <FormControl isRequired>
-                <FormLabel>Name</FormLabel>
-                <Input
-                  value={form.name}
-                  onChange={e => handleFormChange('name', e.target.value)}
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Description</FormLabel>
-                <Input
-                  value={form.description}
-                  onChange={e => handleFormChange('description', e.target.value)}
-                />
-              </FormControl>
-              <Box>
-                <Text fontWeight="bold" mb={2}>Terms</Text>
-                <Button leftIcon={<LuPlus />} size="sm" onClick={() => handleTermDialogOpen(null)} mb={2}>
-                  Add Term
-                </Button>
-                <VStack align="stretch" spacing={1}>
-                  {form.terms.map((term, idx) => (
-                    <HStack key={term.id}>
-                      <Text>{term.name}</Text>
-                      <IconButton aria-label="Edit term" icon={<LuPencil />} size="xs" onClick={() => handleTermDialogOpen(idx)} />
-                      <IconButton aria-label="Delete term" icon={<LuTrash2 />} size="xs" colorScheme="red" onClick={() => handleTermDelete(idx)} />
-                    </HStack>
-                  ))}
-                </VStack>
-              </Box>
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button colorScheme="blue" onClick={handleSave}>
-              Save
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Term Editor Modal */}
-      <Modal isOpen={termDialogOpen} onClose={handleTermDialogClose} size="sm">
-        <ModalOverlay />
-        <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-          <ModalHeader>{termEditIndex !== null ? 'Edit Term' : 'Add Term'}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4} align="stretch">
-              <FormControl isRequired>
-                <FormLabel>Name</FormLabel>
-                <Input
-                  value={termForm.name}
-                  onChange={e => handleTermFormChange('name', e.target.value)}
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Description</FormLabel>
-                <Input
-                  value={termForm.description}
-                  onChange={e => handleTermFormChange('description', e.target.value)}
-                />
-              </FormControl>
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={handleTermDialogClose}>
-              Cancel
-            </Button>
-            <Button colorScheme="blue" onClick={handleTermSave}>
-              Save
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <TaxonomyEditorDialog
+        open={open}
+        onClose={handleClose}
+        onSave={handleSave}
+        form={{ ...form, editingIndex }}
+        handleFormChange={handleFormChange}
+        handleTermDialogOpen={handleTermDialogOpen}
+        handleTermDelete={handleTermDelete}
+      />
+      <TermEditorDialog
+        open={termDialogOpen}
+        onClose={handleTermDialogClose}
+        onSave={handleTermSave}
+        termForm={termForm}
+        handleTermFormChange={handleTermFormChange}
+        termEditIndex={termEditIndex}
+      />
     </Box>
   );
 } 
