@@ -37,15 +37,15 @@
     }
   ],
   "resolvedValueTypes": [
-    { "id": "valueTypeId-COLOR", "displayName": "Color" },
-    { "id": "valueTypeId-FONT_FAMILY", "displayName": "Font Family" },
-    { "id": "valueTypeId-LINE_HEIGHT", "displayName": "Line Height" },
-    { "id": "valueTypeId-FONT_WEIGHT", "displayName": "Font Weight" },
-    { "id": "valueTypeId-SPACING", "displayName": "Spacing" },
+    { "id": "valueTypeId-COLOR", "displayName": "Color", "type": "COLOR" },
+    { "id": "valueTypeId-FONT_FAMILY", "displayName": "Font Family", "type": "FONT_FAMILY" },
+    { "id": "valueTypeId-LINE_HEIGHT", "displayName": "Line Height", "type": "LINE_HEIGHT" },
+    { "id": "valueTypeId-FONT_WEIGHT", "displayName": "Font Weight", "type": "FONT_WEIGHT" },
+    { "id": "valueTypeId-SPACING", "displayName": "Spacing", "type": "SPACING" },
     { "id": "valueTypeId-OPACITY", "displayName": "Opacity" },
-    { "id": "valueTypeId-SHADOW", "displayName": "Shadow" },
+    { "id": "valueTypeId-SHADOW", "displayName": "Shadow", "type": "SHADOW" },
     { "id": "valueTypeId-BORDER", "displayName": "Border" },
-    { "id": "valueTypeId-RADIUS", "displayName": "Radius" },
+    { "id": "valueTypeId-RADIUS", "displayName": "Radius", "type": "RADIUS" },
     { "id": "valueTypeId-Z_INDEX", "displayName": "Z Index" }
   ],
   "dimensions": [

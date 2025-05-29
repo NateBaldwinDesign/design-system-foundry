@@ -4,17 +4,21 @@
   "tokenOverrides": [
     {
       "tokenId": "token-accent-color",
-      "value": {
-        "type": "COLOR",
-        "value": "#FF6F61"
-      }
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": { "type": "COLOR", "value": "#FF6F61" }
+        }
+      ]
     },
     {
       "tokenId": "token-font-primary",
-      "value": {
-        "type": "STRING",
-        "value": "Roboto"
-      }
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": { "type": "FONT_FAMILY", "value": "Roboto" }
+        }
+      ]
     }
   ]
 } 

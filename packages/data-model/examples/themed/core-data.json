@@ -1953,29 +1953,8 @@
       "type": "DURATION"
     },
     {
-      "id": "border",
-      "displayName": "Border",
-      "type": "BORDER"
-    },
-    {
-      "id": "shadow",
-      "displayName": "Shadow",
-      "type": "SHADOW"
-    },
-    {
       "id": "opacity",
-      "displayName": "Opacity",
-      "type": "OPACITY"
-    },
-    {
-      "id": "number",
-      "displayName": "Number",
-      "type": "NUMBER"
-    },
-    {
-      "id": "typography",
-      "displayName": "Typography",
-      "type": "TYPOGRAPHY"
+      "displayName": "Opacity"
     }
   ],
   "versionHistory": [

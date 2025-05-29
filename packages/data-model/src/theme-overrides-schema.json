@@ -19,70 +19,84 @@
       "description": "Overrides for tokens in this theme.",
       "items": {
         "type": "object",
-        "required": ["tokenId", "value"],
+        "required": ["tokenId", "valuesByMode"],
         "properties": {
           "tokenId": {
             "type": "string",
             "description": "ID of the token to override"
           },
-          "value": {
-            "type": "object",
-            "description": "The override value for the token",
-            "required": ["type", "value"],
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": ["COLOR", "FLOAT", "INTEGER", "STRING", "BOOLEAN", "ALIAS"]
-              },
-              "value": {
-                "oneOf": [
-                  { "type": "string" },
-                  { "type": "number" },
-                  { "type": "boolean" }
-                ]
-              },
-              "tokenId": {
-                "type": "string",
-                "description": "ID of the token to alias to (only used when type is ALIAS)"
-              }
-            }
-          },
-          "platformOverrides": {
+          "valuesByMode": {
             "type": "array",
-            "description": "Platform-specific overrides for this token in this theme",
+            "description": "Values for this token in different mode combinations",
+            "minItems": 1,
             "items": {
               "type": "object",
-              "required": ["platformId", "value"],
+              "required": ["modeIds", "value"],
               "properties": {
-                "platformId": {
-                  "type": "string",
-                  "description": "ID of the platform this override applies to"
+                "modeIds": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "The mode(s) this value applies to"
                 },
                 "value": {
-                  "type": "object",
-                  "required": ["type", "value"],
-                  "properties": {
-                    "type": {
-                      "type": "string",
-                      "enum": ["COLOR", "FLOAT", "INTEGER", "STRING", "BOOLEAN", "ALIAS"]
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "required": ["type", "value"],
+                      "properties": {
+                        "type": { "type": "string" },
+                        "value": {}
+                      }
                     },
-                    "value": {
-                      "oneOf": [
-                        { "type": "string" },
-                        { "type": "number" },
-                        { "type": "boolean" }
-                      ]
-                    },
-                    "tokenId": {
-                      "type": "string",
-                      "description": "ID of the token to alias to (only used when type is ALIAS)"
+                    {
+                      "type": "object",
+                      "required": ["type", "tokenId"],
+                      "properties": {
+                        "type": { "const": "ALIAS" },
+                        "tokenId": { "type": "string" }
+                      }
+                    }
+                  ]
+                },
+                "platformOverrides": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["platformId", "value"],
+                    "properties": {
+                      "platformId": { "type": "string" },
+                      "value": { "type": "string" },
+                      "metadata": { "type": "object" }
+                    }
+                  }
+                },
+                "metadata": { "type": "object" }
+              }
+            },
+            "allOf": [
+              {
+                "if": {
+                  "contains": {
+                    "type": "object",
+                    "properties": { "modeIds": { "type": "array", "maxItems": 0 } },
+                    "required": ["modeIds"]
+                  }
+                },
+                "then": { "minItems": 1, "maxItems": 1 },
+                "else": {
+                  "not": {
+                    "contains": {
+                      "type": "object",
+                      "properties": { "modeIds": { "type": "array", "maxItems": 0 } },
+                      "required": ["modeIds"]
                     }
                   }
                 }
               }
-            }
+            ]
           }
-        }
+        },
+        "additionalProperties": false
       }
     }
   }

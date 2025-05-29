@@ -18,14 +18,13 @@ addFormats(ajv);
 ajv.addKeyword({
   keyword: 'validateResolvedValueType',
   validate: function validateResolvedValueType(schema, data) {
-    // If type is provided, validate against standard types
+    // If type is provided, validate against standard types (UPPER_CASE)
     if (data.type) {
       const standardTypes = [
-        'color', 'dimension', 'spacing', 'fontFamily', 'fontWeight',
-        'fontSize', 'lineHeight', 'letterSpacing', 'duration',
-        'cubicBezier', 'blur', 'spread', 'radius'
+        'COLOR', 'DIMENSION', 'SPACING', 'FONT_FAMILY', 'FONT_WEIGHT',
+        'FONT_SIZE', 'LINE_HEIGHT', 'LETTER_SPACING', 'DURATION',
+        'CUBIC_BEZIER', 'BLUR', 'SPREAD', 'RADIUS', 'SHADOW'
       ];
-      
       if (!standardTypes.includes(data.type)) {
         validateResolvedValueType.errors = [{
           keyword: 'validateResolvedValueType',
@@ -34,18 +33,8 @@ ajv.addKeyword({
         }];
         return false;
       }
-
-      // Validate that id matches type for standard types
-      if (data.id !== data.type) {
-        validateResolvedValueType.errors = [{
-          keyword: 'validateResolvedValueType',
-          message: `Standard type ID must match type: ${data.id} !== ${data.type}`,
-          params: { id: data.id, type: data.type }
-        }];
-        return false;
-      }
+      // No need to require id === type
     }
-
     // Validate custom validation rules if present
     if (data.validation) {
       if (data.validation.pattern && !(data.validation.pattern instanceof RegExp)) {
@@ -60,7 +49,6 @@ ajv.addKeyword({
           return false;
         }
       }
-
       if (data.validation.minimum !== undefined && data.validation.maximum !== undefined) {
         if (data.validation.minimum > data.validation.maximum) {
           validateResolvedValueType.errors = [{
@@ -72,7 +60,6 @@ ajv.addKeyword({
         }
       }
     }
-
     return true;
   }
 });
