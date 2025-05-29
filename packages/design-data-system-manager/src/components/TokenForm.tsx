@@ -7,7 +7,6 @@ import {
   FormControl,
   FormLabel,
   Select,
-  Switch,
   VStack,
   HStack,
   IconButton,
@@ -37,12 +36,12 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
     displayName: '',
     description: '',
     tokenCollectionId: '',
-    resolvedValueTypeId: 'COLOR',
+    resolvedValueType: 'COLOR',
     private: false,
     themeable: false,
     taxonomies: [] as TokenTaxonomyRef[],
     propertyTypes: ['ALL_PROPERTY_TYPES'],
-    codeSyntax: {},
+    codeSyntax: [],
     valuesByMode: []
   }));
   const { schema } = useSchema();
@@ -132,46 +131,6 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
             w="100px"
           />
         );
-      case 'FLOAT':
-        return (
-          <Input
-            type="number"
-            value={value.value}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'FLOAT', value: parseFloat(e.target.value) })}
-            size="sm"
-            w="120px"
-          />
-        );
-      case 'INTEGER':
-        return (
-          <Input
-            type="number"
-            value={value.value}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'INTEGER', value: parseInt(e.target.value) })}
-            size="sm"
-            w="120px"
-          />
-        );
-      case 'STRING':
-        return (
-          <Input
-            value={value.value}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'STRING', value: e.target.value })}
-            size="sm"
-            w="200px"
-          />
-        );
-      case 'BOOLEAN':
-        return (
-          <FormControl display="flex" alignItems="center">
-            <FormLabel mb={0}>Boolean Value</FormLabel>
-            <Switch
-              isChecked={value.value}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'BOOLEAN', value: e.target.checked })}
-              size="md"
-            />
-          </FormControl>
-        );
       case 'ALIAS':
         return (
           <FormControl>
@@ -224,15 +183,11 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
         <FormControl isRequired>
           <FormLabel>Resolved Value Type</FormLabel>
           <Select
-            value={formData.resolvedValueTypeId}
-            onChange={e => handleInputChange('resolvedValueTypeId', e.target.value)}
+            value={formData.resolvedValueType}
+            onChange={e => handleInputChange('resolvedValueType', e.target.value)}
             placeholder="Select value type"
           >
             <option value="COLOR">Color</option>
-            <option value="FLOAT">Float</option>
-            <option value="INTEGER">Integer</option>
-            <option value="STRING">String</option>
-            <option value="BOOLEAN">Boolean</option>
             <option value="ALIAS">Alias</option>
           </Select>
         </FormControl>

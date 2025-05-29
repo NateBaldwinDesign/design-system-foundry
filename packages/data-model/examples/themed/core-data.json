@@ -148,7 +148,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#8db324"
           }
         }
@@ -198,7 +198,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#2e37e6"
           }
         }
@@ -248,7 +248,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#c58b5c"
           }
         }
@@ -298,7 +298,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#6b0e16"
           }
         }
@@ -348,7 +348,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#c0df2c"
           }
         }
@@ -398,7 +398,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#6afda3"
           }
         }
@@ -448,7 +448,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#f82a05"
           }
         }
@@ -498,7 +498,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#0ccca1"
           }
         }
@@ -548,7 +548,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#c31121"
           }
         }
@@ -598,7 +598,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#763250"
           }
         }
@@ -648,7 +648,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#53c10d"
           }
         }
@@ -698,7 +698,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#68ee6a"
           }
         }
@@ -748,7 +748,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#fae300"
           }
         }
@@ -798,7 +798,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#63d7d5"
           }
         }
@@ -848,7 +848,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#a93955"
           }
         }
@@ -898,7 +898,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#b19702"
           }
         }
@@ -948,7 +948,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#a05a28"
           }
         }
@@ -998,7 +998,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#cb89e0"
           }
         }
@@ -1048,7 +1048,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#80b9f5"
           }
         }
@@ -1098,7 +1098,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#acd673"
           }
         }
@@ -1148,7 +1148,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#c04795"
           }
         }
@@ -1198,7 +1198,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#0e04be"
           }
         }
@@ -1248,7 +1248,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#6dfebe"
           }
         }
@@ -1298,7 +1298,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "color",
+            "type": "COLOR",
             "value": "#ca76e2"
           }
         }
@@ -1389,7 +1389,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "dimension",
+            "type": "DIMENSION",
             "value": "8px"
           }
         }
@@ -1430,7 +1430,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "dimension",
+            "type": "DIMENSION",
             "value": "16px"
           }
         }
@@ -1471,7 +1471,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "dimension",
+            "type": "DIMENSION",
             "value": "24px"
           }
         }
@@ -1512,7 +1512,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "dimension",
+            "type": "DIMENSION",
             "value": "32px"
           }
         }
@@ -1553,7 +1553,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "dimension",
+            "type": "DIMENSION",
             "value": "40px"
           }
         }
@@ -1594,7 +1594,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "font_family",
+            "type": "FONT_FAMILY",
             "value": "Inter"
           }
         }
@@ -1635,7 +1635,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "font_family",
+            "type": "FONT_FAMILY",
             "value": "Roboto"
           }
         }
@@ -1676,7 +1676,7 @@
         {
           "modeIds": [],
           "value": {
-            "type": "font_family",
+            "type": "FONT_FAMILY",
             "value": "SF Pro"
           }
         }
@@ -1729,40 +1729,40 @@
       "id": "platform-figma",
       "displayName": "Figma",
       "syntaxPatterns": {
-          "prefix": "",
-          "suffix": "",
-          "delimiter": "/",
-          "capitalization": "capitalize"
+        "prefix": "",
+        "suffix": "",
+        "delimiter": "/",
+        "capitalization": "capitalize"
       }
     },
     {
       "id": "platform-web",
       "displayName": "Web",
       "syntaxPatterns": {
-          "prefix": "--",
-          "suffix": "",
-          "delimiter": "-",
-          "capitalization": "lowercase"
+        "prefix": "--",
+        "suffix": "",
+        "delimiter": "-",
+        "capitalization": "lowercase"
       }
     },
     {
       "id": "platform-ios",
       "displayName": "iOS",
       "syntaxPatterns": {
-          "prefix": "",
-          "suffix": "",
-          "delimiter": "",
-          "capitalization": "capitalize"
+        "prefix": "",
+        "suffix": "",
+        "delimiter": "",
+        "capitalization": "capitalize"
       }
     },
     {
       "id": "platform-android",
       "displayName": "Android",
       "syntaxPatterns": {
-          "prefix": "",
-          "suffix": "",
-          "delimiter": ".",
-          "capitalization": "uppercase"
+        "prefix": "",
+        "suffix": "",
+        "delimiter": ".",
+        "capitalization": "uppercase"
       }
     }
   ],
@@ -1929,43 +1929,53 @@
   "resolvedValueTypes": [
     {
       "id": "color",
-      "displayName": "Color"
+      "displayName": "Color",
+      "type": "COLOR"
     },
     {
       "id": "dimension",
-      "displayName": "Dimension"
+      "displayName": "Dimension",
+      "type": "DIMENSION"
     },
     {
       "id": "font_family",
-      "displayName": "Font Family"
+      "displayName": "Font Family",
+      "type": "FONT_FAMILY"
     },
     {
       "id": "font_weight",
-      "displayName": "Font Weight"
+      "displayName": "Font Weight",
+      "type": "FONT_WEIGHT"
     },
     {
       "id": "duration",
-      "displayName": "Duration"
+      "displayName": "Duration",
+      "type": "DURATION"
     },
     {
       "id": "border",
-      "displayName": "Border"
+      "displayName": "Border",
+      "type": "BORDER"
     },
     {
       "id": "shadow",
-      "displayName": "Shadow"
+      "displayName": "Shadow",
+      "type": "SHADOW"
     },
     {
       "id": "opacity",
-      "displayName": "Opacity"
+      "displayName": "Opacity",
+      "type": "OPACITY"
     },
     {
       "id": "number",
-      "displayName": "Number"
+      "displayName": "Number",
+      "type": "NUMBER"
     },
     {
       "id": "typography",
-      "displayName": "Typography"
+      "displayName": "Typography",
+      "type": "TYPOGRAPHY"
     }
   ],
   "versionHistory": [

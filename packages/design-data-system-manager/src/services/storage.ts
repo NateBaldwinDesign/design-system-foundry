@@ -1,8 +1,10 @@
-import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy, Theme } from '@token-model/data-model';
+import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy, Theme, ResolvedValueType, StandardValueType } from '@token-model/data-model';
 
-const DEFAULT_VALUE_TYPES: string[] = [
-  "valueType-0000-0000-0000",
-  "valueType-1111-1111-1111"
+type ValueType = ResolvedValueType;
+
+const DEFAULT_VALUE_TYPES: ValueType[] = [
+  { id: "color", displayName: "Color", type: "COLOR" as StandardValueType },
+  { id: "dimension", displayName: "Dimension", type: "DIMENSION" as StandardValueType }
 ];
 
 const STORAGE_KEYS = {
@@ -55,11 +57,11 @@ export class StorageService {
     localStorage.setItem(STORAGE_KEYS.MODES, JSON.stringify(modes));
   }
 
-  static getValueTypes(): string[] {
+  static getValueTypes(): ValueType[] {
     return this.getItem(STORAGE_KEYS.VALUE_TYPES, DEFAULT_VALUE_TYPES);
   }
 
-  static setValueTypes(valueTypes: string[]): void {
+  static setValueTypes(valueTypes: ValueType[]): void {
     this.setItem(STORAGE_KEYS.VALUE_TYPES, valueTypes);
   }
 

@@ -1,5 +1,4 @@
-import React from 'react';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   ModalOverlay,
@@ -35,7 +34,7 @@ import { ValueByModeTable } from './ValueByModeTable';
 import { PlatformOverridesTable } from './PlatformOverridesTable';
 import { TokenValuePicker } from './TokenValuePicker';
 import { TaxonomyPicker } from './TaxonomyPicker';
-import type { Token, Mode, TokenValue, Dimension, Platform, Taxonomy, TokenStatus, TokenTaxonomyRef } from '@token-model/data-model';
+import type { Token, Mode, TokenValue, Dimension, Platform, Taxonomy, TokenStatus, TokenTaxonomyRef, ResolvedValueType } from '@token-model/data-model';
 import { createUniqueId } from '../utils/id';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
@@ -60,49 +59,77 @@ export type ExtendedToken = Token & {
 
 // Helper function to get the resolved value type ID
 function getResolvedValueTypeId(token: ExtendedToken): string {
-  return (token as any).resolvedValueTypeId;
+  return (token as Token).resolvedValueTypeId;
 }
 
 // Helper function to get a default token value
-function getDefaultTokenValue(resolvedValueTypeId: string, resolvedValueTypes: Array<{ id: string; displayName: string }>): TokenValue {
-  // Find the resolved value type to determine the appropriate default value
-  const valueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
-  
-  if (!valueType) {
-    console.warn(`Unknown resolvedValueTypeId: ${resolvedValueTypeId}`);
-    return { type: 'STRING', value: '' };
-  }
-
-  // Map based on the displayName of the resolved value type
-  const displayName = valueType.displayName.toLowerCase();
-  if (displayName.includes('color')) {
+function getDefaultTokenValue(resolvedValueTypeId: string, resolvedValueTypes: ResolvedValueType[]): TokenValue {
+  const valueType = resolvedValueTypes.find((vt) => typeof vt === 'object' && 'id' in vt && vt.id === resolvedValueTypeId);
+  if (!valueType || !('type' in valueType) || !valueType.type) {
+    // Fallback to COLOR if not found or type is missing
     return { type: 'COLOR', value: '#000000' };
-  } else if (displayName.includes('float') || displayName.includes('number')) {
-    return { type: 'FLOAT', value: 0 };
-  } else if (displayName.includes('integer')) {
-    return { type: 'INTEGER', value: 0 };
-  } else if (displayName.includes('boolean')) {
-    return { type: 'BOOLEAN', value: false };
-  } else if (displayName.includes('alias') || displayName.includes('reference')) {
-    return { type: 'ALIAS', tokenId: '' };
-  } else {
-    return { type: 'STRING', value: '' };
+  }
+  switch (valueType.type) {
+    case 'COLOR':
+      return { type: 'COLOR', value: '#000000' };
+    case 'DIMENSION':
+      return { type: 'DIMENSION', value: 0 };
+    case 'SPACING':
+      return { type: 'SPACING', value: 0 };
+    case 'FONT_FAMILY':
+      return { type: 'FONT_FAMILY', value: '' };
+    case 'FONT_WEIGHT':
+      return { type: 'FONT_WEIGHT', value: 400 };
+    case 'FONT_SIZE':
+      return { type: 'FONT_SIZE', value: 16 };
+    case 'LINE_HEIGHT':
+      return { type: 'LINE_HEIGHT', value: 1 };
+    case 'LETTER_SPACING':
+      return { type: 'LETTER_SPACING', value: 0 };
+    case 'DURATION':
+      return { type: 'DURATION', value: 0 };
+    case 'CUBIC_BEZIER':
+      return { type: 'CUBIC_BEZIER', value: '0, 0, 1, 1' };
+    case 'BLUR':
+      return { type: 'BLUR', value: 0 };
+    case 'SPREAD':
+      return { type: 'SPREAD', value: 0 };
+    case 'RADIUS':
+      return { type: 'RADIUS', value: 0 };
+    default:
+      // Fallback to COLOR for unknown types
+      return { type: 'COLOR', value: '#000000' };
   }
 }
 
 // Helper function to find a resolvedValueType by display name pattern
-function findResolvedValueTypeByDisplayName(resolvedValueTypes: Array<{ id: string; displayName: string }>, pattern: string): string | undefined {
-  const type = resolvedValueTypes.find(vt => vt.displayName.toLowerCase().includes(pattern.toLowerCase()));
-  return type?.id;
+function findResolvedValueTypeByDisplayName(resolvedValueTypes: ResolvedValueType[], pattern: string): string | undefined {
+  const typeObj = resolvedValueTypes.find((vt) => vt.displayName?.toLowerCase().includes(pattern.toLowerCase()));
+  return typeObj?.id;
 }
 
 // Helper function to create a new constraint
-function createNewConstraint(resolvedValueTypes: Array<{ id: string; displayName: string }>): Constraint {
+function createNewConstraint(resolvedValueTypes: ResolvedValueType[]): Constraint {
   const contrastTypeId = findResolvedValueTypeByDisplayName(resolvedValueTypes, 'contrast');
   const colorTypeId = findResolvedValueTypeByDisplayName(resolvedValueTypes, 'color');
   
   if (!contrastTypeId || !colorTypeId) {
-    throw new Error('Required resolved value types not found');
+    // Instead of throwing an error, create a default constraint with the first available types
+    const firstTypeId = resolvedValueTypes[0]?.id;
+    if (!firstTypeId) {
+      throw new Error('No resolved value types available');
+    }
+    return {
+      resolvedValueTypeId: firstTypeId,
+      rule: {
+        minimum: 3,
+        comparator: { 
+          resolvedValueTypeId: firstTypeId, 
+          value: '#ffffff', 
+          method: 'WCAG21' 
+        }
+      }
+    };
   }
 
   return {
@@ -128,7 +155,7 @@ export interface TokenEditorDialogProps {
   onClose: () => void;
   onSave: (token: ExtendedToken) => void;
   taxonomies: Taxonomy[];
-  resolvedValueTypes: { id: string; displayName: string }[];
+  resolvedValueTypes: ResolvedValueType[];
   isNew?: boolean;
   onViewClassifications?: () => void;
 }
@@ -562,10 +589,17 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                         }));
                       }}
                     >
-                      {resolvedValueTypes.map(vt => (
-                        <option key={vt.id} value={vt.id}>{vt.displayName}</option>
+                      {resolvedValueTypes.map((vt: ResolvedValueType) => (
+                        <option key={vt.id} value={vt.id}>
+                          {vt.type ? `${vt.displayName} (${vt.type})` : `${vt.displayName} (custom)`}
+                        </option>
                       ))}
                     </Select>
+                    {editedToken.resolvedValueTypeId && (
+                      <Text fontSize="sm" color="gray.500" mt={1}>
+                        {resolvedValueTypes.find((vt: ResolvedValueType) => vt.id === (editedToken as Token).resolvedValueTypeId)?.description}
+                      </Text>
+                    )}
                   </FormControl>
                   <FormControl>
                     <FormLabel>Status</FormLabel>

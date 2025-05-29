@@ -151,29 +151,12 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
                       />
                     </VStack>
                   )}
-                  {(resolvedValueTypeId === 'FLOAT' || resolvedValueTypeId === 'INTEGER') && (
-                    <Input
-                      type="number"
-                      size="sm"
-                      value={typeof value === 'object' && (value.type === 'FLOAT' || value.type === 'INTEGER') ? value.value : ''}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: resolvedValueTypeId as 'FLOAT' | 'INTEGER', value: Number(e.target.value) })}
-                    />
-                  )}
-                  {resolvedValueTypeId === 'STRING' && (
+                  {resolvedValueTypeId === 'DIMENSION' && (
                     <Input
                       size="sm"
-                      value={typeof value === 'object' && value.type === 'STRING' ? value.value : ''}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'STRING', value: e.target.value })}
+                      value={typeof value === 'object' && value.type === 'DIMENSION' ? value.value : ''}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'DIMENSION', value: e.target.value })}
                     />
-                  )}
-                  {resolvedValueTypeId === 'BOOLEAN' && (
-                    <Button
-                      colorScheme={typeof value === 'object' && value.type === 'BOOLEAN' && value.value ? 'green' : 'red'}
-                      onClick={() => onChange({ type: 'BOOLEAN', value: !(typeof value === 'object' && value.type === 'BOOLEAN' ? value.value : false) })}
-                      size="sm"
-                    >
-                      {typeof value === 'object' && value.type === 'BOOLEAN' && value.value ? 'True' : 'False'}
-                    </Button>
                   )}
                 </VStack>
               </TabPanel>
