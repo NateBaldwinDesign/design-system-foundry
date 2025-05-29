@@ -13,6 +13,7 @@ import {
   Tooltip,
   Button,
   Select,
+  HStack,
 } from '@chakra-ui/react';
 import {
   Eye,
@@ -43,6 +44,8 @@ import {
   FileCode
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import Logo from './Logo';
+import { HSL } from 'colorjs.io/fn';
 
 interface NavItem {
   id: string;
@@ -168,7 +171,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     <Box
       as="nav"
       position="relative"
-      w={isCollapsed ? '60px' : '240px'}
+      w={isCollapsed ? '64px' : '260px'}
       h="100vh"
       bg={bgColor}
       borderRight="1px"
@@ -178,38 +181,15 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       aria-label="Main navigation"
     >
       <VStack spacing={0} align="stretch" h="full">
-        {/* Title */}
-        <Box p={4} borderBottom="1px" borderColor={borderColor}>
+        {/* Logo */}
+        <Box p={4} borderBottom="1px" borderColor={borderColor} display="flex" gap={2} justifyContent="center" alignItems="center">
+          <Logo size={32} color={colorMode === 'dark' ? 'white' : 'black'} />
+          {/* Title */}
           <Text fontSize="xl" fontWeight="bold" textAlign="center">
             {!isCollapsed && 'DDSM'}
           </Text>
         </Box>
-        {/* Data Source Controls (optional) */}
-        {!isCollapsed && dataOptions && dataSource && setDataSource && onResetData && (
-          <Box p={4} borderBottom="1px" borderColor={borderColor}>
-            <VStack spacing={2} align="stretch">
-              <Select
-                size="sm"
-                value={dataSource}
-                onChange={(e) => setDataSource(e.target.value)}
-              >
-                {dataOptions.map((option) => (
-                  <option key={option.filePath} value={option.filePath}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-              <Button
-                size="sm"
-                leftIcon={<RefreshCw size={16} />}
-                onClick={onResetData}
-                variant="outline"
-              >
-                Reset Data
-              </Button>
-            </VStack>
-          </Box>
-        )}
+
         {/* Collapse Toggle Button */}
         <Box p={2} borderBottom="1px" borderColor={borderColor}>
           <IconButton
@@ -222,7 +202,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           />
         </Box>
         {/* Navigation Items */}
-        <VStack spacing={1} align="stretch" p={2} flex={1}>
+        <VStack spacing={1} align="stretch" p={4} flex={1}>
           {NAV_ITEMS.map((item) => {
             if (item.children) {
               return (
@@ -304,20 +284,49 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             );
           })}
         </VStack>
-        {/* Export Button (optional) */}
-        {onExportData && (
-          <Box p={2} borderTop="1px" borderColor={borderColor}>
-            <Button
-              size="sm"
-              leftIcon={<Download size={16} />}
-              onClick={onExportData}
-              variant="outline"
-              w="full"
-            >
-              {!isCollapsed && 'Export Data'}
-            </Button>
+        {/* Data Source Controls (optional) */}
+        {!isCollapsed && dataOptions && dataSource && setDataSource && onResetData && (
+          <Box p={4} borderTop="1px" borderColor={borderColor}>
+            <VStack spacing={2} align="stretch">
+              <Select
+                size="sm"
+                value={dataSource}
+                onChange={(e) => setDataSource(e.target.value)}
+              >
+                {dataOptions.map((option) => (
+                  <option key={option.filePath} value={option.filePath}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </VStack>
           </Box>
         )}
+         {!isCollapsed && dataOptions && dataSource && setDataSource && onResetData && (
+            <HStack gap={2} p={2} borderTop="1px" borderColor={borderColor}>
+              {/* Export Button (optional) */}
+              {onExportData && (
+                  <Button
+                    size="sm"
+                    leftIcon={<Download size={16} />}
+                    onClick={onExportData}
+                    variant="outline"
+                    w="full"
+                  >
+                    {!isCollapsed && 'Export Data'}
+                  </Button>
+              )}
+              <Button
+                size="sm"
+                leftIcon={<RefreshCw size={16} />}
+                onClick={onResetData}
+                variant="outline"
+                w="full"
+              >
+                Reset Data
+              </Button>
+            </HStack>
+         )}
       </VStack>
     </Box>
   );
