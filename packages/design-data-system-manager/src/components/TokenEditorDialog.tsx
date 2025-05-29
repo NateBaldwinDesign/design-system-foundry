@@ -1,5 +1,4 @@
-import React from 'react';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   ModalOverlay,
@@ -35,13 +34,116 @@ import { ValueByModeTable } from './ValueByModeTable';
 import { PlatformOverridesTable } from './PlatformOverridesTable';
 import { TokenValuePicker } from './TokenValuePicker';
 import { TaxonomyPicker } from './TaxonomyPicker';
-import type { Token, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
+import type { Token, Mode, TokenValue, Dimension, Platform, Taxonomy, TokenStatus, TokenTaxonomyRef, ResolvedValueType } from '@token-model/data-model';
 import { createUniqueId } from '../utils/id';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
 
-// Extend the Token type to include themeable
-export type ExtendedToken = Token & { themeable?: boolean; codeSyntax?: Record<string, string> };
+// Constraint type matches schema: only 'contrast' type for now
+interface Constraint {
+  resolvedValueTypeId: string; // e.g. 'contrast'
+  rule: {
+    minimum: number;
+    comparator: {
+      resolvedValueTypeId: string;
+      value: string;
+      method: 'WCAG21' | 'APCA' | 'Lstar';
+    };
+  };
+}
+
+// Extend the Token type to include additional fields
+export type ExtendedToken = Token & {
+  constraints?: Constraint[];
+};
+
+// Helper function to get the resolved value type ID
+function getResolvedValueTypeId(token: ExtendedToken): string {
+  return (token as Token).resolvedValueTypeId;
+}
+
+// Helper function to get a default token value
+function getDefaultTokenValue(resolvedValueTypeId: string, resolvedValueTypes: ResolvedValueType[]): TokenValue {
+  const valueType = resolvedValueTypes.find((vt) => typeof vt === 'object' && 'id' in vt && vt.id === resolvedValueTypeId);
+  if (!valueType || !('type' in valueType) || !valueType.type) {
+    // Fallback to COLOR if not found or type is missing
+    return { type: 'COLOR', value: '#000000' };
+  }
+  switch (valueType.type) {
+    case 'COLOR':
+      return { type: 'COLOR', value: '#000000' };
+    case 'DIMENSION':
+      return { type: 'DIMENSION', value: 0 };
+    case 'SPACING':
+      return { type: 'SPACING', value: 0 };
+    case 'FONT_FAMILY':
+      return { type: 'FONT_FAMILY', value: '' };
+    case 'FONT_WEIGHT':
+      return { type: 'FONT_WEIGHT', value: 400 };
+    case 'FONT_SIZE':
+      return { type: 'FONT_SIZE', value: 16 };
+    case 'LINE_HEIGHT':
+      return { type: 'LINE_HEIGHT', value: 1 };
+    case 'LETTER_SPACING':
+      return { type: 'LETTER_SPACING', value: 0 };
+    case 'DURATION':
+      return { type: 'DURATION', value: 0 };
+    case 'CUBIC_BEZIER':
+      return { type: 'CUBIC_BEZIER', value: '0, 0, 1, 1' };
+    case 'BLUR':
+      return { type: 'BLUR', value: 0 };
+    case 'SPREAD':
+      return { type: 'SPREAD', value: 0 };
+    case 'RADIUS':
+      return { type: 'RADIUS', value: 0 };
+    default:
+      // Fallback to COLOR for unknown types
+      return { type: 'COLOR', value: '#000000' };
+  }
+}
+
+// Helper function to find a resolvedValueType by display name pattern
+function findResolvedValueTypeByDisplayName(resolvedValueTypes: ResolvedValueType[], pattern: string): string | undefined {
+  const typeObj = resolvedValueTypes.find((vt) => vt.displayName?.toLowerCase().includes(pattern.toLowerCase()));
+  return typeObj?.id;
+}
+
+// Helper function to create a new constraint
+function createNewConstraint(resolvedValueTypes: ResolvedValueType[]): Constraint {
+  const contrastTypeId = findResolvedValueTypeByDisplayName(resolvedValueTypes, 'contrast');
+  const colorTypeId = findResolvedValueTypeByDisplayName(resolvedValueTypes, 'color');
+  
+  if (!contrastTypeId || !colorTypeId) {
+    // Instead of throwing an error, create a default constraint with the first available types
+    const firstTypeId = resolvedValueTypes[0]?.id;
+    if (!firstTypeId) {
+      throw new Error('No resolved value types available');
+    }
+    return {
+      resolvedValueTypeId: firstTypeId,
+      rule: {
+        minimum: 3,
+        comparator: { 
+          resolvedValueTypeId: firstTypeId, 
+          value: '#ffffff', 
+          method: 'WCAG21' 
+        }
+      }
+    };
+  }
+
+  return {
+    resolvedValueTypeId: contrastTypeId,
+    rule: {
+      minimum: 3,
+      comparator: { 
+        resolvedValueTypeId: colorTypeId, 
+        value: '#ffffff', 
+        method: 'WCAG21' 
+      }
+    }
+  };
+}
 
 export interface TokenEditorDialogProps {
   token: ExtendedToken;
@@ -53,7 +155,7 @@ export interface TokenEditorDialogProps {
   onClose: () => void;
   onSave: (token: ExtendedToken) => void;
   taxonomies: Taxonomy[];
-  resolvedValueTypes: { id: string; displayName: string }[];
+  resolvedValueTypes: ResolvedValueType[];
   isNew?: boolean;
   onViewClassifications?: () => void;
 }
@@ -64,26 +166,6 @@ function cartesianProduct(arrays: string[][]): string[][] {
     (a, b) => a.flatMap(d => b.map(e => [...d, e])),
     [[]]
   );
-}
-
-// Helper: get a valid default TokenValue for a given type
-function getDefaultTokenValue(type: string): TokenValue {
-  switch (type) {
-    case 'COLOR':
-      return { type: 'COLOR', value: '#000000' };
-    case 'FLOAT':
-      return { type: 'FLOAT', value: 0 };
-    case 'INTEGER':
-      return { type: 'INTEGER', value: 0 };
-    case 'STRING':
-      return { type: 'STRING', value: '' };
-    case 'BOOLEAN':
-      return { type: 'BOOLEAN', value: false };
-    case 'ALIAS':
-      return { type: 'ALIAS', tokenId: '' };
-    default:
-      return { type: 'STRING', value: '' };
-  }
 }
 
 export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, resolvedValueTypes, isNew = false, onViewClassifications }: TokenEditorDialogProps) {
@@ -103,7 +185,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   });
 
   // Local state for taxonomy edits (not applied to editedToken until save)
-  const [taxonomyEdits, setTaxonomyEdits] = useState<{ taxonomyId: string; termId: string }[]>(() =>
+  const [taxonomyEdits, setTaxonomyEdits] = useState<TokenTaxonomyRef[]>(() =>
     Array.isArray(token.taxonomies) ? token.taxonomies : []
   );
 
@@ -113,24 +195,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   const { colorMode } = useColorMode();
 
   // Constraints state
-  const [constraints, setConstraints] = useState<Array<{
-    type: string;
-    rule: {
-      minimum: number;
-      comparator: TokenValue;
-      method: string;
-    };
-  }>>(() => Array.isArray(token.constraints) ? token.constraints : []);
-
-  // Constraint editing state
-  const [newConstraint, setNewConstraint] = useState({
-    type: 'contrast',
-    rule: {
-      minimum: 3,
-      comparator: { type: 'COLOR', value: '#ffffff', method: 'WCAG21' },
-      method: 'WCAG21',
-    }
-  });
+  const [constraints, setConstraints] = useState<Constraint[]>(() => Array.isArray(token.constraints) ? token.constraints : []);
 
   // Reset internal state when dialog opens with new token
   useEffect(() => {
@@ -139,14 +204,15 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
       setEditedToken({ ...token, themeable: token.themeable ?? false });
       setTaxonomyEdits(Array.isArray(token.taxonomies) ? token.taxonomies : []);
       setConstraints(Array.isArray(token.constraints) ? token.constraints : []);
+      setActiveDimensionIds(dimensions.filter(d => d.required).map(d => d.id));
     }
-  }, [token, open]);
+  }, [token, open, dimensions]);
 
   // Initialize active dimensions from current valuesByMode
   useEffect(() => {
     console.log('[TokenEditorDialog] Initializing active dimensions - token:', token);
     if (token.valuesByMode && token.valuesByMode.length > 0) {
-      const allModeIds = token.valuesByMode.flatMap(v => v.modeIds);
+      const allModeIds = token.valuesByMode.flatMap(vbm => vbm.modeIds);
       const presentDims = dimensions.filter(dim =>
         dim.modes.some(mode => allModeIds.includes(mode.id))
       ).map(dim => dim.id);
@@ -170,24 +236,24 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
         const key = modeIds.slice().sort().join(',');
         if (prevMap.has(key)) {
           const val = prevMap.get(key);
-          return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
+          return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
         }
         for (let i = 0; i < modeIds.length; i++) {
           const parentIds = modeIds.slice(0, i).concat(modeIds.slice(i + 1));
           const parentKey = parentIds.slice().sort().join(',');
           if (prevMap.has(parentKey)) {
             const val = prevMap.get(parentKey);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
           }
         }
-        return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId) };
+        return { modeIds, value: getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
       });
       return {
         ...prev,
         valuesByMode: newValuesByMode
       };
     });
-  }, [dimensions, activeDimensionIds, open]);
+  }, [dimensions, activeDimensionIds, open, resolvedValueTypes]);
 
   // Add or remove a dimension from the token
   const handleToggleDimension = (dimensionId: string) => {
@@ -216,7 +282,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           const key = modeIds.slice().sort().join(',');
           if (prevMap.has(key)) {
             const val = prevMap.get(key);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
           }
           // Find all previous combos that are a superset of modeIds
           const candidates = prev.valuesByMode.filter(vbm =>
@@ -228,7 +294,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           if (found) {
             return { modeIds, value: found.value };
           }
-          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId) };
+          return { modeIds, value: getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
         });
         return {
           ...prev,
@@ -250,7 +316,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           const key = modeIds.slice().sort().join(',');
           if (prevMap.has(key)) {
             const val = prevMap.get(key);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
           }
           // Try to restore from preserved
           if (preserved[key]) {
@@ -262,10 +328,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
             const parentKey = parentIds.slice().sort().join(',');
             if (prevMap.has(parentKey)) {
               const val = prevMap.get(parentKey);
-              return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
+              return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
             }
           }
-          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId) };
+          return { modeIds, value: getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
         });
         return {
           ...prev,
@@ -283,7 +349,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
 
     return (
       <TokenValuePicker
-        resolvedValueTypeId={editedToken.resolvedValueTypeId}
+        resolvedValueTypeId={getResolvedValueTypeId(editedToken)}
         value={value}
         tokens={tokens}
         constraints={constraints}
@@ -305,15 +371,8 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   };
 
   const handleAddConstraint = () => {
-    setConstraints(prev => [...prev, JSON.parse(JSON.stringify(newConstraint))]);
-    setNewConstraint({
-      type: 'contrast',
-      rule: {
-        minimum: 3,
-        comparator: { type: 'COLOR', value: '#ffffff', method: 'WCAG21' },
-        method: 'WCAG21',
-      }
-    });
+    setConstraints(prev => [...prev, { ...newConstraint }]);
+    setNewConstraint(createNewConstraint(resolvedValueTypes));
   };
 
   const handleRemoveConstraint = (idx: number) => {
@@ -326,11 +385,11 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
       if (field === 'minimum') {
         return { ...c, rule: { ...c.rule, minimum: Number(value) } };
       }
-      if (field === 'comparator') {
-        return { ...c, rule: { ...c.rule, comparator: value as TokenValue } };
+      if (field === 'comparatorValue') {
+        return { ...c, rule: { ...c.rule, comparator: { ...c.rule.comparator, value: value as string } } };
       }
       if (field === 'method') {
-        return { ...c, rule: { ...c.rule, comparator: { ...c.rule.comparator, method: value as string }, method: value as string } };
+        return { ...c, rule: { ...c.rule, comparator: { ...c.rule.comparator, method: value as 'WCAG21' | 'APCA' | 'Lstar' } } };
       }
       return c;
     }));
@@ -341,7 +400,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     console.log('[TokenEditorDialog] handleSave called with token:', editedToken);
     // Compose schema for codeSyntax generation
     const codeSyntaxSchema = { platforms, taxonomies, namingRules: schema.namingRules };
-    const updatedToken = {
+    const updatedToken: ExtendedToken = {
       ...editedToken,
       taxonomies: taxonomyEdits,
       constraints,
@@ -356,7 +415,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     onClose();
   };
 
-  function handleTaxonomyChange(newTaxonomies: { taxonomyId: string; termId: string }[]) {
+  function handleTaxonomyChange(newTaxonomies: TokenTaxonomyRef[]) {
     setTaxonomyEdits(newTaxonomies);
     const codeSyntaxSchema = { platforms, taxonomies, namingRules: schema.namingRules };
     setEditedToken(prev => ({
@@ -371,10 +430,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   // Validation: required fields and taxonomy error
   const codeSyntaxArray = ensureCodeSyntaxArrayFormat(editedToken.codeSyntax);
   const hasTaxonomyError = codeSyntaxArray.some(name => name === undefined);
-  const hasRequiredFieldError = !editedToken.displayName || !editedToken.resolvedValueTypeId;
+  const hasRequiredFieldError = !editedToken.displayName || !getResolvedValueTypeId(editedToken);
 
   // Check for duplicate taxonomy assignments
-  function taxonomySet(arr: { taxonomyId: string; termId: string }[]) {
+  function taxonomySet(arr: TokenTaxonomyRef[]) {
     return new Set(arr.map(ref => `${ref.taxonomyId}:${ref.termId}`));
   }
   const currentTaxonomySet = taxonomySet(taxonomyEdits);
@@ -388,6 +447,15 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   const hasDuplicateTaxonomy = !!duplicateTaxonomyToken;
 
   const hasError = hasTaxonomyError || hasRequiredFieldError || hasDuplicateTaxonomy;
+
+  const handleStatusChange = (newStatus: TokenStatus) => {
+    setEditedToken(prev => ({
+      ...prev,
+      status: newStatus
+    }));
+  };
+
+  const [newConstraint, setNewConstraint] = useState<Constraint>(() => createNewConstraint(resolvedValueTypes));
 
   return (
     <Modal isOpen={open} onClose={onClose} size="xl">
@@ -511,30 +579,37 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                   <FormControl isRequired>
                     <FormLabel>Value Type</FormLabel>
                     <Select
-                      value={editedToken.resolvedValueTypeId}
+                      value={getResolvedValueTypeId(editedToken)}
                       onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                         const newType = e.target.value;
                         setEditedToken(prev => ({
                           ...prev,
                           resolvedValueTypeId: newType,
-                          valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType) }]
+                          valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType, resolvedValueTypes) }]
                         }));
                       }}
                     >
-                      {resolvedValueTypes.map(vt => (
-                        <option key={vt.id} value={vt.id}>{vt.displayName}</option>
+                      {resolvedValueTypes.map((vt: ResolvedValueType) => (
+                        <option key={vt.id} value={vt.id}>
+                          {vt.type ? `${vt.displayName} (${vt.type})` : `${vt.displayName} (custom)`}
+                        </option>
                       ))}
                     </Select>
+                    {editedToken.resolvedValueTypeId && (
+                      <Text fontSize="sm" color="gray.500" mt={1}>
+                        {resolvedValueTypes.find((vt: ResolvedValueType) => vt.id === (editedToken as Token).resolvedValueTypeId)?.description}
+                      </Text>
+                    )}
                   </FormControl>
                   <FormControl>
                     <FormLabel>Status</FormLabel>
                     <Select
                       value={editedToken.status || ''}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditedToken(prev => ({ ...prev, status: e.target.value }))}
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleStatusChange(e.target.value as TokenStatus)}
                     >
                       <option value="">None</option>
-                      <option value="draft">Draft</option>
-                      <option value="active">Active</option>
+                      <option value="experimental">Experimental</option>
+                      <option value="stable">Stable</option>
                       <option value="deprecated">Deprecated</option>
                     </Select>
                   </FormControl>
@@ -585,17 +660,21 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     <FormControl w="160px">
                       <FormLabel fontSize="xs" mb={0}>Comparator Color</FormLabel>
                       <TokenValuePicker
-                        resolvedValueTypeId="COLOR"
-                        value={constraint.rule.comparator}
+                        resolvedValueTypeId={findResolvedValueTypeByDisplayName(resolvedValueTypes, 'color') || ''}
+                        value={{ type: 'COLOR', value: constraint.rule.comparator.value }}
                         tokens={tokens}
-                        onChange={(newValue: TokenValue) => handleConstraintChange(idx, 'comparator', newValue)}
+                        onChange={(newValue: TokenValue) => {
+                          if (newValue.type === 'COLOR') {
+                            handleConstraintChange(idx, 'comparatorValue', newValue.value);
+                          }
+                        }}
                         excludeTokenId={editedToken.id}
                       />
                     </FormControl>
                     <FormControl w="120px">
                       <FormLabel fontSize="xs" mb={0}>Method</FormLabel>
                       <Select
-                        value={constraint.rule.comparator.method || constraint.rule.method || 'WCAG21'}
+                        value={constraint.rule.comparator.method}
                         onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleConstraintChange(idx, 'method', e.target.value)}
                         size="sm"
                       >
@@ -634,26 +713,41 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                   <FormControl w="160px">
                     <FormLabel fontSize="xs" mb={0}>Comparator Color</FormLabel>
                     <TokenValuePicker
-                      resolvedValueTypeId="COLOR"
-                      value={newConstraint.rule.comparator}
+                      resolvedValueTypeId={findResolvedValueTypeByDisplayName(resolvedValueTypes, 'color') || ''}
+                      value={{ type: 'COLOR', value: newConstraint.rule.comparator.value }}
                       tokens={tokens}
-                      onChange={(newValue: TokenValue) => setNewConstraint(nc => ({
-                        ...nc,
-                        rule: { ...nc.rule, comparator: newValue }
-                      }))}
+                      onChange={(newValue: TokenValue) => {
+                        if (newValue.type === 'COLOR') {
+                          setNewConstraint(nc => ({
+                            ...nc,
+                            rule: {
+                              ...nc.rule,
+                              comparator: {
+                                ...nc.rule.comparator,
+                                value: newValue.value,
+                                method: nc.rule.comparator.method || 'WCAG21',
+                                resolvedValueTypeId: findResolvedValueTypeByDisplayName(resolvedValueTypes, 'color') || ''
+                              }
+                            }
+                          }));
+                        }
+                      }}
                       excludeTokenId={editedToken.id}
                     />
                   </FormControl>
                   <FormControl w="120px">
                     <FormLabel fontSize="xs" mb={0}>Method</FormLabel>
                     <Select
-                      value={newConstraint.rule.comparator.method || newConstraint.rule.method || 'WCAG21'}
+                      value={newConstraint.rule.comparator.method}
                       onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewConstraint(nc => ({
                         ...nc,
                         rule: {
                           ...nc.rule,
-                          comparator: { ...nc.rule.comparator, method: e.target.value },
-                          method: e.target.value
+                          comparator: {
+                            ...nc.rule.comparator,
+                            method: e.target.value as 'WCAG21' | 'APCA' | 'Lstar',
+                            resolvedValueTypeId: findResolvedValueTypeByDisplayName(resolvedValueTypes, 'color') || '',
+                          }
                         }
                       }))}
                       size="sm"
@@ -700,7 +794,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                             ...prev,
                             valuesByMode: [
                               ...prev.valuesByMode,
-                              { modeIds: [], value: getDefaultTokenValue(prev.resolvedValueTypeId) }
+                              { modeIds: [], value: getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) }
                             ]
                           }))}
                         >
@@ -711,7 +805,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     return (
                       <HStack spacing={2}>
                         <TokenValuePicker
-                          resolvedValueTypeId={editedToken.resolvedValueTypeId}
+                          resolvedValueTypeId={getResolvedValueTypeId(editedToken)}
                           value={globalValue.value}
                           tokens={tokens}
                           constraints={constraints}
@@ -740,17 +834,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                   <ValueByModeTable
                     valuesByMode={editedToken.valuesByMode}
                     modes={modes}
-                    onValueChange={(modeIndex, newValue) => setEditedToken(prev => ({
-                      ...prev,
-                      valuesByMode: prev.valuesByMode.map((item, i) =>
-                        i === modeIndex ? { ...item, value: newValue } : item
-                      )
-                    }))}
                     getValueEditor={getValueEditor}
-                    resolvedValueTypeId={editedToken.resolvedValueTypeId}
-                    tokens={tokens}
-                    constraints={constraints}
-                    excludeTokenId={editedToken.id}
                   />
                 )}
                 {/* Platform Overrides as a nested box */}
@@ -767,7 +851,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     valuesByMode={editedToken.valuesByMode}
                     modes={modes}
                     getValueEditor={getValueEditor}
-                    onPlatformOverrideChange={(platformId, modeIndex, newValue) => {
+                    onPlatformOverrideChange={(platformId: string, modeIndex: number, newValue: TokenValue) => {
                       setEditedToken(prev => ({
                         ...prev,
                         valuesByMode: prev.valuesByMode.map((item, i) =>
@@ -786,10 +870,6 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                         )
                       }));
                     }}
-                    resolvedValueTypeId={editedToken.resolvedValueTypeId}
-                    tokens={tokens}
-                    constraints={constraints}
-                    excludeTokenId={editedToken.id}
                   />
                   {editedToken.valuesByMode.every(vbm => !vbm.platformOverrides || vbm.platformOverrides.length === 0) && (
                     <Button variant="outline" mt={2}>

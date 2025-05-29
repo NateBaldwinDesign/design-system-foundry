@@ -24,11 +24,10 @@ import type { Token, TokenValue } from '@token-model/data-model';
 import Color from 'colorjs.io';
 
 interface Constraint {
-  type: string;
+  resolvedValueTypeId: string;
   rule: {
-    comparator: { value: string };
+    comparator: { resolvedValueTypeId: string; value: string; method?: string };
     minimum: number;
-    method?: string;
   };
 }
 
@@ -48,7 +47,7 @@ interface TokenValuePickerProps {
 function satisfiesConstraints(token: Token, constraints?: Constraint[]): boolean {
   if (!constraints || constraints.length === 0) return true;
   for (const constraint of constraints) {
-    if (constraint.type === 'contrast') {
+    if (constraint.resolvedValueTypeId === 'contrast') {
       // Find the color value for this token (global or first mode)
       let color: string | undefined;
       if (token.valuesByMode && token.valuesByMode.length > 0) {
@@ -60,7 +59,7 @@ function satisfiesConstraints(token: Token, constraints?: Constraint[]): boolean
       if (!color) return false;
       const comparator = constraint.rule.comparator.value;
       const min = constraint.rule.minimum;
-      const method = constraint.rule.method || 'WCAG21';
+      const method = constraint.rule.comparator.method || 'WCAG21';
       let colorjsMethod: string;
       if (method === 'WCAG21') colorjsMethod = 'WCAG21';
       else if (method === 'APCA') colorjsMethod = 'APCA';
@@ -152,29 +151,12 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
                       />
                     </VStack>
                   )}
-                  {(resolvedValueTypeId === 'FLOAT' || resolvedValueTypeId === 'INTEGER') && (
-                    <Input
-                      type="number"
-                      size="sm"
-                      value={typeof value === 'object' && (value.type === 'FLOAT' || value.type === 'INTEGER') ? value.value : ''}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: resolvedValueTypeId as 'FLOAT' | 'INTEGER', value: Number(e.target.value) })}
-                    />
-                  )}
-                  {resolvedValueTypeId === 'STRING' && (
+                  {resolvedValueTypeId === 'DIMENSION' && (
                     <Input
                       size="sm"
-                      value={typeof value === 'object' && value.type === 'STRING' ? value.value : ''}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'STRING', value: e.target.value })}
+                      value={typeof value === 'object' && value.type === 'DIMENSION' ? value.value : ''}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'DIMENSION', value: e.target.value })}
                     />
-                  )}
-                  {resolvedValueTypeId === 'BOOLEAN' && (
-                    <Button
-                      colorScheme={typeof value === 'object' && value.type === 'BOOLEAN' && value.value ? 'green' : 'red'}
-                      onClick={() => onChange({ type: 'BOOLEAN', value: !(typeof value === 'object' && value.type === 'BOOLEAN' ? value.value : false) })}
-                      size="sm"
-                    >
-                      {typeof value === 'object' && value.type === 'BOOLEAN' && value.value ? 'True' : 'False'}
-                    </Button>
                   )}
                 </VStack>
               </TabPanel>

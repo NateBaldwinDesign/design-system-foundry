@@ -1,8 +1,10 @@
-import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy, Theme } from '@token-model/data-model';
+import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy, Theme, ResolvedValueType, StandardValueType } from '@token-model/data-model';
 
-const DEFAULT_VALUE_TYPES: string[] = [
-  "valueType-0000-0000-0000",
-  "valueType-1111-1111-1111"
+type ValueType = ResolvedValueType;
+
+const DEFAULT_VALUE_TYPES: ValueType[] = [
+  { id: "color", displayName: "Color", type: "COLOR" as StandardValueType },
+  { id: "dimension", displayName: "Dimension", type: "DIMENSION" as StandardValueType }
 ];
 
 const STORAGE_KEYS = {
@@ -13,7 +15,8 @@ const STORAGE_KEYS = {
   DIMENSIONS: 'token-model:dimensions',
   PLATFORMS: 'token-model:platforms',
   THEMES: 'token-model:themes',
-  TAXONOMIES: 'token-model:taxonomies'
+  TAXONOMIES: 'token-model:taxonomies',
+  NAMING_RULES: 'token-model:naming-rules'
 } as const;
 
 export class StorageService {
@@ -54,11 +57,11 @@ export class StorageService {
     localStorage.setItem(STORAGE_KEYS.MODES, JSON.stringify(modes));
   }
 
-  static getValueTypes(): string[] {
+  static getValueTypes(): ValueType[] {
     return this.getItem(STORAGE_KEYS.VALUE_TYPES, DEFAULT_VALUE_TYPES);
   }
 
-  static setValueTypes(valueTypes: string[]): void {
+  static setValueTypes(valueTypes: ValueType[]): void {
     this.setItem(STORAGE_KEYS.VALUE_TYPES, valueTypes);
   }
 
@@ -92,6 +95,14 @@ export class StorageService {
 
   static setTaxonomies(taxonomies: Taxonomy[]): void {
     localStorage.setItem(STORAGE_KEYS.TAXONOMIES, JSON.stringify(taxonomies));
+  }
+
+  static getNamingRules(): { taxonomyOrder: string[] } {
+    return this.getItem(STORAGE_KEYS.NAMING_RULES, { taxonomyOrder: [] });
+  }
+
+  static setNamingRules(rules: { taxonomyOrder: string[] }): void {
+    this.setItem(STORAGE_KEYS.NAMING_RULES, rules);
   }
 
   static clearAll(): void {

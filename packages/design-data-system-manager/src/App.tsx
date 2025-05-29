@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Container,
-  VStack,
-  Spinner,
-  ChakraProvider
+  ChakraProvider,
+  Spinner
 } from '@chakra-ui/react';
 import {
   TokenCollection,
@@ -12,16 +10,14 @@ import {
   Token,
   Dimension,
   Platform,
-  Taxonomy
+  Taxonomy,
+  Theme,
+  ResolvedValueType
 } from '@token-model/data-model';
 import { StorageService } from './services/storage';
-import PublishingView from './views/publishing/PublishingView';
-import TokensView from './views/tokens/TokensView';
-import SetupView from './views/setup/SetupView';
 import ThemesView from './views/themes/ThemesView';
 import DashboardView from './views/dashboard/DashboardView';
 import './App.css';
-import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from './services/codeSyntax';
 import { AppLayout } from './components/AppLayout';
 import theme from './theme';
 import { TokensTab } from './views/tokens/TokensTab';
@@ -52,19 +48,15 @@ function getDataSourceOptions() {
   });
 }
 
-const TOKENS_TABS = ['tokens', 'collections', 'algorithms'];
-const SETUP_TABS = ['dimensions', 'classification', 'naming-rules', 'value-types'];
-const PUBLISHING_TABS = ['platforms', 'export-settings', 'validation', 'version-history'];
-
 const App: React.FC = () => {
   const [dataSource, setDataSource] = useState<string>('../../data-model/examples/themed/core-data.json');
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
-  const [resolvedValueTypes, setResolvedValueTypes] = useState<{ id: string; displayName: string }[]>([]);
+  const [resolvedValueTypes, setResolvedValueTypes] = useState<ResolvedValueType[]>([]);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
-  const [themes, setThemes] = useState<unknown[]>([]);
+  const [themes, setThemes] = useState<Theme[]>([]);
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataOptions, setDataOptions] = useState<{ label: string; value: string; filePath: string }[]>([]);
@@ -75,102 +67,86 @@ const App: React.FC = () => {
   }, []);
 
   const loadDataFromSource = async (filePath: string) => {
-    setLoading(true);
-    const rawData = await exampleDataFiles[filePath]();
-    let d = JSON.parse(rawData);
+    try {
+      const fileContent = await exampleDataFiles[filePath]();
+      const d = JSON.parse(fileContent);
 
-    // If this is a theme override file, merge with the full core data object
-    if (
-      d &&
-      typeof d === 'object' &&
-      d.systemId &&
-      d.themeId &&
-      Array.isArray(d.tokenOverrides) &&
-      !Array.isArray(d.tokens)
-    ) {
-      // Search ALL files for a matching core data file (not just same directory)
-      const candidates = Object.keys(exampleDataFiles);
-      let coreData: Record<string, unknown> | null = null;
-      for (const file of candidates) {
-        if (file === filePath) continue;
-        const fileRaw = await exampleDataFiles[file]();
-        let fileData: Record<string, unknown> | undefined;
-        try { fileData = JSON.parse(fileRaw); } catch { continue; }
-        if (
-          fileData &&
-          typeof fileData === 'object' &&
-          (fileData as { systemId?: string; tokens?: Token[] }).systemId === d.systemId &&
-          Array.isArray((fileData as { tokens?: Token[] }).tokens)
-        ) {
-          coreData = fileData;
-          break;
-        }
-      }
-      if (!coreData) {
-        alert('No matching core data file found for systemId: ' + d.systemId);
-        setLoading(false);
-        return;
-      }
-      // Merge tokens: apply overrides to core tokens
-      const mergedTokens: Token[] = ((coreData as { tokens: Token[] }).tokens).map((token: Token) => {
-        const override = (d.tokenOverrides as { tokenId: string; value: unknown }[]).find((o) => o.tokenId === token.id);
-        if (override && token.themeable) {
-          return {
-            ...token,
-            valuesByMode: [
-              {
-                modeIds: [],
-                value: override.value
-              }
-            ]
-          };
-        }
-        return token;
-      });
-      // Merge: use all fields from coreData, but replace tokens with mergedTokens
-      d = { ...coreData, ...d, tokens: mergedTokens };
+      // Use a type for the loaded data
+      type LoadedData = {
+        tokenCollections?: TokenCollection[];
+        dimensions?: Dimension[];
+        tokens?: Token[];
+        platforms?: Platform[];
+        themes?: Theme[];
+        taxonomies?: Taxonomy[];
+        resolvedValueTypes?: ResolvedValueType[];
+        namingRules?: { taxonomyOrder?: string[] };
+        versionHistory?: any[];
+        systemName?: string;
+        systemId?: string;
+        description?: string;
+        version?: string;
+      };
+      const dTyped = d as LoadedData;
+      const normalizedCollections = dTyped.tokenCollections ?? [];
+      const normalizedDimensions = dTyped.dimensions ?? [];
+      const normalizedTokens = dTyped.tokens ?? [];
+      const normalizedPlatforms = dTyped.platforms ?? [];
+      const normalizedThemes = (dTyped.themes ?? []).map((theme) => ({
+        id: theme.id,
+        displayName: theme.displayName,
+        isDefault: theme.isDefault ?? false,
+        description: theme.description
+      }));
+      const normalizedTaxonomies = dTyped.taxonomies ?? [];
+      const normalizedResolvedValueTypes = dTyped.resolvedValueTypes ?? [];
+      const normalizedNamingRules = {
+        taxonomyOrder: dTyped.namingRules?.taxonomyOrder ?? []
+      };
+      const normalizedVersionHistory = dTyped.versionHistory ?? [];
+      const systemName = dTyped.systemName ?? 'Design System';
+      const systemId = dTyped.systemId ?? 'design-system';
+      const description = dTyped.description ?? 'A comprehensive design system with tokens, dimensions, and themes';
+      const version = dTyped.version ?? '1.0.0';
+
+      const allModes: Mode[] = normalizedDimensions.flatMap((d: Dimension) => (d as { modes?: Mode[] }).modes || []);
+
+      // Set React state
+      setCollections(normalizedCollections);
+      setModes(allModes);
+      setDimensions(normalizedDimensions);
+      setResolvedValueTypes(normalizedResolvedValueTypes);
+      setTokens(normalizedTokens);
+      setPlatforms(normalizedPlatforms);
+      setThemes(normalizedThemes);
+      setTaxonomies(normalizedTaxonomies);
+      setTaxonomyOrder(normalizedNamingRules.taxonomyOrder);
+      setLoading(false);
+
+      // Store in localStorage via StorageService
+      StorageService.setCollections(normalizedCollections);
+      StorageService.setModes(allModes);
+      StorageService.setDimensions(normalizedDimensions);
+      StorageService.setValueTypes(normalizedResolvedValueTypes);
+      StorageService.setTokens(normalizedTokens);
+      StorageService.setPlatforms(normalizedPlatforms);
+      StorageService.setThemes(normalizedThemes);
+      StorageService.setTaxonomies(normalizedTaxonomies);
+      StorageService.setNamingRules(normalizedNamingRules);
+
+      // Store root-level data in localStorage
+      const root = {
+        systemName,
+        systemId,
+        description,
+        version,
+        versionHistory: normalizedVersionHistory
+      };
+      localStorage.setItem('token-model:root', JSON.stringify(root));
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setLoading(false);
     }
-
-    // Normalize and set state
-    const normalizedCollections = (d as { tokenCollections?: TokenCollection[] }).tokenCollections ?? [];
-    const normalizedDimensions = (d as { dimensions?: Dimension[] }).dimensions ?? [];
-    const normalizedTokens = (d as { tokens?: Token[] }).tokens ?? [];
-    const normalizedPlatforms = (d as { platforms?: Platform[] }).platforms ?? [];
-
-    const allModes: Mode[] = normalizedDimensions.flatMap((d: Dimension) => (d as { modes?: Mode[] }).modes || []);
-
-    setCollections(normalizedCollections);
-    setModes(allModes);
-    setDimensions(normalizedDimensions);
-    setResolvedValueTypes((d as { resolvedValueTypes?: { id: string; displayName: string }[] }).resolvedValueTypes ?? []);
-    setTokens(normalizedTokens);
-    setPlatforms(normalizedPlatforms);
-    setThemes((d as { themes?: unknown[] }).themes ?? []);
-    setTaxonomies((d as { taxonomies?: Taxonomy[] }).taxonomies ?? []);
-    setLoading(false);
-
-    const namingRules = (d as { namingRules?: { taxonomyOrder?: string[] } }).namingRules || {};
-    const order = namingRules.taxonomyOrder || [];
-    setTaxonomyOrder(order);
-
-    StorageService.setCollections(normalizedCollections);
-    StorageService.setModes(allModes);
-    StorageService.setDimensions(normalizedDimensions);
-    // @ts-expect-error: StorageService.setValueTypes expects string[] but schema uses objects
-    StorageService.setValueTypes((d as { resolvedValueTypes?: { id: string; displayName: string }[] }).resolvedValueTypes ?? []);
-    StorageService.setTokens(normalizedTokens);
-    StorageService.setPlatforms(normalizedPlatforms);
-    StorageService.setThemes((d as { themes?: unknown[] }).themes ?? []);
-    StorageService.setTaxonomies((d as { taxonomies?: Taxonomy[] }).taxonomies ?? []);
-
-    const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
-    localStorage.setItem('token-model:root', JSON.stringify({
-      ...root,
-      namingRules: {
-        ...namingRules,
-        taxonomyOrder: order
-      }
-    }));
   };
 
   useEffect(() => {
@@ -249,7 +225,7 @@ const App: React.FC = () => {
                 <Route path="/setup/dimensions" element={<DimensionsTab dimensions={dimensions} setDimensions={setDimensions} />} />
                 <Route path="/setup/classification" element={<ClassificationTab taxonomies={taxonomies} setTaxonomies={setTaxonomies} />} />
                 <Route path="/setup/naming-rules" element={<NamingRulesTab taxonomies={taxonomies} taxonomyOrder={taxonomyOrder} setTaxonomyOrder={setTaxonomyOrder} />} />
-                <Route path="/setup/value-types" element={<ValueTypesTab valueTypes={resolvedValueTypes.map(vt => vt.id)} onUpdate={types => setResolvedValueTypes(types.map(id => ({ id, displayName: id })))} />} />
+                <Route path="/setup/value-types" element={<ValueTypesTab valueTypes={resolvedValueTypes} onUpdate={setResolvedValueTypes} />} />
                 <Route path="/themes" element={<ThemesView themes={themes} setThemes={setThemes} />} />
                 <Route path="/publishing" element={<Navigate to="/publishing/platforms" replace />} />
                 <Route path="/publishing/platforms" element={<PlatformsTab platforms={platforms} setPlatforms={setPlatforms} tokens={tokens} setTokens={setTokens} taxonomies={taxonomies} />} />

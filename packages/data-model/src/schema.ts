@@ -1,22 +1,46 @@
 import { z } from 'zod';
 
-// Enums
-export const ResolvedValueType = z.enum([
+// Standard value types
+export const StandardValueType = z.enum([
   'COLOR',
   'DIMENSION',
+  'SPACING',
   'FONT_FAMILY',
   'FONT_WEIGHT',
-  'FONT_STYLE',
+  'FONT_SIZE',
+  'LINE_HEIGHT',
+  'LETTER_SPACING',
   'DURATION',
   'CUBIC_BEZIER',
-  'BORDER_WIDTH',
-  'CORNER_ROUNDING',
-  'ELEVATION',
-  'SHADOW',
-  'OPACITY',
-  'NUMBER'
+  'BLUR',
+  'SPREAD',
+  'RADIUS'
 ]);
 
+export type StandardValueType = z.infer<typeof StandardValueType>;
+
+// Value type validation rules
+export const ValueTypeValidation = z.object({
+  pattern: z.string().optional(),
+  minimum: z.number().optional(),
+  maximum: z.number().optional(),
+  allowedValues: z.array(z.string()).optional()
+});
+
+export type ValueTypeValidation = z.infer<typeof ValueTypeValidation>;
+
+// Resolved value type schema
+export const ResolvedValueType = z.object({
+  id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  displayName: z.string(),
+  type: StandardValueType.optional(),
+  description: z.string().optional(),
+  validation: ValueTypeValidation.optional()
+});
+
+export type ResolvedValueType = z.infer<typeof ResolvedValueType>;
+
+// Enums
 export const TokenStatus = z.enum([
   'experimental',
   'stable',
@@ -119,26 +143,60 @@ export const TokenValue = z.union([
     value: z.string()
   }),
   z.object({
-    type: z.literal('FLOAT'),
+    type: z.literal('DIMENSION'),
     value: z.number()
   }),
   z.object({
-    type: z.literal('INTEGER'),
-    value: z.number().int()
+    type: z.literal('SPACING'),
+    value: z.number()
   }),
   z.object({
-    type: z.literal('STRING'),
+    type: z.literal('FONT_FAMILY'),
     value: z.string()
   }),
   z.object({
-    type: z.literal('BOOLEAN'),
-    value: z.boolean()
+    type: z.literal('FONT_WEIGHT'),
+    value: z.number()
+  }),
+  z.object({
+    type: z.literal('FONT_SIZE'),
+    value: z.number()
+  }),
+  z.object({
+    type: z.literal('LINE_HEIGHT'),
+    value: z.number()
+  }),
+  z.object({
+    type: z.literal('LETTER_SPACING'),
+    value: z.number()
+  }),
+  z.object({
+    type: z.literal('DURATION'),
+    value: z.number()
+  }),
+  z.object({
+    type: z.literal('CUBIC_BEZIER'),
+    value: z.string()
+  }),
+  z.object({
+    type: z.literal('BLUR'),
+    value: z.number()
+  }),
+  z.object({
+    type: z.literal('SPREAD'),
+    value: z.number()
+  }),
+  z.object({
+    type: z.literal('RADIUS'),
+    value: z.number()
   }),
   z.object({
     type: z.literal('ALIAS'),
-    tokenId: z.string().regex(/^[a-zA-Z0-9-_]+$/)
+    tokenId: z.string()
   })
 ]);
+
+export type TokenValue = z.infer<typeof TokenValue>;
 
 // Main schemas
 export const Mode = z.object({
@@ -162,7 +220,7 @@ export const TokenCollection = z.object({
   id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
   name: z.string(),
   description: z.string().optional(),
-  resolvedValueTypes: z.array(ResolvedValueType),
+  resolvedValueTypeIds: z.array(z.string().regex(/^[a-zA-Z0-9-_]+$/)),
   private: z.boolean().default(false),
   defaultModeIds: z.array(z.string().regex(/^[a-zA-Z0-9-_]+$/)).optional(),
   modeResolutionStrategy: z.object({
@@ -198,6 +256,17 @@ export const Token = z.object({
     platformId: z.string(),
     formattedName: z.string()
   })),
+  constraints: z.array(z.object({
+    type: z.literal('contrast'),
+    rule: z.object({
+      minimum: z.number(),
+      comparator: z.object({
+        resolvedValueTypeId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+        value: z.string(),
+        method: z.enum(['WCAG21', 'APCA', 'Lstar'])
+      })
+    })
+  })).optional(),
   valuesByMode: z.array(
     z.object({
       modeIds: z.array(z.string()),
@@ -332,12 +401,17 @@ export const TokenSystem = z.object({
   platforms: z.array(Platform),
   themes: z.array(Theme),
   themeOverrides: ThemeOverrides,
-  taxonomies: z.array(Taxonomy)
+  taxonomies: z.array(Taxonomy),
+  resolvedValueTypes: z.array(ResolvedValueType)
 });
 
 // Validation functions
 export const validateTokenSystem = (data: unknown): TokenSystem => {
   return TokenSystem.parse(data);
+};
+
+export const validateResolvedValueType = (data: unknown): ResolvedValueType => {
+  return ResolvedValueType.parse(data);
 };
 
 export const validateToken = (data: unknown): Token => {
@@ -428,7 +502,7 @@ export function validateTokenTaxonomiesReferentialIntegrity(
   return errors;
 }
 
-export type ResolvedValueType = z.infer<typeof ResolvedValueType>;
+// Add new type exports
 export type TokenStatus = z.infer<typeof TokenStatus>;
 export type FallbackStrategy = z.infer<typeof FallbackStrategy>;
 export type ColorValue = z.infer<typeof ColorValue>;
@@ -438,7 +512,6 @@ export type CubicBezierValue = z.infer<typeof CubicBezierValue>;
 export type ShadowValue = z.infer<typeof ShadowValue>;
 export type TypographyValue = z.infer<typeof TypographyValue>;
 export type BorderValue = z.infer<typeof BorderValue>;
-export type TokenValue = z.infer<typeof TokenValue>;
 export type Mode = z.infer<typeof Mode>;
 export type Dimension = z.infer<typeof Dimension>;
 export type TokenCollection = z.infer<typeof TokenCollection>;

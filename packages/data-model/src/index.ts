@@ -2,6 +2,7 @@ export * from './schema';
 
 // Re-export specific types for convenience
 export type { 
+  StandardValueType,
   ResolvedValueType,
   TokenStatus,
   FallbackStrategy,
@@ -22,12 +23,31 @@ export type {
   TokenSystem,
   Platform,
   Taxonomy,
-  TaxonomyTerm
+  TaxonomyTerm,
+  TokenTaxonomyRef
+} from './schema';
+
+// Re-export schemas for validation
+export {
+  StandardValueType as StandardValueTypeSchema,
+  ResolvedValueType as ResolvedValueTypeSchema,
+  TokenStatus as TokenStatusSchema,
+  FallbackStrategy as FallbackStrategySchema,
+  TokenValue as TokenValueSchema,
+  Mode as ModeSchema,
+  Dimension as DimensionSchema,
+  TokenCollection as TokenCollectionSchema,
+  Token as TokenSchema,
+  TokenGroup as TokenGroupSchema,
+  TokenVariant as TokenVariantSchema,
+  TokenSystem as TokenSystemSchema,
+  Platform as PlatformSchema,
+  Taxonomy as TaxonomySchema,
+  TokenTaxonomyRef as TokenTaxonomyRefSchema
 } from './schema';
 
 // Re-export Zod schemas
 export {
-  TokenValue as TokenValueSchema,
   ColorValue as ColorValueSchema,
   DimensionValue as DimensionValueSchema,
   DurationValue as DurationValueSchema,
@@ -36,8 +56,6 @@ export {
   TypographyValue as TypographyValueSchema,
   BorderValue as BorderValueSchema
 } from './schema';
-
-export { TokenTaxonomyRef } from './schema';
 
 /**
  * Validates that if any entry in valuesByMode has modeIds: [], it must be the only entry in the array.

@@ -17,7 +17,7 @@ import {
   Select,
 } from '@chakra-ui/react';
 import { Pencil, Trash2 } from 'lucide-react';
-import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy } from '@token-model/data-model';
+import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy, ResolvedValueType } from '@token-model/data-model';
 import { TokenEditorDialog } from '../../components/TokenEditorDialog';
 
 // Extend the Token type to include themeable and resolvedValueTypeId for compatibility
@@ -28,7 +28,7 @@ interface ValueByMode {
   modeIds: string[];
   value: TokenValue;
   metadata?: Record<string, unknown>;
-  platformOverrides?: any[];
+  platformOverrides?: unknown[];
 }
 
 interface TokensTabProps {
@@ -40,21 +40,21 @@ interface TokensTabProps {
   onEdit: (token: ExtendedToken) => void;
   onDelete: (tokenId: string) => void;
   taxonomies: Taxonomy[];
-  resolvedValueTypes: { id: string; displayName: string }[];
+  resolvedValueTypes: ResolvedValueType[];
   onViewClassifications?: () => void;
   renderAddTokenButton?: React.ReactNode;
 }
 
-interface ContrastConstraint {
-  type: 'contrast';
-  rule: {
-    minimum: number;
-    comparator: TokenValue;
-    method: 'WCAG21' | 'APCA' | 'Lstar';
-  };
+// Helper to normalize codeSyntax to array
+function normalizeCodeSyntax(codeSyntax: unknown): { platformId: string; formattedName: string }[] {
+  if (Array.isArray(codeSyntax)) {
+    return codeSyntax;
+  }
+  if (typeof codeSyntax === 'object' && codeSyntax !== null) {
+    return Object.entries(codeSyntax as Record<string, unknown>).map(([platformId, formattedName]) => ({ platformId, formattedName: String(formattedName) }));
+  }
+  return [];
 }
-
-type Constraint = ContrastConstraint;
 
 export function TokensTab({ tokens, collections, modes, dimensions, platforms, onEdit, onDelete, taxonomies, resolvedValueTypes, onViewClassifications, renderAddTokenButton }: TokensTabProps) {
   // Filter state
@@ -125,7 +125,7 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
       case 'BOOLEAN':
         return <Tag colorScheme={value.value ? 'green' : 'red'} size="sm">{value.value ? 'True' : 'False'}</Tag>;
       default:
-        return 'Unknown value type';
+        return <Text>Unknown value type</Text>;
     }
   };
 
@@ -249,8 +249,8 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
       </Box>
       {selectedToken && (
         <TokenEditorDialog
-          token={{ ...selectedToken, codeSyntax: Array.isArray(selectedToken.codeSyntax) ? Object.fromEntries(selectedToken.codeSyntax.map((cs: any) => [cs.platformId, cs.formattedName])) : selectedToken.codeSyntax }}
-          tokens={tokens.map(t => ({ ...t, codeSyntax: Array.isArray(t.codeSyntax) ? Object.fromEntries(t.codeSyntax.map((cs: any) => [cs.platformId, cs.formattedName])) : t.codeSyntax }))}
+          token={{ ...selectedToken, codeSyntax: normalizeCodeSyntax(selectedToken.codeSyntax) }}
+          tokens={tokens.map(t => ({ ...t, codeSyntax: normalizeCodeSyntax(t.codeSyntax) }))}
           dimensions={dimensions}
           modes={modes}
           platforms={platforms}

@@ -544,7 +544,7 @@
                         "type": "object",
                         "required": ["type", "value"],
                         "properties": {
-                          "type": { "type": "string", "enum": ["COLOR"] },
+                          "type": { "type": "string", "pattern": "^[a-zA-Z0-9-_]+$" },
                           "value": { "type": "string" },
                           "method": {
                             "type": "string",
@@ -783,12 +783,59 @@
             "id": {
               "type": "string",
               "description": "Unique identifier for the resolved value type.",
-              "pattern": "^[a-zA-Z0-9-_]+$",
-              "description": "IDs must be unique and referenced by tokens."
+              "pattern": "^[a-zA-Z0-9-_]+$"
             },
             "displayName": {
               "type": "string",
               "description": "Human-readable name for the resolved value type."
+            },
+            "type": {
+              "type": "string",
+              "description": "Standard type identifier. If not provided, this is a custom type.",
+              "enum": [
+                "COLOR",
+                "DIMENSION",
+                "SPACING",
+                "FONT_FAMILY",
+                "FONT_WEIGHT",
+                "FONT_SIZE",
+                "LINE_HEIGHT",
+                "LETTER_SPACING",
+                "DURATION",
+                "CUBIC_BEZIER",
+                "BLUR",
+                "SPREAD",
+                "RADIUS"
+              ]
+            },
+            "description": {
+              "type": "string",
+              "description": "Optional description of the value type's purpose and usage."
+            },
+            "validation": {
+              "type": "object",
+              "description": "Optional validation rules specific to this value type.",
+              "properties": {
+                "pattern": {
+                  "type": "string",
+                  "description": "Regular expression pattern for validating values."
+                },
+                "minimum": {
+                  "type": "number",
+                  "description": "Minimum allowed value for numeric types."
+                },
+                "maximum": {
+                  "type": "number",
+                  "description": "Maximum allowed value for numeric types."
+                },
+                "allowedValues": {
+                  "type": "array",
+                  "description": "List of allowed values for this type.",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
             }
           },
           "additionalProperties": true

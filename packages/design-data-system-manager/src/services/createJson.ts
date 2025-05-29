@@ -14,16 +14,28 @@ export function createSchemaJsonFromLocalStorage() {
   const themes = StorageService.getThemes();
   const taxonomies = StorageService.getTaxonomies();
   const resolvedValueTypes = StorageService.getValueTypes();
+  const namingRules = StorageService.getNamingRules();
 
-  // Compose version and versionHistory
-  const version = '1.0.0';
-  const versionHistory = [
-    {
-      version,
-      dimensions: Array.isArray(dimensions) ? dimensions.map((d: any) => d.id) : [],
-      date: new Date().toISOString().slice(0, 10),
-    },
-  ];
+  // Read root-level data from localStorage
+  const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
+  const {
+    systemName = 'Design System',
+    systemId = 'design-system',
+    description = 'A comprehensive design system with tokens, dimensions, and themes',
+    version = '1.0.0',
+    versionHistory = []
+  } = root;
+
+  // Compose versionHistory if not present
+  const normalizedVersionHistory = versionHistory.length > 0 ? versionHistory : [{
+    version,
+    dimensions: Array.isArray(dimensions) ? dimensions.map((d: any) => d.id) : [],
+    date: new Date().toISOString().slice(0, 10),
+    migrationStrategy: {
+      emptyModeIds: 'mapToDefaults',
+      preserveOriginalValues: true
+    }
+  }];
 
   // Compose required top-level fields (with defaults if missing)
   const tokenGroups: any[] = [];
@@ -67,20 +79,34 @@ export function createSchemaJsonFromLocalStorage() {
     }
   }));
 
+  // Ensure themes array exists and has at least one default theme
+  const normalizedThemes = Array.isArray(themes) && themes.length > 0 ? themes : [{
+    id: 'default',
+    displayName: 'Default Theme',
+    description: 'The default theme for the design system',
+    isDefault: true
+  }];
+
   // Compose the final schema-compliant object
   const schemaJson = {
+    systemName,
+    systemId,
+    description,
     version,
-    versionHistory,
+    versionHistory: normalizedVersionHistory,
     tokenCollections,
     dimensions,
     tokens,
     platforms: normalizedPlatforms,
-    themes,
+    themes: normalizedThemes,
     taxonomies,
     resolvedValueTypes: resolvedValueTypesArray,
     tokenGroups,
     tokenVariants,
-    themeOverrides
+    themeOverrides,
+    namingRules: namingRules || {
+      taxonomyOrder: []
+    }
   };
 
   return schemaJson;
