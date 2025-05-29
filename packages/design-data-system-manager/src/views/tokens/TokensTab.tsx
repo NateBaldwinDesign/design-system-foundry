@@ -15,21 +15,11 @@ import {
   FormControl,
   FormLabel,
   Select,
+  Input,
 } from '@chakra-ui/react';
 import { Pencil, Trash2 } from 'lucide-react';
-import type { Token, TokenCollection, Mode, TokenValue, Dimension, Platform, Taxonomy, ResolvedValueType } from '@token-model/data-model';
-import { TokenEditorDialog } from '../../components/TokenEditorDialog';
-
-// Extend the Token type to include themeable and resolvedValueTypeId for compatibility
-export type ExtendedToken = Token & { themeable?: boolean; resolvedValueTypeId?: string };
-
-// Define ValueByMode type if not imported
-interface ValueByMode {
-  modeIds: string[];
-  value: TokenValue;
-  metadata?: Record<string, unknown>;
-  platformOverrides?: unknown[];
-}
+import type { TokenCollection, Mode, Taxonomy, ResolvedValueType, Dimension, Platform } from '@token-model/data-model';
+import { TokenEditorDialog, ExtendedToken, ValueByMode, TokenValue } from '../../components/TokenEditorDialog';
 
 interface TokensTabProps {
   tokens: ExtendedToken[];
@@ -63,10 +53,15 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [privateFilter, setPrivateFilter] = useState<string>('');
   const [themeableFilter, setThemeableFilter] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Filtering logic
   const filteredTokens = useMemo(() => {
     return tokens.filter(token => {
+      const matchesSearch =
+        token.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (token.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+      if (!matchesSearch) return false;
       if (collectionFilter && token.tokenCollectionId !== collectionFilter) return false;
       if (typeFilter && (token.resolvedValueTypeId || token.resolvedValueType) !== typeFilter) return false;
       if (statusFilter && token.status !== statusFilter) return false;
@@ -74,14 +69,22 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
       if (themeableFilter && String(token.themeable) !== themeableFilter) return false;
       return true;
     });
-  }, [tokens, collectionFilter, typeFilter, statusFilter, privateFilter, themeableFilter]);
+  }, [tokens, searchTerm, collectionFilter, typeFilter, statusFilter, privateFilter, themeableFilter]);
 
   // Unique values for filters
-  const typeOptions = Array.from(new Set(tokens.map(t => t.resolvedValueTypeId || t.resolvedValueType))).sort();
   const statusOptions = Array.from(new Set(tokens.map(t => t.status).filter(Boolean))).sort();
 
   const [selectedToken, setSelectedToken] = useState<ExtendedToken | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+
+  // Map resolvedValueTypes to objects if needed
+  const resolvedValueTypeObjs = useMemo(() => {
+    if (resolvedValueTypes.length > 0 && typeof resolvedValueTypes[0] === 'string') {
+      return ((resolvedValueTypes as unknown) as ExtendedToken['resolvedValueType'][]).map(id => ({ id, displayName: id.charAt(0) + id.slice(1).toLowerCase().replace(/_/g, ' ') })) as { id: ExtendedToken['resolvedValueType']; displayName: string }[];
+    }
+    // Suppress the conversion warning by casting to unknown first
+    return (resolvedValueTypes as unknown) as { id: ExtendedToken['resolvedValueType']; displayName: string }[];
+  }, [resolvedValueTypes]);
 
   const handleEdit = (token: ExtendedToken) => {
     setSelectedToken(token);
@@ -107,23 +110,30 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
   };
 
   const getValueDisplay = (value: TokenValue) => {
-    switch (value.type) {
-      case 'COLOR':
+    switch (value.resolvedValueTypeId) {
+      case 'color':
         return (
           <HStack>
             <Box width="20px" height="20px" borderRadius="sm" backgroundColor={value.value} border="1px solid" borderColor="gray.200" />
             <Text>{value.value}</Text>
           </HStack>
         );
-      case 'ALIAS':
+      case 'alias':
         return <Text>{value.tokenId}</Text>;
-      case 'FLOAT':
-      case 'INTEGER':
+      case 'dimension':
+      case 'spacing':
+      case 'font-weight':
+      case 'font-size':
+      case 'line-height':
+      case 'letter-spacing':
+      case 'duration':
+      case 'blur':
+      case 'spread':
+      case 'radius':
         return <Text>{value.value}</Text>;
-      case 'STRING':
+      case 'font-family':
+      case 'cubic-bezier':
         return <Text>{value.value}</Text>;
-      case 'BOOLEAN':
-        return <Tag colorScheme={value.value ? 'green' : 'red'} size="sm">{value.value ? 'True' : 'False'}</Tag>;
       default:
         return <Text>Unknown value type</Text>;
     }
@@ -135,8 +145,16 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
         <Text fontSize="2xl" fontWeight="bold">Tokens</Text>
         {renderAddTokenButton}
       </Flex>
+      <Flex justify="space-between" align="center" mb={4}>
+        <Input
+          placeholder="Search tokens..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          maxW="320px"
+        />
+      </Flex>
       {/* Filter Controls */}
-      <HStack spacing={4} wrap="wrap" align="flex-start" mb={4}>
+      <HStack spacing={4} wrap="nowrap" align="flex-start" mb={4}>
         <FormControl maxW="240px" flex="none">
           <FormLabel>Collection</FormLabel>
           <Select size="sm" value={collectionFilter} onChange={e => setCollectionFilter(e.target.value)}>
@@ -150,8 +168,8 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
           <FormLabel>Type</FormLabel>
           <Select size="sm" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
             <option key="type-all" value="">All</option>
-            {typeOptions.map(type => (
-              <option key={`type-${type}`} value={type}>{type}</option>
+            {resolvedValueTypeObjs.map(typeObj => (
+              <option key={`type-${typeObj.id}`} value={typeObj.id}>{typeObj.displayName}</option>
             ))}
           </Select>
         </FormControl>
@@ -247,9 +265,24 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
           </Tbody>
         </Table>
       </Box>
-      {selectedToken && (
+      {isEditorOpen && (
         <TokenEditorDialog
-          token={{ ...selectedToken, codeSyntax: normalizeCodeSyntax(selectedToken.codeSyntax) }}
+          token={selectedToken ? { ...selectedToken, codeSyntax: normalizeCodeSyntax(selectedToken.codeSyntax) } : {
+            id: '',
+            displayName: '',
+            description: '',
+            tokenCollectionId: collections[0]?.id || '',
+            resolvedValueType: (resolvedValueTypeObjs[0]?.id as ExtendedToken['resolvedValueType']) || 'COLOR',
+            resolvedValueTypeId: resolvedValueTypeObjs[0]?.id || 'COLOR',
+            propertyTypes: [],
+            private: false,
+            themeable: false,
+            status: 'experimental',
+            taxonomies: [],
+            codeSyntax: [],
+            constraints: [],
+            valuesByMode: [],
+          }}
           tokens={tokens.map(t => ({ ...t, codeSyntax: normalizeCodeSyntax(t.codeSyntax) }))}
           dimensions={dimensions}
           modes={modes}
@@ -258,8 +291,9 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
           onClose={handleClose}
           onSave={handleSave}
           taxonomies={taxonomies}
-          resolvedValueTypes={resolvedValueTypes}
+          resolvedValueTypes={resolvedValueTypeObjs}
           onViewClassifications={onViewClassifications}
+          isNew={!selectedToken}
         />
       )}
     </Box>

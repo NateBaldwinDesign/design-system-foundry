@@ -211,3 +211,53 @@ Theme overrides allow you to extend the core data set by providing alternate val
 - Supports any number of platforms, including custom ones.
 - Explicitly links code syntax to platforms by ID, not by name.
 - Avoids hardcoding platform names and enables future extensibility. 
+
+## Supported Value Types: Comparison with W3C DTCG
+
+The table below compares the value types supported by this tool (as defined in the schema) with those defined by the [W3C Design Tokens Community Group (DTCG) specification](https://design-tokens.github.io/community-group/format/#data-types). This helps clarify which types are currently supported and which are not.
+
+| Type              | In This Tool | In DTCG Spec | Notes                        |
+|-------------------|:------------:|:------------:|------------------------------|
+| COLOR             |      ✔️      |      ✔️      |                              |
+| DIMENSION         |      ✔️      |      ✔️      | DTCG uses as a base type     |
+| SPACING           |      ✔️      |      ✔️      |                              |
+| FONT_FAMILY       |      ✔️      |      ✔️      |                              |
+| FONT_WEIGHT       |      ✔️      |      ✔️      |                              |
+| FONT_SIZE         |      ✔️      |      ✔️      |                              |
+| LINE_HEIGHT       |      ✔️      |      ✔️      |                              |
+| LETTER_SPACING    |      ✔️      |      ✔️      |                              |
+| DURATION          |      ✔️      |      ✔️      |                              |
+| CUBIC_BEZIER      |      ✔️      |      ✔️      |                              |
+| BLUR              |      ✔️      |      ✔️      |                              |
+| SPREAD            |      ✔️      |      ❓      | Not a DTCG core type         |
+| RADIUS            |      ✔️      |      ✔️      |                              |
+| SHADOW            |      ❌      |      ✔️      | Should be added              |
+| BORDER            |      ❌      |      ✔️      | Should be added              |
+| GRADIENT          |      ❌      |      ✔️      | Should be added              |
+| TRANSITION        |      ❌      |      ✔️      | Should be added              |
+| OPACITY           |      ❌      |      ✔️      | Should be added              |
+| TYPOGRAPHY        |      ❌      |      ✔️      | Should be added              |
+| NUMBER            |      ❌      |      ✔️      | Should be added              |
+| STRING            |      ❌      |      ✔️      | Should be added              |
+| BOOLEAN           |      ❌      |      ✔️      | Should be added              |
+| ASSET             |      ❌      |      ✔️      | Should be added              |
+| Z_INDEX           |      ❌      |      ✔️      | Should be added              |
+| TEXT_CASE         |      ❌      |      ✔️      | Should be added              |
+| TEXT_DECORATION   |      ❌      |      ✔️      | Should be added              |
+| BORDER_WIDTH      |      ❌      |      ✔️      | Should be added              |
+| BORDER_RADIUS     |      ❌      |      ✔️      | Should be added              |
+| BORDER_STYLE      |      ❌      |      ✔️      | Should be added              |
+| BORDER_COLOR      |      ❌      |      ✔️      | Should be added              |
+| FONT_STYLE        |      ❌      |      ✔️      | Should be added              |
+| FONT_STRETCH      |      ❌      |      ✔️      | Should be added              |
+| PARAGRAPH_SPACING |      ❌      |      ✔️      | Should be added              |
+| TEXT_ALIGN        |      ❌      |      ✔️      | Should be added              |
+| TEXT_TRANSFORM    |      ❌      |      ✔️      | Should be added              |
+| BOX_SHADOW        |      ❌      |      ✔️      | Should be added              |
+| INNER_SHADOW      |      ❌      |      ✔️      | Should be added              |
+| OUTLINE           |      ❌      |      ✔️      | Should be added              |
+| OUTLINE_WIDTH     |      ❌      |      ✔️      | Should be added              |
+| OUTLINE_COLOR     |      ❌      |      ✔️      | Should be added              |
+| OUTLINE_STYLE     |      ❌      |      ✔️      | Should be added              |
+
+> **Note:** This table is based on the DTCG spec as of 2024. The spec may evolve, and this tool may add support for additional types in the future. 

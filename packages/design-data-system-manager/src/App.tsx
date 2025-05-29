@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   ChakraProvider,
-  Spinner
+  Spinner,
+  Button
 } from '@chakra-ui/react';
 import {
   TokenCollection,
@@ -32,6 +33,8 @@ import { ValidationTab } from './views/publishing/ValidationTab';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import CoreDataView from './views/schemas/CoreDataView';
 import ThemeOverridesView from './views/schemas/ThemeOverridesView';
+import { Plus } from 'lucide-react';
+import { TokenEditorDialog, ExtendedToken } from './components/TokenEditorDialog';
 
 // TypeScript declaration for import.meta.glob
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -54,13 +57,15 @@ const App: React.FC = () => {
   const [modes, setModes] = useState<Mode[]>([]);
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
   const [resolvedValueTypes, setResolvedValueTypes] = useState<ResolvedValueType[]>([]);
-  const [tokens, setTokens] = useState<Token[]>([]);
+  const [tokens, setTokens] = useState<ExtendedToken[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataOptions, setDataOptions] = useState<{ label: string; value: string; filePath: string }[]>([]);
   const [taxonomyOrder, setTaxonomyOrder] = useState<string[]>([]);
+  const [selectedToken, setSelectedToken] = useState<ExtendedToken | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   useEffect(() => {
     setDataOptions(getDataSourceOptions());
@@ -116,7 +121,7 @@ const App: React.FC = () => {
       setModes(allModes);
       setDimensions(normalizedDimensions);
       setResolvedValueTypes(normalizedResolvedValueTypes);
-      setTokens(normalizedTokens);
+      setTokens(normalizedTokens as ExtendedToken[]);
       setPlatforms(normalizedPlatforms);
       setThemes(normalizedThemes);
       setTaxonomies(normalizedTaxonomies);
@@ -179,6 +184,41 @@ const App: React.FC = () => {
     window.location.reload();
   };
 
+  const handleAddToken = () => {
+    setSelectedToken({
+      id: '',
+      displayName: '',
+      description: '',
+      tokenCollectionId: collections[0]?.id || '',
+      resolvedValueType: 'COLOR',
+      resolvedValueTypeId: 'COLOR',
+      propertyTypes: [],
+      private: false,
+      themeable: false,
+      status: 'experimental',
+      taxonomies: [],
+      codeSyntax: [],
+      constraints: [],
+      valuesByMode: []
+    });
+    setIsEditorOpen(true);
+  };
+
+  const handleCloseEditor = () => {
+    setIsEditorOpen(false);
+    setSelectedToken(null);
+  };
+
+  const handleSaveToken = (token: ExtendedToken) => {
+    setTokens(prevTokens => {
+      if (token.id) {
+        return prevTokens.map(t => t.id === token.id ? token : t);
+      }
+      return [...prevTokens, { ...token, id: `token-${Date.now()}` }];
+    });
+    handleCloseEditor();
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -203,19 +243,46 @@ const App: React.FC = () => {
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<DashboardView />} />
                 <Route path="/tokens" element={<Navigate to="/tokens/tokens" replace />} />
-                <Route path="/tokens/tokens" element={<TokensTab
-                  tokens={tokens}
-                  collections={collections}
-                  modes={modes}
-                  dimensions={dimensions}
-                  platforms={platforms}
-                  onEdit={() => {}}
-                  onDelete={(tokenId) => setTokens(tokens.filter(t => t.id !== tokenId))}
-                  taxonomies={taxonomies}
-                  resolvedValueTypes={resolvedValueTypes}
-                  onViewClassifications={() => {}}
-                  renderAddTokenButton={null}
-                />} />
+                <Route path="/tokens/tokens" element={
+                  <>
+                    <TokensTab
+                      tokens={tokens}
+                      collections={collections}
+                      modes={modes}
+                      dimensions={dimensions}
+                      platforms={platforms}
+                      onEdit={(token) => {
+                        setSelectedToken(token);
+                        setIsEditorOpen(true);
+                      }}
+                      onDelete={(tokenId) => setTokens(tokens.filter(t => t.id !== tokenId))}
+                      taxonomies={taxonomies}
+                      resolvedValueTypes={resolvedValueTypes}
+                      onViewClassifications={() => {}}
+                      renderAddTokenButton={
+                        <Button colorScheme="blue" size="sm" onClick={handleAddToken} leftIcon={<Plus />}>
+                          Add Token
+                        </Button>
+                      }
+                    />
+                    {isEditorOpen && selectedToken && (
+                      <TokenEditorDialog
+                        token={selectedToken}
+                        tokens={tokens}
+                        dimensions={dimensions}
+                        modes={modes}
+                        platforms={platforms}
+                        open={isEditorOpen}
+                        onClose={handleCloseEditor}
+                        onSave={handleSaveToken}
+                        taxonomies={taxonomies}
+                        resolvedValueTypes={resolvedValueTypes}
+                        isNew={!selectedToken.id}
+                        onViewClassifications={() => {}}
+                      />
+                    )}
+                  </>
+                } />
                 <Route path="/tokens/collections" element={<CollectionsTab collections={collections} modes={modes} onUpdate={setCollections} />} />
                 <Route path="/tokens/algorithms" element={<AlgorithmsTab />} />
                 <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />

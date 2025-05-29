@@ -1,12 +1,24 @@
 import React from 'react';
-import { Box, Text, VStack } from '@chakra-ui/react';
-import type { Mode, Platform, TokenValue, PlatformOverride } from '@token-model/data-model';
-import { ValueByModeTable } from './ValueByModeTable';
+import {
+  Table,
+  Thead,
+  Tbody,
+  Tr,
+  Th,
+  Td,
+  Text,
+  Box
+} from '@chakra-ui/react';
+import type { Mode, Platform } from '@token-model/data-model';
+import type { TokenValue } from './TokenEditorDialog';
 
-interface ValueByMode {
+export interface ValueByMode {
   modeIds: string[];
   value: TokenValue;
-  platformOverrides?: PlatformOverride[];
+  platformOverrides?: {
+    platformId: string;
+    value: string;
+  }[];
 }
 
 interface PlatformOverridesTableProps {
@@ -17,61 +29,61 @@ interface PlatformOverridesTableProps {
   onPlatformOverrideChange: (platformId: string, modeIndex: number, newValue: TokenValue) => void;
 }
 
-export function PlatformOverridesTable({ platforms, valuesByMode, modes, getValueEditor, onPlatformOverrideChange }: PlatformOverridesTableProps) {
-  // For each platform, build a valuesByMode array with override or 'inherit from default'
+export function PlatformOverridesTable({
+  platforms,
+  valuesByMode,
+  modes,
+  getValueEditor,
+  onPlatformOverrideChange
+}: PlatformOverridesTableProps) {
+  // Group values by mode combinations
+  const modeGroups = valuesByMode.reduce<Record<string, ValueByMode[]>>((acc, vbm) => {
+    const key = vbm.modeIds.slice().sort().join(',');
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(vbm);
+    return acc;
+  }, {});
+
   return (
-    <Box mt={4}>
-      <Text fontSize="xl" fontWeight="bold" mb={4}>
-        Platform overrides
-      </Text>
-      <VStack spacing={6} align="stretch">
-        {platforms && platforms.length > 0 && platforms.map(platform => {
-          // Build override valuesByMode for this platform
-          const platformValues = valuesByMode.map(vbm => {
-            const override = vbm.platformOverrides?.find((po: PlatformOverride) => po.platformId === platform.id);
-            
-            // If there's no override, return the default value
-            if (!override) {
-              return {
-                ...vbm,
-                value: vbm.value
-              };
-            }
-
-            // If there is an override, create a TokenValue with the override value
-            // The type should match the default value's type
-            const overrideValue: TokenValue = {
-              ...vbm.value,
-              value: override.value
-            };
-
-            return {
-              ...vbm,
-              value: overrideValue
-            };
-          });
-
-          // Only show platforms that have at least one override
-          const hasAnyOverride = valuesByMode.some(vbm => 
-            vbm.platformOverrides?.some((po: PlatformOverride) => po.platformId === platform.id)
-          );
-
-          if (!hasAnyOverride) return null;
-
-          return (
-            <Box key={platform.id}>
-              <Text fontSize="lg" fontWeight="medium" mb={2}>
-                {platform.displayName}
-              </Text>
-              <ValueByModeTable
-                valuesByMode={platformValues}
-                modes={modes}
-                getValueEditor={(value, modeIndex) => getValueEditor(value, modeIndex, true, (newValue) => onPlatformOverrideChange(platform.id, modeIndex, newValue))}
-              />
-            </Box>
-          );
-        })}
-      </VStack>
+    <Box overflowX="auto">
+      <Table size="sm" variant="simple">
+        <Thead>
+          <Tr>
+            <Th>Modes</Th>
+            {platforms.map(platform => (
+              <Th key={platform.id}>{platform.displayName}</Th>
+            ))}
+          </Tr>
+        </Thead>
+        <Tbody>
+          {Object.entries(modeGroups).map(([modeKey, group]) => {
+            const modeIds = modeKey.split(',');
+            const modeNames = modeIds.map(id => modes.find(m => m.id === id)?.name || id).join(' + ');
+            return (
+              <Tr key={modeKey}>
+                <Td>
+                  <Text fontSize="sm">{modeNames}</Text>
+                </Td>
+                {platforms.map(platform => {
+                  const override = group[0]?.platformOverrides?.find(p => p.platformId === platform.id);
+                  return (
+                    <Td key={platform.id}>
+                      {getValueEditor(
+                        override ? override.value : '',
+                        group[0] ? valuesByMode.indexOf(group[0]) : 0,
+                        true,
+                        (newValue) => onPlatformOverrideChange(platform.id, group[0] ? valuesByMode.indexOf(group[0]) : 0, newValue)
+                      )}
+                    </Td>
+                  );
+                })}
+              </Tr>
+            );
+          })}
+        </Tbody>
+      </Table>
     </Box>
   );
 } 

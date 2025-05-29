@@ -474,18 +474,24 @@
                     "oneOf": [
                       {
                         "type": "object",
-                        "required": ["type", "value"],
+                        "required": ["resolvedValueTypeId", "value"],
                         "properties": {
-                          "type": { "type": "string" },
+                          "resolvedValueTypeId": {
+                            "type": "string",
+                            "description": "Must match the id of a resolvedValueType that has the same type as this token's resolvedValueTypeId"
+                          },
                           "value": {}
                         }
                       },
                       {
                         "type": "object",
-                        "required": ["type", "tokenId"],
+                        "required": ["resolvedValueTypeId", "tokenId"],
                         "properties": {
-                          "type": { "const": "ALIAS" },
-                          "tokenId": { "type": "string" }
+                          "resolvedValueTypeId": { "const": "alias" },
+                          "tokenId": {
+                            "type": "string",
+                            "description": "ID of the token to alias to"
+                          }
                         }
                       }
                     ]

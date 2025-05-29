@@ -172,4 +172,28 @@ Previously, the schema used both an enum (UPPER_CASE) for token value types and 
     { "id": "token-blue-500", "resolvedValueTypeId": "color", ... }
   ]
 }
-``` 
+```
+
+# Technical Decisions
+
+## Token Value Type System
+
+The token value type system is designed to ensure type safety and consistency across the design system. Here's how it works:
+
+1. Each token has a `resolvedValueTypeId` that references a type definition in the `resolvedValueTypes` array.
+2. The `resolvedValueTypes` array defines all possible value types, each with:
+   - `id`: A kebab-case identifier (e.g., 'color', 'dimension')
+   - `type`: A standard type identifier in UPPER_CASE (e.g., 'COLOR', 'DIMENSION')
+   - Optional validation rules specific to that type
+
+3. Token values in `valuesByMode` can be one of two things:
+   - A custom value with a `resolvedValueTypeId` that matches the token's type
+   - An alias value with `resolvedValueTypeId: 'alias'` and a `tokenId` referencing another token
+
+4. The validation system ensures:
+   - All token values reference valid `resolvedValueTypes`
+   - Custom values have a `resolvedValueTypeId` that matches their token's type
+   - Alias values reference existing tokens
+   - Values conform to any type-specific validation rules
+
+This system provides a consistent way to reference types throughout the schema while maintaining type safety and validation. 

@@ -33,7 +33,6 @@ ajv.addKeyword({
         }];
         return false;
       }
-      // No need to require id === type
     }
     // Validate custom validation rules if present
     if (data.validation) {
@@ -60,6 +59,68 @@ ajv.addKeyword({
         }
       }
     }
+    return true;
+  }
+});
+
+// Add custom validation for token values
+ajv.addKeyword({
+  keyword: 'validateTokenValue',
+  validate: function validateTokenValue(schema, data, parentSchema, dataPath, parentData, propertyName, rootData) {
+    // Skip validation if not a token value
+    if (!parentData || !parentData.resolvedValueTypeId) return true;
+
+    // Get the token's resolvedValueTypeId
+    const tokenResolvedValueTypeId = parentData.resolvedValueTypeId;
+
+    // If it's an alias value
+    if (data.resolvedValueTypeId === 'alias') {
+      // Validate that the referenced token exists
+      const referencedToken = rootData.tokens.find(t => t.id === data.tokenId);
+      if (!referencedToken) {
+        validateTokenValue.errors = [{
+          keyword: 'validateTokenValue',
+          message: `Referenced token ${data.tokenId} does not exist`,
+          params: { tokenId: data.tokenId }
+        }];
+        return false;
+      }
+      return true;
+    }
+
+    // For non-alias values, validate that the resolvedValueTypeId matches the token's type
+    const resolvedValueType = rootData.resolvedValueTypes.find(t => t.id === data.resolvedValueTypeId);
+    if (!resolvedValueType) {
+      validateTokenValue.errors = [{
+        keyword: 'validateTokenValue',
+        message: `Invalid resolvedValueTypeId: ${data.resolvedValueTypeId}`,
+        params: { resolvedValueTypeId: data.resolvedValueTypeId }
+      }];
+      return false;
+    }
+
+    const tokenResolvedValueType = rootData.resolvedValueTypes.find(t => t.id === tokenResolvedValueTypeId);
+    if (!tokenResolvedValueType) {
+      validateTokenValue.errors = [{
+        keyword: 'validateTokenValue',
+        message: `Invalid token resolvedValueTypeId: ${tokenResolvedValueTypeId}`,
+        params: { resolvedValueTypeId: tokenResolvedValueTypeId }
+      }];
+      return false;
+    }
+
+    if (resolvedValueType.type !== tokenResolvedValueType.type) {
+      validateTokenValue.errors = [{
+        keyword: 'validateTokenValue',
+        message: `Value resolvedValueTypeId ${data.resolvedValueTypeId} does not match token's type ${tokenResolvedValueTypeId}`,
+        params: { 
+          valueResolvedValueTypeId: data.resolvedValueTypeId,
+          tokenResolvedValueTypeId: tokenResolvedValueTypeId
+        }
+      }];
+      return false;
+    }
+
     return true;
   }
 });

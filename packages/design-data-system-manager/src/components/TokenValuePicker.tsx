@@ -18,10 +18,32 @@ import {
   ListItem,
   Text,
   VStack,
-  useDisclosure
+  useDisclosure,
+  HStack,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper
 } from '@chakra-ui/react';
-import type { Token, TokenValue } from '@token-model/data-model';
+import type { Token } from '@token-model/data-model';
 import Color from 'colorjs.io';
+
+type TokenValue =
+  | { resolvedValueTypeId: 'color'; value: string }
+  | { resolvedValueTypeId: 'dimension'; value: number }
+  | { resolvedValueTypeId: 'spacing'; value: number }
+  | { resolvedValueTypeId: 'font-family'; value: string }
+  | { resolvedValueTypeId: 'font-weight'; value: number }
+  | { resolvedValueTypeId: 'font-size'; value: number }
+  | { resolvedValueTypeId: 'line-height'; value: number }
+  | { resolvedValueTypeId: 'letter-spacing'; value: number }
+  | { resolvedValueTypeId: 'duration'; value: number }
+  | { resolvedValueTypeId: 'cubic-bezier'; value: string }
+  | { resolvedValueTypeId: 'blur'; value: number }
+  | { resolvedValueTypeId: 'spread'; value: number }
+  | { resolvedValueTypeId: 'radius'; value: number }
+  | { resolvedValueTypeId: 'alias'; tokenId: string };
 
 interface Constraint {
   resolvedValueTypeId: string;
@@ -99,22 +121,154 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
 
   // Render the value for the button
   let buttonLabel = '';
+  let aliasToken: TokenWithCompat | undefined;
+
   if (typeof value === 'string') {
     buttonLabel = value;
-  } else if (value.type === 'COLOR') {
-    buttonLabel = value.value;
-  } else if (value.type === 'ALIAS') {
-    const aliasToken = tokens.find(t => t.id === value.tokenId);
+  } else if (value.resolvedValueTypeId === 'alias') {
+    aliasToken = tokens.find(t => t.id === value.tokenId);
     buttonLabel = aliasToken ? `Alias: ${aliasToken.displayName}` : `Alias: ${value.tokenId}`;
-  } else if (value.type === 'FLOAT' || value.type === 'INTEGER') {
-    buttonLabel = String(value.value);
-  } else if (value.type === 'STRING') {
-    buttonLabel = value.value;
-  } else if (value.type === 'BOOLEAN') {
-    buttonLabel = value.value ? 'True' : 'False';
-  } else {
-    buttonLabel = JSON.stringify(value);
+  } else if ('value' in value) {
+    switch (value.resolvedValueTypeId) {
+      case 'color':
+      case 'font-family':
+      case 'cubic-bezier':
+        buttonLabel = value.value;
+        break;
+      case 'dimension':
+      case 'spacing':
+      case 'font-weight':
+      case 'font-size':
+      case 'line-height':
+      case 'letter-spacing':
+      case 'duration':
+      case 'blur':
+      case 'spread':
+      case 'radius':
+        buttonLabel = String(value.value);
+        break;
+      default:
+        buttonLabel = JSON.stringify(value);
+    }
   }
+
+  const renderCustomInput = () => {
+    let bezierValue: string;
+    let x1: number, y1: number, x2: number, y2: number;
+    let colorValue: string;
+    let fontValue: string;
+
+    switch (resolvedValueTypeId) {
+      case 'color':
+        colorValue = typeof value === 'object' && value.resolvedValueTypeId === 'color' && 'value' in value ? value.value : '#000000';
+        return (
+          <VStack>
+            <Input
+              type="color"
+              w="40px"
+              p={0}
+              value={colorValue}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ resolvedValueTypeId: 'color', value: e.target.value })}
+            />
+            <Input
+              size="sm"
+              value={colorValue}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ resolvedValueTypeId: 'color', value: e.target.value })}
+            />
+          </VStack>
+        );
+      case 'font-family':
+        fontValue = typeof value === 'object' && value.resolvedValueTypeId === 'font-family' && 'value' in value ? value.value : '';
+        return (
+          <Input
+            size="sm"
+            value={fontValue}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ resolvedValueTypeId: 'font-family', value: e.target.value })}
+          />
+        );
+      case 'cubic-bezier':
+        bezierValue = typeof value === 'object' && value.resolvedValueTypeId === 'cubic-bezier' && 'value' in value ? value.value : '0, 0, 1, 1';
+        [x1, y1, x2, y2] = bezierValue.split(',').map(Number);
+        return (
+          <VStack>
+            <HStack>
+              <NumberInput
+                size="sm"
+                value={x1}
+                onChange={(_, newVal) => {
+                  onChange({ resolvedValueTypeId: 'cubic-bezier', value: `${newVal}, ${y1}, ${x2}, ${y2}` });
+                }}
+              >
+                <NumberInputField />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
+              </NumberInput>
+              <NumberInput
+                size="sm"
+                value={y1}
+                onChange={(_, newVal) => {
+                  onChange({ resolvedValueTypeId: 'cubic-bezier', value: `${x1}, ${newVal}, ${x2}, ${y2}` });
+                }}
+              >
+                <NumberInputField />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
+              </NumberInput>
+              <NumberInput
+                size="sm"
+                value={x2}
+                onChange={(_, newVal) => {
+                  onChange({ resolvedValueTypeId: 'cubic-bezier', value: `${x1}, ${y1}, ${newVal}, ${y2}` });
+                }}
+              >
+                <NumberInputField />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
+              </NumberInput>
+              <NumberInput
+                size="sm"
+                value={y2}
+                onChange={(_, newVal) => {
+                  onChange({ resolvedValueTypeId: 'cubic-bezier', value: `${x1}, ${y1}, ${x2}, ${newVal}` });
+                }}
+              >
+                <NumberInputField />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
+              </NumberInput>
+            </HStack>
+          </VStack>
+        );
+      default:
+        if (['dimension', 'spacing', 'font-weight', 'font-size', 'line-height', 'letter-spacing', 'duration', 'blur', 'spread', 'radius'].includes(resolvedValueTypeId)) {
+          const numericValue = typeof value === 'object' && value.resolvedValueTypeId === resolvedValueTypeId && 'value' in value ? value.value : 0;
+          return (
+            <NumberInput
+              size="sm"
+              value={numericValue}
+              onChange={(_, newVal) => {
+                onChange({ resolvedValueTypeId, value: newVal });
+              }}
+            >
+              <NumberInputField />
+              <NumberInputStepper>
+                <NumberIncrementStepper />
+                <NumberDecrementStepper />
+              </NumberInputStepper>
+            </NumberInput>
+          );
+        }
+        return null;
+    }
+  };
 
   return (
     <Popover isOpen={isOpen} onClose={onClose} placement="bottom-start">
@@ -135,29 +289,7 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
             <TabPanels>
               <TabPanel px={0}>
                 <VStack align="stretch" spacing={3} mt={2}>
-                  {resolvedValueTypeId === 'COLOR' && (
-                    <VStack>
-                      <Input
-                        type="color"
-                        w="40px"
-                        p={0}
-                        value={typeof value === 'object' && value.type === 'COLOR' ? value.value : '#000000'}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'COLOR', value: e.target.value })}
-                      />
-                      <Input
-                        size="sm"
-                        value={typeof value === 'object' && value.type === 'COLOR' ? value.value : ''}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'COLOR', value: e.target.value })}
-                      />
-                    </VStack>
-                  )}
-                  {resolvedValueTypeId === 'DIMENSION' && (
-                    <Input
-                      size="sm"
-                      value={typeof value === 'object' && value.type === 'DIMENSION' ? value.value : ''}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'DIMENSION', value: e.target.value })}
-                    />
-                  )}
+                  {renderCustomInput()}
                 </VStack>
               </TabPanel>
               <TabPanel px={0}>
