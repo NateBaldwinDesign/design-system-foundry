@@ -13,7 +13,8 @@ const STORAGE_KEYS = {
   DIMENSIONS: 'token-model:dimensions',
   PLATFORMS: 'token-model:platforms',
   THEMES: 'token-model:themes',
-  TAXONOMIES: 'token-model:taxonomies'
+  TAXONOMIES: 'token-model:taxonomies',
+  NAMING_RULES: 'token-model:naming-rules'
 } as const;
 
 export class StorageService {
@@ -92,6 +93,14 @@ export class StorageService {
 
   static setTaxonomies(taxonomies: Taxonomy[]): void {
     localStorage.setItem(STORAGE_KEYS.TAXONOMIES, JSON.stringify(taxonomies));
+  }
+
+  static getNamingRules(): { taxonomyOrder: string[] } {
+    return this.getItem(STORAGE_KEYS.NAMING_RULES, { taxonomyOrder: [] });
+  }
+
+  static setNamingRules(rules: { taxonomyOrder: string[] }): void {
+    this.setItem(STORAGE_KEYS.NAMING_RULES, rules);
   }
 
   static clearAll(): void {

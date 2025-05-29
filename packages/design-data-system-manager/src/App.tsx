@@ -12,7 +12,8 @@ import {
   Token,
   Dimension,
   Platform,
-  Taxonomy
+  Taxonomy,
+  Theme
 } from '@token-model/data-model';
 import { StorageService } from './services/storage';
 import PublishingView from './views/publishing/PublishingView';
@@ -64,7 +65,7 @@ const App: React.FC = () => {
   const [resolvedValueTypes, setResolvedValueTypes] = useState<{ id: string; displayName: string }[]>([]);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
-  const [themes, setThemes] = useState<unknown[]>([]);
+  const [themes, setThemes] = useState<Theme[]>([]);
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataOptions, setDataOptions] = useState<{ label: string; value: string; filePath: string }[]>([]);
@@ -75,102 +76,70 @@ const App: React.FC = () => {
   }, []);
 
   const loadDataFromSource = async (filePath: string) => {
-    setLoading(true);
-    const rawData = await exampleDataFiles[filePath]();
-    let d = JSON.parse(rawData);
+    try {
+      const fileContent = await exampleDataFiles[filePath]();
+      const d = JSON.parse(fileContent);
 
-    // If this is a theme override file, merge with the full core data object
-    if (
-      d &&
-      typeof d === 'object' &&
-      d.systemId &&
-      d.themeId &&
-      Array.isArray(d.tokenOverrides) &&
-      !Array.isArray(d.tokens)
-    ) {
-      // Search ALL files for a matching core data file (not just same directory)
-      const candidates = Object.keys(exampleDataFiles);
-      let coreData: Record<string, unknown> | null = null;
-      for (const file of candidates) {
-        if (file === filePath) continue;
-        const fileRaw = await exampleDataFiles[file]();
-        let fileData: Record<string, unknown> | undefined;
-        try { fileData = JSON.parse(fileRaw); } catch { continue; }
-        if (
-          fileData &&
-          typeof fileData === 'object' &&
-          (fileData as { systemId?: string; tokens?: Token[] }).systemId === d.systemId &&
-          Array.isArray((fileData as { tokens?: Token[] }).tokens)
-        ) {
-          coreData = fileData;
-          break;
-        }
-      }
-      if (!coreData) {
-        alert('No matching core data file found for systemId: ' + d.systemId);
-        setLoading(false);
-        return;
-      }
-      // Merge tokens: apply overrides to core tokens
-      const mergedTokens: Token[] = ((coreData as { tokens: Token[] }).tokens).map((token: Token) => {
-        const override = (d.tokenOverrides as { tokenId: string; value: unknown }[]).find((o) => o.tokenId === token.id);
-        if (override && token.themeable) {
-          return {
-            ...token,
-            valuesByMode: [
-              {
-                modeIds: [],
-                value: override.value
-              }
-            ]
-          };
-        }
-        return token;
-      });
-      // Merge: use all fields from coreData, but replace tokens with mergedTokens
-      d = { ...coreData, ...d, tokens: mergedTokens };
+      // Normalize and set state
+      const normalizedCollections = (d as { tokenCollections?: TokenCollection[] }).tokenCollections ?? [];
+      const normalizedDimensions = (d as { dimensions?: Dimension[] }).dimensions ?? [];
+      const normalizedTokens = (d as { tokens?: Token[] }).tokens ?? [];
+      const normalizedPlatforms = (d as { platforms?: Platform[] }).platforms ?? [];
+      const normalizedThemes = ((d as { themes?: Theme[] }).themes ?? []).map(theme => ({
+        id: (theme as any).id,
+        displayName: (theme as any).displayName,
+        isDefault: (theme as any).isDefault ?? false,
+        description: (theme as any).description
+      }));
+      const normalizedTaxonomies = (d as { taxonomies?: Taxonomy[] }).taxonomies ?? [];
+      const normalizedResolvedValueTypes = (d as { resolvedValueTypes?: { id: string; displayName: string }[] }).resolvedValueTypes ?? [];
+      const normalizedNamingRules = {
+        taxonomyOrder: (d as { namingRules?: { taxonomyOrder?: string[] } }).namingRules?.taxonomyOrder ?? []
+      };
+      const normalizedVersionHistory = (d as { versionHistory?: any[] }).versionHistory ?? [];
+      const systemName = (d as { systemName?: string }).systemName ?? 'Design System';
+      const systemId = (d as { systemId?: string }).systemId ?? 'design-system';
+      const description = (d as { description?: string }).description ?? 'A comprehensive design system with tokens, dimensions, and themes';
+      const version = (d as { version?: string }).version ?? '1.0.0';
+
+      const allModes: Mode[] = normalizedDimensions.flatMap((d: Dimension) => (d as { modes?: Mode[] }).modes || []);
+
+      // Set React state
+      setCollections(normalizedCollections);
+      setModes(allModes);
+      setDimensions(normalizedDimensions);
+      setResolvedValueTypes(normalizedResolvedValueTypes);
+      setTokens(normalizedTokens);
+      setPlatforms(normalizedPlatforms);
+      setThemes(normalizedThemes);
+      setTaxonomies(normalizedTaxonomies);
+      setTaxonomyOrder(normalizedNamingRules.taxonomyOrder);
+      setLoading(false);
+
+      // Store in localStorage via StorageService
+      StorageService.setCollections(normalizedCollections);
+      StorageService.setModes(allModes);
+      StorageService.setDimensions(normalizedDimensions);
+      StorageService.setValueTypes(normalizedResolvedValueTypes.map(vt => vt.id));
+      StorageService.setTokens(normalizedTokens);
+      StorageService.setPlatforms(normalizedPlatforms);
+      StorageService.setThemes(normalizedThemes);
+      StorageService.setTaxonomies(normalizedTaxonomies);
+      StorageService.setNamingRules(normalizedNamingRules);
+
+      // Store root-level data in localStorage
+      const root = {
+        systemName,
+        systemId,
+        description,
+        version,
+        versionHistory: normalizedVersionHistory
+      };
+      localStorage.setItem('token-model:root', JSON.stringify(root));
+    } catch (error) {
+      console.error('Error loading data:', error);
+      setLoading(false);
     }
-
-    // Normalize and set state
-    const normalizedCollections = (d as { tokenCollections?: TokenCollection[] }).tokenCollections ?? [];
-    const normalizedDimensions = (d as { dimensions?: Dimension[] }).dimensions ?? [];
-    const normalizedTokens = (d as { tokens?: Token[] }).tokens ?? [];
-    const normalizedPlatforms = (d as { platforms?: Platform[] }).platforms ?? [];
-
-    const allModes: Mode[] = normalizedDimensions.flatMap((d: Dimension) => (d as { modes?: Mode[] }).modes || []);
-
-    setCollections(normalizedCollections);
-    setModes(allModes);
-    setDimensions(normalizedDimensions);
-    setResolvedValueTypes((d as { resolvedValueTypes?: { id: string; displayName: string }[] }).resolvedValueTypes ?? []);
-    setTokens(normalizedTokens);
-    setPlatforms(normalizedPlatforms);
-    setThemes((d as { themes?: unknown[] }).themes ?? []);
-    setTaxonomies((d as { taxonomies?: Taxonomy[] }).taxonomies ?? []);
-    setLoading(false);
-
-    const namingRules = (d as { namingRules?: { taxonomyOrder?: string[] } }).namingRules || {};
-    const order = namingRules.taxonomyOrder || [];
-    setTaxonomyOrder(order);
-
-    StorageService.setCollections(normalizedCollections);
-    StorageService.setModes(allModes);
-    StorageService.setDimensions(normalizedDimensions);
-    // @ts-expect-error: StorageService.setValueTypes expects string[] but schema uses objects
-    StorageService.setValueTypes((d as { resolvedValueTypes?: { id: string; displayName: string }[] }).resolvedValueTypes ?? []);
-    StorageService.setTokens(normalizedTokens);
-    StorageService.setPlatforms(normalizedPlatforms);
-    StorageService.setThemes((d as { themes?: unknown[] }).themes ?? []);
-    StorageService.setTaxonomies((d as { taxonomies?: Taxonomy[] }).taxonomies ?? []);
-
-    const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
-    localStorage.setItem('token-model:root', JSON.stringify({
-      ...root,
-      namingRules: {
-        ...namingRules,
-        taxonomyOrder: order
-      }
-    }));
   };
 
   useEffect(() => {

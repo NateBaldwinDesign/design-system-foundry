@@ -544,7 +544,7 @@
                         "type": "object",
                         "required": ["type", "value"],
                         "properties": {
-                          "type": { "type": "string", "enum": ["COLOR"] },
+                          "type": { "type": "string", "pattern": "^[a-zA-Z0-9-_]+$" },
                           "value": { "type": "string" },
                           "method": {
                             "type": "string",

@@ -24,11 +24,10 @@ import type { Token, TokenValue } from '@token-model/data-model';
 import Color from 'colorjs.io';
 
 interface Constraint {
-  type: string;
+  resolvedValueTypeId: string;
   rule: {
-    comparator: { value: string };
+    comparator: { resolvedValueTypeId: string; value: string; method?: string };
     minimum: number;
-    method?: string;
   };
 }
 
@@ -48,7 +47,7 @@ interface TokenValuePickerProps {
 function satisfiesConstraints(token: Token, constraints?: Constraint[]): boolean {
   if (!constraints || constraints.length === 0) return true;
   for (const constraint of constraints) {
-    if (constraint.type === 'contrast') {
+    if (constraint.resolvedValueTypeId === 'contrast') {
       // Find the color value for this token (global or first mode)
       let color: string | undefined;
       if (token.valuesByMode && token.valuesByMode.length > 0) {
@@ -60,7 +59,7 @@ function satisfiesConstraints(token: Token, constraints?: Constraint[]): boolean
       if (!color) return false;
       const comparator = constraint.rule.comparator.value;
       const min = constraint.rule.minimum;
-      const method = constraint.rule.method || 'WCAG21';
+      const method = constraint.rule.comparator.method || 'WCAG21';
       let colorjsMethod: string;
       if (method === 'WCAG21') colorjsMethod = 'WCAG21';
       else if (method === 'APCA') colorjsMethod = 'APCA';
