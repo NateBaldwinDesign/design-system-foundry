@@ -14,7 +14,7 @@
     {
       "id": "tokenCollection-AAAA-AAAA-AAAA",
       "name": "Color",
-      "resolvedValueTypeIds": ["valueTypeId-COLOR"],
+      "resolvedValueTypeIds": ["color"],
       "private": false,
       "supportedDimensionIds": ["dimensionId-0000-0000-0000", "dimensionId-1111-1111-1111"],
       "defaultModeIds": ["modeId-light", "modeId-regular"],
@@ -26,7 +26,7 @@
     {
       "id": "tokenCollection-BBBB-BBBB-BBBB",
       "name": "Typography",
-      "resolvedValueTypeIds": ["valueTypeId-FONT_FAMILY", "valueTypeId-LINE_HEIGHT", "valueTypeId-FONT_WEIGHT"],
+      "resolvedValueTypeIds": ["font_family", "line_height", "font_weight"],
       "private": false,
       "supportedDimensionIds": ["dimensionId-0000-0000-0000", "dimensionId-2222-2222-2222"],
       "defaultModeIds": ["modeId-light", "modeId-regular", "modeId-latin"],
@@ -37,16 +37,16 @@
     }
   ],
   "resolvedValueTypes": [
-    { "id": "valueTypeId-COLOR", "displayName": "Color", "type": "COLOR" },
-    { "id": "valueTypeId-FONT_FAMILY", "displayName": "Font Family", "type": "FONT_FAMILY" },
-    { "id": "valueTypeId-LINE_HEIGHT", "displayName": "Line Height", "type": "LINE_HEIGHT" },
-    { "id": "valueTypeId-FONT_WEIGHT", "displayName": "Font Weight", "type": "FONT_WEIGHT" },
-    { "id": "valueTypeId-SPACING", "displayName": "Spacing", "type": "SPACING" },
-    { "id": "valueTypeId-OPACITY", "displayName": "Opacity" },
-    { "id": "valueTypeId-SHADOW", "displayName": "Shadow", "type": "SHADOW" },
-    { "id": "valueTypeId-BORDER", "displayName": "Border" },
-    { "id": "valueTypeId-RADIUS", "displayName": "Radius", "type": "RADIUS" },
-    { "id": "valueTypeId-Z_INDEX", "displayName": "Z Index" }
+    { "id": "color", "displayName": "Color", "type": "COLOR" },
+    { "id": "font_family", "displayName": "Font Family", "type": "FONT_FAMILY" },
+    { "id": "line_height", "displayName": "Line Height", "type": "LINE_HEIGHT" },
+    { "id": "font_weight", "displayName": "Font Weight", "type": "FONT_WEIGHT" },
+    { "id": "spacing", "displayName": "Spacing", "type": "SPACING" },
+    { "id": "opacity", "displayName": "Opacity" },
+    { "id": "shadow", "displayName": "Shadow", "type": "SHADOW" },
+    { "id": "border", "displayName": "Border" },
+    { "id": "radius", "displayName": "Radius", "type": "RADIUS" },
+    { "id": "z_index", "displayName": "Z Index" }
   ],
   "dimensions": [
     {
@@ -58,7 +58,7 @@
       ],
       "required": true,
       "defaultMode": "modeId-light",
-      "resolvedValueTypeIds": ["valueTypeId-COLOR", "valueTypeId-OPACITY", "valueTypeId-FONT_WEIGHT"]
+      "resolvedValueTypeIds": ["color", "opacity", "font_weight"]
     },
     {
       "id": "dimensionId-1111-1111-1111",
@@ -70,7 +70,7 @@
       ],
       "required": false,
       "defaultMode": "modeId-regular",
-      "resolvedValueTypeIds": ["valueTypeId-COLOR", "valueTypeId-OPACITY"]
+      "resolvedValueTypeIds": ["color", "opacity"]
     },
     {
       "id": "dimensionId-2222-2222-2222",
@@ -83,7 +83,7 @@
       ],
       "required": false,
       "defaultMode": "modeId-latin",
-      "resolvedValueTypeIds": ["valueTypeId-FONT_FAMILY", "valueTypeId-LINE_HEIGHT", "valueTypeId-FONT_WEIGHT"]
+      "resolvedValueTypeIds": ["font_family", "line_height", "font_weight"]
     }
   ],
   "themes": [],
@@ -130,7 +130,7 @@
       "displayName": "Black",
       "description": "Pure black",
       "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
-      "resolvedValueTypeId": "valueTypeId-COLOR",
+      "resolvedValueTypeId": "color",
       "private": false,
       "status": "stable",
       "themeable": false,
@@ -174,7 +174,7 @@
       "displayName": "Blue 500",
       "description": "Midtone blue",
       "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
-      "resolvedValueTypeId": "valueTypeId-COLOR",
+      "resolvedValueTypeId": "color",
       "private": false,
       "status": "stable",
       "themeable": false,
@@ -240,7 +240,7 @@
       "displayName": "Accent text color",
       "description": "Color of text using a shade of the accent color hue",
       "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
-      "resolvedValueTypeId": "valueTypeId-COLOR",
+      "resolvedValueTypeId": "color",
       "private": false,
       "status": "stable",
       "themeable": false,

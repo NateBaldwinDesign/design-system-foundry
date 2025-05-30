@@ -7,7 +7,7 @@
       "valuesByMode": [
         {
           "modeIds": [],
-          "value": { "resolvedValueTypeId": "color", "value": "#009688" }
+          "value": { "type": "COLOR", "value": "#009688" }
         }
       ]
     },
@@ -16,7 +16,7 @@
       "valuesByMode": [
         {
           "modeIds": [],
-          "value": { "resolvedValueTypeId": "font_family", "value": "Inter" }
+          "value": { "type": "FONT_FAMILY", "value": "Inter" }
         }
       ]
     }
