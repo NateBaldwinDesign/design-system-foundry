@@ -2,8 +2,8 @@ import React from 'react';
 import { useColorMode, useToken } from '@chakra-ui/react';
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter';
 import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json';
+import { atomOneDark, atomOneLight } from 'react-syntax-highlighter/dist/esm/styles/hljs';
 import { Box } from '@chakra-ui/react';
-import type { CSSProperties } from 'react';
 
 // Register JSON language
 SyntaxHighlighter.registerLanguage('json', json);
@@ -18,52 +18,10 @@ export const JsonSyntaxHighlighter: React.FC<JsonSyntaxHighlighterProps> = ({
   showLineNumbers = false,
 }) => {
   const { colorMode } = useColorMode();
-  // Resolve Chakra color tokens to real CSS values
-  const [gray100, gray800, green300, green600, orange300, orange600, purple300, purple600, blue300, blue600, yellow300, yellow600, gray400, gray600, gray500, gray900, white, gray700, gray200] = useToken(
+  const [gray900, white, gray700, gray200] = useToken(
     'colors',
-    [
-      'gray.100', 'gray.800',
-      'green.300', 'green.600',
-      'orange.300', 'orange.600',
-      'purple.300', 'purple.600',
-      'blue.300', 'blue.600',
-      'yellow.300', 'yellow.600',
-      'gray.400', 'gray.600', 'gray.500',
-      'gray.900', 'white', 'gray.700', 'gray.200'
-    ]
+    ['gray.900', 'white', 'gray.700', 'gray.200']
   );
-
-  // Custom theme using Chakra UI colors (resolved to CSS values)
-  const customTheme: Record<string, CSSProperties> = {
-    'hljs': {
-      display: 'block',
-      overflowX: 'auto',
-      padding: '0.5em',
-      color: colorMode === 'dark' ? gray100 : gray800,
-      background: 'transparent',
-    },
-    'hljs-string': {
-      color: colorMode === 'dark' ? green300 : green600,
-    },
-    'hljs-number': {
-      color: colorMode === 'dark' ? purple300 : purple600,
-    },
-    'hljs-literal': {
-      color: colorMode === 'dark' ? yellow300 : yellow600,
-    },
-    'hljs-keyword': {
-      color: colorMode === 'dark' ? blue300 : blue600,
-    },
-    'hljs-attr': {
-      color: colorMode === 'dark' ? purple300 : purple600,
-    },
-    'hljs-punctuation': {
-      color: colorMode === 'dark' ? gray400 : gray600,
-    },
-    'hljs-comment': {
-      color: gray500,
-    },
-  };
 
   return (
     <Box
@@ -77,7 +35,7 @@ export const JsonSyntaxHighlighter: React.FC<JsonSyntaxHighlighterProps> = ({
       <SyntaxHighlighter
         language="json"
         showLineNumbers={showLineNumbers}
-        style={customTheme}
+        style={colorMode === 'dark' ? atomOneDark : atomOneLight}
         customStyle={{
           background: 'transparent',
           padding: 0,

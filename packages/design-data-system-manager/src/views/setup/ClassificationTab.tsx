@@ -96,23 +96,23 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
         versionHistory = []
       } = root;
 
-      const data = {
+    const data = {
         systemName,
         systemId,
-        tokenCollections: collections,
-        dimensions,
-        tokens,
-        platforms,
+      tokenCollections: collections,
+      dimensions,
+      tokens,
+      platforms,
         taxonomies,
-        resolvedValueTypes,
+      resolvedValueTypes,
         version,
         versionHistory
-      };
+    };
 
       console.log('[ClassificationTab] Validation data:', JSON.stringify(data, null, 2));
-      const result = ValidationService.validateData(data);
+    const result = ValidationService.validateData(data);
       console.log('[ClassificationTab] Validation result:', result);
-      if (!result.isValid) {
+    if (!result.isValid) {
         console.error('[ClassificationTab] Validation errors:', result.errors);
         toast({
           title: "Validation Error",
@@ -232,7 +232,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
     const termNames = newTerms.map(t => t.name.trim().toLowerCase());
     if (
       (termEditIndex === null && termNames.includes(termForm.name.trim().toLowerCase())) ||
-      (termEditIndex !== null && termNames.filter((n, i) => i !== termEditIndex).includes(termForm.name.trim().toLowerCase()))
+      (termEditIndex !== null && termNames.filter((_, i) => i !== termEditIndex).includes(termForm.name.trim().toLowerCase()))
     ) {
       toast({ title: 'Term names must be unique', status: 'error', duration: 2000 });
       return;

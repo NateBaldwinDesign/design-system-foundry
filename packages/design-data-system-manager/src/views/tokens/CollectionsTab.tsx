@@ -90,7 +90,7 @@ export function CollectionsTab({ collections, modes, onUpdate }: CollectionsTabP
               </HStack>
               <VStack align="start" spacing={1} mt={2} ml={2}>
                 <Text fontSize="sm" color="gray.600">
-                  <b>Value Types:</b> {Array.isArray(collection.resolvedValueTypes) ? collection.resolvedValueTypes.join(', ') : 'None'}
+                  <b>Value Type IDs:</b> {Array.isArray(collection.resolvedValueTypeIds) ? collection.resolvedValueTypeIds.join(', ') : 'None'}
                 </Text>
                 <Text fontSize="sm" color="gray.600">
                   <b>Mode Priority:</b> {Array.isArray(collection.modeResolutionStrategy?.priorityByType) && collection.modeResolutionStrategy?.priorityByType.length > 0

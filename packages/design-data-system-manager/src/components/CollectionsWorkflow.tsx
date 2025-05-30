@@ -90,7 +90,7 @@ export function CollectionsWorkflow({ collections, modes, onUpdate }: Collection
               </HStack>
               <VStack align="start" spacing={1} mt={2} ml={2}>
                 <Text fontSize="sm" color="gray.600">
-                  <b>Value Types:</b> {Array.isArray(collection.resolvedValueTypes) ? collection.resolvedValueTypes.join(', ') : 'None'}
+                  <b>Value Type IDs:</b> {Array.isArray(collection.resolvedValueTypeIds) ? collection.resolvedValueTypeIds.join(', ') : 'None'}
                 </Text>
                 <Text fontSize="sm" color="gray.600">
                   <b>Mode Priority:</b> {Array.isArray(collection.modeResolutionStrategy?.priorityByType) && collection.modeResolutionStrategy?.priorityByType.length > 0
@@ -105,7 +105,7 @@ export function CollectionsWorkflow({ collections, modes, onUpdate }: Collection
                 )}
                 {collection.defaultModeIds && collection.defaultModeIds.length > 0 && (
                   <Text fontSize="sm" color="gray.600">
-                    <b>Default Modes:</b> {collection.defaultModeIds.map(id => {
+                    <b>Default Modes:</b> {collection.defaultModeIds.map((id: string) => {
                       const mode = modes.find(m => m.id === id);
                       return mode?.name || id;
                     }).join(', ')}

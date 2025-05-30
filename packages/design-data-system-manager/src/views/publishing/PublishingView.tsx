@@ -3,41 +3,21 @@ import { Box } from '@chakra-ui/react';
 import { VerticalTabsLayout } from '../../components/VerticalTabsLayout';
 import { PlatformsTab } from './PlatformsTab';
 import { ValidationTab } from './ValidationTab';
-import { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
+import { TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
+import { ExtendedToken } from '../../components/TokenEditorDialog';
 
 interface PublishingViewProps {
-  tokens: Token[];
-  setTokens: (tokens: Token[]) => void;
+  tokens: ExtendedToken[];
+  setTokens: (tokens: ExtendedToken[]) => void;
   collections: TokenCollection[];
-  setCollections: (collections: TokenCollection[]) => void;
   dimensions: Dimension[];
-  setDimensions: (dimensions: Dimension[]) => void;
   platforms: Platform[];
   setPlatforms: (platforms: Platform[]) => void;
   taxonomies: Taxonomy[];
-  setTaxonomies: (taxonomies: Taxonomy[]) => void;
-  setResolvedValueTypes: (types: { id: string; displayName: string }[]) => void;
-  setThemes: (themes: unknown[]) => void;
-  setModes: (modes: any[]) => void;
-  setTaxonomyOrder: (order: string[]) => void;
 }
 
-const PublishingView: React.FC<PublishingViewProps> = ({
-  tokens,
-  setTokens,
-  collections,
-  setCollections,
-  dimensions,
-  setDimensions,
-  platforms,
-  setPlatforms,
-  taxonomies,
-  setTaxonomies,
-  setResolvedValueTypes,
-  setThemes,
-  setModes,
-  setTaxonomyOrder
-}) => {
+const PublishingView: React.FC<PublishingViewProps> = (props: PublishingViewProps) => {
+  const { tokens, setTokens, collections, dimensions, platforms, setPlatforms, taxonomies } = props;
   const [activeTab, setActiveTab] = useState(0);
 
   return (

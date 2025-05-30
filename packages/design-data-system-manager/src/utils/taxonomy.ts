@@ -1,4 +1,4 @@
-import type { Token, Taxonomy } from '@token-model/data-model';
+import type { Taxonomy } from '@token-model/data-model';
 import { StorageService } from '../services/storage';
 
 /**

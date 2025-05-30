@@ -6,11 +6,13 @@
     "build": "pnpm -r build",
     "dev": "pnpm -r dev",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "clean": "bash ./clean-all.sh",
+    "nuclear-clean": "bash ./nuclear-clean.sh"
   },
   "devDependencies": {
-    "@types/node": "^20.11.24",
-    "@types/react": "^18.3.22",
+    "@types/node": "^20.17.57",
+    "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "eslint-plugin-react": "^7.37.5",
     "prettier": "^3.2.5",
@@ -24,9 +26,9 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
-    "framer-motion": "^12.12.1",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "framer-motion": "^12.15.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-syntax-highlighter": "^15.6.1",
     "ts-node": "^10.9.2"
   }

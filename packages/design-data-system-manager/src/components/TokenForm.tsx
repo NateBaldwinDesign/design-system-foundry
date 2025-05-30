@@ -36,7 +36,7 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
     displayName: '',
     description: '',
     tokenCollectionId: '',
-    resolvedValueTypeId: 'COLOR',
+    resolvedValueTypeId: 'color',
     private: false,
     themeable: false,
     taxonomies: [] as TokenTaxonomyRef[],
@@ -59,18 +59,18 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
   }, [initialData]);
 
   useEffect(() => {
-    setFormData(prev => ({
+    setFormData((prev: Token) => ({
       ...prev,
-      taxonomies: (prev.taxonomies || []).filter(ref =>
-        safeTaxonomies.some(tax => tax.id === ref.taxonomyId) &&
-        (ref.termId === '' || safeTaxonomies.find(tax => tax.id === ref.taxonomyId)?.terms.some(term => term.id === ref.termId))
+      taxonomies: (prev.taxonomies || []).filter((ref: TokenTaxonomyRef) =>
+        safeTaxonomies.some((tax: Taxonomy) => tax.id === ref.taxonomyId) &&
+        (ref.termId === '' || safeTaxonomies.find((tax: Taxonomy) => tax.id === ref.taxonomyId)?.terms.some((term: { id: string }) => term.id === ref.termId))
       )
     }));
   }, [safeTaxonomies]);
 
   const handleInputChange = (field: keyof Token, value: string | string[] | boolean | TokenTaxonomyRef[]) => {
     if (field === 'resolvedValueTypeId' && typeof value === 'string') {
-      const validTypes = ['COLOR', 'DIMENSION', 'SPACING', 'FONT_FAMILY', 'FONT_WEIGHT', 'FONT_SIZE', 'LINE_HEIGHT', 'LETTER_SPACING', 'DURATION', 'CUBIC_BEZIER', 'BLUR', 'SPREAD', 'RADIUS', 'ALIAS'];
+      const validTypes = ['color', 'dimension', 'spacing', 'font_family', 'font_weight', 'font_size', 'line_height', 'letter_spacing', 'duration', 'cubic_bezier', 'blur', 'spread', 'radius', 'alias'];
       if (!validTypes.includes(value)) {
         console.error(`Invalid resolvedValueTypeId: ${value}`);
         return;
@@ -83,9 +83,9 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
   };
 
   const handleValueByModeChange = (index: number, field: 'modeIds' | 'value', value: string[] | TokenValue) => {
-    setFormData(prev => ({
+    setFormData((prev: Token) => ({
       ...prev,
-      valuesByMode: (prev.valuesByMode || []).map((item, i) =>
+      valuesByMode: (prev.valuesByMode || []).map((item: { modeIds: string[]; value: TokenValue }, i: number) =>
         i === index ? { ...item, [field]: value } : item
       )
     }));
@@ -96,7 +96,7 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
       .filter(d => d.required)
       .map(d => modes.find(m => m.dimensionId === d.id && m.name === d.defaultMode)?.id)
       .filter(Boolean) as string[];
-    setFormData(prev => ({
+    setFormData((prev: Token) => ({
       ...prev,
       valuesByMode: [...(prev.valuesByMode || []), {
         modeIds: requiredModeIds,
@@ -106,9 +106,9 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
   };
 
   const removeValueByMode = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev: Token) => ({
       ...prev,
-      valuesByMode: (prev.valuesByMode || []).filter((_, i) => i !== index)
+      valuesByMode: (prev.valuesByMode || []).filter((_: unknown, i: number) => i !== index)
     }));
   };
 
@@ -194,21 +194,21 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
           <FormLabel>Display Name</FormLabel>
           <Input
             value={formData.displayName}
-            onChange={e => handleInputChange('displayName', e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('displayName', e.target.value)}
           />
         </FormControl>
         <FormControl>
           <FormLabel>Description</FormLabel>
           <Input
             value={formData.description}
-            onChange={e => handleInputChange('description', e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('description', e.target.value)}
           />
         </FormControl>
         <FormControl isRequired>
           <FormLabel>Collection</FormLabel>
           <Select
             value={formData.tokenCollectionId}
-            onChange={e => handleInputChange('tokenCollectionId', e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange('tokenCollectionId', e.target.value)}
             placeholder="Select collection"
           >
             {collections.map(collection => (
@@ -220,29 +220,29 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
           <FormLabel>Resolved Value Type</FormLabel>
           <Select
             value={formData.resolvedValueTypeId}
-            onChange={e => handleInputChange('resolvedValueTypeId', e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleInputChange('resolvedValueTypeId', e.target.value)}
             placeholder="Select value type"
           >
-            <option value="COLOR">Color</option>
-            <option value="DIMENSION">Dimension</option>
-            <option value="SPACING">Spacing</option>
-            <option value="FONT_FAMILY">Font Family</option>
-            <option value="FONT_WEIGHT">Font Weight</option>
-            <option value="FONT_SIZE">Font Size</option>
-            <option value="LINE_HEIGHT">Line Height</option>
-            <option value="LETTER_SPACING">Letter Spacing</option>
-            <option value="DURATION">Duration</option>
-            <option value="CUBIC_BEZIER">Cubic Bezier</option>
-            <option value="BLUR">Blur</option>
-            <option value="SPREAD">Spread</option>
-            <option value="RADIUS">Radius</option>
-            <option value="ALIAS">Alias</option>
+            <option value="color">Color</option>
+            <option value="dimension">Dimension</option>
+            <option value="spacing">Spacing</option>
+            <option value="font_family">Font Family</option>
+            <option value="font_weight">Font Weight</option>
+            <option value="font_size">Font Size</option>
+            <option value="line_height">Line Height</option>
+            <option value="letter_spacing">Letter Spacing</option>
+            <option value="duration">Duration</option>
+            <option value="cubic_bezier">Cubic Bezier</option>
+            <option value="blur">Blur</option>
+            <option value="spread">Spread</option>
+            <option value="radius">Radius</option>
+            <option value="alias">Alias</option>
           </Select>
         </FormControl>
         <FormControl>
           <Checkbox
             isChecked={!!formData.private}
-            onChange={e => handleInputChange('private', e.target.checked)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('private', e.target.checked)}
           >
             Private
           </Checkbox>
@@ -250,7 +250,7 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
         <FormControl>
           <Checkbox
             isChecked={!!formData.themeable}
-            onChange={e => handleInputChange('themeable', e.target.checked)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('themeable', e.target.checked)}
           >
             Themeable
           </Checkbox>
@@ -259,7 +259,7 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
           <FormLabel>Property Types (comma separated)</FormLabel>
           <Input
             value={(formData.propertyTypes || []).join(',')}
-            onChange={e => handleInputChange('propertyTypes', e.target.value.split(',').map((v: string) => v.trim()))}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('propertyTypes', e.target.value.split(',').map((v: string) => v.trim()))}
           />
         </FormControl>
         <Text fontSize="lg" fontWeight="medium">Taxonomies</Text>
@@ -271,7 +271,7 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
         />
         <Text fontSize="lg" fontWeight="medium">Values By Mode</Text>
         <VStack align="stretch" spacing={2}>
-          {(formData.valuesByMode || []).map((valueByMode, index) => (
+          {(formData.valuesByMode || []).map((valueByMode: { modeIds: string[]; value: TokenValue }, index: number) => (
             <Box key={index} p={2} borderWidth={1} borderRadius="md" bg="gray.50">
               <HStack spacing={2} mb={2}>
                 <FormControl>
@@ -279,7 +279,7 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
                   <Select
                     multiple
                     value={valueByMode.modeIds}
-                    onChange={e => handleValueByModeChange(index, 'modeIds', Array.from(e.target.selectedOptions, option => option.value))}
+                    onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleValueByModeChange(index, 'modeIds', Array.from(e.target.selectedOptions, (option: HTMLOptionElement) => option.value))}
                   >
                     {modes.map(mode => (
                       <option key={mode.id} value={mode.id}>{mode.name}</option>

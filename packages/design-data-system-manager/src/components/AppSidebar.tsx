@@ -4,11 +4,6 @@ import {
   VStack,
   IconButton,
   Text,
-  Accordion,
-  AccordionItem,
-  AccordionButton,
-  AccordionPanel,
-  AccordionIcon,
   useColorMode,
   Tooltip,
   Button,
@@ -16,20 +11,15 @@ import {
   HStack,
 } from '@chakra-ui/react';
 import {
-  Eye,
   Star,
-  Pencil,
-  Lock,
   Download,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
   Settings,
-  Info,
   LayoutDashboard,
   Hexagon,
   Folders,
-  Ratio,
   SquareFunction,
   Tag,
   SquareStack,
@@ -45,7 +35,6 @@ import {
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
-import { HSL } from 'colorjs.io/fn';
 
 interface NavItem {
   id: string;
@@ -127,7 +116,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const bgColor = colorMode === 'dark' ? 'gray.800' : 'white';
   const borderColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
 
-  const renderNavItem = (item: NavItem, isSubItem = false) => {
+  const renderNavItem = (item: NavItem) => {
     const isActive = location.pathname === item.route;
     const Icon = item.icon;
     const content = (
@@ -183,11 +172,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       <VStack spacing={0} align="stretch" h="full">
         {/* Logo */}
         <Box p={4} borderBottom="1px" borderColor={borderColor} display="flex" gap={2} justifyContent="center" alignItems="center">
-          <Logo size={32} color={colorMode === 'dark' ? 'white' : 'black'} />
+          <Logo size={34} color={colorMode === 'dark' ? 'white' : 'black'} />
           {/* Title */}
-          <Text fontSize="xl" fontWeight="bold" textAlign="center">
-            {!isCollapsed && 'DDSM'}
-          </Text>
+          {!isCollapsed && (
+            <Text fontSize="sm" lineHeight="1" fontWeight="bold">
+              Design<br/>System<br/>Foundry
+            </Text>
+          )}
         </Box>
 
         {/* Collapse Toggle Button */}
@@ -206,82 +197,17 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           {NAV_ITEMS.map((item) => {
             if (item.children) {
               return (
-                <React.Fragment key={item.id}>
-                  {/* Section Heading (hidden when collapsed) */}
+                <Box key={item.id}>
+                  {renderNavItem(item)}
                   {!isCollapsed && (
-                    <Text
-                      fontWeight="bold"
-                      fontSize="sm"
-                      color={colorMode === 'dark' ? 'gray.300' : 'gray.600'}
-                      mt={4}
-                      mb={1}
-                      pl={2}
-                      textTransform="uppercase"
-                      letterSpacing="wider"
-                    >
-                      {item.label}
-                    </Text>
+                    <VStack spacing={1} align="stretch" ml={6} mt={1}>
+                      {item.children.map((child) => renderNavItem(child))}
+                    </VStack>
                   )}
-                  {item.children.map((child) => (
-                    <Box
-                      key={child.id}
-                      as={Link}
-                      to={child.route}
-                      display="flex"
-                      alignItems="center"
-                      p={2}
-                      borderRadius="md"
-                      bg={location.pathname === child.route ? 'blue.500' : 'transparent'}
-                      color={location.pathname === child.route ? 'white' : 'inherit'}
-                      _hover={{
-                        bg: location.pathname === child.route ? 'blue.600' : colorMode === 'dark' ? 'gray.700' : 'gray.100',
-                      }}
-                      cursor="pointer"
-                      role="menuitem"
-                      aria-current={location.pathname === child.route ? 'page' : undefined}
-                      tabIndex={0}
-                      textDecoration="none"
-                    >
-                      <child.icon size={20} />
-                      {!isCollapsed && (
-                        <Text ml={3} fontSize="sm">
-                          {child.label}
-                        </Text>
-                      )}
-                    </Box>
-                  ))}
-                </React.Fragment>
+                </Box>
               );
             }
-            // Render non-section nav items
-            return (
-              <Box
-                key={item.id}
-                as={Link}
-                to={item.route}
-                display="flex"
-                alignItems="center"
-                p={2}
-                borderRadius="md"
-                bg={location.pathname === item.route ? 'blue.500' : 'transparent'}
-                color={location.pathname === item.route ? 'white' : 'inherit'}
-                _hover={{
-                  bg: location.pathname === item.route ? 'blue.600' : colorMode === 'dark' ? 'gray.700' : 'gray.100',
-                }}
-                cursor="pointer"
-                role="menuitem"
-                aria-current={location.pathname === item.route ? 'page' : undefined}
-                tabIndex={0}
-                textDecoration="none"
-              >
-                <item.icon size={20} />
-                {!isCollapsed && (
-                  <Text ml={3} fontSize="sm">
-                    {item.label}
-                  </Text>
-                )}
-              </Box>
-            );
+            return renderNavItem(item);
           })}
         </VStack>
         {/* Data Source Controls (optional) */}

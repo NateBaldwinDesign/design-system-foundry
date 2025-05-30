@@ -1,5 +1,6 @@
 import { StorageService } from './storage';
 import { validateTokenSystem } from '@token-model/data-model';
+import type { ResolvedValueType, TokenCollection, Token, Dimension, Platform, Theme, Taxonomy } from '@token-model/data-model';
 
 /**
  * Reconstructs a schema-compliant JSON object from localStorage.
@@ -7,17 +8,17 @@ import { validateTokenSystem } from '@token-model/data-model';
  */
 export function createSchemaJsonFromLocalStorage() {
   // Read all relevant data from localStorage
-  const tokenCollections = StorageService.getCollections();
-  const tokens = StorageService.getTokens();
-  const dimensions = StorageService.getDimensions();
-  const platforms = StorageService.getPlatforms();
-  const themes = StorageService.getThemes();
-  const taxonomies = StorageService.getTaxonomies();
-  const resolvedValueTypes = StorageService.getValueTypes();
+  const tokenCollections = StorageService.getCollections() as TokenCollection[];
+  const tokens = StorageService.getTokens() as Token[];
+  const dimensions = StorageService.getDimensions() as Dimension[];
+  const platforms = StorageService.getPlatforms() as Platform[];
+  const themes = StorageService.getThemes() as Theme[];
+  const taxonomies = StorageService.getTaxonomies() as Taxonomy[];
+  const resolvedValueTypes = StorageService.getValueTypes() as (string | ResolvedValueType)[];
   const namingRules = StorageService.getNamingRules();
 
   // Read root-level data from localStorage
-  const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
+  const root = JSON.parse(localStorage.getItem('token-model:root') || '{}') as Record<string, unknown>;
   const {
     systemName = 'Design System',
     systemId = 'design-system',
@@ -27,9 +28,9 @@ export function createSchemaJsonFromLocalStorage() {
   } = root;
 
   // Compose versionHistory if not present
-  const normalizedVersionHistory = versionHistory.length > 0 ? versionHistory : [{
+  const normalizedVersionHistory = (Array.isArray(versionHistory) && versionHistory.length > 0) ? versionHistory : [{
     version,
-    dimensions: Array.isArray(dimensions) ? dimensions.map((d: any) => d.id) : [],
+    dimensions: Array.isArray(dimensions) ? dimensions.map((d) => d.id) : [],
     date: new Date().toISOString().slice(0, 10),
     migrationStrategy: {
       emptyModeIds: 'mapToDefaults',
@@ -38,17 +39,14 @@ export function createSchemaJsonFromLocalStorage() {
   }];
 
   // Compose required top-level fields (with defaults if missing)
-  const themeOverrides: Record<string, any> = {};
+  const themeOverrides: Record<string, unknown> = {};
 
   // Compose resolvedValueTypes as array of objects if needed
-  let resolvedValueTypesArray: any[] = [];
+  let resolvedValueTypesArray: ResolvedValueType[] = [];
   if (Array.isArray(resolvedValueTypes) && resolvedValueTypes.length > 0) {
-    if (typeof resolvedValueTypes[0] === 'string') {
-      // If stored as string IDs, convert to objects with displayName = id
-      resolvedValueTypesArray = resolvedValueTypes.map((id: string) => ({ id, displayName: id }));
-    } else {
-      resolvedValueTypesArray = resolvedValueTypes;
-    }
+    resolvedValueTypesArray = resolvedValueTypes.map((item) =>
+      typeof item === 'string' ? { id: item, displayName: item } : item as ResolvedValueType
+    );
   } else {
     // Fallback to standard types
     resolvedValueTypesArray = [
@@ -69,7 +67,7 @@ export function createSchemaJsonFromLocalStorage() {
   }
 
   // Normalize platforms to always include syntaxPatterns
-  const normalizedPlatforms = (platforms || []).map((p: any) => ({
+  const normalizedPlatforms = (platforms || []).map((p) => ({
     ...p,
     syntaxPatterns: {
       prefix: p.syntaxPatterns?.prefix ?? '',
@@ -115,12 +113,12 @@ export function createSchemaJsonFromLocalStorage() {
  * Validates a schema-compliant JSON object using validateTokenSystem.
  * Returns { valid: boolean, result?: any, error?: any }
  */
-export function validateSchemaJson(data: any) {
+export function validateSchemaJson(data: unknown) {
   try {
     const result = validateTokenSystem(data);
     return { valid: true, result };
-  } catch (error: any) {
-    return { valid: false, error: error.message || error };
+  } catch (error: unknown) {
+    return { valid: false, error: (error as Error).message || error };
   }
 }
 

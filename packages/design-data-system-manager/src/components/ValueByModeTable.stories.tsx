@@ -2,7 +2,8 @@ import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { ValueByModeTable } from './ValueByModeTable';
 import type { Mode, TokenValue } from '@token-model/data-model';
-import { Input, Select, Switch } from '@chakra-ui/react';
+import { Input, Select } from '@chakra-ui/react';
+import type { ChangeEvent } from 'react';
 
 const meta: Meta<typeof ValueByModeTable> = {
   title: 'Components/ValueByModeTable',
@@ -36,34 +37,26 @@ const getValueEditor = (value: TokenValue | string, modeIndex: number, isOverrid
         <Input
           type="color"
           value={value.value}
-          onChange={(e) => onChange?.({ type: 'COLOR', value: e.target.value })}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => onChange?.({ type: 'COLOR', value: e.target.value })}
           size="sm"
           w="100px"
         />
       );
-    case 'FLOAT':
+    case 'DIMENSION':
       return (
         <Input
           type="number"
           value={value.value}
-          onChange={(e) => onChange?.({ type: 'FLOAT', value: parseFloat(e.target.value) })}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => onChange?.({ type: 'DIMENSION', value: parseFloat(e.target.value) })}
           size="sm"
           w="120px"
-        />
-      );
-    case 'BOOLEAN':
-      return (
-        <Switch
-          isChecked={value.value}
-          onChange={(e) => onChange?.({ type: 'BOOLEAN', value: e.target.checked })}
-          size="md"
         />
       );
     case 'ALIAS':
       return (
         <Select
           value={value.tokenId}
-          onChange={(e) => onChange?.({ type: 'ALIAS', tokenId: e.target.value })}
+          onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange?.({ type: 'ALIAS', tokenId: e.target.value })}
           size="sm"
           w="120px"
         >
@@ -131,11 +124,11 @@ export const MixedValueTypes: Story = {
       },
       {
         modeIds: ['dark'],
-        value: { type: 'FLOAT', value: 1.5 },
+        value: { type: 'DIMENSION', value: 1.5 },
       },
       {
         modeIds: ['mobile'],
-        value: { type: 'BOOLEAN', value: true },
+        value: { type: 'COLOR', value: '#FF0000' },
       },
       {
         modeIds: ['desktop'],

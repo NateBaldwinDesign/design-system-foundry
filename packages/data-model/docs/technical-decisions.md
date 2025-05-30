@@ -11,7 +11,8 @@ To ensure clarity and consistency in the data model, all fields whose values mus
 
 ## Examples from the Schema
 - `supportedDimensionIds`: An array of dimension IDs supported by a token collection.
-- `resolvedValueTypeIds`: An array of resolved value type IDs associated with a collection, taxonomy, or dimension.
+- `resolvedValueTypeIds`: An array of resolved value type IDs associated with a collection, dimension, or taxonomy.
+- `resolvedValueTypeId`: The value type ID for a token (singular).
 - `tokenCollectionId`: The ID of the parent collection for a token.
 - `defaultModeIds`: An array of mode IDs used as defaults for a collection.
 
@@ -21,38 +22,49 @@ To ensure clarity and consistency in the data model, all fields whose values mus
 
 This convention is applied throughout the schema and should be followed for all future fields that reference IDs.
 
-# Technical Decisions: Value Types
+# Technical Decisions: Value Type Definitions and Referencing
 
 ## Context
 The schema must support a set of value types that are semantically meaningful, interoperable across platforms (Figma, CSS, iOS, Android, etc.), and extensible for future needs.
 
-## Approach
-- The schema enumerates a set of standard value types based on the W3C Design Tokens Community Group specification and common design system needs:
-  - color
-  - dimension
-  - spacing
-  - fontFamily
-  - fontWeight
-  - fontSize
-  - lineHeight
-  - letterSpacing
-  - duration
-  - cubicBezier
-  - blur
-  - spread
-  - radius
-- These types are included as recommended values for the `id` field in `resolvedValueTypes`.
-- The schema allows for custom value types by permitting any string as an `id` (not strictly limited to the enum), supporting future extensibility and proprietary needs.
+## Value Type Definitions and Referencing
+- The schema defines a top-level array:
+  `"resolvedValueTypes": [ { "id": "color", "displayName": "Color", ... }, ... ]`
+- Each value type object has:
+  - `id`: A kebab-case string (e.g., `"color"`, `"dimension"`)
+  - `displayName`: Human-readable name
+  - `type`: (optional) UPPER_CASE string for standard types (e.g., `"COLOR"`, `"DIMENSION"`)
 
-## Rationale
-- **Interoperability:** Standard types map directly to platform-specific representations and transformations.
-- **Extensibility:** Custom types can be added as needed, with clear documentation and mapping for platform exports.
-- **Stability:** Aligns with industry standards while allowing for project-specific evolution.
+- **Tokens** reference a value type with `resolvedValueTypeId` (string, must match an `id` in `resolvedValueTypes`).
+- **Collections, dimensions, and taxonomies** reference supported value types with `resolvedValueTypeIds` (array of string IDs, each must match an `id` in `resolvedValueTypes`).
 
-## Application
-- Use the standard types for all common design token needs.
-- When introducing a custom type, document its purpose and how it should be transformed for each platform.
-- Update the schema and documentation as new types are added or standardized.
+**There is no field named `resolvedValueTypes` on any entity except for the top-level array of value type definitions.**
+
+### Example
+```json
+{
+  "resolvedValueTypes": [
+    { "id": "color", "displayName": "Color", "type": "COLOR" },
+    { "id": "dimension", "displayName": "Dimension", "type": "DIMENSION" }
+  ],
+  "tokenCollections": [
+    {
+      "id": "collection1",
+      "name": "Colors",
+      "resolvedValueTypeIds": ["color"]
+    }
+  ],
+  "tokens": [
+    {
+      "id": "token1",
+      "displayName": "Primary Color",
+      "tokenCollectionId": "collection1",
+      "resolvedValueTypeId": "color",
+      "valuesByMode": [ ... ]
+    }
+  ]
+}
+```
 
 # Technical Decisions: Token codeSyntax Structure
 
@@ -149,7 +161,7 @@ Previously, the schema used both an enum (UPPER_CASE) for token value types and 
 ## Decision
 - Tokens now use a `resolvedValueTypeId` field, which must match an `id` in the top-level `resolvedValueTypes` array.
 - The `resolvedValueTypes[].id` field is a string (pattern: ^[a-zA-Z0-9-_]+$), not an enum, allowing for extensibility and tool-generated IDs.
-- All references to value types in tokens, collections, and dimensions are by ID, not by hardcoded value or casing.
+- All references to value types in tokens, collections, dimensions, and taxonomies are by ID, not by hardcoded value or casing.
 
 ## Rationale
 - **Referential Integrity:** Ensures all references are valid and unique within the dataset.
@@ -158,7 +170,7 @@ Previously, the schema used both an enum (UPPER_CASE) for token value types and 
 
 ## Application
 - When creating or editing a token, set `resolvedValueTypeId` to the ID of the value type it uses.
-- When defining collections or dimensions, use the IDs from `resolvedValueTypes` in `resolvedValueTypeIds` arrays.
+- When defining collections, dimensions, or taxonomies, use the IDs from `resolvedValueTypes` in `resolvedValueTypeIds` arrays.
 - Validation scripts enforce that all references are valid.
 
 ## Example
@@ -173,6 +185,16 @@ Previously, the schema used both an enum (UPPER_CASE) for token value types and 
   ]
 }
 ```
+
+## Summary Table
+
+| Entity         | Field Name                | Type                | Description                                      |
+|----------------|--------------------------|---------------------|--------------------------------------------------|
+| Token          | resolvedValueTypeId       | string              | References a value type by ID                    |
+| Collection     | resolvedValueTypeIds      | string[]            | Array of value type IDs supported by the collection |
+| Dimension      | resolvedValueTypeIds      | string[]            | Array of value type IDs supported by the dimension |
+| Taxonomy       | resolvedValueTypeIds      | string[]            | Array of value type IDs supported by the taxonomy |
+| Top-level      | resolvedValueTypes        | array of objects    | List of all value type definitions               |
 
 # Technical Decisions
 
@@ -197,3 +219,5 @@ The token value type system is designed to ensure type safety and consistency ac
    - Values conform to any type-specific validation rules
 
 This system provides a consistent way to reference types throughout the schema while maintaining type safety and validation. 
+
+All references to value types in tokens, collections, dimensions, and taxonomies are by string ID (matching the `id` field in the top-level `resolvedValueTypes` array), never by enum, hardcoded value, or casing. 

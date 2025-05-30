@@ -21,6 +21,7 @@ import {
 } from '@chakra-ui/react';
 import type { Token, TokenCollection } from '@token-model/data-model';
 import { ValidationService } from '../services/validation';
+import type { ChangeEvent } from 'react';
 
 interface ValidationTesterProps {
   tokens: Token[];
@@ -32,9 +33,9 @@ export function ValidationTester({ tokens = [], collections = [], onValidate }: 
   const { colorMode } = useColorMode();
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [isTokenValidationOpen, setIsTokenValidationOpen] = useState(false);
-  const [tokenValidationResult, setTokenValidationResult] = useState<{ isValid: boolean; errors?: any[] } | null>(null);
+  const [tokenValidationResult, setTokenValidationResult] = useState<{ isValid: boolean; errors?: unknown[] } | null>(null);
   const [isGlobalValidationOpen, setIsGlobalValidationOpen] = useState(false);
-  const [globalValidationResult, setGlobalValidationResult] = useState<{ isValid: boolean; errors?: any[] } | null>(null);
+  const [globalValidationResult, setGlobalValidationResult] = useState<{ isValid: boolean; errors?: unknown[] } | null>(null);
   const cancelRef = React.useRef<HTMLButtonElement>(null);
   const toast = useToast();
 
@@ -129,7 +130,7 @@ export function ValidationTester({ tokens = [], collections = [], onValidate }: 
                 <FormLabel>Select Token</FormLabel>
                 <Select
                   value={selectedToken?.id || ''}
-                  onChange={(e) => handleTokenSelect(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => handleTokenSelect(e.target.value)}
                   placeholder="Select token"
                 >
                   {tokens?.map((token) => (
@@ -152,7 +153,7 @@ export function ValidationTester({ tokens = [], collections = [], onValidate }: 
                     Collection: {collections?.find(c => c.id === selectedToken.tokenCollectionId)?.name}
                   </Text>
                   <Text fontSize="sm">
-                    Value Type: {selectedToken.resolvedValueType}
+                    Value Type: {selectedToken.resolvedValueTypeId}
                   </Text>
                   <Button
                     colorScheme="blue"
@@ -182,7 +183,7 @@ export function ValidationTester({ tokens = [], collections = [], onValidate }: 
 
             <AlertDialogBody>
               <Text mb={4}>The following validation errors were found:</Text>
-              {globalValidationResult?.errors?.map((error, index) => (
+              {globalValidationResult?.errors?.map((error: unknown, index: number) => (
                 <Code key={index} display="block" mb={2} p={2} whiteSpace="pre-wrap">
                   {JSON.stringify(error, null, 2)}
                 </Code>
@@ -212,7 +213,7 @@ export function ValidationTester({ tokens = [], collections = [], onValidate }: 
 
             <AlertDialogBody>
               <Text mb={4}>The following validation errors were found:</Text>
-              {tokenValidationResult?.errors?.map((error, index) => (
+              {tokenValidationResult?.errors?.map((error: unknown, index: number) => (
                 <Code key={index} display="block" mb={2} p={2} whiteSpace="pre-wrap">
                   {JSON.stringify(error, null, 2)}
                 </Code>

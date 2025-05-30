@@ -7,3 +7,4 @@ summary: The web app must use the schema for all data organization, relationship
 detaize data, UI, and features based on schema.json.
 - Build validation for all editable fields using schema constraints.
 - Do not assume data relationships or UI organization unless directly supported by [schema.json](mdc:token-model/packages/data-model/src/schema.json).
+- Never make property or API changes to the web app if a corresponding property or relationship exists in the [schema.json](mdc:packages/data-model/src/schema.json)

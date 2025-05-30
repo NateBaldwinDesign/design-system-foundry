@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { Box } from '@chakra-ui/react';
 import { VerticalTabsLayout } from '../../components/VerticalTabsLayout';
 import { DimensionsTab } from './DimensionsTab';
 import { ValueTypesTab } from './ValueTypesTab';
 import { ClassificationTab } from './ClassificationTab';
 import { NamingRulesTab } from './NamingRulesTab';
-import { Dimension, Taxonomy } from '@token-model/data-model';
+import { Dimension, Taxonomy, ResolvedValueType } from '@token-model/data-model';
 
 interface SetupViewProps {
   dimensions: Dimension[];
@@ -14,24 +13,25 @@ interface SetupViewProps {
   setTaxonomies: (taxonomies: Taxonomy[]) => void;
   taxonomyOrder: string[];
   setTaxonomyOrder: (order: string[]) => void;
-  resolvedValueTypes: { id: string; displayName: string }[];
-  setResolvedValueTypes: (types: { id: string; displayName: string }[]) => void;
+  resolvedValueTypes: ResolvedValueType[];
+  setResolvedValueTypes: (types: ResolvedValueType[]) => void;
   activeTab?: number;
   setActiveTab?: (tab: number) => void;
 }
 
-const SetupView: React.FC<SetupViewProps> = ({
-  dimensions,
-  setDimensions,
-  taxonomies,
-  setTaxonomies,
-  taxonomyOrder,
-  setTaxonomyOrder,
-  resolvedValueTypes,
-  setResolvedValueTypes,
-  activeTab: controlledActiveTab,
-  setActiveTab: controlledSetActiveTab
-}) => {
+const SetupView: React.FC<SetupViewProps> = (props: SetupViewProps) => {
+  const {
+    dimensions,
+    setDimensions,
+    taxonomies,
+    setTaxonomies,
+    taxonomyOrder,
+    setTaxonomyOrder,
+    resolvedValueTypes,
+    setResolvedValueTypes,
+    activeTab: controlledActiveTab,
+    setActiveTab: controlledSetActiveTab
+  } = props;
   const [internalActiveTab, setInternalActiveTab] = useState(0);
   const activeTab = controlledActiveTab !== undefined ? controlledActiveTab : internalActiveTab;
   const setActiveTab = controlledSetActiveTab || setInternalActiveTab;
@@ -75,8 +75,8 @@ const SetupView: React.FC<SetupViewProps> = ({
           label: 'Value Types',
           content: (
             <ValueTypesTab
-              valueTypes={resolvedValueTypes.map(vt => vt.id)}
-              onUpdate={types => setResolvedValueTypes(types.map(id => ({ id, displayName: id })))}
+              valueTypes={resolvedValueTypes}
+              onUpdate={setResolvedValueTypes}
             />
           )
         }

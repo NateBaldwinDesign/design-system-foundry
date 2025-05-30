@@ -1,6 +1,7 @@
 import React from 'react';
 import { TokenEditorDialog } from './TokenEditorDialog';
 import { ChakraProvider } from '@chakra-ui/react';
+import type { TokenEditorDialogProps } from './TokenEditorDialog';
 
 export default {
   title: 'Components/TokenEditorDialog',
@@ -10,18 +11,18 @@ export default {
     onClose: { action: 'onClose' },
     onSave: { action: 'onSave' },
     token: { control: 'object' },
-    collections: { control: 'object' },
+    tokens: { control: 'object' },
     dimensions: { control: 'object' },
+    modes: { control: 'object' },
     platforms: { control: 'object' },
     resolvedValueTypes: { control: 'object' },
     taxonomies: { control: 'object' },
-    modeOptions: { control: 'object' },
-    taxonomyOrder: { control: 'object' },
     isNew: { control: 'boolean' },
+    onViewClassifications: { action: 'onViewClassifications' },
   },
 };
 
-const Template = (args) => (
+const Template = (args: TokenEditorDialogProps) => (
   <ChakraProvider>
     <TokenEditorDialog {...args} />
   </ChakraProvider>
@@ -30,13 +31,17 @@ const Template = (args) => (
 export const Default = Template.bind({});
 Default.args = {
   open: true,
-  token: {},
-  collections: [],
+  token: {
+    id: 'test-token',
+    name: 'Test Token',
+    valuesByMode: [],
+    resolvedValueTypeId: 'color',
+  },
+  tokens: [],
   dimensions: [],
+  modes: [],
   platforms: [],
   resolvedValueTypes: [],
   taxonomies: [],
-  modeOptions: [],
-  taxonomyOrder: [],
   isNew: true,
 }; 

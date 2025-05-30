@@ -11,12 +11,17 @@ const mockTokens: Token[] = [
     displayName: 'Primary Color',
     description: 'Main brand color',
     tokenCollectionId: 'collection1',
-    resolvedValueType: 'COLOR',
+    resolvedValueTypeId: 'color',
     private: false,
     themeable: true,
     taxonomies: [],
     propertyTypes: ['ALL_PROPERTY_TYPES'],
-    codeSyntax: {},
+    codeSyntax: [
+      {
+        platformId: 'web',
+        formattedName: 'primary-color'
+      }
+    ],
     valuesByMode: [
       {
         modeIds: ['mode1'],
@@ -29,16 +34,21 @@ const mockTokens: Token[] = [
     displayName: 'Spacing Unit',
     description: 'Base spacing unit',
     tokenCollectionId: 'collection2',
-    resolvedValueType: 'NUMBER',
+    resolvedValueTypeId: 'dimension',
     private: false,
     themeable: false,
     taxonomies: [],
     propertyTypes: ['ALL_PROPERTY_TYPES'],
-    codeSyntax: {},
+    codeSyntax: [
+      {
+        platformId: 'web',
+        formattedName: 'spacing-unit'
+      }
+    ],
     valuesByMode: [
       {
         modeIds: ['mode1'],
-        value: { type: 'FLOAT', value: 8 },
+        value: { type: 'DIMENSION', value: 8 },
       },
     ],
   },
@@ -49,21 +59,21 @@ const mockCollections: TokenCollection[] = [
     id: 'collection1',
     name: 'Colors',
     description: 'Color tokens',
-    resolvedValueTypes: ['COLOR'],
+    resolvedValueTypeIds: ['color'],
     private: false,
   },
   {
     id: 'collection2',
     name: 'Spacing',
     description: 'Spacing tokens',
-    resolvedValueTypes: ['NUMBER'],
+    resolvedValueTypeIds: ['dimension'],
     private: false,
   },
 ];
 
 // Mock the ValidationService
 const mockValidationService = {
-  validateData: (data: any) => ({
+  validateData: () => ({
     isValid: true,
     errors: [],
   }),
@@ -73,7 +83,7 @@ const mockValidationService = {
 const ValidationTesterWrapper: React.FC = () => {
   // Mock the ValidationService
   React.useEffect(() => {
-    // @ts-ignore - Mocking the service
+    // @ts-expect-error - Mocking the service
     window.ValidationService = mockValidationService;
   }, []);
 
@@ -131,7 +141,7 @@ export const WithValidationErrors: Story = {
   parameters: {
     mockData: {
       validationService: {
-        validateData: (data: any) => ({
+        validateData: () => ({
           isValid: false,
           errors: [
             {

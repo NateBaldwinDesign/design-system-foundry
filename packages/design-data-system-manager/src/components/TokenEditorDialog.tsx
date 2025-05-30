@@ -61,18 +61,6 @@ export type ExtendedToken = Omit<Token, 'valuesByMode' | 'resolvedValueTypeId'> 
   constraints?: Constraint[];
 };
 
-// Update all usages of resolvedValueType to resolvedValueTypeId
-// In all state, props, and helper functions, use resolvedValueTypeId
-// For example, in getResolvedValueTypeId, use token.resolvedValueTypeId
-function getResolvedValueTypeId(token: ExtendedToken): string {
-  const validTypes = ['COLOR', 'DIMENSION', 'SPACING', 'FONT_FAMILY', 'FONT_WEIGHT', 'FONT_SIZE', 'LINE_HEIGHT', 'LETTER_SPACING', 'DURATION', 'CUBIC_BEZIER', 'BLUR', 'SPREAD', 'RADIUS', 'ALIAS'];
-  if (!validTypes.includes(token.resolvedValueTypeId)) {
-    console.error(`Invalid resolvedValueTypeId: ${token.resolvedValueTypeId}`);
-    return 'COLOR'; // Default to COLOR if invalid
-  }
-  return token.resolvedValueTypeId;
-}
-
 // Helper function to get a default token value
 function getDefaultTokenValue(resolvedValueTypeId: string): TokenValue {
   switch (resolvedValueTypeId) {
@@ -291,23 +279,6 @@ function toCanonicalTokenValue(val: TokenValue): TokenValue {
   return toLegacyTokenValue(val); // Already canonical
 }
 
-// Helper: convert valuesByMode to legacy structure for canonical Token
-function toLegacyValuesByMode(valuesByMode: ValueByMode[]): { modeIds: string[]; value: { type: string; value?: unknown; tokenId?: string }; metadata?: Record<string, unknown>; platformOverrides?: { platformId: string; value: string }[] }[] {
-  return valuesByMode.map(vbm => ({
-    ...vbm,
-    value: toLegacyTokenValue(vbm.value)
-  }));
-}
-
-// Helper: convert constraints to legacy structure if needed
-function toLegacyConstraints(constraints: Constraint[] | undefined): { type: 'contrast'; rule: Constraint['rule'] }[] | undefined {
-  if (!constraints) return undefined;
-  return constraints.map(c => ({
-    type: 'contrast',
-    rule: c.rule
-  }));
-}
-
 export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, resolvedValueTypes, isNew = false, onViewClassifications }: TokenEditorDialogProps) {
   const { schema } = useSchema();
   const preservedValuesByRemovedDimension = useRef<Record<string, Record<string, TokenValue>>>({});
@@ -319,14 +290,14 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
         ...token,
         id: createUniqueId('token'),
         themeable: token.themeable ?? false,
-        resolvedValueTypeId: getResolvedValueTypeId(token),
+        resolvedValueTypeId: token.resolvedValueTypeId,
         valuesByMode: migrateTokenValuesByMode(token.valuesByMode),
       };
     }
     return {
       ...token,
       themeable: token.themeable ?? false,
-      resolvedValueTypeId: getResolvedValueTypeId(token),
+      resolvedValueTypeId: token.resolvedValueTypeId,
       valuesByMode: migrateTokenValuesByMode(token.valuesByMode),
     };
   });
@@ -351,7 +322,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
       setEditedToken({
         ...token,
         themeable: token.themeable ?? false,
-        resolvedValueTypeId: getResolvedValueTypeId(token),
+        resolvedValueTypeId: token.resolvedValueTypeId,
         valuesByMode: migrateTokenValuesByMode(token.valuesByMode),
       });
       setTaxonomyEdits(Array.isArray(token.taxonomies) ? token.taxonomies : []);
@@ -366,7 +337,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     if (token.valuesByMode && token.valuesByMode.length > 0) {
       const allModeIds = token.valuesByMode.flatMap(vbm => vbm.modeIds);
       const presentDims = dimensions.filter(dim =>
-        dim.modes.some(mode => allModeIds.includes(mode.id))
+        dim.modes.some((mode: Mode) => allModeIds.includes(mode.id))
       ).map(dim => dim.id);
       console.log('[TokenEditorDialog] Setting active dimensions:', presentDims);
       setActiveDimensionIds(presentDims);
@@ -380,25 +351,25 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     if (!open) return;
     if (activeDimensionIds.length === 0) return;
     const activeDims = dimensions.filter(d => activeDimensionIds.includes(d.id));
-    const modeArrays = activeDims.map(d => d.modes.map(m => m.id));
+    const modeArrays = activeDims.map(d => d.modes.map((m: Mode) => m.id));
     const combos = modeArrays.length > 0 ? cartesianProduct(modeArrays) : [[]];
-    setEditedToken(prev => {
-      const prevMap = new Map(prev.valuesByMode.map(vbm => [vbm.modeIds.slice().sort().join(','), vbm.value]));
-      const newValuesByMode = combos.map(modeIds => {
+    setEditedToken((prev: ExtendedToken) => {
+      const prevMap = new Map(prev.valuesByMode.map((vbm: ValueByMode) => [vbm.modeIds.slice().sort().join(','), vbm.value]));
+      const newValuesByMode = combos.map((modeIds: string[]) => {
         const key = modeIds.slice().sort().join(',');
         if (prevMap.has(key)) {
           const val = prevMap.get(key);
-          return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev)) };
+          return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
         }
         for (let i = 0; i < modeIds.length; i++) {
           const parentIds = modeIds.slice(0, i).concat(modeIds.slice(i + 1));
           const parentKey = parentIds.slice().sort().join(',');
           if (prevMap.has(parentKey)) {
             const val = prevMap.get(parentKey);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev)) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
           }
         }
-        return { modeIds, value: getDefaultTokenValue(getResolvedValueTypeId(prev)) };
+        return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId) };
       });
       return {
         ...prev,
@@ -414,39 +385,39 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     if (isActive) {
       const dim = dimensions.find(d => d.id === dimensionId);
       if (!dim) return;
-      newActiveDims = activeDimensionIds.filter(id => id !== dimensionId);
+      newActiveDims = activeDimensionIds.filter((id: string) => id !== dimensionId);
       const defaultModeId = dim.defaultMode;
       const remainingDims = dimensions.filter(d => newActiveDims.includes(d.id));
-      const modeArrays = remainingDims.map(d => d.modes.map(m => m.id));
+      const modeArrays = remainingDims.map(d => d.modes.map((m: Mode) => m.id));
       const combos = modeArrays.length > 0 ? cartesianProduct(modeArrays) : [[]];
-      setEditedToken(prev => {
+      setEditedToken((prev: ExtendedToken) => {
         // Preserve all values that include the removed dimension
         const removedMap: Record<string, TokenValue> = {};
-        prev.valuesByMode.forEach(vbm => {
-          if (vbm.modeIds.includes(defaultModeId) || dim.modes.some(mode => vbm.modeIds.includes(mode.id))) {
+        prev.valuesByMode.forEach((vbm: ValueByMode) => {
+          if (vbm.modeIds.includes(defaultModeId) || dim.modes.some((mode: Mode) => vbm.modeIds.includes(mode.id))) {
             const key = vbm.modeIds.slice().sort().join(',');
             removedMap[key] = vbm.value;
           }
         });
         preservedValuesByRemovedDimension.current[dimensionId] = removedMap;
-        const prevMap = new Map(prev.valuesByMode.map(vbm => [vbm.modeIds.slice().sort().join(','), vbm.value]));
-        const newValuesByMode = combos.map(modeIds => {
+        const prevMap = new Map(prev.valuesByMode.map((vbm: ValueByMode) => [vbm.modeIds.slice().sort().join(','), vbm.value]));
+        const newValuesByMode = combos.map((modeIds: string[]) => {
           const key = modeIds.slice().sort().join(',');
           if (prevMap.has(key)) {
             const val = prevMap.get(key);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev)) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
           }
           // Find all previous combos that are a superset of modeIds
-          const candidates = prev.valuesByMode.filter(vbm =>
+          const candidates = prev.valuesByMode.filter((vbm: ValueByMode) =>
             vbm.modeIds.length === modeIds.length + 1 &&
-            modeIds.every(id => vbm.modeIds.includes(id))
+            modeIds.every((id: string) => vbm.modeIds.includes(id))
           );
-          let found = candidates.find(vbm => vbm.modeIds.includes(defaultModeId));
+          let found = candidates.find((vbm: ValueByMode) => vbm.modeIds.includes(defaultModeId));
           if (!found && candidates.length > 0) found = candidates[0];
           if (found) {
             return { modeIds, value: found.value };
           }
-          return { modeIds, value: getDefaultTokenValue(getResolvedValueTypeId(prev)) };
+          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId) };
         });
         return {
           ...prev,
@@ -458,17 +429,17 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
       if (!dim) return;
       newActiveDims = [...activeDimensionIds, dimensionId];
       const activeDims = dimensions.filter(d => newActiveDims.includes(d.id));
-      const modeArrays = activeDims.map(d => d.modes.map(m => m.id));
+      const modeArrays = activeDims.map(d => d.modes.map((m: Mode) => m.id));
       const combos = cartesianProduct(modeArrays);
-      setEditedToken(prev => {
-        const prevMap = new Map(prev.valuesByMode.map(vbm => [vbm.modeIds.slice().sort().join(','), vbm.value]));
+      setEditedToken((prev: ExtendedToken) => {
+        const prevMap = new Map(prev.valuesByMode.map((vbm: ValueByMode) => [vbm.modeIds.slice().sort().join(','), vbm.value]));
         // Try to restore from preserved values if available
         const preserved = preservedValuesByRemovedDimension.current[dimensionId] || {};
         const newValuesByMode = combos.map(modeIds => {
           const key = modeIds.slice().sort().join(',');
           if (prevMap.has(key)) {
             const val = prevMap.get(key);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev)) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
           }
           // Try to restore from preserved
           if (preserved[key]) {
@@ -480,10 +451,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
             const parentKey = parentIds.slice().sort().join(',');
             if (prevMap.has(parentKey)) {
               const val = prevMap.get(parentKey);
-              return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev)) };
+              return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
             }
           }
-          return { modeIds, value: getDefaultTokenValue(getResolvedValueTypeId(prev)) };
+          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId) };
         });
         return {
           ...prev,
@@ -495,7 +466,12 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   };
 
   // Update getValueEditor to use canonical TokenValue
-  const getValueEditor = (value: TokenValue | string, modeIndex: number, isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => {
+  const getValueEditor = (
+    value: TokenValue | string,
+    modeIndex: number,
+    isOverride?: boolean,
+    onChange?: (newValue: TokenValue) => void
+  ): React.ReactNode => {
     if (typeof value === 'string') {
       return <Text fontSize="sm" color="gray.500">{value}</Text>;
     }
@@ -506,13 +482,13 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
         tokens={tokens}
         constraints={constraints}
         excludeTokenId={editedToken.id}
-        onChange={newValue => {
+        onChange={(newValue: TokenValue) => {
           if (onChange) {
             onChange(toLegacyTokenValue(newValue));
           } else {
-            setEditedToken(prev => ({
+            setEditedToken((prev: ExtendedToken) => ({
               ...prev,
-              valuesByMode: prev.valuesByMode.map((item, idx) =>
+              valuesByMode: prev.valuesByMode.map((item: ValueByMode, idx: number) =>
                 idx === modeIndex ? { ...item, value: toLegacyTokenValue(newValue) } : item
               )
             }));
@@ -523,16 +499,16 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   };
 
   const handleAddConstraint = () => {
-    setConstraints(prev => [...prev, { ...newConstraint }]);
+    setConstraints((prev: Constraint[]) => [...prev, { ...newConstraint }]);
     setNewConstraint(createNewConstraint(resolvedValueTypes));
   };
 
   const handleRemoveConstraint = (idx: number) => {
-    setConstraints(prev => prev.filter((_, i) => i !== idx));
+    setConstraints((prev: Constraint[]) => prev.filter((_: unknown, i: number) => i !== idx));
   };
 
   const handleConstraintChange = (idx: number, field: string, value: unknown) => {
-    setConstraints(prev => prev.map((c, i) => {
+    setConstraints((prev: Constraint[]) => prev.map((c: Constraint, i: number) => {
       if (i !== idx) return c;
       if (field === 'minimum') {
         return { ...c, rule: { ...c.rule, minimum: Number(value) } };
@@ -596,7 +572,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   function handleTaxonomyChange(newTaxonomies: TokenTaxonomyRef[]) {
     setTaxonomyEdits(newTaxonomies);
     const codeSyntaxSchema = { platforms, taxonomies, namingRules: schema.namingRules };
-    setEditedToken(prev => ({
+    setEditedToken((prev: ExtendedToken) => ({
       ...prev,
       codeSyntax: CodeSyntaxService.generateAllCodeSyntaxes(
         { ...prev, taxonomies: newTaxonomies },
@@ -608,7 +584,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   // Validation: required fields and taxonomy error
   const codeSyntaxArray = ensureCodeSyntaxArrayFormat(editedToken.codeSyntax);
   const hasTaxonomyError = codeSyntaxArray.some(name => name === undefined);
-  const hasRequiredFieldError = !editedToken.displayName || !getResolvedValueTypeId(editedToken);
+  const hasRequiredFieldError = !editedToken.displayName || !editedToken.resolvedValueTypeId;
 
   // Check for duplicate taxonomy assignments
   function taxonomySet(arr: TokenTaxonomyRef[]) {
@@ -627,7 +603,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   const hasError = hasTaxonomyError || hasRequiredFieldError || hasDuplicateTaxonomy;
 
   const handleStatusChange = (newStatus: TokenStatus) => {
-    setEditedToken(prev => ({
+    setEditedToken((prev: ExtendedToken) => ({
       ...prev,
       status: newStatus
     }));
@@ -662,14 +638,14 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                   <FormLabel>Display Name</FormLabel>
                   <Input
                     value={editedToken.displayName}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken(prev => ({ ...prev, displayName: e.target.value }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, displayName: e.target.value }))}
                   />
                 </FormControl>
                 <FormControl>
                   <FormLabel>Description</FormLabel>
                   <Input
                     value={editedToken.description || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken(prev => ({ ...prev, description: e.target.value }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, description: e.target.value }))}
                   />
                 </FormControl>
               </VStack>
@@ -757,10 +733,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                   <FormControl isRequired>
                     <FormLabel>Value Type</FormLabel>
                     <Select
-                      value={getResolvedValueTypeId(editedToken)}
+                      value={editedToken.resolvedValueTypeId}
                       onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                         const newType = e.target.value;
-                        setEditedToken(prev => ({
+                        setEditedToken((prev: ExtendedToken) => ({
                           ...prev,
                           resolvedValueTypeId: newType,
                           valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType) }]
@@ -775,7 +751,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     </Select>
                     {editedToken.resolvedValueTypeId && (
                       <Text fontSize="sm" color="gray.500" mt={1}>
-                        {resolvedValueTypes.find((vt: ResolvedValueTypeObj) => vt.id === (editedToken as Token).resolvedValueTypeId)?.description}
+                        {resolvedValueTypes.find((vt: ResolvedValueTypeObj) => vt.id === editedToken.resolvedValueTypeId)?.description}
                       </Text>
                     )}
                   </FormControl>
@@ -796,13 +772,13 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                 <VStack spacing={3} align="stretch" flex={1}>
                   <Checkbox
                     isChecked={editedToken.private}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken(prev => ({ ...prev, private: e.target.checked }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, private: e.target.checked }))}
                   >
                     Private
                   </Checkbox>
                   <Checkbox
                     isChecked={!!editedToken.themeable}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken(prev => ({ ...prev, themeable: e.target.checked }))}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, themeable: e.target.checked }))}
                   >
                     Themeable
                   </Checkbox>
@@ -821,7 +797,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
             >
               <VStack spacing={3} align="stretch">
                 {constraints.length === 0 && <Text color="gray.500">No constraints added.</Text>}
-                {constraints.map((constraint, idx) => (
+                {constraints.map((constraint: Constraint, idx: number) => (
                   <HStack key={idx} spacing={3} align="center">
                     <Text fontWeight="medium">Contrast</Text>
                     <FormControl w="120px">
@@ -840,7 +816,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                       <TokenValuePicker
                         value={toCanonicalTokenValue({ type: 'COLOR', value: constraint.rule.comparator.value })}
                         tokens={tokens}
-                        onChange={(newValue) => {
+                        onChange={(newValue: TokenValue) => {
                           if (newValue.type === 'COLOR') {
                             handleConstraintChange(idx, 'comparatorValue', newValue.value);
                           }
@@ -880,7 +856,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                       value={newConstraint.rule.minimum}
                       min={0}
                       step={0.1}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewConstraint(nc => ({
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewConstraint((nc: Constraint) => ({
                         ...nc,
                         rule: { ...nc.rule, minimum: Number(e.target.value) }
                       }))}
@@ -892,9 +868,9 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     <TokenValuePicker
                       value={toCanonicalTokenValue({ type: 'COLOR', value: newConstraint.rule.comparator.value })}
                       tokens={tokens}
-                      onChange={(newValue) => {
+                      onChange={(newValue: TokenValue) => {
                         if (newValue.type === 'COLOR') {
-                          setNewConstraint(nc => ({
+                          setNewConstraint((nc: Constraint) => ({
                             ...nc,
                             rule: {
                               ...nc.rule,
@@ -915,7 +891,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     <FormLabel fontSize="xs" mb={0}>Method</FormLabel>
                     <Select
                       value={newConstraint.rule.comparator.method}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewConstraint(nc => ({
+                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewConstraint((nc: Constraint) => ({
                         ...nc,
                         rule: {
                           ...nc.rule,
@@ -961,16 +937,16 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                 </HStack>
                 {activeDimensionIds.length === 0 ? (
                   (() => {
-                    const globalValue = editedToken.valuesByMode.find(vbm => Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0);
+                    const globalValue = editedToken.valuesByMode.find((vbm: ValueByMode) => Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0);
                     if (!globalValue) {
                       return (
                         <Button
                           variant="outline"
-                          onClick={() => setEditedToken(prev => ({
+                          onClick={() => setEditedToken((prev: ExtendedToken) => ({
                             ...prev,
                             valuesByMode: [
                               ...prev.valuesByMode,
-                              { modeIds: [], value: getDefaultTokenValue(getResolvedValueTypeId(prev)) }
+                              { modeIds: [], value: getDefaultTokenValue(prev.resolvedValueTypeId) }
                             ]
                           }))}
                         >
@@ -985,9 +961,9 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                           tokens={tokens}
                           constraints={constraints}
                           excludeTokenId={editedToken.id}
-                          onChange={(newValue) => setEditedToken(prev => ({
+                          onChange={(newValue: TokenValue) => setEditedToken((prev: ExtendedToken) => ({
                             ...prev,
-                            valuesByMode: prev.valuesByMode.map((item) =>
+                            valuesByMode: prev.valuesByMode.map((item: ValueByMode) =>
                               Array.isArray(item.modeIds) && item.modeIds.length === 0
                                 ? { ...item, value: toLegacyTokenValue(newValue) }
                                 : item
@@ -997,7 +973,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                         <IconButton
                           aria-label="Remove value"
                           icon={<Trash2 />}
-                          onClick={() => setEditedToken(prev => ({
+                          onClick={() => setEditedToken((prev: ExtendedToken) => ({
                             ...prev,
                             valuesByMode: prev.valuesByMode.filter(vbm => !(Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0))
                           }))}
@@ -1027,14 +1003,14 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     modes={modes}
                     getValueEditor={getValueEditor}
                     onPlatformOverrideChange={(platformId: string, modeIndex: number, newValue: TokenValue) => {
-                      setEditedToken(prev => ({
+                      setEditedToken((prev: ExtendedToken) => ({
                         ...prev,
-                        valuesByMode: prev.valuesByMode.map((item, i) =>
+                        valuesByMode: prev.valuesByMode.map((item: ValueByMode, i: number) =>
                           i === modeIndex
                             ? {
                                 ...item,
                                 platformOverrides: [
-                                  ...(item.platformOverrides || []).filter(p => p.platformId !== platformId),
+                                  ...(item.platformOverrides || []).filter((p) => p.platformId !== platformId),
                                   {
                                     platformId,
                                     value: typeof newValue === 'string' ? newValue : JSON.stringify(newValue)
@@ -1046,7 +1022,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                       }));
                     }}
                   />
-                  {editedToken.valuesByMode.every(vbm => !vbm.platformOverrides || vbm.platformOverrides.length === 0) && (
+                  {editedToken.valuesByMode.every((vbm: ValueByMode) => !vbm.platformOverrides || vbm.platformOverrides.length === 0) && (
                     <Button variant="outline" mt={2}>
                       Add override
                     </Button>

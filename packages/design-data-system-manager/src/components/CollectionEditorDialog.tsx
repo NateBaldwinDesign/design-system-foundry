@@ -41,7 +41,7 @@ interface CollectionEditorFormState {
 
 // Extended TokenCollection type to include resolvedValueTypeIds
 interface ExtendedTokenCollection extends TokenCollection {
-  resolvedValueTypeIds?: string[];
+  resolvedValueTypeIds: string[];
 }
 
 export function CollectionEditorDialog({ open, onClose, onSave, collection, valueTypes, isNew = false }: CollectionEditorDialogProps) {
@@ -77,7 +77,7 @@ export function CollectionEditorDialog({ open, onClose, onSave, collection, valu
   }, [open, collection]);
 
   const handleChange = (field: keyof CollectionEditorFormState, value: string | boolean | string[]) => {
-    setEditedCollection(prev => ({ ...prev, [field]: value }));
+    setEditedCollection((prev: CollectionEditorFormState) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = () => {

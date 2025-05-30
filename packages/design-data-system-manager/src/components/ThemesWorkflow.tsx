@@ -26,8 +26,8 @@ import { StorageService } from '../services/storage';
 interface Theme {
   id: string;
   displayName: string;
-  description?: string;
-  isDefault?: boolean;
+  description: string;
+  isDefault: boolean;
 }
 
 interface ThemesWorkflowProps {
@@ -68,7 +68,7 @@ export function ThemesWorkflow({ themes, setThemes }: ThemesWorkflowProps) {
   };
 
   const handleFormChange = (field: keyof Theme, value: string | boolean) => {
-    setForm(prev => ({ ...prev, [field]: value }));
+    setForm((prev: Theme) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = () => {
@@ -84,10 +84,11 @@ export function ThemesWorkflow({ themes, setThemes }: ThemesWorkflowProps) {
     }
 
     const newThemes = [...themes];
-    const themeToSave = {
+    const themeToSave: Theme = {
       ...form,
       id,
-      isDefault: form.isDefault
+      isDefault: form.isDefault,
+      description: form.description || ''
     };
 
     if (editingIndex !== null) {
@@ -140,7 +141,7 @@ export function ThemesWorkflow({ themes, setThemes }: ThemesWorkflowProps) {
                 <Box>
                   <Text fontSize="lg" fontWeight="medium">{theme.displayName}</Text>
                   <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.400' : 'gray.600'}>
-                    {theme.description || ''}
+                    {theme.description}
                   </Text>
                   {theme.isDefault && (
                     <Tag colorScheme="green" size="sm" mt={1}>Default</Tag>
@@ -186,7 +187,7 @@ export function ThemesWorkflow({ themes, setThemes }: ThemesWorkflowProps) {
               <FormControl>
                 <FormLabel>Description</FormLabel>
                 <Input
-                  value={form.description || ''}
+                  value={form.description}
                   onChange={e => handleFormChange('description', e.target.value)}
                   bg={colorMode === 'dark' ? 'gray.700' : 'white'}
                 />

@@ -15,14 +15,15 @@ import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
 import { PlatformEditorDialog } from '../../components/PlatformEditorDialog';
 import { createUniqueId } from '../../utils/id';
 import { CodeSyntaxService } from '../../services/codeSyntax';
-import { Platform, Token, Taxonomy, TokenCollection, Dimension } from '@token-model/data-model';
+import { Platform, TokenCollection, Dimension, Taxonomy } from '@token-model/data-model';
 import { ValidationService } from '../../services/validation';
+import { ExtendedToken } from '../../components/TokenEditorDialog';
 
 interface PlatformsTabProps {
   platforms: Platform[];
   setPlatforms: (platforms: Platform[]) => void;
-  tokens: Token[];
-  setTokens: (tokens: Token[]) => void;
+  tokens: ExtendedToken[];
+  setTokens: (tokens: ExtendedToken[]) => void;
   taxonomies: Taxonomy[];
 }
 
@@ -32,7 +33,7 @@ export const PlatformsTab: React.FC<PlatformsTabProps> = ({
   tokens,
   setTokens,
   taxonomies
-}) => {
+}: PlatformsTabProps) => {
   const { colorMode } = useColorMode();
   const [editingPlatform, setEditingPlatform] = useState<Platform | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -124,7 +125,7 @@ export const PlatformsTab: React.FC<PlatformsTabProps> = ({
       return;
     }
     const schema = { platforms: updatedPlatforms, taxonomies };
-    const updatedTokens = tokens.map((token: Token) => {
+    const updatedTokens = tokens.map((token: ExtendedToken) => {
       const codeSyntax = updatedPlatforms.map((platform: Platform) => ({
         platformId: platform.id,
         formattedName: CodeSyntaxService.generateCodeSyntax(token, platform.id, schema)

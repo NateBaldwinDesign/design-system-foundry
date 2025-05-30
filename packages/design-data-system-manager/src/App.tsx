@@ -51,7 +51,7 @@ function getDataSourceOptions() {
   });
 }
 
-const App: React.FC = () => {
+const App = () => {
   const [dataSource, setDataSource] = useState<string>('../../data-model/examples/themed/core-data.json');
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
@@ -86,7 +86,7 @@ const App: React.FC = () => {
         taxonomies?: Taxonomy[];
         resolvedValueTypes?: ResolvedValueType[];
         namingRules?: { taxonomyOrder?: string[] };
-        versionHistory?: any[];
+        versionHistory?: unknown[];
         systemName?: string;
         systemId?: string;
         description?: string;
@@ -190,8 +190,7 @@ const App: React.FC = () => {
       displayName: '',
       description: '',
       tokenCollectionId: collections[0]?.id || '',
-      resolvedValueType: 'COLOR',
-      resolvedValueTypeId: 'COLOR',
+      resolvedValueTypeId: 'color',
       propertyTypes: [],
       private: false,
       themeable: false,
@@ -210,9 +209,9 @@ const App: React.FC = () => {
   };
 
   const handleSaveToken = (token: ExtendedToken) => {
-    setTokens(prevTokens => {
+    setTokens((prevTokens: ExtendedToken[]) => {
       if (token.id) {
-        return prevTokens.map(t => t.id === token.id ? token : t);
+        return prevTokens.map((t: ExtendedToken) => t.id === token.id ? token : t);
       }
       return [...prevTokens, { ...token, id: `token-${Date.now()}` }];
     });
@@ -248,17 +247,7 @@ const App: React.FC = () => {
                     <TokensTab
                       tokens={tokens}
                       collections={collections}
-                      modes={modes}
-                      dimensions={dimensions}
-                      platforms={platforms}
-                      onEdit={(token) => {
-                        setSelectedToken(token);
-                        setIsEditorOpen(true);
-                      }}
-                      onDelete={(tokenId) => setTokens(tokens.filter(t => t.id !== tokenId))}
-                      taxonomies={taxonomies}
                       resolvedValueTypes={resolvedValueTypes}
-                      onViewClassifications={() => {}}
                       renderAddTokenButton={
                         <Button colorScheme="blue" size="sm" onClick={handleAddToken} leftIcon={<Plus />}>
                           Add Token
@@ -269,9 +258,6 @@ const App: React.FC = () => {
                       <TokenEditorDialog
                         token={selectedToken}
                         tokens={tokens}
-                        dimensions={dimensions}
-                        modes={modes}
-                        platforms={platforms}
                         open={isEditorOpen}
                         onClose={handleCloseEditor}
                         onSave={handleSaveToken}
@@ -279,6 +265,9 @@ const App: React.FC = () => {
                         resolvedValueTypes={resolvedValueTypes}
                         isNew={!selectedToken.id}
                         onViewClassifications={() => {}}
+                        modes={modes}
+                        dimensions={dimensions}
+                        platforms={platforms}
                       />
                     )}
                   </>

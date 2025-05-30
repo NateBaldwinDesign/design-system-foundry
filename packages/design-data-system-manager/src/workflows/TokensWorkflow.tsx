@@ -39,11 +39,11 @@ export default function TokensWorkflow({
     displayName: '',
     description: '',
     tokenCollectionId: '',
-    resolvedValueType: 'COLOR',
+    resolvedValueTypeId: 'color',
     private: false,
     taxonomies: [] as TokenTaxonomyRef[],
     propertyTypes: [],
-    codeSyntax: {},
+    codeSyntax: [],
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { schema } = useSchema();
@@ -62,7 +62,7 @@ export default function TokensWorkflow({
       const token = TokenSchema.parse({
         id: crypto.randomUUID(),
         ...newToken,
-        resolvedValueType: (newToken.resolvedValueType as Token['resolvedValueType']) || 'COLOR',
+        resolvedValueTypeId: (newToken.resolvedValueTypeId as string) || 'color',
         propertyTypes: (newToken.propertyTypes || []).filter(Boolean),
         taxonomies: validTaxonomies,
         codeSyntax
@@ -72,11 +72,11 @@ export default function TokensWorkflow({
         displayName: '',
         description: '',
         tokenCollectionId: '',
-        resolvedValueType: 'COLOR',
+        resolvedValueTypeId: 'color',
         private: false,
         taxonomies: [],
         propertyTypes: [],
-        codeSyntax: {},
+        codeSyntax: [],
       });
       toast({
         title: 'Token added',
@@ -148,13 +148,13 @@ export default function TokensWorkflow({
               <FormErrorMessage>{fieldErrors.tokenCollectionId}</FormErrorMessage>
             </FormControl>
 
-            <FormControl isInvalid={Boolean(fieldErrors.resolvedValueType)}>
+            <FormControl isInvalid={Boolean(fieldErrors.resolvedValueTypeId)}>
               <FormLabel>Resolved Value Type</FormLabel>
               <Input
-                value={newToken.resolvedValueType}
-                onChange={(e) => setNewToken({ ...newToken, resolvedValueType: e.target.value as Token['resolvedValueType'] })}
+                value={newToken.resolvedValueTypeId}
+                onChange={(e) => setNewToken({ ...newToken, resolvedValueTypeId: e.target.value })}
               />
-              <FormErrorMessage>{fieldErrors.resolvedValueType}</FormErrorMessage>
+              <FormErrorMessage>{fieldErrors.resolvedValueTypeId}</FormErrorMessage>
             </FormControl>
 
             <FormControl>
@@ -223,7 +223,7 @@ export default function TokensWorkflow({
                   <VStack align="start" spacing={1} mt={2}>
                     <Text fontSize="sm">Description: {token.description}</Text>
                     <Text fontSize="sm">Collection: {collection?.name || 'Unknown'}</Text>
-                    <Text fontSize="sm">Resolved Value Type: {token.resolvedValueType}</Text>
+                    <Text fontSize="sm">Resolved Value Type: {token.resolvedValueTypeId}</Text>
                     <Text fontSize="sm">Private: {token.private ? 'Yes' : 'No'}</Text>
                     <Text fontSize="sm">Property Types: {token.propertyTypes.join(', ')}</Text>
                     <Text fontSize="sm">
@@ -235,7 +235,11 @@ export default function TokensWorkflow({
                           }).join(', ')
                         : 'None'}
                     </Text>
-                    <Text fontSize="sm">Code Syntax: {Object.entries(token.codeSyntax).map(([k, v]) => `${k}: ${v}`).join(', ')}</Text>
+                    <Text fontSize="sm">Code Syntax: {
+                      Array.isArray(token.codeSyntax)
+                        ? token.codeSyntax.map((entry: { platformId: string; formattedName: string }) => `${entry.platformId}: ${entry.formattedName}`).join(', ')
+                        : ''
+                    }</Text>
                   </VStack>
                 </Box>
               );
