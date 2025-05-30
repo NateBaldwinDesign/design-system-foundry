@@ -175,8 +175,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           <Logo size={34} color={colorMode === 'dark' ? 'white' : 'black'} />
           {/* Title */}
           {!isCollapsed && (
-            <Text fontSize="sm" lineHeight="1" fontWeight="bold">
-              Design<br/>System<br/>Foundry
+            <Text fontSize="md" lineHeight="1" fontWeight="bold">
+              Design System<br/>Foundry
             </Text>
           )}
         </Box>
