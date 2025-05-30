@@ -12,7 +12,7 @@ import {
 } from '@chakra-ui/react';
 import { Trash2 } from 'lucide-react';
 import type { Mode } from '@token-model/data-model';
-import type { TokenValue } from './TokenEditorDialog';
+import type { TokenValue } from '@token-model/data-model';
 
 // Utility for mode name lookup
 export function getModeName(modeId: string, modes: Mode[]): string {

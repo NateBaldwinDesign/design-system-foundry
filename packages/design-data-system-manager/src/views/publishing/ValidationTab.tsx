@@ -60,14 +60,14 @@ interface TokenSystemData {
     date: string;
   }>;
   resolvedValueTypes: ResolvedValueType[];
-  themes: any[];
-  themeOverrides: Record<string, any>;
-  extensions: {
+  themes?: any[];
+  themeOverrides?: Record<string, any>;
+  extensions?: {
     tokenGroups: any[];
     tokenVariants: Record<string, any>;
   };
-  tokenGroups: any[]; // Required by schema
-  tokenVariants: any[]; // Required by schema
+  tokenGroups?: any[]; // Optional
+  tokenVariants?: any[]; // Optional
 }
 
 export function ValidationTab({ tokens = [], collections = [], dimensions = [], platforms = [], taxonomies = [], version = '1.0.0', versionHistory = [], onValidate }: ValidationTabProps) {

@@ -20,14 +20,14 @@ const mockCollections: TokenCollection[] = [
     id: 'collection1',
     name: 'Colors',
     description: 'Color tokens',
-    resolvedValueTypes: ['COLOR'],
+    resolvedValueTypeIds: ['COLOR'],
     private: false,
   },
   {
     id: 'collection2',
     name: 'Spacing',
     description: 'Spacing tokens',
-    resolvedValueTypes: ['DIMENSION'],
+    resolvedValueTypeIds: ['DIMENSION'],
     private: false,
   },
 ];
@@ -48,7 +48,6 @@ const mockModes: Mode[] = [
 const mockDimensions: Dimension[] = [
   {
     id: 'dim1',
-    type: 'THEME',
     displayName: 'Theme',
     required: true,
     defaultMode: 'Light',
@@ -65,12 +64,12 @@ const mockTokens: Token[] = [
     displayName: 'Primary Color',
     description: 'Main brand color',
     tokenCollectionId: 'collection1',
-    resolvedValueType: 'COLOR',
+    resolvedValueTypeId: 'COLOR',
     private: false,
     themeable: true,
     taxonomies: [],
     propertyTypes: ['ALL_PROPERTY_TYPES'],
-    codeSyntax: {},
+    codeSyntax: [],
     valuesByMode: [
       {
         modeIds: ['mode1'],

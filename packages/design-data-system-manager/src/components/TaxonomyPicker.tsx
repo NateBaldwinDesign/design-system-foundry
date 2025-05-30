@@ -15,7 +15,7 @@ import {
   PopoverBody,
   Text,
   VStack,
-  Link
+  // Link (removed, unused)
 } from '@chakra-ui/react';
 import type { Taxonomy } from '@token-model/data-model';
 
@@ -59,6 +59,15 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false, 
       console.error('[TaxonomyPicker] Error calling onChange:', error);
     }
   };
+
+  // If there are no taxonomies, show an informative message
+  if (taxonomies.length === 0) {
+    return (
+      <Box p={2} color="gray.500" fontStyle="italic">
+        Must have at least one taxonomy term
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -110,7 +119,7 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false, 
                         fontWeight="semibold"
                         tabIndex={0}
                         _hover={{ textDecoration: 'underline' }}
-                        onMouseDown={e => {
+                        onMouseDown={() => {
                           console.log('[TaxonomyPicker] View all classifications link mousedown');
                           if (onViewClassifications) onViewClassifications();
                         }}

@@ -36,7 +36,7 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
     displayName: '',
     description: '',
     tokenCollectionId: '',
-    resolvedValueType: 'COLOR',
+    resolvedValueTypeId: 'COLOR',
     private: false,
     themeable: false,
     taxonomies: [] as TokenTaxonomyRef[],
@@ -69,6 +69,13 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
   }, [safeTaxonomies]);
 
   const handleInputChange = (field: keyof Token, value: string | string[] | boolean | TokenTaxonomyRef[]) => {
+    if (field === 'resolvedValueTypeId' && typeof value === 'string') {
+      const validTypes = ['COLOR', 'DIMENSION', 'SPACING', 'FONT_FAMILY', 'FONT_WEIGHT', 'FONT_SIZE', 'LINE_HEIGHT', 'LETTER_SPACING', 'DURATION', 'CUBIC_BEZIER', 'BLUR', 'SPREAD', 'RADIUS', 'ALIAS'];
+      if (!validTypes.includes(value)) {
+        console.error(`Invalid resolvedValueTypeId: ${value}`);
+        return;
+      }
+    }
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -93,7 +100,7 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
       ...prev,
       valuesByMode: [...(prev.valuesByMode || []), {
         modeIds: requiredModeIds,
-        value: { type: 'COLOR', value: '' }
+        value: { type: 'COLOR', value: '#000000' }
       }]
     }));
   };
@@ -145,6 +152,35 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
             </Select>
           </FormControl>
         );
+      case 'DIMENSION':
+      case 'SPACING':
+      case 'FONT_WEIGHT':
+      case 'FONT_SIZE':
+      case 'LINE_HEIGHT':
+      case 'LETTER_SPACING':
+      case 'DURATION':
+      case 'BLUR':
+      case 'SPREAD':
+      case 'RADIUS':
+        return (
+          <Input
+            type="number"
+            value={value.value}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: value.type, value: parseFloat(e.target.value) })}
+            size="sm"
+            w="100px"
+          />
+        );
+      case 'FONT_FAMILY':
+      case 'CUBIC_BEZIER':
+        return (
+          <Input
+            value={value.value}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: value.type, value: e.target.value })}
+            size="sm"
+            w="100px"
+          />
+        );
       default:
         return null;
     }
@@ -183,11 +219,23 @@ export function TokenForm({ collections, modes, dimensions, tokens, taxonomies, 
         <FormControl isRequired>
           <FormLabel>Resolved Value Type</FormLabel>
           <Select
-            value={formData.resolvedValueType}
-            onChange={e => handleInputChange('resolvedValueType', e.target.value)}
+            value={formData.resolvedValueTypeId}
+            onChange={e => handleInputChange('resolvedValueTypeId', e.target.value)}
             placeholder="Select value type"
           >
             <option value="COLOR">Color</option>
+            <option value="DIMENSION">Dimension</option>
+            <option value="SPACING">Spacing</option>
+            <option value="FONT_FAMILY">Font Family</option>
+            <option value="FONT_WEIGHT">Font Weight</option>
+            <option value="FONT_SIZE">Font Size</option>
+            <option value="LINE_HEIGHT">Line Height</option>
+            <option value="LETTER_SPACING">Letter Spacing</option>
+            <option value="DURATION">Duration</option>
+            <option value="CUBIC_BEZIER">Cubic Bezier</option>
+            <option value="BLUR">Blur</option>
+            <option value="SPREAD">Spread</option>
+            <option value="RADIUS">Radius</option>
             <option value="ALIAS">Alias</option>
           </Select>
         </FormControl>

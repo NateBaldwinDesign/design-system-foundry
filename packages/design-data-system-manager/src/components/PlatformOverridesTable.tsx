@@ -10,7 +10,7 @@ import {
   Box
 } from '@chakra-ui/react';
 import type { Mode, Platform } from '@token-model/data-model';
-import type { TokenValue } from './TokenEditorDialog';
+import type { TokenValue } from '@token-model/data-model';
 
 export interface ValueByMode {
   modeIds: string[];

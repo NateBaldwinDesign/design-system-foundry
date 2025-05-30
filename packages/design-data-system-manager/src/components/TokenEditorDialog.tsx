@@ -38,9 +38,11 @@ import type { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef } 
 import { createUniqueId } from '../utils/id';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
+import type { TokenValue } from '@token-model/data-model';
 
 // Constraint type matches schema: only 'contrast' type for now
 interface Constraint {
+  type: 'contrast';
   resolvedValueTypeId: string; // e.g. 'contrast'
   rule: {
     minimum: number;
@@ -54,7 +56,7 @@ interface Constraint {
 
 // Redefine ExtendedToken to override valuesByMode and resolvedValueTypeId
 export type ExtendedToken = Omit<Token, 'valuesByMode' | 'resolvedValueTypeId'> & {
-  valuesByMode: { modeIds: string[]; value: TokenValue }[];
+  valuesByMode: ValueByMode[];
   resolvedValueTypeId: string; // string id, not enum
   constraints?: Constraint[];
 };
@@ -63,46 +65,48 @@ export type ExtendedToken = Omit<Token, 'valuesByMode' | 'resolvedValueTypeId'> 
 // In all state, props, and helper functions, use resolvedValueTypeId
 // For example, in getResolvedValueTypeId, use token.resolvedValueTypeId
 function getResolvedValueTypeId(token: ExtendedToken): string {
+  const validTypes = ['COLOR', 'DIMENSION', 'SPACING', 'FONT_FAMILY', 'FONT_WEIGHT', 'FONT_SIZE', 'LINE_HEIGHT', 'LETTER_SPACING', 'DURATION', 'CUBIC_BEZIER', 'BLUR', 'SPREAD', 'RADIUS', 'ALIAS'];
+  if (!validTypes.includes(token.resolvedValueTypeId)) {
+    console.error(`Invalid resolvedValueTypeId: ${token.resolvedValueTypeId}`);
+    return 'COLOR'; // Default to COLOR if invalid
+  }
   return token.resolvedValueTypeId;
 }
 
 // Helper function to get a default token value
-function getDefaultTokenValue(resolvedValueTypeId: string, resolvedValueTypes: ResolvedValueTypeObj[]): TokenValue {
-  const valueType = resolvedValueTypes.find((vt) => typeof vt === 'object' && 'id' in vt && vt.id === resolvedValueTypeId);
-  if (!valueType || !('type' in valueType) || !valueType.type) {
-    // Fallback to color if not found or type is missing
-    return { resolvedValueTypeId: 'color', value: '#000000' };
-  }
-  switch (valueType.id) {
+function getDefaultTokenValue(resolvedValueTypeId: string): TokenValue {
+  switch (resolvedValueTypeId) {
     case 'color':
-      return { resolvedValueTypeId: 'color', value: '#000000' };
+      return { type: 'COLOR', value: '#000000' };
     case 'dimension':
-      return { resolvedValueTypeId: 'dimension', value: 0 };
+      return { type: 'DIMENSION', value: 0 };
     case 'spacing':
-      return { resolvedValueTypeId: 'spacing', value: 0 };
-    case 'font_family':
-      return { resolvedValueTypeId: 'font-family', value: '' };
-    case 'font_weight':
-      return { resolvedValueTypeId: 'font-weight', value: 400 };
-    case 'font_size':
-      return { resolvedValueTypeId: 'font-size', value: 16 };
-    case 'line_height':
-      return { resolvedValueTypeId: 'line-height', value: 1 };
-    case 'letter_spacing':
-      return { resolvedValueTypeId: 'letter-spacing', value: 0 };
+      return { type: 'SPACING', value: 0 };
+    case 'font-family':
+      return { type: 'FONT_FAMILY', value: '' };
+    case 'font-weight':
+      return { type: 'FONT_WEIGHT', value: 400 };
+    case 'font-size':
+      return { type: 'FONT_SIZE', value: 16 };
+    case 'line-height':
+      return { type: 'LINE_HEIGHT', value: 1 };
+    case 'letter-spacing':
+      return { type: 'LETTER_SPACING', value: 0 };
     case 'duration':
-      return { resolvedValueTypeId: 'duration', value: 0 };
-    case 'cubic_bezier':
-      return { resolvedValueTypeId: 'cubic-bezier', value: '0, 0, 1, 1' };
+      return { type: 'DURATION', value: 0 };
+    case 'cubic-bezier':
+      return { type: 'CUBIC_BEZIER', value: '0, 0, 1, 1' };
     case 'blur':
-      return { resolvedValueTypeId: 'blur', value: 0 };
+      return { type: 'BLUR', value: 0 };
     case 'spread':
-      return { resolvedValueTypeId: 'spread', value: 0 };
+      return { type: 'SPREAD', value: 0 };
     case 'radius':
-      return { resolvedValueTypeId: 'radius', value: 0 };
+      return { type: 'RADIUS', value: 0 };
+    case 'alias':
+      return { type: 'ALIAS', tokenId: '' };
     default:
       // Fallback to color for unknown types
-      return { resolvedValueTypeId: 'color', value: '#000000' };
+      return { type: 'COLOR', value: '#000000' };
   }
 }
 
@@ -124,6 +128,7 @@ function createNewConstraint(resolvedValueTypes: ResolvedValueTypeObj[]): Constr
       throw new Error('No resolved value types available');
     }
     return {
+      type: 'contrast',
       resolvedValueTypeId: firstTypeId,
       rule: {
         minimum: 3,
@@ -137,6 +142,7 @@ function createNewConstraint(resolvedValueTypes: ResolvedValueTypeObj[]): Constr
   }
 
   return {
+    type: 'contrast',
     resolvedValueTypeId: contrastTypeId,
     rule: {
       minimum: 3,
@@ -163,23 +169,6 @@ interface ResolvedValueTypeObj {
   description?: string;
 }
 
-// Canonical TokenValue type per schema
-export type TokenValue =
-  | { resolvedValueTypeId: 'color'; value: string }
-  | { resolvedValueTypeId: 'dimension'; value: number }
-  | { resolvedValueTypeId: 'spacing'; value: number }
-  | { resolvedValueTypeId: 'font-family'; value: string }
-  | { resolvedValueTypeId: 'font-weight'; value: number }
-  | { resolvedValueTypeId: 'font-size'; value: number }
-  | { resolvedValueTypeId: 'line-height'; value: number }
-  | { resolvedValueTypeId: 'letter-spacing'; value: number }
-  | { resolvedValueTypeId: 'duration'; value: number }
-  | { resolvedValueTypeId: 'cubic-bezier'; value: string }
-  | { resolvedValueTypeId: 'blur'; value: number }
-  | { resolvedValueTypeId: 'spread'; value: number }
-  | { resolvedValueTypeId: 'radius'; value: number }
-  | { resolvedValueTypeId: 'alias'; tokenId: string };
-
 export interface TokenEditorDialogProps {
   token: ExtendedToken;
   tokens: ExtendedToken[];
@@ -203,52 +192,38 @@ function cartesianProduct(arrays: string[][]): string[][] {
   );
 }
 
-// Update migrateToTokenValue to convert between old and new formats
+// Update migrateToTokenValue to convert legacy type-based values to canonical format
 function migrateToTokenValue(val: unknown): TokenValue {
   if (val && typeof val === 'object') {
-    if ('resolvedValueTypeId' in val) {
-      const newVal = val as { resolvedValueTypeId: string; value?: unknown; tokenId?: string };
-      switch (newVal.resolvedValueTypeId) {
-        case 'color': return { resolvedValueTypeId: 'color', value: String(newVal.value) };
-        case 'dimension': return { resolvedValueTypeId: 'dimension', value: Number(newVal.value) };
-        case 'spacing': return { resolvedValueTypeId: 'spacing', value: Number(newVal.value) };
-        case 'font-family': return { resolvedValueTypeId: 'font-family', value: String(newVal.value) };
-        case 'font-weight': return { resolvedValueTypeId: 'font-weight', value: Number(newVal.value) };
-        case 'font-size': return { resolvedValueTypeId: 'font-size', value: Number(newVal.value) };
-        case 'line-height': return { resolvedValueTypeId: 'line-height', value: Number(newVal.value) };
-        case 'letter-spacing': return { resolvedValueTypeId: 'letter-spacing', value: Number(newVal.value) };
-        case 'duration': return { resolvedValueTypeId: 'duration', value: Number(newVal.value) };
-        case 'cubic-bezier': return { resolvedValueTypeId: 'cubic-bezier', value: String(newVal.value) };
-        case 'blur': return { resolvedValueTypeId: 'blur', value: Number(newVal.value) };
-        case 'spread': return { resolvedValueTypeId: 'spread', value: Number(newVal.value) };
-        case 'radius': return { resolvedValueTypeId: 'radius', value: Number(newVal.value) };
-        case 'alias': return { resolvedValueTypeId: 'alias', tokenId: String(newVal.tokenId) };
-        default: return { resolvedValueTypeId: 'color', value: String(newVal.value) };
-      }
-    }
     if ('type' in val) {
-      const legacyVal = val as { type: string; value: unknown; tokenId?: string };
-      switch (legacyVal.type) {
-        case 'COLOR': return { resolvedValueTypeId: 'color', value: String(legacyVal.value) };
-        case 'DIMENSION': return { resolvedValueTypeId: 'dimension', value: Number(legacyVal.value) };
-        case 'SPACING': return { resolvedValueTypeId: 'spacing', value: Number(legacyVal.value) };
-        case 'FONT_FAMILY': return { resolvedValueTypeId: 'font-family', value: String(legacyVal.value) };
-        case 'FONT_WEIGHT': return { resolvedValueTypeId: 'font-weight', value: Number(legacyVal.value) };
-        case 'FONT_SIZE': return { resolvedValueTypeId: 'font-size', value: Number(legacyVal.value) };
-        case 'LINE_HEIGHT': return { resolvedValueTypeId: 'line-height', value: Number(legacyVal.value) };
-        case 'LETTER_SPACING': return { resolvedValueTypeId: 'letter-spacing', value: Number(legacyVal.value) };
-        case 'DURATION': return { resolvedValueTypeId: 'duration', value: Number(legacyVal.value) };
-        case 'CUBIC_BEZIER': return { resolvedValueTypeId: 'cubic-bezier', value: String(legacyVal.value) };
-        case 'BLUR': return { resolvedValueTypeId: 'blur', value: Number(legacyVal.value) };
-        case 'SPREAD': return { resolvedValueTypeId: 'spread', value: Number(legacyVal.value) };
-        case 'RADIUS': return { resolvedValueTypeId: 'radius', value: Number(legacyVal.value) };
-        case 'ALIAS': return { resolvedValueTypeId: 'alias', tokenId: String(legacyVal.tokenId) };
-        default: return { resolvedValueTypeId: 'color', value: String(legacyVal.value) };
+      // Already canonical
+      return val as TokenValue;
+    }
+    if ('resolvedValueTypeId' in val) {
+      const legacyVal = val as { resolvedValueTypeId: string; value?: unknown; tokenId?: string };
+      if (legacyVal.resolvedValueTypeId === 'alias') {
+        return { type: 'ALIAS', tokenId: String(legacyVal.tokenId ?? '') };
+      }
+      switch (legacyVal.resolvedValueTypeId) {
+        case 'color': return { type: 'COLOR', value: String(legacyVal.value ?? '') };
+        case 'dimension': return { type: 'DIMENSION', value: Number(legacyVal.value ?? 0) };
+        case 'spacing': return { type: 'SPACING', value: Number(legacyVal.value ?? 0) };
+        case 'font-family': return { type: 'FONT_FAMILY', value: String(legacyVal.value ?? '') };
+        case 'font-weight': return { type: 'FONT_WEIGHT', value: Number(legacyVal.value ?? 0) };
+        case 'font-size': return { type: 'FONT_SIZE', value: Number(legacyVal.value ?? 0) };
+        case 'line-height': return { type: 'LINE_HEIGHT', value: Number(legacyVal.value ?? 0) };
+        case 'letter-spacing': return { type: 'LETTER_SPACING', value: Number(legacyVal.value ?? 0) };
+        case 'duration': return { type: 'DURATION', value: Number(legacyVal.value ?? 0) };
+        case 'cubic-bezier': return { type: 'CUBIC_BEZIER', value: String(legacyVal.value ?? '0, 0, 1, 1') };
+        case 'blur': return { type: 'BLUR', value: Number(legacyVal.value ?? 0) };
+        case 'spread': return { type: 'SPREAD', value: Number(legacyVal.value ?? 0) };
+        case 'radius': return { type: 'RADIUS', value: Number(legacyVal.value ?? 0) };
+        default: return { type: 'COLOR', value: String(legacyVal.value ?? '') };
       }
     }
   }
   // Fallback
-  return { resolvedValueTypeId: 'color', value: String(val) };
+  return { type: 'COLOR', value: String(val ?? '') };
 }
 
 // Update migrateTokenValuesByMode to handle both old and new formats
@@ -256,17 +231,28 @@ function migrateTokenValuesByMode(valuesByMode: unknown[]): { modeIds: string[];
   return Array.isArray(valuesByMode)
     ? valuesByMode.map(vbm => {
         const valueByMode = vbm as { modeIds?: string[]; value: unknown; metadata?: Record<string, unknown>; platformOverrides?: { platformId: string; value: string }[] };
-        return {
-          modeIds: Array.isArray(valueByMode.modeIds) ? valueByMode.modeIds : [],
-          value: migrateToTokenValue(valueByMode.value),
-          metadata: valueByMode.metadata,
-          platformOverrides: valueByMode.platformOverrides
-        };
+        const canonicalValue = migrateToTokenValue(valueByMode.value);
+        // Type guard: only access .value for non-ALIAS
+        if (canonicalValue.type === 'ALIAS') {
+          return {
+            modeIds: Array.isArray(valueByMode.modeIds) ? valueByMode.modeIds : [],
+            value: { type: 'ALIAS', tokenId: canonicalValue.tokenId },
+            metadata: valueByMode.metadata,
+            platformOverrides: valueByMode.platformOverrides
+          };
+        } else {
+          return {
+            modeIds: Array.isArray(valueByMode.modeIds) ? valueByMode.modeIds : [],
+            value: canonicalValue,
+            metadata: valueByMode.metadata,
+            platformOverrides: valueByMode.platformOverrides
+          };
+        }
       })
     : [];
 }
 
-// Update ValueByMode type to match new token value format
+// Update ValueByMode type to include platformOverrides
 export interface ValueByMode {
   modeIds: string[];
   value: TokenValue;
@@ -274,9 +260,53 @@ export interface ValueByMode {
     platformId: string;
     value: string;
   }[];
+  metadata?: Record<string, unknown>;
 }
 
 export { migrateTokenValuesByMode, migrateToTokenValue };
+
+// Helper: convert schema-compliant TokenValue to legacy type-based TokenValue for canonical Token
+function toLegacyTokenValue(val: TokenValue): TokenValue {
+  switch (val.type) {
+    case 'COLOR': return { type: 'COLOR', value: val.value };
+    case 'DIMENSION': return { type: 'DIMENSION', value: val.value };
+    case 'SPACING': return { type: 'SPACING', value: val.value };
+    case 'FONT_FAMILY': return { type: 'FONT_FAMILY', value: val.value };
+    case 'FONT_WEIGHT': return { type: 'FONT_WEIGHT', value: val.value };
+    case 'FONT_SIZE': return { type: 'FONT_SIZE', value: val.value };
+    case 'LINE_HEIGHT': return { type: 'LINE_HEIGHT', value: val.value };
+    case 'LETTER_SPACING': return { type: 'LETTER_SPACING', value: val.value };
+    case 'DURATION': return { type: 'DURATION', value: val.value };
+    case 'CUBIC_BEZIER': return { type: 'CUBIC_BEZIER', value: val.value };
+    case 'BLUR': return { type: 'BLUR', value: val.value };
+    case 'SPREAD': return { type: 'SPREAD', value: val.value };
+    case 'RADIUS': return { type: 'RADIUS', value: val.value };
+    case 'ALIAS': return { type: 'ALIAS', tokenId: val.tokenId };
+    default: return { type: 'COLOR', value: '' };
+  }
+}
+
+// Helper: convert legacy type-based TokenValue to schema-compliant TokenValue
+function toCanonicalTokenValue(val: TokenValue): TokenValue {
+  return toLegacyTokenValue(val); // Already canonical
+}
+
+// Helper: convert valuesByMode to legacy structure for canonical Token
+function toLegacyValuesByMode(valuesByMode: ValueByMode[]): { modeIds: string[]; value: { type: string; value?: unknown; tokenId?: string }; metadata?: Record<string, unknown>; platformOverrides?: { platformId: string; value: string }[] }[] {
+  return valuesByMode.map(vbm => ({
+    ...vbm,
+    value: toLegacyTokenValue(vbm.value)
+  }));
+}
+
+// Helper: convert constraints to legacy structure if needed
+function toLegacyConstraints(constraints: Constraint[] | undefined): { type: 'contrast'; rule: Constraint['rule'] }[] | undefined {
+  if (!constraints) return undefined;
+  return constraints.map(c => ({
+    type: 'contrast',
+    rule: c.rule
+  }));
+}
 
 export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, resolvedValueTypes, isNew = false, onViewClassifications }: TokenEditorDialogProps) {
   const { schema } = useSchema();
@@ -358,24 +388,24 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
         const key = modeIds.slice().sort().join(',');
         if (prevMap.has(key)) {
           const val = prevMap.get(key);
-          return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
+          return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev)) };
         }
         for (let i = 0; i < modeIds.length; i++) {
           const parentIds = modeIds.slice(0, i).concat(modeIds.slice(i + 1));
           const parentKey = parentIds.slice().sort().join(',');
           if (prevMap.has(parentKey)) {
             const val = prevMap.get(parentKey);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev)) };
           }
         }
-        return { modeIds, value: getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
+        return { modeIds, value: getDefaultTokenValue(getResolvedValueTypeId(prev)) };
       });
       return {
         ...prev,
         valuesByMode: migrateTokenValuesByMode(newValuesByMode)
       };
     });
-  }, [dimensions, activeDimensionIds, open, resolvedValueTypes]);
+  }, [dimensions, activeDimensionIds, open]);
 
   // Add or remove a dimension from the token
   const handleToggleDimension = (dimensionId: string) => {
@@ -404,7 +434,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           const key = modeIds.slice().sort().join(',');
           if (prevMap.has(key)) {
             const val = prevMap.get(key);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev)) };
           }
           // Find all previous combos that are a superset of modeIds
           const candidates = prev.valuesByMode.filter(vbm =>
@@ -416,7 +446,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           if (found) {
             return { modeIds, value: found.value };
           }
-          return { modeIds, value: getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
+          return { modeIds, value: getDefaultTokenValue(getResolvedValueTypeId(prev)) };
         });
         return {
           ...prev,
@@ -438,7 +468,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           const key = modeIds.slice().sort().join(',');
           if (prevMap.has(key)) {
             const val = prevMap.get(key);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev)) };
           }
           // Try to restore from preserved
           if (preserved[key]) {
@@ -450,10 +480,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
             const parentKey = parentIds.slice().sort().join(',');
             if (prevMap.has(parentKey)) {
               const val = prevMap.get(parentKey);
-              return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
+              return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(getResolvedValueTypeId(prev)) };
             }
           }
-          return { modeIds, value: getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) };
+          return { modeIds, value: getDefaultTokenValue(getResolvedValueTypeId(prev)) };
         });
         return {
           ...prev,
@@ -464,33 +494,26 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     setActiveDimensionIds(newActiveDims);
   };
 
-  // Update getValueEditor to handle both old and new formats
+  // Update getValueEditor to use canonical TokenValue
   const getValueEditor = (value: TokenValue | string, modeIndex: number, isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => {
     if (typeof value === 'string') {
       return <Text fontSize="sm" color="gray.500">{value}</Text>;
     }
-
+    const canonicalValue = toCanonicalTokenValue(value);
     return (
       <TokenValuePicker
-        resolvedValueTypeId={editedToken.resolvedValueTypeId}
-        value={value}
-        tokens={tokens.map(t => ({
-          ...t,
-          valuesByMode: t.valuesByMode.map(vbm => ({
-            ...vbm,
-            value: migrateToTokenValue(vbm.value)
-          }))
-        }))}
+        value={canonicalValue}
+        tokens={tokens}
         constraints={constraints}
         excludeTokenId={editedToken.id}
         onChange={newValue => {
           if (onChange) {
-            onChange(newValue);
+            onChange(toLegacyTokenValue(newValue));
           } else {
             setEditedToken(prev => ({
               ...prev,
               valuesByMode: prev.valuesByMode.map((item, idx) =>
-                idx === modeIndex ? { ...item, value: newValue } : item
+                idx === modeIndex ? { ...item, value: toLegacyTokenValue(newValue) } : item
               )
             }));
           }
@@ -515,16 +538,37 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
         return { ...c, rule: { ...c.rule, minimum: Number(value) } };
       }
       if (field === 'comparatorValue') {
-        return { ...c, rule: { ...c.rule, comparator: { ...c.rule.comparator, value: value as string } } };
+        return { 
+          ...c, 
+          rule: { 
+            ...c.rule, 
+            comparator: { 
+              ...c.rule.comparator, 
+              value: value as string,
+              resolvedValueTypeId: c.rule.comparator.resolvedValueTypeId || findResolvedValueTypeByDisplayName(resolvedValueTypes, 'color') || 'color',
+              method: c.rule.comparator.method || 'WCAG21'
+            } 
+          } 
+        };
       }
       if (field === 'method') {
-        return { ...c, rule: { ...c.rule, comparator: { ...c.rule.comparator, method: value as 'WCAG21' | 'APCA' | 'Lstar' } } };
+        return { 
+          ...c, 
+          rule: { 
+            ...c.rule, 
+            comparator: { 
+              ...c.rule.comparator, 
+              method: value as 'WCAG21' | 'APCA' | 'Lstar',
+              resolvedValueTypeId: c.rule.comparator.resolvedValueTypeId || findResolvedValueTypeByDisplayName(resolvedValueTypes, 'color') || 'color'
+            } 
+          } 
+        };
       }
       return c;
     }));
   };
 
-  // Update handleSave to convert values to the correct format
+  // Update handleSave to convert the entire ExtendedToken to canonical Token type
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('[TokenEditorDialog] handleSave called with token:', editedToken);
@@ -538,16 +582,13 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
         {
           ...editedToken,
           taxonomies: taxonomyEdits,
-          valuesByMode: editedToken.valuesByMode.map(vbm => ({
-            ...vbm,
-            value: migrateToTokenValue(vbm.value)
-          }))
+          valuesByMode: editedToken.valuesByMode
         },
         codeSyntaxSchema
       )
     };
-    console.log('[TokenEditorDialog] Calling onSave with updated token:', updatedToken);
-    onSave(updatedToken as unknown as Token);
+    // Call onSave with canonical ExtendedToken type
+    onSave(updatedToken);
     console.log('[TokenEditorDialog] Calling onClose');
     onClose();
   };
@@ -722,7 +763,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                         setEditedToken(prev => ({
                           ...prev,
                           resolvedValueTypeId: newType,
-                          valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType, resolvedValueTypes) }]
+                          valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType) }]
                         }));
                       }}
                     >
@@ -797,11 +838,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     <FormControl w="160px">
                       <FormLabel fontSize="xs" mb={0}>Comparator Color</FormLabel>
                       <TokenValuePicker
-                        resolvedValueTypeId={findResolvedValueTypeByDisplayName(resolvedValueTypes, 'color') || 'COLOR'}
-                        value={{ resolvedValueTypeId: 'color', value: constraint.rule.comparator.value }}
+                        value={toCanonicalTokenValue({ type: 'COLOR', value: constraint.rule.comparator.value })}
                         tokens={tokens}
                         onChange={(newValue) => {
-                          if (newValue.resolvedValueTypeId === 'color' && typeof newValue.value === 'string') {
+                          if (newValue.type === 'COLOR') {
                             handleConstraintChange(idx, 'comparatorValue', newValue.value);
                           }
                         }}
@@ -850,11 +890,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                   <FormControl w="160px">
                     <FormLabel fontSize="xs" mb={0}>Comparator Color</FormLabel>
                     <TokenValuePicker
-                      resolvedValueTypeId={findResolvedValueTypeByDisplayName(resolvedValueTypes, 'color') || 'COLOR'}
-                      value={{ resolvedValueTypeId: 'color', value: newConstraint.rule.comparator.value }}
+                      value={toCanonicalTokenValue({ type: 'COLOR', value: newConstraint.rule.comparator.value })}
                       tokens={tokens}
                       onChange={(newValue) => {
-                        if (newValue.resolvedValueTypeId === 'color' && typeof newValue.value === 'string') {
+                        if (newValue.type === 'COLOR') {
                           setNewConstraint(nc => ({
                             ...nc,
                             rule: {
@@ -863,7 +902,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                                 ...nc.rule.comparator,
                                 value: newValue.value,
                                 method: nc.rule.comparator.method || 'WCAG21',
-                                resolvedValueTypeId: findResolvedValueTypeByDisplayName(resolvedValueTypes, 'color') || 'COLOR'
+                                resolvedValueTypeId: 'color'
                               }
                             }
                           }));
@@ -931,7 +970,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                             ...prev,
                             valuesByMode: [
                               ...prev.valuesByMode,
-                              { modeIds: [], value: getDefaultTokenValue(getResolvedValueTypeId(prev), resolvedValueTypes) }
+                              { modeIds: [], value: getDefaultTokenValue(getResolvedValueTypeId(prev)) }
                             ]
                           }))}
                         >
@@ -942,8 +981,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     return (
                       <HStack spacing={2}>
                         <TokenValuePicker
-                          resolvedValueTypeId={editedToken.resolvedValueTypeId}
-                          value={globalValue.value}
+                          value={toCanonicalTokenValue(globalValue.value)}
                           tokens={tokens}
                           constraints={constraints}
                           excludeTokenId={editedToken.id}
@@ -951,7 +989,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                             ...prev,
                             valuesByMode: prev.valuesByMode.map((item) =>
                               Array.isArray(item.modeIds) && item.modeIds.length === 0
-                                ? { ...item, value: newValue }
+                                ? { ...item, value: toLegacyTokenValue(newValue) }
                                 : item
                             )
                           }))}
@@ -969,10 +1007,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                   })()
                 ) : (
                   <ValueByModeTable
-                    valuesByMode={editedToken.valuesByMode.map(vbm => ({
-                      ...vbm,
-                      value: migrateToTokenValue(vbm.value)
-                    }))}
+                    valuesByMode={editedToken.valuesByMode}
                     modes={modes}
                     getValueEditor={getValueEditor}
                   />
@@ -988,10 +1023,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                 >
                   <PlatformOverridesTable
                     platforms={platforms}
-                    valuesByMode={editedToken.valuesByMode.map(vbm => ({
-                      ...vbm,
-                      value: migrateToTokenValue(vbm.value)
-                    }))}
+                    valuesByMode={editedToken.valuesByMode}
                     modes={modes}
                     getValueEditor={getValueEditor}
                     onPlatformOverrideChange={(platformId: string, modeIndex: number, newValue: TokenValue) => {

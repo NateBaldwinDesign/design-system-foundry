@@ -18,8 +18,8 @@ import {
   Input,
 } from '@chakra-ui/react';
 import { Pencil, Trash2 } from 'lucide-react';
-import type { TokenCollection, Mode, Taxonomy, ResolvedValueType, Dimension, Platform } from '@token-model/data-model';
-import { TokenEditorDialog, ExtendedToken, ValueByMode, TokenValue } from '../../components/TokenEditorDialog';
+import type { TokenCollection, Mode, Taxonomy, ResolvedValueType, Dimension, Platform, TokenValue } from '@token-model/data-model';
+import { TokenEditorDialog, ExtendedToken, ValueByMode } from '../../components/TokenEditorDialog';
 
 interface TokensTabProps {
   tokens: ExtendedToken[];
@@ -63,7 +63,7 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
         (token.description?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
       if (!matchesSearch) return false;
       if (collectionFilter && token.tokenCollectionId !== collectionFilter) return false;
-      if (typeFilter && (token.resolvedValueTypeId || token.resolvedValueType) !== typeFilter) return false;
+      if (typeFilter && token.resolvedValueTypeId !== typeFilter) return false;
       if (statusFilter && token.status !== statusFilter) return false;
       if (privateFilter && String(token.private) !== privateFilter) return false;
       if (themeableFilter && String(token.themeable) !== themeableFilter) return false;
@@ -80,7 +80,7 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
   // Map resolvedValueTypes to objects if needed
   const resolvedValueTypeObjs = useMemo(() => {
     if (resolvedValueTypes.length > 0 && typeof resolvedValueTypes[0] === 'string') {
-      return ((resolvedValueTypes as unknown) as ExtendedToken['resolvedValueType'][]).map(id => ({ id, displayName: id.charAt(0) + id.slice(1).toLowerCase().replace(/_/g, ' ') })) as { id: ExtendedToken['resolvedValueType']; displayName: string }[];
+      return (resolvedValueTypes as unknown as { id: string; displayName: string }[]);
     }
     // Suppress the conversion warning by casting to unknown first
     return (resolvedValueTypes as unknown) as { id: ExtendedToken['resolvedValueType']; displayName: string }[];
@@ -110,29 +110,32 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
   };
 
   const getValueDisplay = (value: TokenValue) => {
-    switch (value.resolvedValueTypeId) {
-      case 'color':
+    if (typeof value !== 'object' || value === null || !('type' in value)) {
+      return <Text>Unknown value type</Text>;
+    }
+    switch (value.type) {
+      case 'COLOR':
         return (
           <HStack>
             <Box width="20px" height="20px" borderRadius="sm" backgroundColor={value.value} border="1px solid" borderColor="gray.200" />
             <Text>{value.value}</Text>
           </HStack>
         );
-      case 'alias':
+      case 'ALIAS':
         return <Text>{value.tokenId}</Text>;
-      case 'dimension':
-      case 'spacing':
-      case 'font-weight':
-      case 'font-size':
-      case 'line-height':
-      case 'letter-spacing':
-      case 'duration':
-      case 'blur':
-      case 'spread':
-      case 'radius':
+      case 'DIMENSION':
+      case 'SPACING':
+      case 'FONT_WEIGHT':
+      case 'FONT_SIZE':
+      case 'LINE_HEIGHT':
+      case 'LETTER_SPACING':
+      case 'DURATION':
+      case 'BLUR':
+      case 'SPREAD':
+      case 'RADIUS':
         return <Text>{value.value}</Text>;
-      case 'font-family':
-      case 'cubic-bezier':
+      case 'FONT_FAMILY':
+      case 'CUBIC_BEZIER':
         return <Text>{value.value}</Text>;
       default:
         return <Text>Unknown value type</Text>;
@@ -225,7 +228,7 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
                   )}
                 </Td>
                 <Td>{getCollectionName(token.tokenCollectionId)}</Td>
-                <Td><Tag colorScheme="blue" size="sm">{token.resolvedValueTypeId || token.resolvedValueType}</Tag></Td>
+                <Td><Tag colorScheme="blue" size="sm">{token.resolvedValueTypeId}</Tag></Td>
                 <Td>{token.status && (<Tag colorScheme={token.status === 'stable' ? 'green' : token.status === 'experimental' ? 'yellow' : 'red'} size="sm">{token.status}</Tag>)}</Td>
                 <Td><Tag colorScheme={token.private ? 'gray' : 'green'} size="sm">{token.private ? 'Private' : 'Public'}</Tag></Td>
                 <Td><Tag colorScheme={token.themeable ? 'green' : 'gray'} size="sm">{token.themeable ? 'Yes' : 'No'}</Tag></Td>
@@ -272,7 +275,6 @@ export function TokensTab({ tokens, collections, modes, dimensions, platforms, o
             displayName: '',
             description: '',
             tokenCollectionId: collections[0]?.id || '',
-            resolvedValueType: (resolvedValueTypeObjs[0]?.id as ExtendedToken['resolvedValueType']) || 'COLOR',
             resolvedValueTypeId: resolvedValueTypeObjs[0]?.id || 'COLOR',
             propertyTypes: [],
             private: false,

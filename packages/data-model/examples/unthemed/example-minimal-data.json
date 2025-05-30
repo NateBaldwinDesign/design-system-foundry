@@ -86,18 +86,7 @@
       "resolvedValueTypeIds": ["valueTypeId-FONT_FAMILY", "valueTypeId-LINE_HEIGHT", "valueTypeId-FONT_WEIGHT"]
     }
   ],
-  "themes": [
-    {
-      "id": "themeId-0000-0000-0000",
-      "displayName": "My System",
-      "isDefault": true
-    },
-    {
-      "id": "themeId-1111-1111-1111",
-      "displayName": "My cool new theme",
-      "isDefault": false
-    }
-  ],
+  "themes": [],
   "themeOverrides": {},
   "taxonomies": [
     {

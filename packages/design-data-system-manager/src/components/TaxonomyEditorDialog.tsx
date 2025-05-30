@@ -40,6 +40,14 @@ export const TaxonomyEditorDialog: React.FC<TaxonomyEditorDialogProps> = ({
   handleTermDelete
 }) => {
   const { colorMode } = useColorMode();
+
+  // Add debug logging for form data
+  React.useEffect(() => {
+    if (open) {
+      console.log('[TaxonomyEditorDialog] Form data:', JSON.stringify(form, null, 2));
+    }
+  }, [open, form]);
+
   return (
     <Modal isOpen={open} onClose={onClose} size="lg">
       <ModalOverlay />

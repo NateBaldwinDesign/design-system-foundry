@@ -8,6 +8,9 @@ export interface ValidationResult {
 export class ValidationService {
   static validateData(data: any): ValidationResult {
     try {
+      // Debug logging
+      console.log('[ValidationService] Data being validated:', JSON.stringify(data, null, 2));
+      
       // First validate the overall schema
       validateTokenSystem(data);
 

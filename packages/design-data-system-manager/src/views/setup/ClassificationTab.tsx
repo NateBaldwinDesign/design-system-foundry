@@ -5,26 +5,17 @@ import {
   VStack,
   HStack,
   Button,
-  FormControl,
-  FormLabel,
-  Input,
   IconButton,
   useToast,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
   useColorMode
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
-import type { Taxonomy, Token, TokenCollection, Dimension, Platform } from '@token-model/data-model';
+import type { Taxonomy, Token, TokenCollection, Dimension, Platform, ResolvedValueType } from '@token-model/data-model';
 import { createUniqueId } from '../../utils/id';
 import { ValidationService } from '../../services/validation';
 import { TaxonomyEditorDialog } from '../../components/TaxonomyEditorDialog';
 import { TermEditorDialog } from '../../components/TermEditorDialog';
+import { StorageService } from '../../services/storage';
 
 interface ClassificationTabProps {
   taxonomies: Taxonomy[];
@@ -32,7 +23,7 @@ interface ClassificationTabProps {
 }
 
 // Utility to ensure all terms have a string description
-function normalizeTerms(terms: any[]): { id: string; name: string; description: string }[] {
+function normalizeTerms(terms: { id: string; name: string; description?: string }[]): { id: string; name: string; description: string }[] {
   return terms.map(term => ({
     ...term,
     description: typeof term.description === 'string' ? term.description : ''
@@ -53,12 +44,11 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
   const [termDialogOpen, setTermDialogOpen] = useState(false);
   const [termEditIndex, setTermEditIndex] = useState<number | null>(null);
   const toast = useToast();
-  const tokens: Token[] = [];
-  const collections: TokenCollection[] = [];
-  const dimensions: Dimension[] = [];
-  const platforms: Platform[] = [];
-  const resolvedValueTypes: { id: string; name: string }[] = [];
-  const themes: { id: string; name: string }[] = [];
+  const tokens: Token[] = StorageService.getTokens();
+  const collections: TokenCollection[] = StorageService.getCollections();
+  const dimensions: Dimension[] = StorageService.getDimensions();
+  const platforms: Platform[] = StorageService.getPlatforms();
+  const resolvedValueTypes: ResolvedValueType[] = StorageService.getValueTypes();
 
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
@@ -86,45 +76,69 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
     setEditingIndex(null);
   };
 
-  const handleFormChange = (field: string, value: any) => {
+  const handleFormChange = (field: string, value: string | { id: string; name: string; description?: string }[]) => {
     setForm(prev => {
       if (field === 'terms') {
-        return { ...prev, terms: normalizeTerms(value) };
+        return { ...prev, terms: normalizeTerms(value as { id: string; name: string; description?: string }[]) };
       }
       return { ...prev, [field]: value };
     });
   };
 
-  const validateAndSetTaxonomies = (updatedTaxonomies: Taxonomy[]) => {
-    const data = {
-      tokenCollections: collections,
-      dimensions,
-      tokens,
-      platforms,
-      taxonomies: updatedTaxonomies,
-      resolvedValueTypes,
-      themes,
-      version: '1.0.0',
-      versionHistory: []
-    };
-    const result = ValidationService.validateData(data);
-    if (!result.isValid) {
+  const validateAndSetTaxonomies = async (taxonomies: Taxonomy[]) => {
+    try {
+      // Get root-level data from localStorage
+      const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
+      const {
+        systemName = 'Design System',
+        systemId = 'design-system',
+        version = '1.0.0',
+        versionHistory = []
+      } = root;
+
+      const data = {
+        systemName,
+        systemId,
+        tokenCollections: collections,
+        dimensions,
+        tokens,
+        platforms,
+        taxonomies,
+        resolvedValueTypes,
+        version,
+        versionHistory
+      };
+
+      console.log('[ClassificationTab] Validation data:', JSON.stringify(data, null, 2));
+      const result = ValidationService.validateData(data);
+      console.log('[ClassificationTab] Validation result:', result);
+      if (!result.isValid) {
+        console.error('[ClassificationTab] Validation errors:', result.errors);
+        toast({
+          title: "Validation Error",
+          description: `Schema Validation Failed: ${result.errors?.map(e => e.message).join(', ')}`,
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+      setTaxonomies(taxonomies);
+    } catch (error) {
+      console.error('[ClassificationTab] Validation error:', error);
       toast({
-        title: 'Schema Validation Failed',
-        description: 'Your change would make the data invalid. See the Validation tab for details.',
+        title: 'Validation Error',
+        description: 'An error occurred while validating the data',
         status: 'error',
-        duration: 4000,
+        duration: 5000,
         isClosable: true,
       });
-      return false;
     }
-    setTaxonomies(updatedTaxonomies);
-    return true;
   };
 
   const handleSave = () => {
     // Ensure taxonomy has an id
-    let taxonomyId = form.id && form.id.trim() ? form.id : createUniqueId('taxonomy');
+    const taxonomyId = form.id && form.id.trim() ? form.id : createUniqueId('taxonomy');
     if (!form.name.trim()) {
       toast({ title: 'Name is required', status: 'error', duration: 2000 });
       return;
@@ -181,9 +195,17 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
   const handleTermDialogOpen = (index: number | null) => {
     if (index !== null && form.terms[index]) {
       const t = form.terms[index];
-      setTermForm({ id: t.id, name: t.name, description: t.description || '' });
+      setTermForm({ 
+        id: t.id, 
+        name: t.name, 
+        description: t.description || '' 
+      });
     } else {
-      setTermForm({ id: createUniqueId('term'), name: '', description: '' });
+      setTermForm({ 
+        id: createUniqueId('term'), 
+        name: '', 
+        description: '' 
+      });
     }
     setTermDialogOpen(true);
     setTermEditIndex(index);
@@ -200,7 +222,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
 
   const handleTermSave = () => {
     // Ensure term has an id
-    let termId = termForm.id && termForm.id.trim() ? termForm.id : createUniqueId('term');
+    const termId = termForm.id && termForm.id.trim() ? termForm.id : createUniqueId('term');
     if (!termForm.name.trim()) {
       toast({ title: 'Term name is required', status: 'error', duration: 2000 });
       return;

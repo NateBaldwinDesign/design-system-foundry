@@ -26,39 +26,9 @@ import {
   NumberIncrementStepper,
   NumberDecrementStepper
 } from '@chakra-ui/react';
-import type { Token } from '@token-model/data-model';
-import Color from 'colorjs.io';
-
-type TokenValue =
-  | { resolvedValueTypeId: 'color'; value: string }
-  | { resolvedValueTypeId: 'dimension'; value: number }
-  | { resolvedValueTypeId: 'spacing'; value: number }
-  | { resolvedValueTypeId: 'font-family'; value: string }
-  | { resolvedValueTypeId: 'font-weight'; value: number }
-  | { resolvedValueTypeId: 'font-size'; value: number }
-  | { resolvedValueTypeId: 'line-height'; value: number }
-  | { resolvedValueTypeId: 'letter-spacing'; value: number }
-  | { resolvedValueTypeId: 'duration'; value: number }
-  | { resolvedValueTypeId: 'cubic-bezier'; value: string }
-  | { resolvedValueTypeId: 'blur'; value: number }
-  | { resolvedValueTypeId: 'spread'; value: number }
-  | { resolvedValueTypeId: 'radius'; value: number }
-  | { resolvedValueTypeId: 'alias'; tokenId: string };
-
-interface Constraint {
-  resolvedValueTypeId: string;
-  rule: {
-    comparator: { resolvedValueTypeId: string; value: string; method?: string };
-    minimum: number;
-  };
-}
-
-interface TokenWithCompat extends Token {
-  resolvedValueTypeId?: string;
-}
+import type { Token, TokenValue } from '@token-model/data-model';
 
 interface TokenValuePickerProps {
-  resolvedValueTypeId: string;
   value: TokenValue | string;
   tokens: Token[];
   constraints?: Constraint[];
@@ -66,45 +36,21 @@ interface TokenValuePickerProps {
   excludeTokenId?: string;
 }
 
-function satisfiesConstraints(token: Token, constraints?: Constraint[]): boolean {
-  if (!constraints || constraints.length === 0) return true;
-  for (const constraint of constraints) {
-    if (constraint.resolvedValueTypeId === 'contrast') {
-      // Find the color value for this token (global or first mode)
-      let color: string | undefined;
-      if (token.valuesByMode && token.valuesByMode.length > 0) {
-        const vbm = token.valuesByMode[0];
-        if (vbm.value && typeof vbm.value === 'object' && vbm.value.type === 'COLOR') {
-          color = vbm.value.value;
-        }
-      }
-      if (!color) return false;
-      const comparator = constraint.rule.comparator.value;
-      const min = constraint.rule.minimum;
-      const method = constraint.rule.comparator.method || 'WCAG21';
-      let colorjsMethod: string;
-      if (method === 'WCAG21') colorjsMethod = 'WCAG21';
-      else if (method === 'APCA') colorjsMethod = 'APCA';
-      else if (method === 'Lstar') colorjsMethod = 'Lstar';
-      else colorjsMethod = 'WCAG21';
-      try {
-        const c1 = new Color(color);
-        const c2 = new Color(comparator);
-        if (c1.contrast(c2, colorjsMethod as "WCAG21" | "APCA" | "Lstar" | "Michelson" | "Weber" | "DeltaPhi") < min) return false;
-      } catch {
-        return false;
-      }
-    }
-    // Add more constraint types here as needed
-  }
-  return true;
+interface Constraint {
+  type: 'contrast';
+  rule: {
+    minimum: number;
+    comparator: {
+      resolvedValueTypeId: string;
+      value: string;
+      method: 'WCAG21' | 'APCA' | 'Lstar';
+    };
+  };
 }
 
 export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
-  resolvedValueTypeId,
   value,
   tokens,
-  constraints,
   onChange,
   excludeTokenId
 }) => {
@@ -112,55 +58,59 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
   const [tabIndex, setTabIndex] = useState(0);
 
   // Filter tokens for the "token" tab
-  const filteredTokens = (tokens as TokenWithCompat[]).filter(
-    t =>
-      (t.resolvedValueTypeId || t.resolvedValueType) === resolvedValueTypeId &&
-      t.id !== excludeTokenId &&
-      satisfiesConstraints(t, constraints)
-  );
+  const filteredTokens = Array.isArray(tokens)
+    ? tokens.filter(
+        t => typeof value === 'object' && value !== null && 'type' in value && 'type' in t && t.type === value.type && t.id !== excludeTokenId
+      )
+    : [];
 
   // Render the value for the button
   let buttonLabel = '';
-  let aliasToken: TokenWithCompat | undefined;
+  let aliasToken: Token | undefined;
 
   if (typeof value === 'string') {
     buttonLabel = value;
-  } else if (value.resolvedValueTypeId === 'alias') {
+  } else if (value.type === 'ALIAS') {
     aliasToken = tokens.find(t => t.id === value.tokenId);
     buttonLabel = aliasToken ? `Alias: ${aliasToken.displayName}` : `Alias: ${value.tokenId}`;
-  } else if ('value' in value) {
-    switch (value.resolvedValueTypeId) {
-      case 'color':
-      case 'font-family':
-      case 'cubic-bezier':
-        buttonLabel = value.value;
+  } else {
+    const typedValue = value as Exclude<TokenValue, { type: 'ALIAS' }>;
+    switch (typedValue.type) {
+      case 'COLOR':
+      case 'FONT_FAMILY':
+      case 'CUBIC_BEZIER':
+        buttonLabel = typedValue.value;
         break;
-      case 'dimension':
-      case 'spacing':
-      case 'font-weight':
-      case 'font-size':
-      case 'line-height':
-      case 'letter-spacing':
-      case 'duration':
-      case 'blur':
-      case 'spread':
-      case 'radius':
-        buttonLabel = String(value.value);
+      case 'DIMENSION':
+      case 'SPACING':
+      case 'FONT_WEIGHT':
+      case 'FONT_SIZE':
+      case 'LINE_HEIGHT':
+      case 'LETTER_SPACING':
+      case 'DURATION':
+      case 'BLUR':
+      case 'SPREAD':
+      case 'RADIUS':
+        buttonLabel = String(typedValue.value);
         break;
       default:
-        buttonLabel = JSON.stringify(value);
+        buttonLabel = JSON.stringify(typedValue);
     }
   }
 
   const renderCustomInput = () => {
+    if (typeof value !== 'object' || value === null || !('type' in value)) {
+      return null;
+    }
+
     let bezierValue: string;
     let x1: number, y1: number, x2: number, y2: number;
     let colorValue: string;
     let fontValue: string;
 
-    switch (resolvedValueTypeId) {
-      case 'color':
-        colorValue = typeof value === 'object' && value.resolvedValueTypeId === 'color' && 'value' in value ? value.value : '#000000';
+    switch (value.type) {
+      case 'COLOR':
+        colorValue = typeof value === 'object' && value.type === 'COLOR' ? value.value : '#000000';
         return (
           <VStack>
             <Input
@@ -168,26 +118,26 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
               w="40px"
               p={0}
               value={colorValue}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ resolvedValueTypeId: 'color', value: e.target.value })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'COLOR', value: e.target.value })}
             />
             <Input
               size="sm"
               value={colorValue}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ resolvedValueTypeId: 'color', value: e.target.value })}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'COLOR', value: e.target.value })}
             />
           </VStack>
         );
-      case 'font-family':
-        fontValue = typeof value === 'object' && value.resolvedValueTypeId === 'font-family' && 'value' in value ? value.value : '';
+      case 'FONT_FAMILY':
+        fontValue = typeof value === 'object' && value.type === 'FONT_FAMILY' ? value.value : '';
         return (
           <Input
             size="sm"
             value={fontValue}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ resolvedValueTypeId: 'font-family', value: e.target.value })}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'FONT_FAMILY', value: e.target.value })}
           />
         );
-      case 'cubic-bezier':
-        bezierValue = typeof value === 'object' && value.resolvedValueTypeId === 'cubic-bezier' && 'value' in value ? value.value : '0, 0, 1, 1';
+      case 'CUBIC_BEZIER':
+        bezierValue = typeof value === 'object' && value.type === 'CUBIC_BEZIER' ? value.value : '0, 0, 1, 1';
         [x1, y1, x2, y2] = bezierValue.split(',').map(Number);
         return (
           <VStack>
@@ -196,7 +146,7 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
                 size="sm"
                 value={x1}
                 onChange={(_, newVal) => {
-                  onChange({ resolvedValueTypeId: 'cubic-bezier', value: `${newVal}, ${y1}, ${x2}, ${y2}` });
+                  onChange({ type: 'CUBIC_BEZIER', value: `${newVal}, ${y1}, ${x2}, ${y2}` });
                 }}
               >
                 <NumberInputField />
@@ -209,7 +159,7 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
                 size="sm"
                 value={y1}
                 onChange={(_, newVal) => {
-                  onChange({ resolvedValueTypeId: 'cubic-bezier', value: `${x1}, ${newVal}, ${x2}, ${y2}` });
+                  onChange({ type: 'CUBIC_BEZIER', value: `${x1}, ${newVal}, ${x2}, ${y2}` });
                 }}
               >
                 <NumberInputField />
@@ -222,7 +172,7 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
                 size="sm"
                 value={x2}
                 onChange={(_, newVal) => {
-                  onChange({ resolvedValueTypeId: 'cubic-bezier', value: `${x1}, ${y1}, ${newVal}, ${y2}` });
+                  onChange({ type: 'CUBIC_BEZIER', value: `${x1}, ${y1}, ${newVal}, ${y2}` });
                 }}
               >
                 <NumberInputField />
@@ -235,7 +185,7 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
                 size="sm"
                 value={y2}
                 onChange={(_, newVal) => {
-                  onChange({ resolvedValueTypeId: 'cubic-bezier', value: `${x1}, ${y1}, ${x2}, ${newVal}` });
+                  onChange({ type: 'CUBIC_BEZIER', value: `${x1}, ${y1}, ${x2}, ${newVal}` });
                 }}
               >
                 <NumberInputField />
@@ -248,14 +198,15 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
           </VStack>
         );
       default:
-        if (['dimension', 'spacing', 'font-weight', 'font-size', 'line-height', 'letter-spacing', 'duration', 'blur', 'spread', 'radius'].includes(resolvedValueTypeId)) {
-          const numericValue = typeof value === 'object' && value.resolvedValueTypeId === resolvedValueTypeId && 'value' in value ? value.value : 0;
+        if (['DIMENSION', 'SPACING', 'FONT_WEIGHT', 'FONT_SIZE', 'LINE_HEIGHT', 'LETTER_SPACING', 'DURATION', 'BLUR', 'SPREAD', 'RADIUS'].includes(value.type)) {
+          const type = value.type as Exclude<TokenValue['type'], 'ALIAS' | 'COLOR' | 'FONT_FAMILY' | 'CUBIC_BEZIER'>;
+          const numericValue = typeof value === 'object' && value.type === type ? (value as { type: typeof type; value: number }).value : 0;
           return (
             <NumberInput
               size="sm"
               value={numericValue}
               onChange={(_, newVal) => {
-                onChange({ resolvedValueTypeId, value: newVal });
+                onChange({ type, value: newVal });
               }}
             >
               <NumberInputField />

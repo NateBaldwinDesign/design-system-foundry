@@ -396,13 +396,15 @@ export const TokenSystem = z.object({
   dimensions: z.array(Dimension),
   tokenCollections: z.array(TokenCollection),
   tokens: z.array(Token),
-  tokenGroups: z.array(TokenGroup),
-  tokenVariants: z.array(TokenVariant),
   platforms: z.array(Platform),
-  themes: z.array(Theme),
-  themeOverrides: ThemeOverrides,
+  themes: z.array(Theme).optional(),
+  themeOverrides: ThemeOverrides.optional(),
   taxonomies: z.array(Taxonomy),
-  resolvedValueTypes: z.array(ResolvedValueType)
+  resolvedValueTypes: z.array(ResolvedValueType),
+  extensions: z.object({
+    tokenGroups: z.array(TokenGroup).optional(),
+    tokenVariants: z.record(z.any()).optional()
+  }).optional()
 });
 
 // Validation functions

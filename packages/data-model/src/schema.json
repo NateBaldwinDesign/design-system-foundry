@@ -740,21 +740,21 @@
         "description": "List of taxonomies for organizing tokens or other entities.",
         "items": {
           "type": "object",
-          "required": ["id", "name", "description", "terms"],
+          "required": ["id", "name", "terms"],
           "properties": {
             "id": { "type": "string", "description": "Unique identifier for the taxonomy." },
             "name": { "type": "string", "description": "Human-readable name for the taxonomy." },
-            "description": { "type": "string", "description": "Description of the taxonomy." },
+            "description": { "type": "string", "description": "Optional description of the taxonomy." },
             "terms": {
               "type": "array",
               "description": "Terms within this taxonomy.",
               "items": {
                 "type": "object",
-                "required": ["id", "name", "description"],
+                "required": ["id", "name"],
                 "properties": {
                   "id": { "type": "string", "description": "Unique identifier for the term." },
                   "name": { "type": "string", "description": "Human-readable name for the term." },
-                  "description": { "type": "string", "description": "Description of the term.", "optional": true }
+                  "description": { "type": "string", "description": "Optional description of the term." }
                 }
               }
             },

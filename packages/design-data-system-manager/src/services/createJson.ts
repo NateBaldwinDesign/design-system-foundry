@@ -38,8 +38,6 @@ export function createSchemaJsonFromLocalStorage() {
   }];
 
   // Compose required top-level fields (with defaults if missing)
-  const tokenGroups: any[] = [];
-  const tokenVariants: any[] = [];
   const themeOverrides: Record<string, any> = {};
 
   // Compose resolvedValueTypes as array of objects if needed
@@ -54,16 +52,19 @@ export function createSchemaJsonFromLocalStorage() {
   } else {
     // Fallback to standard types
     resolvedValueTypesArray = [
-      { id: 'COLOR', displayName: 'Color' },
-      { id: 'DIMENSION', displayName: 'Dimension' },
-      { id: 'FONT_FAMILY', displayName: 'Font Family' },
-      { id: 'FONT_WEIGHT', displayName: 'Font Weight' },
-      { id: 'DURATION', displayName: 'Duration' },
-      { id: 'BORDER', displayName: 'Border' },
-      { id: 'SHADOW', displayName: 'Shadow' },
-      { id: 'OPACITY', displayName: 'Opacity' },
-      { id: 'NUMBER', displayName: 'Number' },
-      { id: 'TYPOGRAPHY', displayName: 'Typography' }
+      { id: 'color', displayName: 'Color', type: 'COLOR' },
+      { id: 'dimension', displayName: 'Dimension', type: 'DIMENSION' },
+      { id: 'spacing', displayName: 'Spacing', type: 'SPACING' },
+      { id: 'font-family', displayName: 'Font Family', type: 'FONT_FAMILY' },
+      { id: 'font-weight', displayName: 'Font Weight', type: 'FONT_WEIGHT' },
+      { id: 'font-size', displayName: 'Font Size', type: 'FONT_SIZE' },
+      { id: 'line-height', displayName: 'Line Height', type: 'LINE_HEIGHT' },
+      { id: 'letter-spacing', displayName: 'Letter Spacing', type: 'LETTER_SPACING' },
+      { id: 'duration', displayName: 'Duration', type: 'DURATION' },
+      { id: 'cubic-bezier', displayName: 'Cubic Bezier', type: 'CUBIC_BEZIER' },
+      { id: 'blur', displayName: 'Blur', type: 'BLUR' },
+      { id: 'spread', displayName: 'Spread', type: 'SPREAD' },
+      { id: 'radius', displayName: 'Radius', type: 'RADIUS' }
     ];
   }
 
@@ -101,8 +102,6 @@ export function createSchemaJsonFromLocalStorage() {
     themes: normalizedThemes,
     taxonomies,
     resolvedValueTypes: resolvedValueTypesArray,
-    tokenGroups,
-    tokenVariants,
     themeOverrides,
     namingRules: namingRules || {
       taxonomyOrder: []
