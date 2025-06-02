@@ -162,26 +162,53 @@ Previously, the schema used both an enum (UPPER_CASE) for token value types and 
 - Tokens now use a `resolvedValueTypeId` field, which must match an `id` in the top-level `resolvedValueTypes` array.
 - The `resolvedValueTypes[].id` field is a string (pattern: ^[a-zA-Z0-9-_]+$), not an enum, allowing for extensibility and tool-generated IDs.
 - All references to value types in tokens, collections, dimensions, and taxonomies are by ID, not by hardcoded value or casing.
+- Each resolved value type can optionally specify a `type` field (UPPER_CASE) to indicate its standard type category.
 
 ## Rationale
 - **Referential Integrity:** Ensures all references are valid and unique within the dataset.
 - **Extensibility:** New value types can be added without changing the schema or code.
 - **Clarity:** No confusion about casing or allowed values; IDs are always referenced by ID.
+- **Type Safety:** The optional `type` field provides additional validation and standardization while maintaining flexibility.
+
+## Value Type Structure
+Each value type in the `resolvedValueTypes` array has:
+- `id`: A kebab-case string identifier (e.g., "color", "font-family")
+- `displayName`: Human-readable name for the value type
+- `type`: (Optional) UPPER_CASE string for standard types (e.g., "COLOR", "DIMENSION")
 
 ## Application
 - When creating or editing a token, set `resolvedValueTypeId` to the ID of the value type it uses.
 - When defining collections, dimensions, or taxonomies, use the IDs from `resolvedValueTypes` in `resolvedValueTypeIds` arrays.
-- Validation scripts enforce that all references are valid.
+- Validation scripts enforce that all references are valid and that value types match their specified standard types.
+- Token values must have a `resolvedValueTypeId` that matches their token's type.
 
 ## Example
 ```json
 {
   "resolvedValueTypes": [
-    { "id": "color", "displayName": "Color" },
-    { "id": "fontFamily", "displayName": "Font Family" }
+    { 
+      "id": "color", 
+      "displayName": "Color",
+      "type": "COLOR"
+    },
+    { 
+      "id": "fontFamily", 
+      "displayName": "Font Family",
+      "type": "FONT_FAMILY"
+    }
   ],
   "tokens": [
-    { "id": "token-blue-500", "resolvedValueTypeId": "color", ... }
+    { 
+      "id": "token-blue-500", 
+      "resolvedValueTypeId": "color",
+      "valuesByMode": [...]
+    }
+  ],
+  "collections": [
+    {
+      "id": "collection1",
+      "resolvedValueTypeIds": ["color", "fontFamily"]
+    }
   ]
 }
 ```
@@ -189,12 +216,19 @@ Previously, the schema used both an enum (UPPER_CASE) for token value types and 
 ## Summary Table
 
 | Entity         | Field Name                | Type                | Description                                      |
-|----------------|--------------------------|---------------------|--------------------------------------------------|
+|----------------|---------------------------|---------------------|--------------------------------------------------|
 | Token          | resolvedValueTypeId       | string              | References a value type by ID                    |
 | Collection     | resolvedValueTypeIds      | string[]            | Array of value type IDs supported by the collection |
 | Dimension      | resolvedValueTypeIds      | string[]            | Array of value type IDs supported by the dimension |
 | Taxonomy       | resolvedValueTypeIds      | string[]            | Array of value type IDs supported by the taxonomy |
 | Top-level      | resolvedValueTypes        | array of objects    | List of all value type definitions               |
+
+## Validation Rules
+1. All `resolvedValueTypeId` references must point to a valid `id` in the `resolvedValueTypes` array
+2. When a value type has a `type` specified, it must be one of the standard types
+3. Token values must have a `resolvedValueTypeId` that matches their token's type
+4. Collections, dimensions, and taxonomies can only reference value types that exist in the system
+5. The `id` field must follow the pattern `^[a-zA-Z0-9-_]+$` for consistency and compatibility
 
 # Technical Decisions
 

@@ -2,32 +2,21 @@ import React, { useState } from 'react';
 import {
   Box,
   Text,
-  Input,
   Button,
-  FormControl,
-  FormLabel,
-  Select,
   VStack,
   HStack,
   IconButton,
   useToast,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
   useColorMode,
   Tag,
   TagLabel,
-  TagCloseButton,
-  Wrap
+  Wrap,
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 import type { Dimension, Mode, Token, TokenCollection, Platform, Taxonomy } from '@token-model/data-model';
 import { createUniqueId } from '../../utils/id';
 import { ValidationService } from '../../services/validation';
+import { DimensionsEditor } from '../../components/DimensionsEditor';
 
 interface DimensionsTabProps {
   dimensions: Dimension[];
@@ -57,6 +46,7 @@ interface DimensionFormData {
   modes: Mode[];
   defaultMode: string;
   resolvedValueTypeIds: string[];
+  required: boolean;
 }
 
 export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps) {
@@ -70,9 +60,9 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
     modes: [],
     defaultMode: '',
     resolvedValueTypeIds: [],
+    required: false,
   });
   const [modeForm, setModeForm] = useState({ id: '', name: '', description: '' });
-  const [modeDialogOpen, setModeDialogOpen] = useState(false);
   const [modeEditIndex, setModeEditIndex] = useState<number | null>(null);
   const toast = useToast();
   // Assume tokens, collections, platforms, and taxonomies are available via props or context (for this edit, use empty arrays as placeholders)
@@ -92,6 +82,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
         modes: dim.modes,
         defaultMode: dim.defaultMode || (dim.modes[0]?.id ?? ''),
         resolvedValueTypeIds: dim.resolvedValueTypeIds || [],
+        required: dim.required || false,
       });
     } else {
       setForm({
@@ -101,6 +92,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
         modes: [],
         defaultMode: '',
         resolvedValueTypeIds: [],
+        required: false,
       });
     }
     setOpen(true);
@@ -109,10 +101,6 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
   const handleClose = () => {
     setOpen(false);
     setEditingIndex(null);
-  };
-
-  const handleFormChange = (field: keyof DimensionFormData, value: string) => {
-    setForm((prev: DimensionFormData) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = () => {
@@ -126,7 +114,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
       });
       return;
     }
-    if (!form.defaultMode || !form.modes.some(m => m.id === form.defaultMode)) {
+    if (!form.defaultMode || !form.modes.some((m: Mode) => m.id === form.defaultMode)) {
       toast({ 
         title: 'Invalid Default Mode', 
         description: 'Please select a valid default mode from the available modes.',
@@ -163,7 +151,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
     if (!result.isValid) {
       toast({
         title: 'Schema Validation Failed',
-        description: result.errors?.map(e => e.message).join('\n') || 'Your change would make the data invalid. See the Validation tab for details.',
+        description: result.errors?.map((e: { message: string }) => e.message).join('\n') || 'Your change would make the data invalid. See the Validation tab for details.',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -219,16 +207,14 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
   const handleModeDialogOpen = (index: number | null = null) => {
     setModeEditIndex(index);
     if (index !== null && form.modes) {
-      const m = form.modes[index];
+      const m: Mode = form.modes[index];
       setModeForm({ id: m.id, name: m.name, description: m.description || '' });
     } else {
       setModeForm({ id: createUniqueId('mode'), name: '', description: '' });
     }
-    setModeDialogOpen(true);
   };
 
   const handleModeDialogClose = () => {
-    setModeDialogOpen(false);
     setModeEditIndex(null);
   };
 
@@ -238,7 +224,7 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
 
   const handleModeSave = () => {
     if (!modeForm.id || !modeForm.name) return;
-    const newModes = form.modes ? [...form.modes] : [];
+    const newModes: Mode[] = form.modes ? [...form.modes] : [];
     let newDefaultMode = form.defaultMode;
     if (modeEditIndex !== null) {
       newModes[modeEditIndex] = { ...modeForm, dimensionId: form.id! };
@@ -248,9 +234,8 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
         newDefaultMode = newModes[0].id;
       }
     }
-    setForm(prev => ({ ...prev, modes: newModes, defaultMode: newDefaultMode }));
-    setModeDialogOpen(false);
-    setModeEditIndex(null);
+    setForm((prev: DimensionFormData) => ({ ...prev, modes: newModes, defaultMode: newDefaultMode }));
+    setModeDialogClose();
   };
 
   const handleModeDelete = (index: number) => {
@@ -265,16 +250,16 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
   };
 
   const handleAddValueType = (valueTypeId: string) => {
-    setForm(prev => ({
+    setForm((prev: DimensionFormData) => ({
       ...prev,
       resolvedValueTypeIds: [...(prev.resolvedValueTypeIds || []), valueTypeId],
     }));
   };
 
   const handleRemoveValueType = (valueTypeId: string) => {
-    setForm(prev => ({
+    setForm((prev: DimensionFormData) => ({
       ...prev,
-      resolvedValueTypeIds: (prev.resolvedValueTypeIds || []).filter(id => id !== valueTypeId),
+      resolvedValueTypeIds: (prev.resolvedValueTypeIds || []).filter((id: string) => id !== valueTypeId),
     }));
   };
 
@@ -303,9 +288,9 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
                   {Array.isArray(dim.resolvedValueTypeIds) && dim.resolvedValueTypeIds.length > 0 && (
                     <Wrap mt={2} spacing={2}>
                       {dim.resolvedValueTypeIds.map((typeId: string) => {
-                        const type = resolvedValueTypes.find(t => t.id === typeId);
+                        const type = resolvedValueTypes.find((t: { id: string }) => t.id === typeId);
                         return type ? (
-                          <Tag key={typeId} size="sm" borderRadius="full" variant="solid" colorScheme="blue">
+                          <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
                             <TagLabel>{type.name}</TagLabel>
                           </Tag>
                         ) : null;
@@ -323,129 +308,14 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
         </VStack>
       </Box>
       {/* Dimension Editor Modal */}
-      <Modal isOpen={open} onClose={handleClose} size="lg">
-        <ModalOverlay />
-        <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-          <ModalHeader>{editingIndex !== null ? 'Edit Dimension' : 'Add Dimension'}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4} align="stretch">
-              <FormControl isRequired>
-                <FormLabel>Display Name</FormLabel>
-                <Input
-                  value={form.displayName}
-                  onChange={e => handleFormChange('displayName', e.target.value)}
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Description</FormLabel>
-                <Input
-                  value={form.description}
-                  onChange={e => handleFormChange('description', e.target.value)}
-                />
-              </FormControl>
-              <FormControl isRequired>
-                <FormLabel>Default Mode</FormLabel>
-                <Select
-                  value={form.defaultMode}
-                  onChange={e => handleFormChange('defaultMode', e.target.value)}
-                >
-                  <option value="">None</option>
-                  {form.modes.map((mode: Mode) => (
-                    <option key={mode.id} value={mode.id}>{mode.name}</option>
-                  ))}
-                </Select>
-              </FormControl>
-              <Box>
-                <Text fontWeight="bold" mb={2}>Modes</Text>
-                <Button leftIcon={<LuPlus />} size="sm" onClick={() => handleModeDialogOpen(null)} mb={2}>
-                  Add Mode
-                </Button>
-                <VStack align="stretch" spacing={1}>
-                  {form.modes.map((mode: Mode, idx: number) => (
-                    <HStack key={mode.id}>
-                      <Text>{mode.name}</Text>
-                      <IconButton aria-label="Edit mode" icon={<LuPencil />} size="xs" onClick={() => handleModeDialogOpen(idx)} />
-                      <IconButton aria-label="Delete mode" icon={<LuTrash2 />} size="xs" colorScheme="red" onClick={() => handleModeDelete(idx)} />
-                    </HStack>
-                  ))}
-                </VStack>
-              </Box>
-              <FormControl>
-                <FormLabel>Value Types</FormLabel>
-                <Select
-                  value=""
-                  onChange={e => {
-                    if (e.target.value) {
-                      handleAddValueType(e.target.value);
-                    }
-                  }}
-                >
-                  <option value="">Add a value type...</option>
-                  {resolvedValueTypes
-                    .filter(type => !form.resolvedValueTypeIds.includes(type.id))
-                    .map(type => (
-                      <option key={type.id} value={type.id}>{type.name}</option>
-                    ))}
-                </Select>
-                <Wrap mt={2} spacing={2}>
-                  {form.resolvedValueTypeIds.map(typeId => {
-                    const type = resolvedValueTypes.find(t => t.id === typeId);
-                    return type ? (
-                      <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
-                        <TagLabel>{type.name}</TagLabel>
-                        <TagCloseButton onClick={() => handleRemoveValueType(typeId)} />
-                      </Tag>
-                    ) : null;
-                  })}
-                </Wrap>
-              </FormControl>
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button colorScheme="blue" onClick={handleSave}>
-              Save
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-      {/* Mode Editor Modal */}
-      <Modal isOpen={modeDialogOpen} onClose={handleModeDialogClose} size="sm">
-        <ModalOverlay />
-        <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-          <ModalHeader>{modeEditIndex !== null ? 'Edit Mode' : 'Add Mode'}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4} align="stretch">
-              <FormControl isRequired>
-                <FormLabel>Name</FormLabel>
-                <Input
-                  value={modeForm.name}
-                  onChange={e => handleModeFormChange('name', e.target.value)}
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Description</FormLabel>
-                <Input
-                  value={modeForm.description}
-                  onChange={e => handleModeFormChange('description', e.target.value)}
-                />
-              </FormControl>
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={handleModeDialogClose}>
-              Cancel
-            </Button>
-            <Button colorScheme="blue" onClick={handleModeSave}>
-              Save
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <DimensionsEditor
+        dimensions={dimensions}
+        setDimensions={setDimensions}
+        resolvedValueTypes={resolvedValueTypes}
+        isOpen={open}
+        onClose={handleClose}
+        editingIndex={editingIndex}
+      />
     </Box>
   );
 } 

@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Text,
   Input,
   Button,
-  IconButton,
+  FormControl,
+  FormLabel,
+  Select,
   VStack,
   HStack,
+  IconButton,
+  useToast,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -14,394 +18,442 @@ import {
   ModalBody,
   ModalFooter,
   ModalCloseButton,
-  FormControl,
-  FormLabel,
-  Select,
-  useDisclosure,
-  Switch,
+  useColorMode,
   Tag,
   TagLabel,
   TagCloseButton,
-  Wrap
+  Wrap,
+  Switch
 } from '@chakra-ui/react';
-import { Trash2, Plus, Pencil } from 'lucide-react';
+import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 import type { Dimension, Mode } from '@token-model/data-model';
 import { createUniqueId } from '../utils/id';
 
 interface DimensionsEditorProps {
   dimensions: Dimension[];
-  onChange: (dimensions: Dimension[]) => void;
+  setDimensions: (dims: Dimension[]) => void;
   resolvedValueTypes: { id: string; name: string }[];
+  isOpen: boolean;
+  onClose: () => void;
+  editingIndex: number | null;
 }
 
-export function DimensionsEditor({ dimensions, onChange, resolvedValueTypes }: DimensionsEditorProps) {
-  const [editedDimensions, setEditedDimensions] = useState<Dimension[]>(dimensions);
-  const [editingDimension, setEditingDimension] = useState<Dimension | null>(null);
-  const [editingMode, setEditingMode] = useState<{ dimensionId: string; mode: Mode } | null>(null);
-  const [isNewDimension, setIsNewDimension] = useState(false);
-  const [isNewMode, setIsNewMode] = useState(false);
-  const { isOpen: isDimensionModalOpen, onOpen: onDimensionModalOpen, onClose: onDimensionModalClose } = useDisclosure();
-  const { isOpen: isModeModalOpen, onOpen: onModeModalOpen, onClose: onModeModalClose } = useDisclosure();
+interface DimensionFormData {
+  id: string;
+  displayName: string;
+  description: string;
+  modes: Mode[];
+  defaultMode: string;
+  resolvedValueTypeIds: string[];
+  required: boolean;
+}
 
-  useEffect(() => {
-    onChange(editedDimensions);
-  }, [editedDimensions, onChange]);
+export function DimensionsEditor({
+  dimensions,
+  setDimensions,
+  resolvedValueTypes,
+  isOpen,
+  onClose,
+  editingIndex
+}: DimensionsEditorProps) {
+  const { colorMode } = useColorMode();
+  const [form, setForm] = useState<DimensionFormData>({
+    id: '',
+    displayName: '',
+    description: '',
+    modes: [],
+    defaultMode: '',
+    resolvedValueTypeIds: [],
+    required: false,
+  });
+  const [modeForm, setModeForm] = useState({ id: '', name: '', description: '' });
+  const [modeDialogOpen, setModeDialogOpen] = useState(false);
+  const [modeEditIndex, setModeEditIndex] = useState<number | null>(null);
+  const toast = useToast();
 
-  useEffect(() => {
-    if (editingDimension && isNewDimension && !editingDimension.id) {
-      setEditingDimension(prev => prev ? { ...prev, id: createUniqueId('dimension') } : null);
-    }
-  }, [editingDimension, isNewDimension]);
-
-  const handleAddDimension = () => {
-    const newDimension: Dimension = {
-      id: createUniqueId('dimension'),
-      displayName: '',
-      description: '',
-      modes: [],
-      defaultMode: '',
-      required: false,
-      resolvedValueTypeIds: []
-    };
-    setEditingDimension(newDimension);
-    setIsNewDimension(true);
-    onDimensionModalOpen();
-  };
-
-  const handleAddMode = (dimensionId: string) => {
-    const newMode: Mode = {
-      id: createUniqueId('mode'),
-      name: '',
-      dimensionId,
-      description: ''
-    };
-    setEditingMode({ dimensionId, mode: newMode });
-    setIsNewMode(true);
-    onModeModalOpen();
-  };
-
-  const handleDeleteDimension = (dimensionId: string) => {
-    setEditedDimensions(prev => prev.filter(d => d.id !== dimensionId));
-  };
-
-  const handleDeleteMode = (dimensionId: string, modeId: string) => {
-    setEditedDimensions(prev =>
-      prev.map(dim => {
-        if (dim.id !== dimensionId) return dim;
-        const updatedModes = dim.modes.filter(m => m.id !== modeId);
-        return {
-          ...dim,
-          modes: updatedModes,
-          defaultMode: dim.defaultMode === modeId ? updatedModes[0]?.id || '' : dim.defaultMode
-        };
-      })
-    );
-  };
-
-  const handleSaveDimension = () => {
-    if (!editingDimension) return;
-
-    if (isNewDimension) {
-      setEditedDimensions(prev => [...prev, editingDimension]);
+  React.useEffect(() => {
+    if (editingIndex !== null && dimensions[editingIndex]) {
+      const dim = dimensions[editingIndex];
+      console.log('[DimensionsEditor] Editing existing dimension:', dim);
+      setForm({
+        id: dim.id,
+        displayName: dim.displayName,
+        description: dim.description || '',
+        modes: dim.modes,
+        defaultMode: dim.defaultMode || (dim.modes[0]?.id ?? ''),
+        resolvedValueTypeIds: dim.resolvedValueTypeIds || [],
+        required: dim.required || false,
+      });
     } else {
-      setEditedDimensions(prev =>
-        prev.map(d => (d.id === editingDimension.id ? editingDimension : d))
-      );
+      console.log('[DimensionsEditor] Creating new dimension');
+      setForm({
+        id: createUniqueId('dimension'),
+        displayName: '',
+        description: '',
+        modes: [],
+        defaultMode: '',
+        resolvedValueTypeIds: [],
+        required: false,
+      });
     }
-    setEditingDimension(null);
-    setIsNewDimension(false);
-    onDimensionModalClose();
+  }, [editingIndex, dimensions, isOpen]);
+
+  const handleFormChange = (field: keyof DimensionFormData, value: string) => {
+    console.log(`[DimensionsEditor] Form field "${field}" changed to:`, value);
+    setForm((prev: DimensionFormData) => ({ ...prev, [field]: value }));
   };
 
-  const handleSaveMode = () => {
-    if (!editingMode) return;
+  const handleModeDialogOpen = (index: number | null = null) => {
+    console.log('[DimensionsEditor] Opening mode dialog for index:', index);
+    setModeEditIndex(index);
+    if (index !== null && form.modes) {
+      const m = form.modes[index];
+      console.log('[DimensionsEditor] Editing existing mode:', m);
+      setModeForm({ id: m.id, name: m.name, description: m.description || '' });
+    } else {
+      console.log('[DimensionsEditor] Creating new mode');
+      setModeForm({ id: createUniqueId('mode'), name: '', description: '' });
+    }
+    setModeDialogOpen(true);
+  };
 
-    setEditedDimensions(prev =>
-      prev.map(dim => {
-        if (dim.id !== editingMode.dimensionId) return dim;
+  const handleModeDialogClose = () => {
+    setModeDialogOpen(false);
+    setModeEditIndex(null);
+  };
 
-        const updatedModes = isNewMode
-          ? [...dim.modes, editingMode.mode]
-          : dim.modes.map(m => (m.id === editingMode.mode.id ? editingMode.mode : m));
+  const handleModeFormChange = (field: keyof typeof modeForm, value: string) => {
+    setModeForm((prev: typeof modeForm) => ({ ...prev, [field]: value }));
+  };
 
-        const defaultMode = dim.defaultMode && updatedModes.some(m => m.id === dim.defaultMode)
-          ? dim.defaultMode
-          : updatedModes[0]?.id || '';
+  const handleModeSave = () => {
+    console.log('[DimensionsEditor] Saving mode:', modeForm);
+    if (!modeForm.id || !modeForm.name) {
+      console.error('[DimensionsEditor] Mode validation failed: Missing id or name');
+      return;
+    }
+    const newModes = form.modes ? [...form.modes] : [];
+    let newDefaultMode = form.defaultMode;
+    if (modeEditIndex !== null) {
+      console.log('[DimensionsEditor] Updating existing mode at index:', modeEditIndex);
+      newModes[modeEditIndex] = { ...modeForm, dimensionId: form.id! };
+    } else {
+      console.log('[DimensionsEditor] Adding new mode');
+      newModes.push({ ...modeForm, dimensionId: form.id! });
+      if (newModes.length === 1) {
+        newDefaultMode = newModes[0].id;
+        console.log('[DimensionsEditor] Setting first mode as default:', newDefaultMode);
+      }
+    }
+    setForm((prev: DimensionFormData) => ({ ...prev, modes: newModes, defaultMode: newDefaultMode }));
+    setModeDialogOpen(false);
+    setModeEditIndex(null);
+  };
 
-        return {
-          ...dim,
-          modes: updatedModes,
-          defaultMode
-        };
-      })
-    );
-
-    setEditingMode(null);
-    setIsNewMode(false);
-    onModeModalClose();
+  const handleModeDelete = (index: number) => {
+    setForm((prev: DimensionFormData) => {
+      const newModes = (prev.modes || []).filter((_: Mode, i: number) => i !== index);
+      let newDefault = prev.defaultMode;
+      if (prev.modes[index]?.id === prev.defaultMode) {
+        newDefault = newModes[0]?.id || '';
+      }
+      return { ...prev, modes: newModes, defaultMode: newDefault };
+    });
   };
 
   const handleAddValueType = (valueTypeId: string) => {
-    if (!editingDimension) return;
-    setEditingDimension(prev => prev ? {
+    console.log('[DimensionsEditor] Adding value type:', valueTypeId);
+    setForm((prev: DimensionFormData) => ({
       ...prev,
-      resolvedValueTypeIds: [...(prev.resolvedValueTypeIds || []), valueTypeId]
-    } : null);
+      resolvedValueTypeIds: [...(prev.resolvedValueTypeIds || []), valueTypeId],
+    }));
   };
 
   const handleRemoveValueType = (valueTypeId: string) => {
-    if (!editingDimension) return;
-    setEditingDimension(prev => prev ? {
+    console.log('[DimensionsEditor] Removing value type:', valueTypeId);
+    setForm((prev: DimensionFormData) => ({
       ...prev,
-      resolvedValueTypeIds: (prev.resolvedValueTypeIds || []).filter(id => id !== valueTypeId)
-    } : null);
+      resolvedValueTypeIds: (prev.resolvedValueTypeIds || []).filter((id: string) => id !== valueTypeId),
+    }));
+  };
+
+  const handleSave = () => {
+    console.log('[DimensionsEditor] Starting save process with form data:', form);
+    
+    // Validation for required fields
+    if (!form.id || !form.displayName) {
+      console.error('[DimensionsEditor] Validation failed: Missing id or displayName', form);
+      toast({ 
+        title: 'Required Fields Missing', 
+        description: 'ID and display name are required fields.',
+        status: 'error', 
+        duration: 4000,
+        isClosable: true 
+      });
+      return;
+    }
+
+    if (!form.modes || form.modes.length === 0) {
+      console.error('[DimensionsEditor] Validation failed: No modes', form);
+      toast({
+        title: 'At least one mode required',
+        description: 'You must add at least one mode to the dimension.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true
+      });
+      return;
+    }
+
+    if (!form.defaultMode || !form.modes.some((m: Mode) => m.id === form.defaultMode)) {
+      console.error('[DimensionsEditor] Validation failed: Invalid defaultMode', form);
+      toast({ 
+        title: 'Invalid Default Mode', 
+        description: 'Please select a valid default mode from the available modes.',
+        status: 'error', 
+        duration: 4000,
+        isClosable: true 
+      });
+      return;
+    }
+
+    if (typeof form.required !== 'boolean') {
+      console.error('[DimensionsEditor] Validation failed: required is not boolean', form);
+      toast({
+        title: 'Required Field Missing',
+        description: 'The "Required" field must be set.',
+        status: 'error',
+        duration: 4000,
+        isClosable: true
+      });
+      return;
+    }
+
+    // Validate each mode
+    for (const mode of form.modes) {
+      if (!mode.id || !mode.name || !mode.dimensionId) {
+        console.error('[DimensionsEditor] Validation failed: Mode missing required fields', mode);
+        toast({
+          title: 'Invalid Mode',
+          description: 'Each mode must have an id, name, and dimensionId.',
+          status: 'error',
+          duration: 4000,
+          isClosable: true
+        });
+        return;
+      }
+    }
+
+    // If all validations pass, save
+    const newDims = [...dimensions];
+    const dimToSave = {
+      ...form,
+      modes: form.modes || [],
+      required: form.required,
+      defaultMode: form.defaultMode,
+      resolvedValueTypeIds: form.resolvedValueTypeIds,
+    } as Dimension;
+    console.log('[DimensionsEditor] Prepared dimension to save:', dimToSave);
+
+    if (editingIndex !== null) {
+      console.log('[DimensionsEditor] Updating existing dimension at index:', editingIndex);
+      newDims[editingIndex] = dimToSave;
+    } else {
+      console.log('[DimensionsEditor] Adding new dimension');
+      newDims.push(dimToSave);
+    }
+
+    // Get existing data from storage for validation
+    const existingData = localStorage.getItem('tokenSystem');
+    console.log('[DimensionsEditor] Existing data from storage:', existingData);
+    
+    const systemData = existingData ? JSON.parse(existingData) : {
+      systemName: 'Design System',
+      systemId: 'design-system',
+      description: 'Design system for validation',
+      tokenCollections: [],
+      tokens: [],
+      platforms: [],
+      taxonomies: [],
+      resolvedValueTypes: [],
+      version: '1.0.0',
+      versionHistory: []
+    };
+
+    // Compose validation data with existing system data and updated dimensions
+    const validationData = {
+      ...systemData,
+      dimensions: newDims
+    };
+    console.log('[DimensionsEditor] Validation data:', validationData);
+
+    // Call the ValidationService for schema validation
+    if (typeof ValidationService !== 'undefined' && typeof ValidationService.validateData === 'function') {
+      console.log('[DimensionsEditor] Calling ValidationService');
+      const result = ValidationService.validateData(validationData);
+      console.log('[DimensionsEditor] Validation result:', result);
+      
+      if (!result.isValid) {
+        console.error('[DimensionsEditor] Schema validation failed:', result.errors);
+        toast({
+          title: 'Schema Validation Failed',
+          description: result.errors?.map(e => e.message).join(', ') || 'See console for details.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+    }
+
+    setDimensions(newDims);
+    onClose();
+    toast({ 
+      title: 'Dimension Saved', 
+      description: `Successfully ${editingIndex !== null ? 'updated' : 'created'} dimension "${form.displayName}"`,
+      status: 'success', 
+      duration: 3000,
+      isClosable: true 
+    });
   };
 
   return (
-    <Box>
-      <HStack justify="space-between" align="center" mb={4}>
-        <Text fontSize="xl" fontWeight="bold">Dimensions</Text>
-        <Button
-          leftIcon={<Plus />}
-          colorScheme="blue"
-          onClick={handleAddDimension}
-        >
-          Add Dimension
-        </Button>
-      </HStack>
-
-      <VStack spacing={4} align="stretch">
-        {editedDimensions.map(dimension => (
-          <Box
-            key={dimension.id}
-            p={4}
-            borderWidth={1}
-            borderRadius="md"
-            bg="white"
-          >
-            <HStack justify="space-between" align="start" mb={4}>
-              <Box flex={1}>
-                <Text fontSize="lg" fontWeight="medium">{dimension.displayName}</Text>
-                <Text fontSize="sm" color="gray.600">{dimension.description}</Text>
-                <Text fontSize="xs" color="gray.500">ID: {dimension.id}</Text>
-                {dimension.resolvedValueTypeIds && dimension.resolvedValueTypeIds.length > 0 && (
-                  <Wrap mt={2} spacing={2}>
-                    {dimension.resolvedValueTypeIds.map(typeId => {
-                      const type = resolvedValueTypes.find(t => t.id === typeId);
-                      return type ? (
-                        <Tag key={typeId} size="sm" borderRadius="full" variant="solid" colorScheme="blue">
-                          <TagLabel>{type.name}</TagLabel>
-                        </Tag>
-                      ) : null;
-                    })}
-                  </Wrap>
-                )}
-              </Box>
-              <HStack>
-                <IconButton
-                  aria-label="Edit dimension"
-                  icon={<Pencil />}
-                  size="sm"
-                  onClick={() => {
-                    setEditingDimension(dimension);
-                    setIsNewDimension(false);
-                    onDimensionModalOpen();
-                  }}
-                />
-                <IconButton
-                  aria-label="Delete dimension"
-                  icon={<Trash2 />}
-                  size="sm"
-                  colorScheme="red"
-                  onClick={() => handleDeleteDimension(dimension.id)}
-                />
-              </HStack>
-            </HStack>
-
+    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+      <ModalOverlay />
+      <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+        <ModalHeader>{editingIndex !== null ? 'Edit Dimension' : 'Add Dimension'}</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <VStack spacing={4} align="stretch">
+            <FormControl isRequired>
+              <FormLabel>ID</FormLabel>
+              <Input
+                value={form.id}
+                isReadOnly
+              />
+            </FormControl>
+            <FormControl isRequired>
+              <FormLabel>Display Name</FormLabel>
+              <Input
+                value={form.displayName}
+                onChange={e => handleFormChange('displayName', e.target.value)}
+              />
+            </FormControl>
+            <FormControl>
+              <FormLabel>Description</FormLabel>
+              <Input
+                value={form.description}
+                onChange={e => handleFormChange('description', e.target.value)}
+              />
+            </FormControl>
+            <FormControl isRequired display="flex" alignItems="center">
+              <FormLabel mb="0">Required</FormLabel>
+              <Switch
+                isChecked={form.required || false}
+                onChange={e => setForm((prev: DimensionFormData) => ({ ...prev, required: e.target.checked }))}
+              />
+            </FormControl>
+            <FormControl isRequired>
+              <FormLabel>Default Mode</FormLabel>
+              <Select
+                value={form.defaultMode}
+                onChange={e => handleFormChange('defaultMode', e.target.value)}
+              >
+                <option value="">None</option>
+                {form.modes.map((mode: Mode) => (
+                  <option key={mode.id} value={mode.id}>{mode.name}</option>
+                ))}
+              </Select>
+            </FormControl>
             <Box>
-              <HStack justify="space-between" align="center" mb={2}>
-                <Text fontSize="md" fontWeight="medium">Modes</Text>
-                <Button
-                  size="sm"
-                  leftIcon={<Plus />}
-                  onClick={() => handleAddMode(dimension.id)}
-                >
-                  Add Mode
-                </Button>
-              </HStack>
-              <VStack spacing={2} align="stretch">
-                {dimension.modes.map(mode => (
-                  <HStack
-                    key={mode.id}
-                    p={2}
-                    borderWidth={1}
-                    borderRadius="md"
-                    justify="space-between"
-                  >
-                    <Box>
-                      <Text fontWeight="medium">{mode.name}</Text>
-                      <Text fontSize="sm" color="gray.600">{mode.description}</Text>
-                      <Text fontSize="xs" color="gray.500">ID: {mode.id}</Text>
-                    </Box>
-                    <HStack>
-                      <IconButton
-                        aria-label="Edit mode"
-                        icon={<Pencil />}
-                        size="sm"
-                        onClick={() => {
-                          setEditingMode({ dimensionId: dimension.id, mode });
-                          setIsNewMode(false);
-                          onModeModalOpen();
-                        }}
-                      />
-                      <IconButton
-                        aria-label="Delete mode"
-                        icon={<Trash2 />}
-                        size="sm"
-                        colorScheme="red"
-                        onClick={() => handleDeleteMode(dimension.id, mode.id)}
-                      />
-                    </HStack>
+              <Text fontWeight="bold" mb={2}>Modes <span style={{color: 'red'}}>*</span></Text>
+              <Button leftIcon={<LuPlus />} size="sm" onClick={() => handleModeDialogOpen(null)} mb={2}>
+                Add Mode
+              </Button>
+              <VStack align="stretch" spacing={1}>
+                {form.modes.map((mode: Mode, idx: number) => (
+                  <HStack key={mode.id}>
+                    <Text>{mode.name}</Text>
+                    <IconButton aria-label="Edit mode" icon={<LuPencil />} size="xs" onClick={() => handleModeDialogOpen(idx)} />
+                    <IconButton aria-label="Delete mode" icon={<LuTrash2 />} size="xs" colorScheme="red" onClick={() => handleModeDelete(idx)} />
                   </HStack>
                 ))}
               </VStack>
             </Box>
-          </Box>
-        ))}
-      </VStack>
-
-      {/* Dimension Editor Modal */}
-      <Modal isOpen={isDimensionModalOpen} onClose={onDimensionModalClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>{isNewDimension ? 'Add Dimension' : 'Edit Dimension'}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4}>
-              <FormControl>
-                <FormLabel>Dimension ID</FormLabel>
-                <Input
-                  value={editingDimension?.id || ''}
-                  isReadOnly
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Display Name</FormLabel>
-                <Input
-                  value={editingDimension?.displayName || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingDimension(prev => prev ? { ...prev, displayName: e.target.value } : null)}
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Description</FormLabel>
-                <Input
-                  value={editingDimension?.description || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingDimension(prev => prev ? { ...prev, description: e.target.value } : null)}
-                />
-              </FormControl>
-              <FormControl display="flex" alignItems="center">
-                <FormLabel mb="0">Required</FormLabel>
-                <Switch
-                  isChecked={editingDimension?.required || false}
-                  onChange={(e) => setEditingDimension(prev => prev ? { ...prev, required: e.target.checked } : null)}
-                />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Default Mode</FormLabel>
-                <Select
-                  value={editingDimension?.defaultMode || ''}
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setEditingDimension(prev => prev ? { ...prev, defaultMode: e.target.value } : null)}
-                >
-                  <option value="">None</option>
-                  {editingDimension?.modes.map(mode => (
-                    <option key={mode.id} value={mode.id}>{mode.name}</option>
+            <FormControl>
+              <FormLabel>Value Types</FormLabel>
+              <Select
+                value=""
+                onChange={e => {
+                  if (e.target.value) {
+                    handleAddValueType(e.target.value);
+                  }
+                }}
+              >
+                <option value="">Add a value type...</option>
+                {resolvedValueTypes
+                  .filter(type => !form.resolvedValueTypeIds.includes(type.id))
+                  .map(type => (
+                    <option key={type.id} value={type.id}>{type.name}</option>
                   ))}
-                </Select>
-              </FormControl>
-              <FormControl>
-                <FormLabel>Value Types</FormLabel>
-                <Select
-                  value=""
-                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                    if (e.target.value) {
-                      handleAddValueType(e.target.value);
-                      e.target.value = '';
-                    }
-                  }}
-                >
-                  <option value="">Add a value type...</option>
-                  {resolvedValueTypes
-                    .filter(type => !editingDimension?.resolvedValueTypeIds?.includes(type.id))
-                    .map(type => (
-                      <option key={type.id} value={type.id}>{type.name}</option>
-                    ))}
-                </Select>
-                <Wrap mt={2} spacing={2}>
-                  {editingDimension?.resolvedValueTypeIds?.map(typeId => {
-                    const type = resolvedValueTypes.find(t => t.id === typeId);
-                    return type ? (
-                      <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
-                        <TagLabel>{type.name}</TagLabel>
-                        <TagCloseButton onClick={() => handleRemoveValueType(typeId)} />
-                      </Tag>
-                    ) : null;
-                  })}
-                </Wrap>
-              </FormControl>
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onDimensionModalClose}>
-              Cancel
-            </Button>
-            <Button colorScheme="blue" onClick={handleSaveDimension}>
-              Save
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
+              </Select>
+              <Wrap mt={2} spacing={2}>
+                {form.resolvedValueTypeIds.map((typeId: string) => {
+                  const type = resolvedValueTypes.find(t => t.id === typeId);
+                  return type ? (
+                    <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
+                      <TagLabel>{type.name}</TagLabel>
+                      <TagCloseButton onClick={() => handleRemoveValueType(typeId)} />
+                    </Tag>
+                  ) : null;
+                })}
+              </Wrap>
+            </FormControl>
+          </VStack>
+        </ModalBody>
+        <ModalFooter>
+          <Button variant="ghost" mr={3} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button colorScheme="blue" onClick={handleSave}>
+            Save
+          </Button>
+        </ModalFooter>
+      </ModalContent>
       {/* Mode Editor Modal */}
-      <Modal isOpen={isModeModalOpen} onClose={onModeModalClose}>
+      <Modal isOpen={modeDialogOpen} onClose={handleModeDialogClose} size="sm">
         <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>{isNewMode ? 'Add Mode' : 'Edit Mode'}</ModalHeader>
+        <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+          <ModalHeader>{modeEditIndex !== null ? 'Edit Mode' : 'Add Mode'}</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <VStack spacing={4}>
-              <FormControl>
-                <FormLabel>Mode ID</FormLabel>
-                <Input
-                  value={editingMode?.mode.id || ''}
-                  isReadOnly
-                />
-              </FormControl>
-              <FormControl>
+            <VStack spacing={4} align="stretch">
+              <FormControl isRequired>
                 <FormLabel>Name</FormLabel>
                 <Input
-                  value={editingMode?.mode.name || ''}
-                  onChange={e => setEditingMode(prev => prev ? { ...prev, mode: { ...prev.mode, name: e.target.value } } : null)}
+                  value={modeForm.name}
+                  onChange={e => handleModeFormChange('name', e.target.value)}
                 />
               </FormControl>
               <FormControl>
                 <FormLabel>Description</FormLabel>
                 <Input
-                  value={editingMode?.mode.description || ''}
-                  onChange={e => setEditingMode(prev => prev ? { ...prev, mode: { ...prev.mode, description: e.target.value } } : null)}
+                  value={modeForm.description}
+                  onChange={e => handleModeFormChange('description', e.target.value)}
                 />
               </FormControl>
             </VStack>
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onModeModalClose}>
+            <Button variant="ghost" mr={3} onClick={handleModeDialogClose}>
               Cancel
             </Button>
-            <Button colorScheme="blue" onClick={handleSaveMode}>
+            <Button colorScheme="blue" onClick={handleModeSave}>
               Save
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </Box>
+    </Modal>
   );
 } 
