@@ -34,7 +34,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import CoreDataView from './views/schemas/CoreDataView';
 import ThemeOverridesView from './views/schemas/ThemeOverridesView';
 import { Plus } from 'lucide-react';
-import { TokenEditorDialog, ExtendedToken } from './components/TokenEditorDialog';
+import { TokenEditorDialog, ExtendedToken, migrateTokenValuesByMode } from './components/TokenEditorDialog';
 
 // TypeScript declaration for import.meta.glob
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -74,6 +74,9 @@ const App = () => {
   const loadDataFromSource = async (filePath: string) => {
     try {
       const fileContent = await exampleDataFiles[filePath]();
+      if (!fileContent || fileContent.trim() === '') {
+        throw new Error('The selected data file is empty. Please choose a valid JSON file.');
+      }
       const d = JSON.parse(fileContent);
 
       // Use a type for the loaded data
@@ -95,7 +98,10 @@ const App = () => {
       const dTyped = d as LoadedData;
       const normalizedCollections = dTyped.tokenCollections ?? [];
       const normalizedDimensions = dTyped.dimensions ?? [];
-      const normalizedTokens = dTyped.tokens ?? [];
+      const normalizedTokens = (dTyped.tokens ?? []).map((token: any) => ({
+        ...token,
+        valuesByMode: migrateTokenValuesByMode(token.valuesByMode)
+      }));
       const normalizedPlatforms = dTyped.platforms ?? [];
       const normalizedThemes = (dTyped.themes ?? []).map((theme) => ({
         id: theme.id,
@@ -149,7 +155,14 @@ const App = () => {
       };
       localStorage.setItem('token-model:root', JSON.stringify(root));
     } catch (error) {
-      console.error('Error loading data:', error);
+      let message = 'Error loading data:';
+      if (error instanceof SyntaxError) {
+        message += ' The selected file is not valid JSON.';
+      } else if (error instanceof Error) {
+        message += ' ' + error.message;
+      }
+      console.error(message, error);
+      alert(message);
       setLoading(false);
     }
   };
@@ -248,11 +261,20 @@ const App = () => {
                       tokens={tokens}
                       collections={collections}
                       resolvedValueTypes={resolvedValueTypes}
+                      modes={modes}
+                      taxonomies={taxonomies}
                       renderAddTokenButton={
                         <Button colorScheme="blue" size="sm" onClick={handleAddToken} leftIcon={<Plus />}>
                           Add Token
                         </Button>
                       }
+                      onEditToken={(token) => {
+                        setSelectedToken(token);
+                        setIsEditorOpen(true);
+                      }}
+                      onDeleteToken={(tokenId) => {
+                        setTokens(prevTokens => prevTokens.filter(t => t.id !== tokenId));
+                      }}
                     />
                     {isEditorOpen && selectedToken && (
                       <TokenEditorDialog

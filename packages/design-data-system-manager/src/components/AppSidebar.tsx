@@ -11,7 +11,6 @@ import {
   HStack,
 } from '@chakra-ui/react';
 import {
-  Star,
   Download,
   RefreshCw,
   ChevronLeft,
@@ -30,7 +29,6 @@ import {
   CircleCheckBig,
   History,
   Users,
-  FileJson,
   FileCode
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
@@ -137,6 +135,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     // Render child items or items without children
     const content = (
       <Box
+        key={item.id}
         as={Link}
         to={item.route}
         display="flex"
@@ -216,7 +215,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               return (
                 <Box key={item.id}>
                   {renderNavItem(item)}
-                  <VStack spacing={1} align="stretch" ml={0} mt={1}>
+                  <VStack key={`${item.id}-children`} spacing={1} align="stretch" ml={0} mt={1}>
                     {item.children.map((child) => renderNavItem(child, true))}
                   </VStack>
                 </Box>

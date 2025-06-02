@@ -1390,7 +1390,7 @@
           "modeIds": [],
           "value": {
             "resolvedValueTypeId": "dimension",
-            "value": "8px"
+            "value": "8"
           }
         }
       ]
@@ -1431,7 +1431,7 @@
           "modeIds": [],
           "value": {
             "resolvedValueTypeId": "dimension",
-            "value": "16px"
+            "value": "16"
           }
         }
       ]
@@ -1472,7 +1472,7 @@
           "modeIds": [],
           "value": {
             "resolvedValueTypeId": "dimension",
-            "value": "24px"
+            "value": "24"
           }
         }
       ]
@@ -1513,7 +1513,7 @@
           "modeIds": [],
           "value": {
             "resolvedValueTypeId": "dimension",
-            "value": "32px"
+            "value": "32"
           }
         }
       ]
@@ -1554,7 +1554,7 @@
           "modeIds": [],
           "value": {
             "resolvedValueTypeId": "dimension",
-            "value": "40px"
+            "value": "40"
           }
         }
       ]

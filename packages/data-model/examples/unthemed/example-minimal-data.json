@@ -122,6 +122,30 @@
           "description": "Clickable elements"
         }
       ]
+    },
+    {
+      "id": "taxonomyId-2222-2222-2222",
+      "name": "Prominence",
+      "description": "Visual prominence of an element",
+      "terms": [
+        {
+          "id": "termId-1111-1111-1111",
+          "name": "Accent",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "taxonomyId-3333-3333-3333",
+      "name": "Scale",
+      "description": "Numeric scale",
+      "terms": [
+        {
+          "id": "termId-2222-2222-2227",
+          "name": "500",
+          "description": "500th thing"
+        }
+      ]
     }
   ],
   "tokens": [
