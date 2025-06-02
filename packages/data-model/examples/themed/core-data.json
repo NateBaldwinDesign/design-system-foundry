@@ -46,8 +46,7 @@
       "name": "Typography",
       "resolvedValueTypeIds": [
         "font_family",
-        "font_weight",
-        "typography"
+        "font_weight"
       ],
       "private": false,
       "supportedDimensionIds": [],

@@ -77,7 +77,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
   };
 
   const handleFormChange = (field: string, value: string | { id: string; name: string; description?: string }[]) => {
-    setForm(prev => {
+    setForm((prev: typeof form) => {
       if (field === 'terms') {
         return { ...prev, terms: normalizeTerms(value as { id: string; name: string; description?: string }[]) };
       }
@@ -96,23 +96,23 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
         versionHistory = []
       } = root;
 
-    const data = {
+      const data = {
         systemName,
         systemId,
-      tokenCollections: collections,
-      dimensions,
-      tokens,
-      platforms,
+        tokenCollections: collections,
+        dimensions,
+        tokens,
+        platforms,
         taxonomies,
-      resolvedValueTypes,
+        resolvedValueTypes: StorageService.getValueTypes(),
         version,
         versionHistory
-    };
+      };
 
       console.log('[ClassificationTab] Validation data:', JSON.stringify(data, null, 2));
-    const result = ValidationService.validateData(data);
+      const result = ValidationService.validateData(data);
       console.log('[ClassificationTab] Validation result:', result);
-    if (!result.isValid) {
+      if (!result.isValid) {
         console.error('[ClassificationTab] Validation errors:', result.errors);
         toast({
           title: "Validation Error",
@@ -144,24 +144,24 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
       return;
     }
     // Ensure all terms have id and name, and generate id if missing
-    const termsWithIds = (form.terms || []).map(term => ({
+    const termsWithIds = (form.terms || []).map((term: { id: string; name: string; description?: string }) => ({
       ...term,
       id: term.id && term.id.trim() ? term.id : createUniqueId('term'),
       name: term.name && term.name.trim() ? term.name : ''
     }));
     // Check for missing term names
-    if (termsWithIds.some(term => !term.name.trim())) {
+    if (termsWithIds.some((term: { name: string }) => !term.name.trim())) {
       toast({ title: 'All terms must have a name', status: 'error', duration: 2000 });
       return;
     }
     // Check for duplicate term ids
-    const termIds = termsWithIds.map(t => t.id);
+    const termIds = termsWithIds.map((t: { id: string }) => t.id);
     if (new Set(termIds).size !== termIds.length) {
       toast({ title: 'Term IDs must be unique', status: 'error', duration: 2000 });
       return;
     }
     // Check for duplicate term names
-    const termNames = termsWithIds.map(t => t.name.trim().toLowerCase());
+    const termNames = termsWithIds.map((t: { name: string }) => t.name.trim().toLowerCase());
     if (new Set(termNames).size !== termNames.length) {
       toast({ title: 'Term names must be unique', status: 'error', duration: 2000 });
       return;
@@ -217,7 +217,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
   };
 
   const handleTermFormChange = (field: string, value: string) => {
-    setTermForm(prev => ({ ...prev, [field]: value }));
+    setTermForm((prev: typeof termForm) => ({ ...prev, [field]: value }));
   };
 
   const handleTermSave = () => {
@@ -229,10 +229,10 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
     }
     // Check for duplicate term names (case-insensitive)
     const newTerms = form.terms ? [...form.terms] : [];
-    const termNames = newTerms.map(t => t.name.trim().toLowerCase());
+    const termNames = newTerms.map((t: { name: string }) => t.name.trim().toLowerCase());
     if (
       (termEditIndex === null && termNames.includes(termForm.name.trim().toLowerCase())) ||
-      (termEditIndex !== null && termNames.filter((_, i) => i !== termEditIndex).includes(termForm.name.trim().toLowerCase()))
+      (termEditIndex !== null && termNames.filter((_: string, i: number) => i !== termEditIndex).includes(termForm.name.trim().toLowerCase()))
     ) {
       toast({ title: 'Term names must be unique', status: 'error', duration: 2000 });
       return;
@@ -242,15 +242,15 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
     } else {
       newTerms.push({ ...termForm, id: termId });
     }
-    setForm(prev => ({ ...prev, terms: newTerms }));
+    setForm((prev: typeof form) => ({ ...prev, terms: newTerms }));
     setTermDialogOpen(false);
     setTermEditIndex(null);
   };
 
   const handleTermDelete = (index: number) => {
-    setForm(prev => ({
+    setForm((prev: typeof form) => ({
       ...prev,
-      terms: (prev.terms || []).filter((_, i) => i !== index)
+      terms: (prev.terms || []).filter((_: unknown, i: number) => i !== index)
     }));
   };
 
