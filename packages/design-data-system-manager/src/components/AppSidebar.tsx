@@ -57,8 +57,6 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'tokens',
     label: 'Tokens',
-    icon: Star,
-    route: '/tokens',
     children: [
       { id: 'tokens', label: 'Tokens', icon: Hexagon, route: '/tokens/tokens' },
       { id: 'collections', label: 'Collections', icon: Folders, route: '/tokens/collections' },
@@ -68,8 +66,6 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'schemas',
     label: 'Schemas',
-    icon: FileJson,
-    route: '/schemas',
     children: [
       { id: 'core-data', label: 'Core Data', icon: FileCode, route: '/schemas/core-data' },
       { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode, route: '/schemas/theme-overrides' },
@@ -78,8 +74,6 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'setup',
     label: 'Setup',
-    icon: Settings,
-    route: '/setup',
     children: [
       { id: 'dimensions', label: 'Dimensions', icon: SquareStack, route: '/setup/dimensions' },
       { id: 'classification', label: 'Classification', icon: Tag, route: '/setup/classification' },
@@ -91,8 +85,6 @@ const NAV_ITEMS: NavItem[] = [
   {
     id: 'publishing',
     label: 'Publishing',
-    icon: Download,
-    route: '/publishing',
     children: [
       { id: 'platforms', label: 'Platforms', icon: MonitorSmartphone, route: '/publishing/platforms' },
       { id: 'export-settings', label: 'Export Settings', icon: Settings, route: '/publishing/export-settings' },
@@ -116,9 +108,33 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const bgColor = colorMode === 'dark' ? 'gray.800' : 'white';
   const borderColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
 
-  const renderNavItem = (item: NavItem) => {
+  const renderNavItem = (item: NavItem, isChild: boolean = false) => {
     const isActive = location.pathname === item.route;
     const Icon = item.icon;
+
+    // If it's a parent item (has children), render it as a header
+    if (item.children && !isChild) {
+      if (isCollapsed) {
+        return null; // Don't render parent headers when collapsed
+      }
+      return (
+        <Text
+          key={item.id}
+          fontSize="xs"
+          fontWeight="bold"
+          color="gray.500"
+          textTransform="uppercase"
+          letterSpacing="wider"
+          mt={4}
+          mb={2}
+          px={2}
+        >
+          {item.label}
+        </Text>
+      );
+    }
+
+    // Render child items or items without children
     const content = (
       <Box
         as={Link}
@@ -146,6 +162,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         )}
       </Box>
     );
+
     if (isCollapsed) {
       return (
         <Tooltip label={item.label} placement="right" key={item.id}>
@@ -199,11 +216,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               return (
                 <Box key={item.id}>
                   {renderNavItem(item)}
-                  {!isCollapsed && (
-                    <VStack spacing={1} align="stretch" ml={6} mt={1}>
-                      {item.children.map((child) => renderNavItem(child))}
-                    </VStack>
-                  )}
+                  <VStack spacing={1} align="stretch" ml={0} mt={1}>
+                    {item.children.map((child) => renderNavItem(child, true))}
+                  </VStack>
                 </Box>
               );
             }
