@@ -21,22 +21,7 @@
       "resolvedValueTypeIds": [
         "color"
       ],
-      "private": false,
-      "supportedDimensionIds": [
-        "dimensionId-0000-0000-0000",
-        "dimensionId-1111-1111-1111"
-      ],
-      "defaultModeIds": [
-        "modeId-light",
-        "modeId-regular"
-      ],
-      "modeResolutionStrategy": {
-        "priorityByType": [
-          "COLOR_SCHEME",
-          "CONTRAST"
-        ],
-        "fallbackStrategy": "MOST_SPECIFIC_MATCH"
-      }
+      "private": false
     },
     {
       "id": "tokenCollection-BBBB-BBBB-BBBB",
@@ -46,23 +31,7 @@
         "line_height",
         "font_weight"
       ],
-      "private": false,
-      "supportedDimensionIds": [
-        "dimensionId-0000-0000-0000",
-        "dimensionId-2222-2222-2222"
-      ],
-      "defaultModeIds": [
-        "modeId-light",
-        "modeId-regular",
-        "modeId-latin"
-      ],
-      "modeResolutionStrategy": {
-        "priorityByType": [
-          "COLOR_SCHEME",
-          "LANGUAGE"
-        ],
-        "fallbackStrategy": "MOST_SPECIFIC_MATCH"
-      }
+      "private": false
     },
     {
       "name": "TEST",

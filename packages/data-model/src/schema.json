@@ -184,24 +184,10 @@
               },
               "uniqueItems": true
             },
-            "supportedDimensionIds": {
-              "type": "array",
-              "description": "IDs of dimensions supported by this collection. Each must match an ID from the top-level dimensions array.",
-              "items": { "type": "string" },
-              "uniqueItems": true
-            },
             "private": {
               "type": "boolean",
               "description": "Whether this collection is for internal use only",
               "default": false
-            },
-            "defaultModeIds": {
-              "type": "array",
-              "description": "Default modes to use when resolving tokens in this collection",
-              "items": { 
-                "type": "string",
-                "pattern": "^[a-zA-Z0-9-_]+$"
-              }
             }
           }
         }
