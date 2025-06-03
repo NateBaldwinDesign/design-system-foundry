@@ -7,7 +7,10 @@ import {
   Button,
   IconButton,
   useToast,
-  useColorMode
+  useColorMode,
+  Tag,
+  TagLabel,
+  Wrap
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 import type { Taxonomy, Token, TokenCollection, Dimension, Platform, ResolvedValueType } from '@token-model/data-model';
@@ -20,6 +23,11 @@ import { StorageService } from '../../services/storage';
 interface ClassificationTabProps {
   taxonomies: Taxonomy[];
   setTaxonomies: (taxonomies: Taxonomy[]) => void;
+}
+
+// Extend the Taxonomy type to include resolvedValueTypeIds
+interface ExtendedTaxonomy extends Taxonomy {
+  resolvedValueTypeIds?: string[];
 }
 
 // Utility to ensure all terms have a string description
@@ -39,7 +47,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
     name: '',
     description: '',
     terms: normalizeTerms([]),
-    resolvedValueTypeIds: [],
+    resolvedValueTypeIds: [] as string[],
   });
   const [termForm, setTermForm] = useState({ id: '', name: '', description: '' });
   const [termDialogOpen, setTermDialogOpen] = useState(false);
@@ -54,7 +62,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
     if (index !== null) {
-      const taxonomy = taxonomies[index];
+      const taxonomy = taxonomies[index] as ExtendedTaxonomy;
       setForm({
         id: taxonomy.id,
         name: taxonomy.name,
@@ -119,13 +127,15 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
         console.error('[ClassificationTab] Validation errors:', result.errors);
         toast({
           title: "Validation Error",
-          description: `Schema Validation Failed: ${result.errors?.map(e => e.message).join(', ')}`,
+          description: `Schema Validation Failed: ${Array.isArray(result.errors) ? result.errors.join(', ') : 'See console for details.'}`,
           status: "error",
           duration: 5000,
           isClosable: true,
         });
         return;
       }
+      // Persist to local storage
+      StorageService.setTaxonomies(taxonomies);
       setTaxonomies(taxonomies);
     } catch (error) {
       console.error('[ClassificationTab] Validation error:', error);
@@ -266,28 +276,43 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
           Add Taxonomy
         </Button>
         <VStack align="stretch" spacing={2}>
-          {taxonomies.map((taxonomy, i) => (
-            <Box 
-              key={taxonomy.id} 
-              p={3} 
-              borderWidth={1} 
-              borderRadius="md" 
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-            >
-              <HStack justify="space-between" align="center">
-                <Box>
-                  <Text fontSize="lg" fontWeight="medium">{taxonomy.name}</Text>
-                  <Text fontSize="sm" color="gray.600">{taxonomy.description}</Text>
-                  <Text fontSize="sm" color="gray.600">Terms: {taxonomy.terms.map((t: { name: string }) => t.name).join(', ')}</Text>
-                </Box>
-                <HStack>
-                  <IconButton aria-label="Edit taxonomy" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
-                  <IconButton aria-label="Delete taxonomy" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
+          {taxonomies.map((taxonomy, i) => {
+            const extendedTaxonomy = taxonomy as ExtendedTaxonomy;
+            return (
+              <Box 
+                key={taxonomy.id} 
+                p={3} 
+                borderWidth={1} 
+                borderRadius="md" 
+                bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+              >
+                <HStack justify="space-between" align="center">
+                  <Box>
+                    <Text fontSize="lg" fontWeight="medium">{taxonomy.name}</Text>
+                    <Text fontSize="sm" color="gray.600">{taxonomy.description}</Text>
+                    <Text fontSize="sm" color="gray.600">Terms: {taxonomy.terms.map((t: { name: string }) => t.name).join(', ')}</Text>
+                    {Array.isArray(extendedTaxonomy.resolvedValueTypeIds) && extendedTaxonomy.resolvedValueTypeIds.length > 0 && (
+                      <Wrap mt={2} spacing={2}>
+                        {extendedTaxonomy.resolvedValueTypeIds.map((typeId: string) => {
+                          const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
+                          return type ? (
+                            <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
+                              <TagLabel>{type.displayName}</TagLabel>
+                            </Tag>
+                          ) : null;
+                        })}
+                      </Wrap>
+                    )}
+                  </Box>
+                  <HStack>
+                    <IconButton aria-label="Edit taxonomy" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
+                    <IconButton aria-label="Delete taxonomy" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
+                  </HStack>
                 </HStack>
-              </HStack>
-            </Box>
-          ))}
+              </Box>
+            );
+          })}
         </VStack>
       </Box>
 
@@ -299,7 +324,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
         handleFormChange={handleFormChange}
         handleTermDialogOpen={handleTermDialogOpen}
         handleTermDelete={handleTermDelete}
-        resolvedValueTypes={Array.isArray(resolvedValueTypes) ? resolvedValueTypes.map(vt => ({ id: vt.id, name: vt.displayName || vt.name || vt.id })) : []}
+        resolvedValueTypes={Array.isArray(resolvedValueTypes) ? resolvedValueTypes.map(vt => ({ id: vt.id, name: vt.displayName })) : []}
       />
       <TermEditorDialog
         open={termDialogOpen}

@@ -63,6 +63,15 @@
         ],
         "fallbackStrategy": "MOST_SPECIFIC_MATCH"
       }
+    },
+    {
+      "name": "TEST",
+      "description": "",
+      "resolvedValueTypeIds": [
+        "color"
+      ],
+      "private": false,
+      "id": "22117476-608c-4115-ba72-ecbe1ecc637c"
     }
   ],
   "dimensions": [
@@ -148,7 +157,31 @@
         "line_height",
         "font_weight"
       ]
+    },
+    {
+      "id": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24",
+      "displayName": "TESTD",
+      "description": "",
+      "modes": [
+        {
+          "id": "modeId-653c36c5-649f-404b-baf2-cf5279ddd06f",
+          "name": "TESTM",
+          "description": "",
+          "dimensionId": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
+        }
+      ],
+      "defaultMode": "modeId-653c36c5-649f-404b-baf2-cf5279ddd06f",
+      "required": false,
+      "resolvedValueTypeIds": [
+        "color"
+      ]
     }
+  ],
+  "dimensionOrder": [
+    "dimensionId-0000-0000-0000",
+    "dimensionId-1111-1111-1111",
+    "dimensionId-2222-2222-2222",
+    "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
   ],
   "tokens": [
     {
@@ -469,8 +502,8 @@
     {
       "id": "default",
       "displayName": "Default Theme",
-      "description": "The default theme for the design system",
-      "isDefault": true
+      "isDefault": true,
+      "description": "The default theme for the design system"
     }
   ],
   "taxonomies": [

@@ -96,11 +96,11 @@ const App = () => {
 
   const loadDataFromSource = async (filePath: string) => {
     try {
-      const fileContent = await exampleDataFiles[filePath]();
+      const fileContent: string = await exampleDataFiles[filePath]();
       if (!fileContent || fileContent.trim() === '') {
         throw new Error('The selected data file is empty. Please choose a valid JSON file.');
       }
-      const d = JSON.parse(fileContent);
+      const d: LoadedData = JSON.parse(fileContent);
 
       // Use a type for the loaded data
       type LoadedData = {
@@ -118,30 +118,29 @@ const App = () => {
         description?: string;
         version?: string;
       };
-      const dTyped = d as LoadedData;
-      const normalizedCollections = dTyped.tokenCollections ?? [];
-      const normalizedDimensions = dTyped.dimensions ?? [];
-      const normalizedTokens = (dTyped.tokens ?? []).map((token: any) => ({
+      const normalizedCollections = d.tokenCollections ?? [];
+      const normalizedDimensions = d.dimensions ?? [];
+      const normalizedTokens = (d.tokens ?? []).map((token: any) => ({
         ...token,
         valuesByMode: migrateTokenValuesByMode(token.valuesByMode)
       }));
-      const normalizedPlatforms = dTyped.platforms ?? [];
-      const normalizedThemes = (dTyped.themes ?? []).map((theme) => ({
+      const normalizedPlatforms = d.platforms ?? [];
+      const normalizedThemes = (d.themes ?? []).map((theme) => ({
         id: theme.id,
         displayName: theme.displayName,
         isDefault: theme.isDefault ?? false,
         description: theme.description
       }));
-      const normalizedTaxonomies = dTyped.taxonomies ?? [];
-      const normalizedResolvedValueTypes = dTyped.resolvedValueTypes ?? [];
+      const normalizedTaxonomies = d.taxonomies ?? [];
+      const normalizedResolvedValueTypes = d.resolvedValueTypes ?? [];
       const normalizedNamingRules = {
-        taxonomyOrder: dTyped.namingRules?.taxonomyOrder ?? []
+        taxonomyOrder: d.namingRules?.taxonomyOrder ?? []
       };
-      const normalizedVersionHistory = dTyped.versionHistory ?? [];
-      const systemName = dTyped.systemName ?? 'Design System';
-      const systemId = dTyped.systemId ?? 'design-system';
-      const description = dTyped.description ?? 'A comprehensive design system with tokens, dimensions, and themes';
-      const version = dTyped.version ?? '1.0.0';
+      const normalizedVersionHistory = d.versionHistory ?? [];
+      const systemName = d.systemName ?? 'Design System';
+      const systemId = d.systemId ?? 'design-system';
+      const description = d.description ?? 'A comprehensive design system with tokens, dimensions, and themes';
+      const version = d.version ?? '1.0.0';
 
       const allModes: Mode[] = normalizedDimensions.flatMap((d: Dimension) => (d as { modes?: Mode[] }).modes || []);
 
@@ -246,10 +245,14 @@ const App = () => {
 
   const handleSaveToken = (token: ExtendedToken) => {
     setTokens((prevTokens: ExtendedToken[]) => {
+      let updatedTokens;
       if (token.id) {
-        return prevTokens.map((t: ExtendedToken) => t.id === token.id ? token : t);
+        updatedTokens = prevTokens.map((t: ExtendedToken) => t.id === token.id ? token : t);
+      } else {
+        updatedTokens = [...prevTokens, { ...token, id: `token-${Date.now()}` }];
       }
-      return [...prevTokens, { ...token, id: `token-${Date.now()}` }];
+      StorageService.setTokens(updatedTokens);
+      return updatedTokens;
     });
     handleCloseEditor();
   };
@@ -296,7 +299,11 @@ const App = () => {
                         setIsEditorOpen(true);
                       }}
                       onDeleteToken={(tokenId) => {
-                        setTokens(prevTokens => prevTokens.filter(t => t.id !== tokenId));
+                        setTokens(prevTokens => {
+                          const updatedTokens = prevTokens.filter(t => t.id !== tokenId);
+                          StorageService.setTokens(updatedTokens);
+                          return updatedTokens;
+                        });
                       }}
                     />
                     {isEditorOpen && selectedToken && (

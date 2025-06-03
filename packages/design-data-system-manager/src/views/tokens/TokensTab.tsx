@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Text, HStack, Flex, FormControl, FormLabel, Select, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge } from '@chakra-ui/react';
 import { Edit, Trash2 } from 'lucide-react';
-import type { TokenCollection, ResolvedValueType, Mode, Dimension, Taxonomy } from '@token-model/data-model';
+import type { TokenCollection, ResolvedValueType, Mode, Taxonomy } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
 
 interface TokensTabProps {
@@ -10,7 +10,6 @@ interface TokensTabProps {
   resolvedValueTypes: ResolvedValueType[];
   modes: Mode[];
   taxonomies: Taxonomy[];
-  dimensions?: Dimension[];
   renderAddTokenButton?: React.ReactNode;
   onEditToken?: (token: ExtendedToken) => void;
   onDeleteToken?: (tokenId: string) => void;
@@ -22,7 +21,6 @@ export function TokensTab({
   resolvedValueTypes, 
   modes,
   taxonomies,
-  dimensions,
   renderAddTokenButton,
   onEditToken,
   onDeleteToken 
@@ -147,6 +145,16 @@ export function TokensTab({
     }).join('\n');
   };
 
+  // Handler for editing a token
+  const handleEditToken = (token: ExtendedToken) => {
+    if (onEditToken) onEditToken(token);
+  };
+
+  // Handler for deleting a token
+  const handleDeleteToken = (tokenId: string) => {
+    if (onDeleteToken) onDeleteToken(tokenId);
+  };
+
   return (
     <Box>
       <Flex justify="space-between" align="center" mb={4}>
@@ -247,7 +255,7 @@ export function TokensTab({
                       icon={<Edit size={16} />}
                       size="sm"
                       variant="ghost"
-                      onClick={() => onEditToken(token)}
+                      onClick={() => handleEditToken(token)}
                     />
                   )}
                   {onDeleteToken && (
@@ -257,7 +265,7 @@ export function TokensTab({
                       size="sm"
                       variant="ghost"
                       colorScheme="red"
-                      onClick={() => onDeleteToken(token.id)}
+                      onClick={() => handleDeleteToken(token.id)}
                     />
                   )}
                 </HStack>
