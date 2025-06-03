@@ -34,12 +34,13 @@
       "private": false
     },
     {
-      "name": "TEST",
+      "name": "Private collection",
       "description": "",
       "resolvedValueTypeIds": [
-        "color"
+        "color",
+        "font_family"
       ],
-      "private": false,
+      "private": true,
       "id": "22117476-608c-4115-ba72-ecbe1ecc637c"
     }
   ],
@@ -428,30 +429,112 @@
       "resolvedValueTypeId": "font_family",
       "propertyTypes": [],
       "private": false,
-      "themeable": false,
+      "themeable": true,
       "status": "experimental",
       "taxonomies": [
         {
-          "taxonomyId": "taxonomyId-1111-1111-1111",
-          "termId": "termId-1111-1111-1111"
+          "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
+          "termId": "termId-e98c905e-5a83-4be1-ae19-2c2b69523791"
+        },
+        {
+          "taxonomyId": "taxonomyId-2222-2222-2222",
+          "termId": "termId-2030ee73-668f-4c75-8f4d-43404fcbf7c1"
         }
       ],
       "codeSyntax": [
         {
           "platformId": "platform-000000",
-          "formattedName": "Text"
+          "formattedName": "Font family/Primary"
         },
         {
           "platformId": "platform-111111",
-          "formattedName": "--sptext"
+          "formattedName": "--spfont family-primary"
         },
         {
           "platformId": "platform-222222",
-          "formattedName": "SpText"
+          "formattedName": "SpFont family_Primary"
         },
         {
           "platformId": "platform-333333",
-          "formattedName": "SPTEXT"
+          "formattedName": "SPFONT FAMILY_PRIMARY"
+        }
+      ],
+      "constraints": [],
+      "valuesByMode": [
+        {
+          "modeIds": [
+            "modeId-latin"
+          ],
+          "value": {
+            "type": "COLOR",
+            "value": "#000000"
+          }
+        },
+        {
+          "modeIds": [
+            "modeId-cjk"
+          ],
+          "value": {
+            "type": "COLOR",
+            "value": "#000000"
+          }
+        },
+        {
+          "modeIds": [
+            "modeId-arabic"
+          ],
+          "value": {
+            "type": "COLOR",
+            "value": "#000000"
+          }
+        },
+        {
+          "modeIds": [
+            "modeId-hebrew"
+          ],
+          "value": {
+            "type": "COLOR",
+            "value": "#000000"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-1748982912147",
+      "displayName": "Line height primary",
+      "description": "",
+      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
+      "resolvedValueTypeId": "line_height",
+      "propertyTypes": [],
+      "private": false,
+      "themeable": false,
+      "status": "experimental",
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
+          "termId": "termId-df64aabc-b85d-4004-898a-76ac08143144"
+        },
+        {
+          "taxonomyId": "taxonomyId-2222-2222-2222",
+          "termId": "termId-2030ee73-668f-4c75-8f4d-43404fcbf7c1"
+        }
+      ],
+      "codeSyntax": [
+        {
+          "platformId": "platform-000000",
+          "formattedName": "Line height/Primary"
+        },
+        {
+          "platformId": "platform-111111",
+          "formattedName": "--spline height-primary"
+        },
+        {
+          "platformId": "platform-222222",
+          "formattedName": "SpLine height_Primary"
+        },
+        {
+          "platformId": "platform-333333",
+          "formattedName": "SPLINE HEIGHT_PRIMARY"
         }
       ],
       "constraints": [],
@@ -461,6 +544,153 @@
           "value": {
             "type": "COLOR",
             "value": "#000000"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-1748982933911",
+      "displayName": "Font weight primary",
+      "description": "",
+      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
+      "resolvedValueTypeId": "font_weight",
+      "propertyTypes": [],
+      "private": false,
+      "themeable": false,
+      "status": "experimental",
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
+          "termId": "termId-1b8fc8e2-690c-4543-bc41-983ead501aad"
+        },
+        {
+          "taxonomyId": "taxonomyId-2222-2222-2222",
+          "termId": "termId-2030ee73-668f-4c75-8f4d-43404fcbf7c1"
+        }
+      ],
+      "codeSyntax": [
+        {
+          "platformId": "platform-000000",
+          "formattedName": "Font weight/Primary"
+        },
+        {
+          "platformId": "platform-111111",
+          "formattedName": "--spfont weight-primary"
+        },
+        {
+          "platformId": "platform-222222",
+          "formattedName": "SpFont weight_Primary"
+        },
+        {
+          "platformId": "platform-333333",
+          "formattedName": "SPFONT WEIGHT_PRIMARY"
+        }
+      ],
+      "constraints": [],
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#000000"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-1748982963918",
+      "displayName": "Spacing 100",
+      "description": "",
+      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
+      "resolvedValueTypeId": "spacing",
+      "propertyTypes": [],
+      "private": false,
+      "themeable": false,
+      "status": "experimental",
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
+          "termId": "termId-1b26134e-783a-42a7-9817-c21b8207ecca"
+        },
+        {
+          "taxonomyId": "taxonomyId-3333-3333-3333",
+          "termId": "termId-852b2d86-b7bd-462f-9f77-90cd227dd537"
+        }
+      ],
+      "codeSyntax": [
+        {
+          "platformId": "platform-000000",
+          "formattedName": "Spacing/100"
+        },
+        {
+          "platformId": "platform-111111",
+          "formattedName": "--spspacing-100"
+        },
+        {
+          "platformId": "platform-222222",
+          "formattedName": "SpSpacing_100"
+        },
+        {
+          "platformId": "platform-333333",
+          "formattedName": "SPSPACING_100"
+        }
+      ],
+      "constraints": [],
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "SPACING",
+            "value": 16
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-1748982995585",
+      "displayName": "Radius 100",
+      "description": "",
+      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
+      "resolvedValueTypeId": "radius",
+      "propertyTypes": [],
+      "private": false,
+      "themeable": false,
+      "status": "experimental",
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
+          "termId": "termId-00a5e0fb-5da2-42ef-b7d3-8b116d952b64"
+        },
+        {
+          "taxonomyId": "taxonomyId-3333-3333-3333",
+          "termId": "termId-852b2d86-b7bd-462f-9f77-90cd227dd537"
+        }
+      ],
+      "codeSyntax": [
+        {
+          "platformId": "platform-000000",
+          "formattedName": "Radius/100"
+        },
+        {
+          "platformId": "platform-111111",
+          "formattedName": "--spradius-100"
+        },
+        {
+          "platformId": "platform-222222",
+          "formattedName": "SpRadius_100"
+        },
+        {
+          "platformId": "platform-333333",
+          "formattedName": "SPRADIUS_100"
+        }
+      ],
+      "constraints": [],
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "RADIUS",
+            "value": 4
           }
         }
       ]

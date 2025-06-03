@@ -131,25 +131,10 @@ export function CollectionsTab({ collections, modes, onUpdate }: CollectionsTabP
                     ) : null;
                   })}
                 </Wrap>
-                <Text fontSize="sm" color="gray.600">
-                  <b>Mode Priority:</b> {Array.isArray(collection.modeResolutionStrategy?.priorityByType) && collection.modeResolutionStrategy?.priorityByType.length > 0
-                    ? collection.modeResolutionStrategy?.priorityByType.join(' > ')
-                    : 'None'}
-                </Text>
-                <Text fontSize="sm" color="gray.600">
-                  <b>Fallback Strategy:</b> {collection.modeResolutionStrategy?.fallbackStrategy || 'None'}
-                </Text>
                 {collection.private && (
                   <Text fontSize="sm" color="gray.500"><b>Private</b></Text>
                 )}
-                {collection.defaultModeIds && collection.defaultModeIds.length > 0 && (
-                  <Text fontSize="sm" color="gray.600">
-                    <b>Default Modes:</b> {collection.defaultModeIds.map(id => {
-                      const mode = modes.find(m => m.id === id);
-                      return mode?.name || id;
-                    }).join(', ')}
-                  </Text>
-                )}
+                
               </VStack>
             </Box>
           ))}
