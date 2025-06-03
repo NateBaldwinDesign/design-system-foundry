@@ -8,26 +8,22 @@ import {
   ModalFooter,
   ModalCloseButton,
   Button,
-  Box,
   Text,
   Input,
   FormControl,
   FormLabel,
-  Select,
   Checkbox,
   VStack,
-  HStack,
-  Tag,
   useToast
 } from '@chakra-ui/react';
 import type { TokenCollection } from '@token-model/data-model';
+import { ResolvedValueTypePicker } from './ResolvedValueTypePicker';
 
 export interface CollectionEditorDialogProps {
   open: boolean;
   onClose: () => void;
   onSave: (collection: TokenCollection) => void;
   collection?: TokenCollection | null;
-  valueTypes: { id: string; displayName: string }[];
   isNew?: boolean;
 }
 
@@ -44,7 +40,7 @@ interface ExtendedTokenCollection extends TokenCollection {
   resolvedValueTypeIds: string[];
 }
 
-export function CollectionEditorDialog({ open, onClose, onSave, collection, valueTypes, isNew = false }: CollectionEditorDialogProps) {
+export function CollectionEditorDialog({ open, onClose, onSave, collection, isNew = false }: CollectionEditorDialogProps) {
   const [editedCollection, setEditedCollection] = useState<CollectionEditorFormState>({
     name: '',
     description: '',
@@ -140,42 +136,13 @@ export function CollectionEditorDialog({ open, onClose, onSave, collection, valu
               />
             </FormControl>
             <FormControl isInvalid={!!errors.resolvedValueTypeIds} isRequired>
-              <FormLabel>Resolved Value Types</FormLabel>
-              <Select
-                multiple
-                value={editedCollection.resolvedValueTypeIds || []}
-                onChange={e => {
-                  const values = Array.from(e.target.selectedOptions, option => option.value);
-                  handleChange('resolvedValueTypeIds', values);
-                }}
-              >
-                {Array.isArray(valueTypes) && valueTypes.length > 0 ? (
-                  valueTypes.map(vt => (
-                    <option key={vt.id} value={vt.id}>{vt.displayName}</option>
-                  ))
-                ) : (
-                  <option disabled value="">
-                    {valueTypes === undefined
-                      ? "No resolved value types available. Please configure them in the editor above."
-                      : "No resolved value types found."}
-                  </option>
-                )}
-              </Select>
-              <Box mt={2}>
-                <HStack spacing={2} wrap="wrap">
-                  {editedCollection.resolvedValueTypeIds.map((id: string) => {
-                    const vt = Array.isArray(valueTypes) ? valueTypes.find(v => v.id === id) : undefined;
-                    return (
-                      <Tag key={id} size="md" colorScheme="blue">
-                        {vt ? vt.displayName : id}
-                      </Tag>
-                    );
-                  })}
-                </HStack>
-              </Box>
-              {errors.resolvedValueTypeIds && (
-                <Text color="red.500" fontSize="sm">{errors.resolvedValueTypeIds}</Text>
-              )}
+              <ResolvedValueTypePicker
+                value={editedCollection.resolvedValueTypeIds}
+                onChange={vals => handleChange('resolvedValueTypeIds', vals)}
+                label="Resolved Value Types"
+                isRequired={true}
+                error={errors.resolvedValueTypeIds}
+              />
             </FormControl>
             <FormControl>
               <Checkbox

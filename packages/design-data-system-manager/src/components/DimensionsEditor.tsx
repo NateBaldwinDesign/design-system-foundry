@@ -19,16 +19,13 @@ import {
   ModalFooter,
   ModalCloseButton,
   useColorMode,
-  Tag,
-  TagLabel,
-  TagCloseButton,
-  Wrap,
   Switch
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
-import type { Dimension, Mode, ResolvedValueType } from '@token-model/data-model';
+import type { Dimension, Mode } from '@token-model/data-model';
 import { ValidationService } from '../services/validation';
 import { createUniqueId } from '../utils/id';
+import { ResolvedValueTypePicker } from './ResolvedValueTypePicker';
 import { StorageService } from '../services/storage';
 
 interface DimensionsEditorProps {
@@ -45,8 +42,8 @@ interface DimensionFormData {
   description: string;
   modes: Mode[];
   defaultMode: string;
-  resolvedValueTypeIds: string[];
   required: boolean;
+  resolvedValueTypeIds: string[];
 }
 
 export function DimensionsEditor({
@@ -63,16 +60,13 @@ export function DimensionsEditor({
     description: '',
     modes: [],
     defaultMode: '',
-    resolvedValueTypeIds: [],
     required: false,
+    resolvedValueTypeIds: [],
   });
   const [modeForm, setModeForm] = useState({ id: '', name: '', description: '' });
   const [modeDialogOpen, setModeDialogOpen] = useState(false);
   const [modeEditIndex, setModeEditIndex] = useState<number | null>(null);
   const toast = useToast();
-
-  // Use StorageService to get value types from local storage
-  const resolvedValueTypes: ResolvedValueType[] = StorageService.getValueTypes() || [];
 
   React.useEffect(() => {
     if (editingIndex !== null && dimensions[editingIndex]) {
@@ -84,8 +78,8 @@ export function DimensionsEditor({
         description: dim.description || '',
         modes: dim.modes,
         defaultMode: dim.defaultMode || (dim.modes[0]?.id ?? ''),
-        resolvedValueTypeIds: dim.resolvedValueTypeIds || [],
         required: dim.required || false,
+        resolvedValueTypeIds: dim.resolvedValueTypeIds || [],
       });
     } else {
       console.log('[DimensionsEditor] Creating new dimension');
@@ -95,8 +89,8 @@ export function DimensionsEditor({
         description: '',
         modes: [],
         defaultMode: '',
-        resolvedValueTypeIds: [],
         required: false,
+        resolvedValueTypeIds: [],
       });
     }
   }, [editingIndex, dimensions, isOpen]);
@@ -162,22 +156,6 @@ export function DimensionsEditor({
       }
       return { ...prev, modes: newModes, defaultMode: newDefault };
     });
-  };
-
-  const handleAddValueType = (valueTypeId: string) => {
-    console.log('[DimensionsEditor] Adding value type:', valueTypeId);
-    setForm((prev: DimensionFormData) => ({
-      ...prev,
-      resolvedValueTypeIds: [...(prev.resolvedValueTypeIds || []), valueTypeId],
-    }));
-  };
-
-  const handleRemoveValueType = (valueTypeId: string) => {
-    console.log('[DimensionsEditor] Removing value type:', valueTypeId);
-    setForm((prev: DimensionFormData) => ({
-      ...prev,
-      resolvedValueTypeIds: (prev.resolvedValueTypeIds || []).filter((id: string) => id !== valueTypeId),
-    }));
   };
 
   const handleSave = () => {
@@ -254,7 +232,7 @@ export function DimensionsEditor({
       modes: form.modes || [],
       required: form.required,
       defaultMode: form.defaultMode,
-      resolvedValueTypeIds: form.resolvedValueTypeIds,
+      resolvedValueTypeIds: form.resolvedValueTypeIds || [],
     } as Dimension;
     console.log('[DimensionsEditor] Prepared dimension to save:', dimToSave);
 
@@ -278,10 +256,12 @@ export function DimensionsEditor({
       tokens: [],
       platforms: [],
       taxonomies: [],
-      resolvedValueTypes: [],
       version: '1.0.0',
       versionHistory: []
     };
+
+    // Get resolvedValueTypes from storage
+    const resolvedValueTypes = StorageService.getValueTypes() || [];
 
     // Compose validation data with existing system data and updated dimensions
     const validationData = {
@@ -301,7 +281,7 @@ export function DimensionsEditor({
         console.error('[DimensionsEditor] Schema validation failed:', result.errors);
         toast({
           title: 'Schema Validation Failed',
-          description: result.errors?.map(e => e.message).join(', ') || 'See console for details.',
+          description: Array.isArray(result.errors) ? result.errors.join(', ') : 'See console for details.',
           status: 'error',
           duration: 5000,
           isClosable: true,
@@ -385,33 +365,13 @@ export function DimensionsEditor({
               </VStack>
             </Box>
             <FormControl>
-              <FormLabel>Value Types</FormLabel>
-              <Select
-                value=""
-                onChange={e => {
-                  if (e.target.value) {
-                    handleAddValueType(e.target.value);
-                  }
-                }}
-              >
-                <option value="">Add a value type...</option>
-                {resolvedValueTypes
-                  .filter(type => !form.resolvedValueTypeIds.includes(type.id))
-                  .map(type => (
-                    <option key={type.id} value={type.id}>{type.displayName}</option>
-                  ))}
-              </Select>
-              <Wrap mt={2} spacing={2}>
-                {form.resolvedValueTypeIds.map((typeId: string) => {
-                  const type = resolvedValueTypes.find(t => t.id === typeId);
-                  return type ? (
-                    <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
-                      <TagLabel>{type.displayName}</TagLabel>
-                      <TagCloseButton onClick={() => handleRemoveValueType(typeId)} />
-                    </Tag>
-                  ) : null;
-                })}
-              </Wrap>
+              <ResolvedValueTypePicker
+                value={form.resolvedValueTypeIds}
+                onChange={vals => setForm(prev => ({ ...prev, resolvedValueTypeIds: vals }))}
+                label="Value Types"
+                isRequired={false}
+                error={undefined}
+              />
             </FormControl>
           </VStack>
         </ModalBody>

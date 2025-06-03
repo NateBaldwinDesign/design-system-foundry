@@ -63,6 +63,15 @@
           ],
           "fallbackStrategy": "MOST_SPECIFIC_MATCH"
         }
+      },
+      {
+        "name": "Coool",
+        "description": "",
+        "resolvedValueTypeIds": [
+          "font_family"
+        ],
+        "private": false,
+        "id": "46c0a52a-a3b7-4abe-80ac-5601d62cf2db"
       }
     ],
     "dimensions": [
@@ -148,7 +157,31 @@
           "line_height",
           "font_weight"
         ]
+      },
+      {
+        "id": "dimensionId-876096bf-d9fa-4a14-a3e1-f19261d9335e",
+        "displayName": "Hello",
+        "description": "",
+        "modes": [
+          {
+            "id": "modeId-e169551c-d598-4682-bfe4-7917488f62dd",
+            "name": "Mode",
+            "description": "",
+            "dimensionId": "dimensionId-876096bf-d9fa-4a14-a3e1-f19261d9335e"
+          }
+        ],
+        "defaultMode": "modeId-e169551c-d598-4682-bfe4-7917488f62dd",
+        "required": true,
+        "resolvedValueTypeIds": [
+          "color"
+        ]
       }
+    ],
+    "dimensionOrder": [
+      "dimensionId-0000-0000-0000",
+      "dimensionId-1111-1111-1111",
+      "dimensionId-2222-2222-2222",
+      "dimensionId-876096bf-d9fa-4a14-a3e1-f19261d9335e"
     ],
     "tokens": [
       {
@@ -469,8 +502,8 @@
       {
         "id": "default",
         "displayName": "Default Theme",
-        "description": "The default theme for the design system",
-        "isDefault": true
+        "isDefault": true,
+        "description": "The default theme for the design system"
       }
     ],
     "taxonomies": [

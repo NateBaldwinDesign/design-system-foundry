@@ -7,11 +7,15 @@ import {
   VStack,
   HStack,
   useToast,
-  useColorMode
+  useColorMode,
+  Tag,
+  TagLabel,
+  Wrap
 } from '@chakra-ui/react';
 import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
-import type { TokenCollection, Mode } from '@token-model/data-model';
+import type { TokenCollection, Mode, ResolvedValueType } from '@token-model/data-model';
 import { CollectionEditorDialog } from '../../components/CollectionEditorDialog';
+import { StorageService } from '../../services/storage';
 
 interface CollectionsTabProps {
   collections: TokenCollection[];
@@ -25,6 +29,9 @@ export function CollectionsTab({ collections, modes, onUpdate }: CollectionsTabP
   const [editingCollection, setEditingCollection] = useState<TokenCollection | null>(null);
   const [isNew, setIsNew] = useState(false);
   const toast = useToast();
+
+  // Get resolvedValueTypes from storage
+  const resolvedValueTypes = StorageService.getValueTypes() || [];
 
   // Open dialog for creating a new collection
   const handleOpenCreate = () => {
@@ -42,13 +49,24 @@ export function CollectionsTab({ collections, modes, onUpdate }: CollectionsTabP
 
   // Save handler for dialog
   const handleDialogSave = (collection: TokenCollection) => {
+    let newCollections: TokenCollection[];
     if (isNew) {
-      onUpdate([...collections, collection]);
-      toast({ title: 'Collection created', status: 'success', duration: 2000 });
+      newCollections = [...collections, collection];
     } else {
-      onUpdate(collections.map(c => c.id === collection.id ? collection : c));
-      toast({ title: 'Collection updated', status: 'success', duration: 2000 });
+      newCollections = collections.map(c => c.id === collection.id ? collection : c);
     }
+    
+    // Save to local storage
+    StorageService.setCollections(newCollections);
+    
+    // Update state
+    onUpdate(newCollections);
+    
+    toast({ 
+      title: isNew ? 'Collection created' : 'Collection updated', 
+      status: 'success', 
+      duration: 2000 
+    });
     setDialogOpen(false);
   };
 
@@ -58,8 +76,19 @@ export function CollectionsTab({ collections, modes, onUpdate }: CollectionsTabP
   };
 
   const handleDeleteCollection = (id: string) => {
-    onUpdate(collections.filter(c => c.id !== id));
-    toast({ title: 'Collection deleted', status: 'info', duration: 2000 });
+    const newCollections = collections.filter(c => c.id !== id);
+    
+    // Save to local storage
+    StorageService.setCollections(newCollections);
+    
+    // Update state
+    onUpdate(newCollections);
+    
+    toast({ 
+      title: 'Collection deleted', 
+      status: 'info', 
+      duration: 2000 
+    });
   };
 
   return (
@@ -90,8 +119,18 @@ export function CollectionsTab({ collections, modes, onUpdate }: CollectionsTabP
               </HStack>
               <VStack align="start" spacing={1} mt={2} ml={2}>
                 <Text fontSize="sm" color="gray.600">
-                  <b>Value Type IDs:</b> {Array.isArray(collection.resolvedValueTypeIds) ? collection.resolvedValueTypeIds.join(', ') : 'None'}
+                  <b>Value Types:</b>
                 </Text>
+                <Wrap spacing={2}>
+                  {Array.isArray(collection.resolvedValueTypeIds) && collection.resolvedValueTypeIds.map((typeId: string) => {
+                    const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
+                    return type ? (
+                      <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
+                        <TagLabel>{type.displayName}</TagLabel>
+                      </Tag>
+                    ) : null;
+                  })}
+                </Wrap>
                 <Text fontSize="sm" color="gray.600">
                   <b>Mode Priority:</b> {Array.isArray(collection.modeResolutionStrategy?.priorityByType) && collection.modeResolutionStrategy?.priorityByType.length > 0
                     ? collection.modeResolutionStrategy?.priorityByType.join(' > ')
@@ -121,7 +160,6 @@ export function CollectionsTab({ collections, modes, onUpdate }: CollectionsTabP
         onClose={handleDialogClose}
         onSave={handleDialogSave}
         collection={editingCollection}
-        valueTypes={[]}
         isNew={isNew}
       />
     </Box>
