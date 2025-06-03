@@ -39,7 +39,6 @@ export function createSchemaJsonFromLocalStorage() {
   }];
 
   // Compose required top-level fields (with defaults if missing)
-  const themeOverrides: Record<string, unknown> = {};
 
   // Compose resolvedValueTypes as array of objects if needed
   let resolvedValueTypesArray: ResolvedValueType[] = [];
@@ -100,7 +99,6 @@ export function createSchemaJsonFromLocalStorage() {
     themes: normalizedThemes,
     taxonomies,
     resolvedValueTypes: resolvedValueTypesArray,
-    themeOverrides,
     namingRules: namingRules || {
       taxonomyOrder: []
     }

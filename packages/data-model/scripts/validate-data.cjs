@@ -23,7 +23,7 @@ ajv.addKeyword({
       const standardTypes = [
         'COLOR', 'DIMENSION', 'SPACING', 'FONT_FAMILY', 'FONT_WEIGHT',
         'FONT_SIZE', 'LINE_HEIGHT', 'LETTER_SPACING', 'DURATION',
-        'CUBIC_BEZIER', 'BLUR', 'SPREAD', 'RADIUS', 'SHADOW'
+        'CUBIC_BEZIER', 'BLUR', 'SPREAD', 'RADIUS'
       ];
       if (!standardTypes.includes(data.type)) {
         validateResolvedValueType.errors = [{

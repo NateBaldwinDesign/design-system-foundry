@@ -24,7 +24,7 @@ interface ClassificationTabProps {
 
 // Utility to ensure all terms have a string description
 function normalizeTerms(terms: { id: string; name: string; description?: string }[]): { id: string; name: string; description: string }[] {
-  return terms.map(term => ({
+  return terms.map((term: { id: string; name: string; description?: string }) => ({
     ...term,
     description: typeof term.description === 'string' ? term.description : ''
   }));
@@ -39,6 +39,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
     name: '',
     description: '',
     terms: normalizeTerms([]),
+    resolvedValueTypeIds: [],
   });
   const [termForm, setTermForm] = useState({ id: '', name: '', description: '' });
   const [termDialogOpen, setTermDialogOpen] = useState(false);
@@ -59,6 +60,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
         name: taxonomy.name,
         description: taxonomy.description || '',
         terms: normalizeTerms(taxonomy.terms || []),
+        resolvedValueTypeIds: Array.isArray(taxonomy.resolvedValueTypeIds) ? taxonomy.resolvedValueTypeIds : [],
       });
     } else {
       setForm({
@@ -66,6 +68,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
         name: '',
         description: '',
         terms: normalizeTerms([]),
+        resolvedValueTypeIds: [],
       });
     }
     setOpen(true);
@@ -170,7 +173,8 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
     const taxonomyToSave = {
       ...form,
       id: taxonomyId,
-      terms: termsWithIds
+      terms: termsWithIds,
+      resolvedValueTypeIds: Array.isArray(form.resolvedValueTypeIds) ? form.resolvedValueTypeIds : [],
     };
     if (editingIndex !== null) {
       newTaxonomies[editingIndex] = taxonomyToSave;
@@ -250,7 +254,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
   const handleTermDelete = (index: number) => {
     setForm((prev: typeof form) => ({
       ...prev,
-      terms: (prev.terms || []).filter((_: unknown, i: number) => i !== index)
+      terms: (prev.terms || []).filter((_: { id: string; name: string; description?: string }, i: number) => i !== index)
     }));
   };
 
@@ -295,6 +299,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
         handleFormChange={handleFormChange}
         handleTermDialogOpen={handleTermDialogOpen}
         handleTermDelete={handleTermDelete}
+        resolvedValueTypes={Array.isArray(resolvedValueTypes) ? resolvedValueTypes.map(vt => ({ id: vt.id, name: vt.displayName || vt.name || vt.id })) : []}
       />
       <TermEditorDialog
         open={termDialogOpen}

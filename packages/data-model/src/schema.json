@@ -532,37 +532,6 @@
                   }
                 }
               ]
-            },
-            "constraints": {
-              "type": "array",
-              "description": "Constraints that must be satisfied by this token's value or aliases",
-              "items": {
-                "type": "object",
-                "required": ["type", "rule"],
-                "properties": {
-                  "type": { "type": "string", "enum": ["contrast"] },
-                  "rule": {
-                    "type": "object",
-                    "required": ["minimum", "comparator"],
-                    "properties": {
-                      "minimum": { "type": "number" },
-                      "comparator": {
-                        "type": "object",
-                        "required": ["type", "value"],
-                        "properties": {
-                          "type": { "type": "string", "pattern": "^[a-zA-Z0-9-_]+$" },
-                          "value": { "type": "string" },
-                          "method": {
-                            "type": "string",
-                            "enum": ["WCAG21", "APCA", "Lstar"],
-                            "description": "Contrast calculation method: WCAG21 (WCAG 2.1), APCA, or Lstar (Lightness)"
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
             }
           }
         }

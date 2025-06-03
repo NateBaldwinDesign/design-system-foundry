@@ -43,7 +43,7 @@
     { "id": "font_weight", "displayName": "Font Weight", "type": "FONT_WEIGHT" },
     { "id": "spacing", "displayName": "Spacing", "type": "SPACING" },
     { "id": "opacity", "displayName": "Opacity" },
-    { "id": "shadow", "displayName": "Shadow", "type": "SHADOW" },
+    { "id": "shadow", "displayName": "Shadow" },
     { "id": "border", "displayName": "Border" },
     { "id": "radius", "displayName": "Radius", "type": "RADIUS" },
     { "id": "z_index", "displayName": "Z Index" }
@@ -229,16 +229,6 @@
         {
           "platformId": "ANDROID",
           "formattedName": "BLUE_500"
-        }
-      ],
-      "constraints": [
-        {
-          "type": "contrast",
-          "rule": {
-            "minimum": 3,
-            "method": "WCAG 2.1",
-            "comparator": { "type": "COLOR", "value": "#fafafa" }
-          }
         }
       ],
       "valuesByMode": [

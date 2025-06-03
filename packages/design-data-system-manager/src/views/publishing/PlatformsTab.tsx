@@ -15,9 +15,10 @@ import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
 import { PlatformEditorDialog } from '../../components/PlatformEditorDialog';
 import { createUniqueId } from '../../utils/id';
 import { CodeSyntaxService } from '../../services/codeSyntax';
-import { Platform, TokenCollection, Dimension, Taxonomy } from '@token-model/data-model';
+import { Platform, Taxonomy } from '@token-model/data-model';
 import { ValidationService } from '../../services/validation';
 import { ExtendedToken } from '../../components/TokenEditorDialog';
+import { StorageService } from '../../services/storage';
 
 interface PlatformsTabProps {
   platforms: Platform[];
@@ -41,18 +42,34 @@ export const PlatformsTab: React.FC<PlatformsTabProps> = ({
   const cardBg = useColorModeValue('gray.50', 'gray.800');
   const cardBorder = useColorModeValue('gray.200', 'gray.600');
   const toast = useToast();
-  const collections: TokenCollection[] = [];
-  const dimensions: Dimension[] = [];
 
   const validateAndSetPlatforms = (updatedPlatforms: Platform[]) => {
+    // Get all required data from storage
+    const tokenCollections = StorageService.getCollections();
+    const dimensions = StorageService.getDimensions();
+    const tokens = StorageService.getTokens();
+    const taxonomies = StorageService.getTaxonomies();
+    const resolvedValueTypes = StorageService.getValueTypes();
+    // Optionally, get systemName/systemId/version from root or a config
+    const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
+    const {
+      systemName = 'Design System',
+      systemId = 'design-system',
+      version = '1.0.0',
+      versionHistory = []
+    } = root;
+
     const data = {
-      tokenCollections: collections,
+      systemName,
+      systemId,
+      tokenCollections,
       dimensions,
       tokens,
       platforms: updatedPlatforms,
       taxonomies,
-      version: '1.0.0',
-      versionHistory: []
+      resolvedValueTypes,
+      version,
+      versionHistory
     };
     const result = ValidationService.validateData(data);
     if (!result.isValid) {
