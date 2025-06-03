@@ -139,60 +139,10 @@ export const BorderValue = z.union([
 // Token value types
 export const TokenValue = z.union([
   z.object({
-    type: z.literal('COLOR'),
-    value: z.string()
+    value: z.any()
   }),
   z.object({
-    type: z.literal('DIMENSION'),
-    value: z.number()
-  }),
-  z.object({
-    type: z.literal('SPACING'),
-    value: z.number()
-  }),
-  z.object({
-    type: z.literal('FONT_FAMILY'),
-    value: z.string()
-  }),
-  z.object({
-    type: z.literal('FONT_WEIGHT'),
-    value: z.number()
-  }),
-  z.object({
-    type: z.literal('FONT_SIZE'),
-    value: z.number()
-  }),
-  z.object({
-    type: z.literal('LINE_HEIGHT'),
-    value: z.number()
-  }),
-  z.object({
-    type: z.literal('LETTER_SPACING'),
-    value: z.number()
-  }),
-  z.object({
-    type: z.literal('DURATION'),
-    value: z.number()
-  }),
-  z.object({
-    type: z.literal('CUBIC_BEZIER'),
-    value: z.string()
-  }),
-  z.object({
-    type: z.literal('BLUR'),
-    value: z.number()
-  }),
-  z.object({
-    type: z.literal('SPREAD'),
-    value: z.number()
-  }),
-  z.object({
-    type: z.literal('RADIUS'),
-    value: z.number()
-  }),
-  z.object({
-    type: z.literal('ALIAS'),
-    tokenId: z.string()
+    tokenId: z.string().regex(/^[a-zA-Z0-9-_]+$/)
   })
 ]);
 

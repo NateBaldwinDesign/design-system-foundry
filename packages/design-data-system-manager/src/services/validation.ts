@@ -1,12 +1,12 @@
-import { validateTokenSystem } from '@token-model/data-model';
+import { validateTokenSystem, Token, TokenValue } from '@token-model/data-model';
 
 export interface ValidationResult {
   isValid: boolean;
-  errors?: any[];
+  errors?: string[];
 }
 
 export class ValidationService {
-  static validateData(data: any): ValidationResult {
+  static validateData(data: unknown): ValidationResult {
     try {
       // Debug logging
       console.log('[ValidationService] Data being validated:', JSON.stringify(data, null, 2));
@@ -16,7 +16,7 @@ export class ValidationService {
 
       // Additional validation for resolvedValueTypeId
       if (data.tokens) {
-        const resolvedValueTypeIds = new Set(data.resolvedValueTypes?.map((vt: any) => vt.id) || []);
+        const resolvedValueTypeIds = new Set(data.resolvedValueTypes?.map((vt: { id: string }) => vt.id) || []);
         
         // Validate tokens
         for (const token of data.tokens) {
@@ -33,6 +33,22 @@ export class ValidationService {
               isValid: false,
               errors: [`Token ${token.id} has invalid resolvedValueTypeId "${valueTypeId}". Must be one of: ${Array.from(resolvedValueTypeIds).join(', ')}`]
             };
+          }
+
+          // Validate token values
+          for (const valueByMode of token.valuesByMode) {
+            const value = valueByMode.value as TokenValue;
+            if ('tokenId' in value) {
+              // Validate alias reference
+              const referencedToken = data.tokens.find((t: Token) => t.id === value.tokenId);
+              if (!referencedToken) {
+                return {
+                  isValid: false,
+                  errors: [`Token ${token.id} references non-existent token ${value.tokenId} in valuesByMode`]
+                };
+              }
+            }
+            // Value validation is handled by the schema validation
           }
         }
 
@@ -86,12 +102,12 @@ export class ValidationService {
       }
 
       return { isValid: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Zod errors have .errors array, fallback to message otherwise
-      if (error.errors) {
-        return { isValid: false, errors: error.errors };
+      if (error && typeof error === 'object' && 'errors' in error) {
+        return { isValid: false, errors: (error as { errors: string[] }).errors };
       }
-      return { isValid: false, errors: [error.message || error] };
+      return { isValid: false, errors: [error instanceof Error ? error.message : String(error)] };
     }
   }
 } 

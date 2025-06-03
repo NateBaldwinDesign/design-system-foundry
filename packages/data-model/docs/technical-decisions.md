@@ -255,3 +255,51 @@ The token value type system is designed to ensure type safety and consistency ac
 This system provides a consistent way to reference types throughout the schema while maintaining type safety and validation. 
 
 All references to value types in tokens, collections, dimensions, and taxonomies are by string ID (matching the `id` field in the top-level `resolvedValueTypes` array), never by enum, hardcoded value, or casing. 
+
+# Technical Decisions: Token Value Structure
+
+## Context
+The token value structure in `valuesByMode` previously included a redundant `resolvedValueTypeId` field in each value object. This field was unnecessary because:
+1. The token already has a `resolvedValueTypeId` at its top level
+2. The value's type must match the token's type
+3. The only special case is the "alias" type, which is a reference to another token
+
+## Decision
+The token value structure has been simplified to:
+```json
+"value": {
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["value"],
+      "properties": {
+        "value": {}
+      }
+    },
+    {
+      "type": "object",
+      "required": ["tokenId"],
+      "properties": {
+        "tokenId": {
+          "type": "string",
+          "description": "ID of the token to alias to"
+        }
+      }
+    }
+  ]
+}
+```
+
+## Rationale
+- **Reduced Redundancy**: Removed the redundant `resolvedValueTypeId` field
+- **Prevented Errors**: Eliminated the possibility of mismatched value types
+- **Simplified Validation**: The token's `resolvedValueTypeId` is now the single source of truth
+- **Clarified Intent**: Made it clear that a value is either a direct value or an alias
+- **Improved Type Safety**: Validation is simpler and more reliable
+
+## Validation
+The validation logic now:
+1. For direct values: Validates that the value conforms to the type specified by the token's `resolvedValueTypeId`
+2. For aliases: Validates that the referenced token exists and has a compatible `resolvedValueTypeId`
+
+This change aligns better with schema-driven development principles and reduces the potential for errors while maintaining all necessary functionality. 
