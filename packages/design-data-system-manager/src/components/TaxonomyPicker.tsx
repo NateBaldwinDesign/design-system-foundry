@@ -15,8 +15,10 @@ import {
   PopoverBody,
   Text,
   VStack,
-  // Link (removed, unused)
+  Tooltip,
+  Icon,
 } from '@chakra-ui/react';
+import { AlertCircle } from 'lucide-react';
 import type { Taxonomy } from '@token-model/data-model';
 
 interface TaxonomyPickerProps {
@@ -38,6 +40,12 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false, 
     t => !value.some(v => v.taxonomyId === t.id)
   );
 
+  // Helper to check if a term is valid
+  const isTermValid = (taxonomyId: string, termId: string) => {
+    const taxonomy = taxonomies.find(t => t.id === taxonomyId);
+    return taxonomy?.terms.some(term => term.id === termId) ?? false;
+  };
+
   const handleAdd = () => {
     if (selectedTaxonomyId && selectedTermId) {
       try {
@@ -51,7 +59,6 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false, 
     }
   };
 
-  // Debug: log when chip delete is clicked
   const handleDelete = (idx: number) => {
     try {
       onChange(value.filter((_, i) => i !== idx));
@@ -76,6 +83,7 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false, 
           const taxonomy = taxonomies.find(t => t.id === assignment.taxonomyId);
           const term = taxonomy?.terms.find((term: Taxonomy["terms"][number]) => term.id === assignment.termId);
           const tagId = `${assignment.taxonomyId}-${assignment.termId}`;
+          const isValid = isTermValid(assignment.taxonomyId, assignment.termId);
           
           return (
             <Popover key={tagId} placement="top" closeOnBlur={true}>
@@ -83,11 +91,18 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false, 
                 <Tag
                   size="md"
                   variant="solid"
-                  colorScheme="blue"
+                  colorScheme={isValid ? "blue" : "red"}
                   m={1}
                   tabIndex={0}
                 >
-                  <TagLabel>{taxonomy && term ? `${taxonomy.name}: ${term.name}` : 'Unknown'}</TagLabel>
+                  <TagLabel>
+                    {taxonomy && term ? `${taxonomy.name}: ${term.name}` : 'Unknown'}
+                    {!isValid && (
+                      <Tooltip label="This term is no longer valid for the current value type">
+                        <Icon as={AlertCircle} ml={1} boxSize={3} />
+                      </Tooltip>
+                    )}
+                  </TagLabel>
                   {!disabled && <TagCloseButton onClick={() => handleDelete(idx)} />}
                 </Tag>
               </PopoverTrigger>
@@ -107,6 +122,11 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false, 
                             <Text fontWeight="bold" fontSize="sm">{term.name}</Text>
                             {term.description && (
                               <Text fontSize="sm" color="gray.400">{term.description}</Text>
+                            )}
+                            {!isValid && (
+                              <Text fontSize="sm" color="red.400" mt={1}>
+                                This term is no longer valid for the current value type
+                              </Text>
                             )}
                           </Box>
                         )}
