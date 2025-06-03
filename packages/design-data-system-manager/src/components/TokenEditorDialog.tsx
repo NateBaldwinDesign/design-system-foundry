@@ -40,20 +40,6 @@ import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
 import type { TokenValue } from '@token-model/data-model';
 
-// Constraint type matches schema: only 'contrast' type for now
-interface Constraint {
-  type: 'contrast';
-  resolvedValueTypeId: string; // e.g. 'contrast'
-  rule: {
-    minimum: number;
-    comparator: {
-      resolvedValueTypeId: string;
-      value: string;
-      method: 'WCAG21' | 'APCA' | 'Lstar';
-    };
-  };
-}
-
 // Redefine ExtendedToken to override valuesByMode and resolvedValueTypeId
 export type ExtendedToken = Omit<Token, 'valuesByMode' | 'resolvedValueTypeId'> & {
   valuesByMode: ValueByMode[];
@@ -95,51 +81,6 @@ function getDefaultTokenValue(resolvedValueTypeId: string): TokenValue {
       // Fallback to color for unknown types
       return { type: 'COLOR', value: '#000000' };
   }
-}
-
-// Helper function to find a resolvedValueType by display name pattern
-function findResolvedValueTypeByDisplayName(resolvedValueTypes: ResolvedValueTypeObj[], pattern: string): string | undefined {
-  const typeObj = resolvedValueTypes.find((vt) => vt.displayName?.toLowerCase().includes(pattern.toLowerCase()));
-  return typeObj?.id;
-}
-
-// Helper function to create a new constraint
-function createNewConstraint(resolvedValueTypes: ResolvedValueTypeObj[]): Constraint {
-  const contrastTypeId = findResolvedValueTypeByDisplayName(resolvedValueTypes, 'contrast');
-  const colorTypeId = findResolvedValueTypeByDisplayName(resolvedValueTypes, 'color');
-  
-  if (!contrastTypeId || !colorTypeId) {
-    // Instead of throwing an error, create a default constraint with the first available types
-    const firstTypeId = resolvedValueTypes[0]?.id;
-    if (!firstTypeId) {
-      throw new Error('No resolved value types available');
-    }
-    return {
-      type: 'contrast',
-      resolvedValueTypeId: firstTypeId,
-      rule: {
-        minimum: 3,
-        comparator: { 
-          resolvedValueTypeId: firstTypeId, 
-          value: '#ffffff', 
-          method: 'WCAG21' 
-        }
-      }
-    };
-  }
-
-  return {
-    type: 'contrast',
-    resolvedValueTypeId: contrastTypeId,
-    rule: {
-      minimum: 3,
-      comparator: { 
-        resolvedValueTypeId: colorTypeId, 
-        value: '#ffffff', 
-        method: 'WCAG21' 
-      }
-    }
-  };
 }
 
 interface Taxonomy {
@@ -319,8 +260,6 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   const [activeDimensionIds, setActiveDimensionIds] = useState<string[]>([]);
 
   const { colorMode } = useColorMode();
-
-
 
   // Add state for filtered taxonomies
   const [filteredTaxonomies, setFilteredTaxonomies] = useState<Taxonomy[]>(() => 
@@ -513,7 +452,6 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     );
   };
 
-
   // Update handleSave to convert the entire ExtendedToken to canonical Token type
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -578,10 +516,8 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     }));
   };
 
-  const [newConstraint, setNewConstraint] = useState<Constraint>(() => createNewConstraint(resolvedValueTypes));
-
   return (
-    <Modal isOpen={open} onClose={onClose} size="xl">
+    <Modal isOpen={open} onClose={onClose} isCentered size="xl">
       <ModalOverlay />
       <ModalContent maxW="900px">
         <ModalHeader>
@@ -589,7 +525,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody>
-          <VStack spacing={4} align="stretch">
+          <VStack gap={4} align="stretch">
             <Box
               p={3}
               borderWidth={1}
@@ -597,7 +533,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
               bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
               borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
             >
-              <VStack spacing={3} align="stretch">
+              <VStack gap={3} align="stretch">
                 <FormControl isRequired>
                   <FormLabel>Display Name</FormLabel>
                   <Input
@@ -614,22 +550,17 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                 </FormControl>
 
                 <Flex direction="row" gap={6} align="flex-start">
-                {/* ValueType + Status (left column) */}
-                {/* <VStack spacing={3} align="stretch" flex={1}> */}
                   <FormControl isRequired>
                     <FormLabel>Value Type</FormLabel>
                     <Select
                       value={editedToken.resolvedValueTypeId}
                       onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                         const newType = e.target.value;
-                        
                         setEditedToken((prev: ExtendedToken) => ({
                           ...prev,
                           resolvedValueTypeId: newType,
                           valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType) }]
                         }));
-
-                        // Don't update taxonomyEdits - let the UI show invalid states
                       }}
                     >
                       {resolvedValueTypes.map((vt: ResolvedValueTypeObj) => (
@@ -656,26 +587,8 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                       <option value="deprecated">Deprecated</option>
                     </Select>
                   </FormControl>
-                {/* </VStack> */}
-                {/* Private + Themeable (right column) */}
-                <VStack mt={2} spacing={3} align="stretch" flex={1}>
-                  <Checkbox
-                    isChecked={editedToken.private}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, private: e.target.checked }))}
-                  >
-                    Private
-                  </Checkbox>
-                  <Checkbox
-                    isChecked={!!editedToken.themeable}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, themeable: e.target.checked }))}
-                  >
-                    Themeable
-                  </Checkbox>
-                </VStack>
-              </Flex>
+                </Flex>
               </VStack>
-
-              
             </Box>
 
             {/* Classification */}
@@ -688,7 +601,6 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
               borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
             >
               <Flex direction="row" gap={6} align="flex-start">
-                {/* Taxonomy (left column) */}
                 <Box flex={1} minW={0}>
                   <FormControl isRequired mb={3}>
                     <FormLabel>
@@ -760,8 +672,8 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
               bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
               borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
             >
-              <VStack spacing={3}>
-                <HStack spacing={4} align="center">
+              <VStack gap={3}>
+                <HStack gap={4} align="center">
                   <Text fontSize="sm" fontWeight="medium">Dimensions</Text>
                   {dimensions.map(dim => (
                     <Checkbox
@@ -793,7 +705,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                       );
                     }
                     return (
-                      <HStack spacing={2}>
+                      <HStack gap={2}>
                         <TokenValuePicker
                           value={toCanonicalTokenValue(globalValue.value)}
                           tokens={tokens}

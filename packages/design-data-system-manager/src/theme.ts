@@ -1,7 +1,7 @@
 import { extendTheme, type ThemeConfig } from '@chakra-ui/react';
 
 // Log initial color mode detection
-const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
 console.log('System prefers dark mode:', prefersDark);
 
 const config: ThemeConfig = {
@@ -28,6 +28,25 @@ const theme = extendTheme({
       baseStyle: {
         dialog: {
           bg: 'chakra-body-bg',
+        },
+      },
+    },
+    Popover: {
+      baseStyle: {
+        content: {
+          bg: 'chakra-body-bg',
+          borderColor: 'chakra-border-color',
+        },
+      },
+    },
+    NumberInput: {
+      baseStyle: {
+        field: {
+          bg: 'chakra-body-bg',
+          borderColor: 'chakra-border-color',
+        },
+        stepper: {
+          borderColor: 'chakra-border-color',
         },
       },
     },
