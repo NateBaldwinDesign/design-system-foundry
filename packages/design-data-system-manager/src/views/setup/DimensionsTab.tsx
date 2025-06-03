@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Text,
@@ -10,91 +10,154 @@ import {
   useColorMode,
   Tag,
   TagLabel,
-  Wrap,
+  Wrap
 } from '@chakra-ui/react';
-import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
-import type { Dimension, Mode, Token, TokenCollection, Platform, Taxonomy } from '@token-model/data-model';
-import { createUniqueId } from '../../utils/id';
+import { LuPlus, LuTrash2, LuPencil, LuGripVertical } from 'react-icons/lu';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import type { Dimension, Mode, ResolvedValueType } from '@token-model/data-model';
 import { ValidationService } from '../../services/validation';
 import { DimensionsEditor } from '../../components/DimensionsEditor';
+import { StorageService } from '../../services/storage';
 
 interface DimensionsTabProps {
   dimensions: Dimension[];
   setDimensions: (dims: Dimension[]) => void;
+  dimensionOrder: string[];
+  setDimensionOrder: (order: string[]) => void;
+  onDataChange?: (data: { dimensions: Dimension[], dimensionOrder: string[] }) => void;
 }
 
-const resolvedValueTypes = [
-  { id: 'COLOR', name: 'Color' },
-  { id: 'DIMENSION', name: 'Dimension' },
-  { id: 'FONT_FAMILY', name: 'Font Family' },
-  { id: 'FONT_WEIGHT', name: 'Font Weight' },
-  { id: 'FONT_STYLE', name: 'Font Style' },
-  { id: 'DURATION', name: 'Duration' },
-  { id: 'CUBIC_BEZIER', name: 'Cubic Bezier' },
-  { id: 'BORDER_WIDTH', name: 'Border Width' },
-  { id: 'CORNER_ROUNDING', name: 'Corner Rounding' },
-  { id: 'ELEVATION', name: 'Elevation' },
-  { id: 'SHADOW', name: 'Shadow' },
-  { id: 'OPACITY', name: 'Opacity' },
-  { id: 'NUMBER', name: 'Number' }
-];
-
-interface DimensionFormData {
-  id: string;
-  displayName: string;
-  description: string;
-  modes: Mode[];
-  defaultMode: string;
-  resolvedValueTypeIds: string[];
-  required: boolean;
-}
-
-export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps) {
+export function DimensionsTab({ 
+  dimensions, 
+  setDimensions, 
+  dimensionOrder, 
+  setDimensionOrder,
+  onDataChange
+}: DimensionsTabProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [form, setForm] = useState<DimensionFormData>({
-    id: '',
-    displayName: '',
-    description: '',
-    modes: [],
-    defaultMode: '',
-    resolvedValueTypeIds: [],
-    required: false,
-  });
-  const [modeForm, setModeForm] = useState({ id: '', name: '', description: '' });
-  const [modeEditIndex, setModeEditIndex] = useState<number | null>(null);
   const toast = useToast();
-  // Assume tokens, collections, platforms, and taxonomies are available via props or context (for this edit, use empty arrays as placeholders)
-  const tokens: Token[] = [];
-  const collections: TokenCollection[] = [];
-  const platforms: Platform[] = [];
-  const taxonomies: Taxonomy[] = [];
+
+  // Get resolvedValueTypes from storage for validation
+  const resolvedValueTypes = StorageService.getValueTypes();
+
+  // Initialize dimension order if not present
+  useEffect(() => {
+    if (!dimensionOrder || dimensionOrder.length === 0) {
+      const initialOrder = dimensions.map(d => d.id);
+      if (typeof setDimensionOrder === 'function') {
+        console.log('Initializing dimension order:', initialOrder);
+        setDimensionOrder(initialOrder);
+        StorageService.setDimensionOrder(initialOrder);
+        if (onDataChange) {
+          onDataChange({ dimensions, dimensionOrder: initialOrder });
+        }
+      } else {
+        console.warn('setDimensionOrder is not a function, skipping initialization');
+      }
+    }
+  }, [dimensions, dimensionOrder, setDimensionOrder, onDataChange]);
+
+  // Save dimensions to localStorage whenever they change
+  useEffect(() => {
+    StorageService.setDimensions(dimensions);
+  }, [dimensions]);
+
+  const handleDragEnd = (result: DropResult) => {
+    console.log('Drag end result:', result);
+    console.log('Current dimensionOrder:', dimensionOrder);
+
+    if (!result.destination || !dimensionOrder) {
+      console.log('No destination or dimensionOrder is undefined');
+      return;
+    }
+
+    // Create new order array
+    const newOrder = Array.from(dimensionOrder);
+    const [removed] = newOrder.splice(result.source.index, 1);
+    newOrder.splice(result.destination.index, 0, removed);
+
+    console.log('New order after drag:', newOrder);
+
+    // Ensure all dimensions are included in the order
+    const dimensionIds = new Set(dimensions.map(d => d.id));
+    const currentOrderIds = new Set(newOrder);
+    // Add any missing dimensions to the end
+    dimensionIds.forEach(id => {
+      if (!currentOrderIds.has(id)) {
+        newOrder.push(id);
+      }
+    });
+
+    // Validate the new order
+    const validationData = {
+      systemName: "Design System",
+      systemId: "design-system",
+      dimensions,
+      dimensionOrder: newOrder,
+      tokenCollections: [],
+      tokens: [],
+      platforms: [],
+      taxonomies: [],
+      resolvedValueTypes,
+      version: "1.0.0",
+      versionHistory: []
+    };
+
+    console.log('[ValidationService] Data being validated:', validationData);
+    const validationResult = ValidationService.validateData(validationData);
+    console.log('Validation result:', validationResult);
+
+    if (!validationResult.isValid) {
+      console.log('Validation failed:', validationResult.errors);
+      const errorMessages = validationResult.errors.map(error => 
+        typeof error === 'object' && error !== null && 'message' in error 
+          ? error.message 
+          : String(error)
+      );
+      toast({
+        title: "Validation Error",
+        description: errorMessages.join('\n'),
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    // Update state and notify parent
+    setDimensionOrder(newOrder);
+    if (onDataChange) {
+      onDataChange({
+        dimensions,
+        dimensionOrder: newOrder
+      });
+    }
+  };
+
+  // Add effect to sync with localStorage
+  useEffect(() => {
+    const storedOrder = StorageService.getDimensionOrder();
+    console.log('Initial dimension order from localStorage:', storedOrder);
+    if (storedOrder && Array.isArray(storedOrder) && storedOrder.length > 0 && typeof setDimensionOrder === 'function') {
+      console.log('Setting initial dimension order:', storedOrder);
+      setDimensionOrder(storedOrder);
+    }
+  }, [setDimensionOrder]);
+
+  // Add effect to log dimension order changes
+  useEffect(() => {
+    console.log('Dimension order changed:', dimensionOrder);
+  }, [dimensionOrder]);
+
+  // Add effect to log dimensions changes
+  useEffect(() => {
+    console.log('Dimensions changed:', dimensions);
+  }, [dimensions]);
 
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
-    if (index !== null) {
-      const dim = dimensions[index];
-      setForm({
-        id: dim.id,
-        displayName: dim.displayName,
-        description: dim.description || '',
-        modes: dim.modes,
-        defaultMode: dim.defaultMode || (dim.modes[0]?.id ?? ''),
-        resolvedValueTypeIds: dim.resolvedValueTypeIds || [],
-        required: dim.required || false,
-      });
-    } else {
-      setForm({
-        id: createUniqueId('dimension'),
-        displayName: '',
-        description: '',
-        modes: [],
-        defaultMode: '',
-        resolvedValueTypeIds: [],
-        required: false,
-      });
-    }
     setOpen(true);
   };
 
@@ -103,90 +166,28 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
     setEditingIndex(null);
   };
 
-  const handleSave = () => {
-    if (!form.id || !form.displayName) {
-      toast({ 
-        title: 'Required Fields Missing', 
-        description: 'ID and display name are required fields.',
-        status: 'error', 
-        duration: 4000,
-        isClosable: true 
-      });
-      return;
-    }
-    if (!form.defaultMode || !form.modes.some((m: Mode) => m.id === form.defaultMode)) {
-      toast({ 
-        title: 'Invalid Default Mode', 
-        description: 'Please select a valid default mode from the available modes.',
-        status: 'error', 
-        duration: 4000,
-        isClosable: true 
-      });
-      return;
-    }
-    const newDims = [...dimensions];
-    const dimToSave = {
-      ...form,
-      modes: form.modes || [],
-      required: true,
-      defaultMode: form.defaultMode,
-      resolvedValueTypeIds: form.resolvedValueTypeIds,
-    } as Dimension;
-    if (editingIndex !== null) {
-      newDims[editingIndex] = dimToSave;
-    } else {
-      newDims.push(dimToSave);
-    }
-    // Compose the full data object for validation
-    const data = {
-      tokenCollections: collections,
-      dimensions: newDims,
-      tokens,
-      platforms,
-      taxonomies,
-      version: '1.0.0',
-      versionHistory: []
-    };
-    const result = ValidationService.validateData(data);
-    if (!result.isValid) {
-      toast({
-        title: 'Schema Validation Failed',
-        description: result.errors?.map((e: { message: string }) => e.message).join('\n') || 'Your change would make the data invalid. See the Validation tab for details.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-      return;
-    }
-    setDimensions(newDims);
-    setOpen(false);
-    setEditingIndex(null);
-    toast({ 
-      title: 'Dimension Saved', 
-      description: `Successfully ${editingIndex !== null ? 'updated' : 'created'} dimension "${form.displayName}"`,
-      status: 'success', 
-      duration: 3000,
-      isClosable: true 
-    });
-  };
-
   const handleDelete = (index: number) => {
     const dimToDelete = dimensions[index];
     const newDims = dimensions.filter((_, i) => i !== index);
-    const data = {
-      tokenCollections: collections,
+    // Remove the deleted dimension from the order
+    const newOrder = dimensionOrder.filter(id => id !== dimToDelete.id);
+    // Validate the changes
+    const validationData = {
       dimensions: newDims,
-      tokens,
-      platforms,
-      taxonomies,
+      dimensionOrder: newOrder,
+      tokenCollections: [],
+      tokens: [],
+      platforms: [],
+      taxonomies: [],
+      resolvedValueTypes,
       version: '1.0.0',
       versionHistory: []
     };
-    const result = ValidationService.validateData(data);
-    if (!result.isValid) {
+    const validationResult = ValidationService.validateData(validationData);
+    if (!validationResult.isValid) {
       toast({
         title: 'Cannot Delete Dimension',
-        description: result.errors?.map(e => e.message).join('\n') || 'This dimension cannot be deleted as it would make the data invalid. See the Validation tab for details.',
+        description: validationResult.errors?.join('\n'),
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -194,6 +195,13 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
       return;
     }
     setDimensions(newDims);
+    if (typeof setDimensionOrder === 'function') {
+      setDimensionOrder(newOrder);
+      StorageService.setDimensionOrder(newOrder);
+    }
+    if (onDataChange) {
+      onDataChange({ dimensions: newDims, dimensionOrder: newOrder });
+    }
     toast({ 
       title: 'Dimension Deleted', 
       description: `Successfully deleted dimension "${dimToDelete.displayName}"`,
@@ -203,65 +211,20 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
     });
   };
 
-  // Mode management for a dimension
-  const handleModeDialogOpen = (index: number | null = null) => {
-    setModeEditIndex(index);
-    if (index !== null && form.modes) {
-      const m: Mode = form.modes[index];
-      setModeForm({ id: m.id, name: m.name, description: m.description || '' });
-    } else {
-      setModeForm({ id: createUniqueId('mode'), name: '', description: '' });
+  // Sort dimensions according to dimensionOrder
+  const sortedDimensions = [...dimensions].sort((a, b) => {
+    if (!dimensionOrder || dimensionOrder.length === 0) {
+      console.log('No dimension order, using original order');
+      return 0;
     }
-  };
+    const indexA = dimensionOrder.indexOf(a.id);
+    const indexB = dimensionOrder.indexOf(b.id);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
 
-  const handleModeDialogClose = () => {
-    setModeEditIndex(null);
-  };
-
-  const handleModeFormChange = (field: keyof typeof modeForm, value: string) => {
-    setModeForm((prev: typeof modeForm) => ({ ...prev, [field]: value }));
-  };
-
-  const handleModeSave = () => {
-    if (!modeForm.id || !modeForm.name) return;
-    const newModes: Mode[] = form.modes ? [...form.modes] : [];
-    let newDefaultMode = form.defaultMode;
-    if (modeEditIndex !== null) {
-      newModes[modeEditIndex] = { ...modeForm, dimensionId: form.id! };
-    } else {
-      newModes.push({ ...modeForm, dimensionId: form.id! });
-      if (newModes.length === 1) {
-        newDefaultMode = newModes[0].id;
-      }
-    }
-    setForm((prev: DimensionFormData) => ({ ...prev, modes: newModes, defaultMode: newDefaultMode }));
-    setModeDialogClose();
-  };
-
-  const handleModeDelete = (index: number) => {
-    setForm((prev: DimensionFormData) => {
-      const newModes = (prev.modes || []).filter((_: Mode, i: number) => i !== index);
-      let newDefault = prev.defaultMode;
-      if (prev.modes[index]?.id === prev.defaultMode) {
-        newDefault = newModes[0]?.id || '';
-      }
-      return { ...prev, modes: newModes, defaultMode: newDefault };
-    });
-  };
-
-  const handleAddValueType = (valueTypeId: string) => {
-    setForm((prev: DimensionFormData) => ({
-      ...prev,
-      resolvedValueTypeIds: [...(prev.resolvedValueTypeIds || []), valueTypeId],
-    }));
-  };
-
-  const handleRemoveValueType = (valueTypeId: string) => {
-    setForm((prev: DimensionFormData) => ({
-      ...prev,
-      resolvedValueTypeIds: (prev.resolvedValueTypeIds || []).filter((id: string) => id !== valueTypeId),
-    }));
-  };
+  console.log('Sorted dimensions:', sortedDimensions);
 
   return (
     <Box>
@@ -270,48 +233,73 @@ export function DimensionsTab({ dimensions, setDimensions }: DimensionsTabProps)
         <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
           Add Dimension
         </Button>
-        <VStack align="stretch" spacing={2}>
-          {dimensions.map((dim: Dimension, i: number) => (
-            <Box 
-              key={dim.id} 
-              p={3} 
-              borderWidth={1} 
-              borderRadius="md" 
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-            >
-              <HStack justify="space-between" align="center">
-                <Box>
-                  <Text fontSize="lg" fontWeight="medium">{dim.displayName}</Text>
-                  <Text fontSize="sm" color="gray.600">Modes: {dim.modes.map((m: Mode) => m.name).join(', ')}</Text>
-                  <Text fontSize="xs" color="gray.500">ID: {dim.id}</Text>
-                  {Array.isArray(dim.resolvedValueTypeIds) && dim.resolvedValueTypeIds.length > 0 && (
-                    <Wrap mt={2} spacing={2}>
-                      {dim.resolvedValueTypeIds.map((typeId: string) => {
-                        const type = resolvedValueTypes.find((t: { id: string }) => t.id === typeId);
-                        return type ? (
-                          <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
-                            <TagLabel>{type.name}</TagLabel>
-                          </Tag>
-                        ) : null;
-                      })}
-                    </Wrap>
-                  )}
-                </Box>
-                <HStack>
-                  <IconButton aria-label="Edit dimension" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
-                  <IconButton aria-label="Delete dimension" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
-                </HStack>
-              </HStack>
-            </Box>
-          ))}
-        </VStack>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="dimensions">
+            {(provided) => (
+              <VStack
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                align="stretch"
+                spacing={2}
+              >
+                {sortedDimensions.map((dim: Dimension, i: number) => (
+                  <Draggable key={dim.id} draggableId={dim.id} index={i}>
+                    {(provided, snapshot) => (
+                      <Box
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        p={3}
+                        borderWidth={1}
+                        borderRadius="md"
+                        bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                        borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                        boxShadow={snapshot.isDragging ? "md" : "sm"}
+                        transition="all 0.2s"
+                      >
+                        <HStack justify="space-between" align="center">
+                          <HStack spacing={2}>
+                            <Box w="32px" textAlign="center" fontWeight="bold" color="gray.500">
+                              {i + 1}
+                            </Box>
+                            <Box {...provided.dragHandleProps} cursor="grab">
+                              <LuGripVertical />
+                            </Box>
+                            <Box>
+                              <Text fontSize="lg" fontWeight="medium">{dim.displayName}</Text>
+                              <Text fontSize="sm" color="gray.600">Modes: {dim.modes.map((m: Mode) => m.name).join(', ')}</Text>
+                              <Text fontSize="xs" color="gray.500">ID: {dim.id}</Text>
+                              {Array.isArray(dim.resolvedValueTypeIds) && dim.resolvedValueTypeIds.length > 0 && (
+                                <Wrap mt={2} spacing={2}>
+                                  {dim.resolvedValueTypeIds.map((typeId: string) => {
+                                    const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
+                                    return type ? (
+                                      <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
+                                        <TagLabel>{type.displayName}</TagLabel>
+                                      </Tag>
+                                    ) : null;
+                                  })}
+                                </Wrap>
+                              )}
+                            </Box>
+                          </HStack>
+                          <HStack>
+                            <IconButton aria-label="Edit dimension" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
+                            <IconButton aria-label="Delete dimension" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
+                          </HStack>
+                        </HStack>
+                      </Box>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </VStack>
+            )}
+          </Droppable>
+        </DragDropContext>
       </Box>
-      {/* Dimension Editor Modal */}
       <DimensionsEditor
         dimensions={dimensions}
         setDimensions={setDimensions}
-        resolvedValueTypes={resolvedValueTypes}
         isOpen={open}
         onClose={handleClose}
         editingIndex={editingIndex}

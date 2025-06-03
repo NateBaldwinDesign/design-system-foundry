@@ -26,13 +26,14 @@ import {
   Switch
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
-import type { Dimension, Mode } from '@token-model/data-model';
+import type { Dimension, Mode, ResolvedValueType } from '@token-model/data-model';
+import { ValidationService } from '../services/validation';
 import { createUniqueId } from '../utils/id';
+import { StorageService } from '../services/storage';
 
 interface DimensionsEditorProps {
   dimensions: Dimension[];
   setDimensions: (dims: Dimension[]) => void;
-  resolvedValueTypes: { id: string; name: string }[];
   isOpen: boolean;
   onClose: () => void;
   editingIndex: number | null;
@@ -51,7 +52,6 @@ interface DimensionFormData {
 export function DimensionsEditor({
   dimensions,
   setDimensions,
-  resolvedValueTypes,
   isOpen,
   onClose,
   editingIndex
@@ -70,6 +70,9 @@ export function DimensionsEditor({
   const [modeDialogOpen, setModeDialogOpen] = useState(false);
   const [modeEditIndex, setModeEditIndex] = useState<number | null>(null);
   const toast = useToast();
+
+  // Use StorageService to get value types from local storage
+  const resolvedValueTypes: ResolvedValueType[] = StorageService.getValueTypes() || [];
 
   React.useEffect(() => {
     if (editingIndex !== null && dimensions[editingIndex]) {
@@ -283,7 +286,8 @@ export function DimensionsEditor({
     // Compose validation data with existing system data and updated dimensions
     const validationData = {
       ...systemData,
-      dimensions: newDims
+      dimensions: newDims,
+      resolvedValueTypes
     };
     console.log('[DimensionsEditor] Validation data:', validationData);
 
@@ -394,7 +398,7 @@ export function DimensionsEditor({
                 {resolvedValueTypes
                   .filter(type => !form.resolvedValueTypeIds.includes(type.id))
                   .map(type => (
-                    <option key={type.id} value={type.id}>{type.name}</option>
+                    <option key={type.id} value={type.id}>{type.displayName}</option>
                   ))}
               </Select>
               <Wrap mt={2} spacing={2}>
@@ -402,7 +406,7 @@ export function DimensionsEditor({
                   const type = resolvedValueTypes.find(t => t.id === typeId);
                   return type ? (
                     <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
-                      <TagLabel>{type.name}</TagLabel>
+                      <TagLabel>{type.displayName}</TagLabel>
                       <TagCloseButton onClick={() => handleRemoveValueType(typeId)} />
                     </Tag>
                   ) : null;

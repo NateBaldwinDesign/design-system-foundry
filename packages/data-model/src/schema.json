@@ -147,6 +147,15 @@
           }
         }
       },
+      "dimensionOrder": {
+        "type": "array",
+        "description": "Order of dimensions to use when resolving token values. Each ID must match a dimension ID from the dimensions array.",
+        "items": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9-_]+$"
+        },
+        "uniqueItems": true
+      },
       "tokenCollections": {
         "type": "array",
         "description": "Collections of tokens grouped by type",
@@ -192,39 +201,6 @@
               "items": { 
                 "type": "string",
                 "pattern": "^[a-zA-Z0-9-_]+$"
-              }
-            },
-            "modeResolutionStrategy": {
-              "type": "object",
-              "description": "Strategy for resolving token values across multiple dimensions",
-              "required": ["priorityByType", "fallbackStrategy"],
-              "properties": {
-                "priorityByType": {
-                  "type": "array",
-                  "description": "Order of dimension types to prioritize when resolving conflicts",
-                  "items": {
-                    "type": "string",
-                    "enum": [
-                      "COLOR_SCHEME", 
-                      "CONTRAST", 
-                      "DEVICE_TYPE", 
-                      "BRAND", 
-                      "THEME",
-                      "MOTION",
-                      "DENSITY"
-                    ]
-                  }
-                },
-                "fallbackStrategy": {
-                  "type": "string",
-                  "description": "Strategy to use when no exact mode match is found",
-                  "enum": [
-                    "MOST_SPECIFIC_MATCH",
-                    "DIMENSION_PRIORITY",
-                    "NEAREST_PARENT",
-                    "DEFAULT_VALUE"
-                  ]
-                }
               }
             }
           }
@@ -622,83 +598,7 @@
           }
         }
       },
-      "themeOverrides": {
-        "type": "object",
-        "description": "Overrides for each theme, mapping theme IDs to arrays of token overrides.",
-        "additionalProperties": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["tokenId", "value"],
-            "properties": {
-              "tokenId": {
-                "type": "string",
-                "description": "ID of the token to override",
-                "pattern": "^[a-zA-Z0-9-_]+$"
-              },
-              "value": {
-                "type": "object",
-                "description": "The override value for the token",
-                "required": ["type", "value"],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": ["COLOR", "FLOAT", "INTEGER", "STRING", "BOOLEAN", "ALIAS"]
-                  },
-                  "value": {
-                    "oneOf": [
-                      { "type": "string" },
-                      { "type": "number" },
-                      { "type": "boolean" }
-                    ]
-                  },
-                  "tokenId": {
-                    "type": "string",
-                    "description": "ID of the token to alias to (only used when type is ALIAS)",
-                    "pattern": "^[a-zA-Z0-9-_]+$"
-                  }
-                }
-              },
-              "platformOverrides": {
-                "type": "array",
-                "description": "Platform-specific overrides for this token in this theme",
-                "items": {
-                  "type": "object",
-                  "required": ["platformId", "value"],
-                  "properties": {
-                    "platformId": {
-                      "type": "string",
-                      "description": "ID of the platform this override applies to"
-                    },
-                    "value": {
-                      "type": "object",
-                      "required": ["type", "value"],
-                      "properties": {
-                        "type": {
-                          "type": "string",
-                          "enum": ["COLOR", "FLOAT", "INTEGER", "STRING", "BOOLEAN", "ALIAS"]
-                        },
-                        "value": {
-                          "oneOf": [
-                            { "type": "string" },
-                            { "type": "number" },
-                            { "type": "boolean" }
-                          ]
-                        },
-                        "tokenId": {
-                          "type": "string",
-                          "description": "ID of the token to alias to (only used when type is ALIAS)",
-                          "pattern": "^[a-zA-Z0-9-_]+$"
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
+
       "taxonomies": {
         "type": "array",
         "description": "List of taxonomies for organizing tokens or other entities.",

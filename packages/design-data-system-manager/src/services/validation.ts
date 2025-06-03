@@ -17,7 +17,12 @@ export class ValidationService {
       // Additional validation for resolvedValueTypeId
       if (data.tokens) {
         const resolvedValueTypeIds = new Set(data.resolvedValueTypes?.map((vt: { id: string }) => vt.id) || []);
-        
+        if (resolvedValueTypeIds.size === 0) {
+          return {
+            isValid: false,
+            errors: ['No resolvedValueTypes found in data. Your system data must include all value types required by your schema.']
+          };
+        }
         // Validate tokens
         for (const token of data.tokens) {
           const valueTypeId = token.resolvedValueTypeId;
@@ -27,14 +32,12 @@ export class ValidationService {
               errors: [`Token ${token.id} is missing required resolvedValueTypeId`]
             };
           }
-          
           if (!resolvedValueTypeIds.has(valueTypeId)) {
             return {
               isValid: false,
               errors: [`Token ${token.id} has invalid resolvedValueTypeId "${valueTypeId}". Must be one of: ${Array.from(resolvedValueTypeIds).join(', ')}`]
             };
           }
-
           // Validate token values
           for (const valueByMode of token.valuesByMode) {
             const value = valueByMode.value as TokenValue;
@@ -51,9 +54,38 @@ export class ValidationService {
             // Value validation is handled by the schema validation
           }
         }
-
         // Validate dimensions
         if (data.dimensions) {
+          const dimensionIds = new Set(data.dimensions.map((d: { id: string }) => d.id));
+          // Validate dimensionOrder if present
+          if (data.dimensionOrder) {
+            // Check that all dimensionOrder IDs exist in dimensions
+            for (const orderId of data.dimensionOrder) {
+              if (!dimensionIds.has(orderId)) {
+                return {
+                  isValid: false,
+                  errors: [`dimensionOrder contains ID "${orderId}" that does not exist in dimensions`]
+                };
+              }
+            }
+            // Check that all dimensions are included in dimensionOrder
+            const orderSet = new Set(data.dimensionOrder);
+            for (const dim of data.dimensions) {
+              if (!orderSet.has(dim.id)) {
+                return {
+                  isValid: false,
+                  errors: [`Dimension "${dim.id}" is not included in dimensionOrder`]
+                };
+              }
+            }
+            // Check for duplicate IDs in dimensionOrder
+            if (new Set(data.dimensionOrder).size !== data.dimensionOrder.length) {
+              return {
+                isValid: false,
+                errors: ['dimensionOrder contains duplicate IDs']
+              };
+            }
+          }
           for (const dimension of data.dimensions) {
             if (!dimension.resolvedValueTypeIds) {
               return {
@@ -61,8 +93,7 @@ export class ValidationService {
                 errors: [`Dimension ${dimension.id} is missing required resolvedValueTypeIds`]
               };
             }
-
-            // Check that all resolvedValueTypeIds are valid
+            // Check that all resolvedValueTypeIds are valid and present in the actual resolvedValueTypes array
             for (const typeId of dimension.resolvedValueTypeIds) {
               if (!resolvedValueTypeIds.has(typeId)) {
                 return {
@@ -73,22 +104,19 @@ export class ValidationService {
             }
           }
         }
-
         // Validate collections
         if (data.tokenCollections) {
           for (const collection of data.tokenCollections) {
             // Handle both resolvedValueTypes and resolvedValueTypeIds
             const collectionTypeIds = collection.resolvedValueTypeIds || 
-              (collection.resolvedValueTypes ? collection.resolvedValueTypes.map((vt: any) => vt.id) : []);
-
+              (collection.resolvedValueTypes ? collection.resolvedValueTypes.map((vt: { id: string }) => vt.id) : []);
             if (!collectionTypeIds || collectionTypeIds.length === 0) {
               return {
                 isValid: false,
                 errors: [`Collection ${collection.id} is missing required resolvedValueTypeIds`]
               };
             }
-
-            // Check that all resolvedValueTypeIds are valid
+            // Check that all resolvedValueTypeIds are valid and present in the actual resolvedValueTypes array
             for (const typeId of collectionTypeIds) {
               if (!resolvedValueTypeIds.has(typeId)) {
                 return {
@@ -100,7 +128,6 @@ export class ValidationService {
           }
         }
       }
-
       return { isValid: true };
     } catch (error: unknown) {
       // Zod errors have .errors array, fallback to message otherwise

@@ -13,6 +13,7 @@ const STORAGE_KEYS = {
   MODES: 'token-model:modes',
   VALUE_TYPES: 'token-model:value-types',
   DIMENSIONS: 'token-model:dimensions',
+  DIMENSION_ORDER: 'token-model:dimension-order',
   PLATFORMS: 'token-model:platforms',
   THEMES: 'token-model:themes',
   TAXONOMIES: 'token-model:taxonomies',
@@ -62,7 +63,7 @@ export class StorageService {
   }
 
   static setValueTypes(valueTypes: ValueType[]): void {
-    this.setItem(STORAGE_KEYS.VALUE_TYPES, valueTypes);
+    localStorage.setItem(STORAGE_KEYS.VALUE_TYPES, JSON.stringify(valueTypes));
   }
 
   static getDimensions(): Dimension[] {
@@ -71,6 +72,14 @@ export class StorageService {
 
   static setDimensions(dimensions: Dimension[]): void {
     localStorage.setItem(STORAGE_KEYS.DIMENSIONS, JSON.stringify(dimensions));
+  }
+
+  static getDimensionOrder(): string[] {
+    return this.getItem(STORAGE_KEYS.DIMENSION_ORDER, []);
+  }
+
+  static setDimensionOrder(order: string[]): void {
+    localStorage.setItem(STORAGE_KEYS.DIMENSION_ORDER, JSON.stringify(order));
   }
 
   static getPlatforms(): Platform[] {

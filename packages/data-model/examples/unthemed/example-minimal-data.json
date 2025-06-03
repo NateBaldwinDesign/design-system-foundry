@@ -6,7 +6,11 @@
   "versionHistory": [
     {
       "version": "1.0.0",
-      "dimensions": ["dimensionId-0000-0000-0000", "dimensionId-1111-1111-1111", "dimensionId-2222-2222-2222"],
+      "dimensions": [
+        "dimensionId-0000-0000-0000",
+        "dimensionId-1111-1111-1111",
+        "dimensionId-2222-2222-2222"
+      ],
       "date": "2024-03-20"
     }
   ],
@@ -14,80 +18,461 @@
     {
       "id": "tokenCollection-AAAA-AAAA-AAAA",
       "name": "Color",
-      "resolvedValueTypeIds": ["color"],
+      "resolvedValueTypeIds": [
+        "color"
+      ],
       "private": false,
-      "supportedDimensionIds": ["dimensionId-0000-0000-0000", "dimensionId-1111-1111-1111"],
-      "defaultModeIds": ["modeId-light", "modeId-regular"],
+      "supportedDimensionIds": [
+        "dimensionId-0000-0000-0000",
+        "dimensionId-1111-1111-1111"
+      ],
+      "defaultModeIds": [
+        "modeId-light",
+        "modeId-regular"
+      ],
       "modeResolutionStrategy": {
-        "priorityByType": ["COLOR_SCHEME", "CONTRAST"],
+        "priorityByType": [
+          "COLOR_SCHEME",
+          "CONTRAST"
+        ],
         "fallbackStrategy": "MOST_SPECIFIC_MATCH"
       }
     },
     {
       "id": "tokenCollection-BBBB-BBBB-BBBB",
       "name": "Typography",
-      "resolvedValueTypeIds": ["font_family", "line_height", "font_weight"],
+      "resolvedValueTypeIds": [
+        "font_family",
+        "line_height",
+        "font_weight"
+      ],
       "private": false,
-      "supportedDimensionIds": ["dimensionId-0000-0000-0000", "dimensionId-2222-2222-2222"],
-      "defaultModeIds": ["modeId-light", "modeId-regular", "modeId-latin"],
+      "supportedDimensionIds": [
+        "dimensionId-0000-0000-0000",
+        "dimensionId-2222-2222-2222"
+      ],
+      "defaultModeIds": [
+        "modeId-light",
+        "modeId-regular",
+        "modeId-latin"
+      ],
       "modeResolutionStrategy": {
-        "priorityByType": ["COLOR_SCHEME", "LANGUAGE"],
+        "priorityByType": [
+          "COLOR_SCHEME",
+          "LANGUAGE"
+        ],
         "fallbackStrategy": "MOST_SPECIFIC_MATCH"
       }
     }
-  ],
-  "resolvedValueTypes": [
-    { "id": "color", "displayName": "Color", "type": "COLOR" },
-    { "id": "font_family", "displayName": "Font Family", "type": "FONT_FAMILY" },
-    { "id": "line_height", "displayName": "Line Height", "type": "LINE_HEIGHT" },
-    { "id": "font_weight", "displayName": "Font Weight", "type": "FONT_WEIGHT" },
-    { "id": "spacing", "displayName": "Spacing", "type": "SPACING" },
-    { "id": "opacity", "displayName": "Opacity" },
-    { "id": "shadow", "displayName": "Shadow" },
-    { "id": "border", "displayName": "Border" },
-    { "id": "radius", "displayName": "Radius", "type": "RADIUS" },
-    { "id": "z_index", "displayName": "Z Index" }
   ],
   "dimensions": [
     {
       "id": "dimensionId-0000-0000-0000",
       "displayName": "Color Scheme",
       "modes": [
-        { "id": "modeId-light", "name": "Light", "dimensionId": "dimensionId-0000-0000-0000" },
-        { "id": "modeId-dark", "name": "Dark", "dimensionId": "dimensionId-0000-0000-0000" }
+        {
+          "id": "modeId-light",
+          "name": "Light",
+          "dimensionId": "dimensionId-0000-0000-0000"
+        },
+        {
+          "id": "modeId-dark",
+          "name": "Dark",
+          "dimensionId": "dimensionId-0000-0000-0000"
+        }
       ],
       "required": true,
       "defaultMode": "modeId-light",
-      "resolvedValueTypeIds": ["color", "opacity", "font_weight"]
+      "resolvedValueTypeIds": [
+        "color",
+        "opacity",
+        "font_weight"
+      ]
     },
     {
       "id": "dimensionId-1111-1111-1111",
       "displayName": "Contrast",
       "modes": [
-        { "id": "modeId-regular", "name": "Regular", "dimensionId": "dimensionId-1111-1111-1111" },
-        { "id": "modeId-low", "name": "Low", "dimensionId": "dimensionId-1111-1111-1111" },
-        { "id": "modeId-high", "name": "High", "dimensionId": "dimensionId-1111-1111-1111" }
+        {
+          "id": "modeId-regular",
+          "name": "Regular",
+          "dimensionId": "dimensionId-1111-1111-1111"
+        },
+        {
+          "id": "modeId-low",
+          "name": "Low",
+          "dimensionId": "dimensionId-1111-1111-1111"
+        },
+        {
+          "id": "modeId-high",
+          "name": "High",
+          "dimensionId": "dimensionId-1111-1111-1111"
+        }
       ],
       "required": false,
       "defaultMode": "modeId-regular",
-      "resolvedValueTypeIds": ["color", "opacity"]
+      "resolvedValueTypeIds": [
+        "color",
+        "opacity"
+      ]
     },
     {
       "id": "dimensionId-2222-2222-2222",
       "displayName": "Language",
       "modes": [
-        { "id": "modeId-latin", "name": "Latin", "dimensionId": "dimensionId-2222-2222-2222" },
-        { "id": "modeId-cjk", "name": "CJK", "dimensionId": "dimensionId-2222-2222-2222" },
-        { "id": "modeId-arabic", "name": "Arabic", "dimensionId": "dimensionId-2222-2222-2222" },
-        { "id": "modeId-hebrew", "name": "Hebrew", "dimensionId": "dimensionId-2222-2222-2222" }
+        {
+          "id": "modeId-latin",
+          "name": "Latin",
+          "dimensionId": "dimensionId-2222-2222-2222"
+        },
+        {
+          "id": "modeId-cjk",
+          "name": "CJK",
+          "dimensionId": "dimensionId-2222-2222-2222"
+        },
+        {
+          "id": "modeId-arabic",
+          "name": "Arabic",
+          "dimensionId": "dimensionId-2222-2222-2222"
+        },
+        {
+          "id": "modeId-hebrew",
+          "name": "Hebrew",
+          "dimensionId": "dimensionId-2222-2222-2222"
+        }
       ],
       "required": false,
       "defaultMode": "modeId-latin",
-      "resolvedValueTypeIds": ["font_family", "line_height", "font_weight"]
+      "resolvedValueTypeIds": [
+        "font_family",
+        "line_height",
+        "font_weight"
+      ]
     }
   ],
-  "themes": [],
-  "themeOverrides": {},
+  "tokens": [
+    {
+      "id": "token-7777-7777-7777",
+      "displayName": "Black",
+      "description": "Pure black",
+      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
+      "resolvedValueTypeId": "color",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomyId-0000-0000-0000",
+          "termId": "termId-0000-0000-0001"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": [
+        {
+          "platformId": "Figma",
+          "formattedName": "Black"
+        },
+        {
+          "platformId": "WEB",
+          "formattedName": "--spectrum-black"
+        },
+        {
+          "platformId": "iOS",
+          "formattedName": "SpBlack"
+        },
+        {
+          "platformId": "ANDROID",
+          "formattedName": "BLACK"
+        }
+      ],
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#000000"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-8888-88888-88888",
+      "displayName": "Blue 500",
+      "description": "Midtone blue",
+      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
+      "resolvedValueTypeId": "color",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomyId-0000-0000-0000",
+          "termId": "termId-0000-0000-0000"
+        },
+        {
+          "taxonomyId": "taxonomyId-3333-3333-3333",
+          "termId": "termId-2222-2222-2227"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": [
+        {
+          "platformId": "Figma",
+          "formattedName": "Blue/500"
+        },
+        {
+          "platformId": "WEB",
+          "formattedName": "--spectrum-blue-500"
+        },
+        {
+          "platformId": "iOS",
+          "formattedName": "SpBlue500"
+        },
+        {
+          "platformId": "ANDROID",
+          "formattedName": "BLUE_500"
+        }
+      ],
+      "valuesByMode": [
+        {
+          "modeIds": [
+            "modeId-light"
+          ],
+          "value": {
+            "type": "COLOR",
+            "value": "#274DEA"
+          },
+          "platformOverrides": [
+            {
+              "platformId": "platform-111111",
+              "value": "lch(57% 67 290)",
+              "metadata": {
+                "description": "Using LCH for better color display on Web"
+              }
+            }
+          ]
+        },
+        {
+          "modeIds": [
+            "modeId-dark"
+          ],
+          "value": {
+            "type": "COLOR",
+            "value": "#6995FE"
+          }
+        }
+      ]
+    },
+    {
+      "id": "token-9999-9999-9999",
+      "displayName": "Accent text color",
+      "description": "Color of text using a shade of the accent color hue",
+      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
+      "resolvedValueTypeId": "color",
+      "private": false,
+      "status": "stable",
+      "themeable": false,
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomyId-1111-1111-1111",
+          "termId": "termId-1111-1111-1111"
+        },
+        {
+          "taxonomyId": "taxonomyId-2222-2222-2222",
+          "termId": "termId-1111-1111-1111"
+        }
+      ],
+      "propertyTypes": [
+        "ALL_PROPERTY_TYPES"
+      ],
+      "codeSyntax": [
+        {
+          "platformId": "Figma",
+          "formattedName": "Text/accent"
+        },
+        {
+          "platformId": "WEB",
+          "formattedName": "--text-accent"
+        },
+        {
+          "platformId": "iOS",
+          "formattedName": "SpTextAccent"
+        },
+        {
+          "platformId": "ANDROID",
+          "formattedName": "TEXT_ACCENT"
+        }
+      ],
+      "valuesByMode": [
+        {
+          "modeIds": [
+            "modeId-light",
+            "modeId-low"
+          ],
+          "value": {
+            "type": "ALIAS",
+            "tokenId": "token-8888-88888-88888"
+          },
+          "platformOverrides": [
+            {
+              "platformId": "platform-222222",
+              "value": "#FF00AA"
+            },
+            {
+              "platformId": "platform-333333",
+              "value": "#00FFAA"
+            }
+          ]
+        },
+        {
+          "modeIds": [
+            "modeId-light",
+            "modeId-regular"
+          ],
+          "value": {
+            "type": "COLOR",
+            "value": "#4C6FFE"
+          },
+          "platformOverrides": [
+            {
+              "platformId": "platform-222222",
+              "value": "#4C6FFF"
+            },
+            {
+              "platformId": "platform-333333",
+              "value": "#4C6F00"
+            }
+          ]
+        },
+        {
+          "modeIds": [
+            "modeId-light",
+            "modeId-high"
+          ],
+          "value": {
+            "type": "COLOR",
+            "value": "#092FCC"
+          },
+          "platformOverrides": [
+            {
+              "platformId": "platform-222222",
+              "value": "#092FDD"
+            },
+            {
+              "platformId": "platform-333333",
+              "value": "#092F00"
+            }
+          ]
+        },
+        {
+          "modeIds": [
+            "modeId-dark",
+            "modeId-low"
+          ],
+          "value": {
+            "type": "ALIAS",
+            "tokenId": "token-8888-88888-88888"
+          },
+          "platformOverrides": [
+            {
+              "platformId": "platform-222222",
+              "value": "#FF00BB"
+            }
+          ]
+        },
+        {
+          "modeIds": [
+            "modeId-dark",
+            "modeId-regular"
+          ],
+          "value": {
+            "type": "COLOR",
+            "value": "#346EF9"
+          },
+          "platformOverrides": [
+            {
+              "platformId": "platform-222222",
+              "value": "#346EFF"
+            }
+          ]
+        },
+        {
+          "modeIds": [
+            "modeId-dark",
+            "modeId-high"
+          ],
+          "value": {
+            "type": "COLOR",
+            "value": "#A7C1FF"
+          },
+          "platformOverrides": [
+            {
+              "platformId": "platform-222222",
+              "value": "#A7C1AA"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "platforms": [
+    {
+      "id": "platform-000000",
+      "displayName": "Figma",
+      "syntaxPatterns": {
+        "prefix": "",
+        "suffix": "",
+        "delimiter": "/",
+        "capitalization": "capitalize",
+        "formatString": ""
+      }
+    },
+    {
+      "id": "platform-111111",
+      "displayName": "Web",
+      "syntaxPatterns": {
+        "prefix": "--sp",
+        "suffix": "",
+        "delimiter": "-",
+        "capitalization": "lowercase",
+        "formatString": ""
+      }
+    },
+    {
+      "id": "platform-222222",
+      "displayName": "iOS",
+      "syntaxPatterns": {
+        "prefix": "sp",
+        "suffix": "",
+        "delimiter": "_",
+        "capitalization": "capitalize",
+        "formatString": ""
+      }
+    },
+    {
+      "id": "platform-333333",
+      "displayName": "Android",
+      "syntaxPatterns": {
+        "prefix": "sp",
+        "suffix": "",
+        "delimiter": "_",
+        "capitalization": "uppercase",
+        "formatString": ""
+      }
+    }
+  ],
+  "themes": [
+    {
+      "id": "default",
+      "displayName": "Default Theme",
+      "description": "The default theme for the design system",
+      "isDefault": true
+    }
+  ],
   "taxonomies": [
     {
       "id": "taxonomyId-0000-0000-0000",
@@ -148,250 +533,58 @@
       ]
     }
   ],
-  "tokens": [
+  "resolvedValueTypes": [
     {
-      "id": "token-7777-7777-7777",
-      "displayName": "Black",
-      "description": "Pure black",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
-      "resolvedValueTypeId": "color",
-      "private": false,
-      "status": "stable",
-      "themeable": false,
-      "taxonomies": [
-        { 
-          "taxonomyId": "taxonomyId-0000-0000-0000",
-          "termId": "termId-0000-0000-0001"
-        }
-      ],
-      "propertyTypes": ["ALL_PROPERTY_TYPES"],
-      "codeSyntax": [
-        {
-          "platformId": "Figma",
-          "formattedName": "Black"
-        },
-        {
-          "platformId": "WEB",
-          "formattedName": "--spectrum-black"
-        },
-        {
-          "platformId": "iOS",
-          "formattedName": "SpBlack"
-        },
-        {
-          "platformId": "ANDROID",
-          "formattedName": "BLACK"
-        }
-      ],
-      "valuesByMode": [
-        { 
-          "modeIds": [], 
-          "value": { 
-            "type": "COLOR", 
-            "value": "#000000" 
-          } 
-        }
-      ]
+      "id": "color",
+      "displayName": "Color",
+      "type": "COLOR"
     },
     {
-      "id": "token-8888-88888-88888",
-      "displayName": "Blue 500",
-      "description": "Midtone blue",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
-      "resolvedValueTypeId": "color",
-      "private": false,
-      "status": "stable",
-      "themeable": false,
-      "taxonomies": [
-        { 
-          "taxonomyId": "taxonomyId-0000-0000-0000",
-          "termId": "termId-0000-0000-0000"
-        },
-        { 
-          "taxonomyId": "taxonomyId-3333-3333-3333",
-          "termId": "termId-2222-2222-2227"
-        }
-      ],
-      "propertyTypes": ["ALL_PROPERTY_TYPES"],
-      "codeSyntax": [
-        {
-          "platformId": "Figma",
-          "formattedName": "Blue/500"
-        },
-        {
-          "platformId": "WEB",
-          "formattedName": "--spectrum-blue-500"
-        },
-        {
-          "platformId": "iOS",
-          "formattedName": "SpBlue500"
-        },
-        {
-          "platformId": "ANDROID",
-          "formattedName": "BLUE_500"
-        }
-      ],
-      "valuesByMode": [
-        {
-          "modeIds": ["modeId-light"],
-          "value": { "type": "COLOR", "value": "#274DEA" },
-          "platformOverrides": [
-            {
-              "platformId": "platform-111111",
-              "value": "lch(57% 67 290)",
-              "metadata": { "description": "Using LCH for better color display on Web" }
-            }
-          ]
-        },
-        {
-          "modeIds": ["modeId-dark"],
-          "value": { "type": "COLOR", "value": "#6995FE" }
-        }
-      ]
+      "id": "font_family",
+      "displayName": "Font Family",
+      "type": "FONT_FAMILY"
     },
     {
-      "id": "token-9999-9999-9999",
-      "displayName": "Accent text color",
-      "description": "Color of text using a shade of the accent color hue",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
-      "resolvedValueTypeId": "color",
-      "private": false,
-      "status": "stable",
-      "themeable": false,
-      "taxonomies": [
-        { 
-          "taxonomyId": "taxonomyId-1111-1111-1111",
-          "termId": "termId-1111-1111-1111"
-        },
-        { 
-          "taxonomyId": "taxonomyId-2222-2222-2222",
-          "termId": "termId-1111-1111-1111"
-        }
-      ],
-      "propertyTypes": ["ALL_PROPERTY_TYPES"],
-      "codeSyntax": [
-        {
-          "platformId": "Figma",
-          "formattedName": "Text/accent"
-        },
-        {
-          "platformId": "WEB",
-          "formattedName": "--text-accent"
-        },
-        {
-          "platformId": "iOS",
-          "formattedName": "SpTextAccent"
-        },
-        {
-          "platformId": "ANDROID",
-          "formattedName": "TEXT_ACCENT"
-        }
-      ],
-      "valuesByMode": [
-        {
-          "modeIds": ["modeId-light", "modeId-low"],
-          "value": { "type": "ALIAS", "tokenId": "token-8888-88888-88888" },
-          "platformOverrides": [
-            { "platformId": "platform-222222", "value": "#FF00AA" },
-            { "platformId": "platform-333333", "value": "#00FFAA" }
-          ]
-        },
-        {
-          "modeIds": ["modeId-light", "modeId-regular"],
-          "value": { "type": "COLOR", "value": "#4C6FFE" },
-          "platformOverrides": [
-            { "platformId": "platform-222222", "value": "#4C6FFF" },
-            { "platformId": "platform-333333", "value": "#4C6F00" }
-          ]
-        },
-        {
-          "modeIds": ["modeId-light", "modeId-high"],
-          "value": { "type": "COLOR", "value": "#092FCC" },
-          "platformOverrides": [
-            { "platformId": "platform-222222", "value": "#092FDD" },
-            { "platformId": "platform-333333", "value": "#092F00" }
-          ]
-        },
-        {
-          "modeIds": ["modeId-dark", "modeId-low"],
-          "value": { "type": "ALIAS", "tokenId": "token-8888-88888-88888" },
-          "platformOverrides": [
-            { "platformId": "platform-222222", "value": "#FF00BB" }
-          ]
-        },
-        {
-          "modeIds": ["modeId-dark", "modeId-regular"],
-          "value": { "type": "COLOR", "value": "#346EF9" },
-          "platformOverrides": [
-            { "platformId": "platform-222222", "value": "#346EFF" }
-          ]
-        },
-        {
-          "modeIds": ["modeId-dark", "modeId-high"],
-          "value": { "type": "COLOR", "value": "#A7C1FF" },
-          "platformOverrides": [
-            { "platformId": "platform-222222", "value": "#A7C1AA" }
-          ]
-        }
-      ]
+      "id": "line_height",
+      "displayName": "Line Height",
+      "type": "LINE_HEIGHT"
+    },
+    {
+      "id": "font_weight",
+      "displayName": "Font Weight",
+      "type": "FONT_WEIGHT"
+    },
+    {
+      "id": "spacing",
+      "displayName": "Spacing",
+      "type": "SPACING"
+    },
+    {
+      "id": "opacity",
+      "displayName": "Opacity"
+    },
+    {
+      "id": "shadow",
+      "displayName": "Shadow"
+    },
+    {
+      "id": "border",
+      "displayName": "Border"
+    },
+    {
+      "id": "radius",
+      "displayName": "Radius",
+      "type": "RADIUS"
+    },
+    {
+      "id": "z_index",
+      "displayName": "Z Index"
     }
   ],
-  "tokenGroups": [],
-  "tokenVariants": [],
-  "extensions": {
-    "tokenGroups": [],
-    "tokenVariants": {}
-  },
-  "platforms": [
-    { 
-      "id": "platform-000000", 
-      "displayName": "Figma",
-      "syntaxPatterns": {
-          "prefix": "",
-          "suffix": "",
-          "delimiter": "/",
-          "capitalization": "capitalize",
-          "formatString": ""
-      }
-    },
-    { 
-      "id": "platform-111111", 
-      "displayName": "Web",
-      "syntaxPatterns": {
-          "prefix": "--sp",
-          "suffix": "",
-          "delimiter": "-",
-          "capitalization": "lowercase",
-          "formatString": ""
-      }
-    },
-    { 
-      "id": "platform-222222", 
-      "displayName": "iOS",
-      "syntaxPatterns": {
-          "prefix": "sp",
-          "suffix": "",
-          "delimiter": "_",
-          "capitalization": "capitalize",
-          "formatString": ""
-      }
-    },
-    { 
-      "id": "platform-333333", 
-      "displayName": "Android",
-      "syntaxPatterns": {
-          "prefix": "sp",
-          "suffix": "",
-          "delimiter": "_",
-          "capitalization": "uppercase",
-          "formatString": ""
-      }
-    }
-  ],
-  "namingRules": { 
+  "namingRules": {
     "taxonomyOrder": [
-      "taxonomyId-1111-1111-1111", 
+      "taxonomyId-1111-1111-1111",
       "taxonomyId-2222-2222-2222"
-    ] 
+    ]
   }
-} 
+}

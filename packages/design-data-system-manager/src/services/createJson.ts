@@ -16,6 +16,7 @@ export function createSchemaJsonFromLocalStorage() {
   const taxonomies = StorageService.getTaxonomies() as Taxonomy[];
   const resolvedValueTypes = StorageService.getValueTypes() as (string | ResolvedValueType)[];
   const namingRules = StorageService.getNamingRules();
+  const dimensionOrder = JSON.parse(localStorage.getItem('token-model:dimension-order') || '[]') as string[];
 
   // Read root-level data from localStorage
   const root = JSON.parse(localStorage.getItem('token-model:root') || '{}') as Record<string, unknown>;
@@ -47,22 +48,27 @@ export function createSchemaJsonFromLocalStorage() {
       typeof item === 'string' ? { id: item, displayName: item } : item as ResolvedValueType
     );
   } else {
-    // Fallback to standard types
-    resolvedValueTypesArray = [
-      { id: 'color', displayName: 'Color', type: 'COLOR' },
-      { id: 'dimension', displayName: 'Dimension', type: 'DIMENSION' },
-      { id: 'spacing', displayName: 'Spacing', type: 'SPACING' },
-      { id: 'font-family', displayName: 'Font Family', type: 'FONT_FAMILY' },
-      { id: 'font-weight', displayName: 'Font Weight', type: 'FONT_WEIGHT' },
-      { id: 'font-size', displayName: 'Font Size', type: 'FONT_SIZE' },
-      { id: 'line-height', displayName: 'Line Height', type: 'LINE_HEIGHT' },
-      { id: 'letter-spacing', displayName: 'Letter Spacing', type: 'LETTER_SPACING' },
-      { id: 'duration', displayName: 'Duration', type: 'DURATION' },
-      { id: 'cubic-bezier', displayName: 'Cubic Bezier', type: 'CUBIC_BEZIER' },
-      { id: 'blur', displayName: 'Blur', type: 'BLUR' },
-      { id: 'spread', displayName: 'Spread', type: 'SPREAD' },
-      { id: 'radius', displayName: 'Radius', type: 'RADIUS' }
-    ];
+    // If missing, throw an error or surface a warning
+    console.error('[createSchemaJsonFromLocalStorage] No resolvedValueTypes found in localStorage. Please ensure your system data includes all value types required by your schema.');
+    throw new Error('[createSchemaJsonFromLocalStorage] No resolvedValueTypes found in localStorage. Please ensure your system data includes all value types required by your schema.');
+  }
+
+  // Validate that all resolvedValueTypeIds referenced in dimensions and collections exist in resolvedValueTypesArray
+  const allReferencedTypeIds = new Set<string>();
+  dimensions.forEach((dim) => {
+    (dim.resolvedValueTypeIds || []).forEach((id) => allReferencedTypeIds.add(id));
+  });
+  tokenCollections.forEach((col) => {
+    (col.resolvedValueTypeIds || []).forEach((id) => allReferencedTypeIds.add(id));
+  });
+  // Optionally, check tokens as well
+  tokens.forEach((token) => {
+    if (token.resolvedValueTypeId) allReferencedTypeIds.add(token.resolvedValueTypeId);
+  });
+  const missingTypeIds = Array.from(allReferencedTypeIds).filter(id => !resolvedValueTypesArray.some(vt => vt.id === id));
+  if (missingTypeIds.length > 0) {
+    console.error(`[createSchemaJsonFromLocalStorage] The following resolvedValueTypeIds are referenced in dimensions, collections, or tokens but missing from resolvedValueTypes: ${missingTypeIds.join(', ')}`);
+    throw new Error(`[createSchemaJsonFromLocalStorage] The following resolvedValueTypeIds are referenced in dimensions, collections, or tokens but missing from resolvedValueTypes: ${missingTypeIds.join(', ')}`);
   }
 
   // Normalize platforms to always include syntaxPatterns
@@ -94,6 +100,7 @@ export function createSchemaJsonFromLocalStorage() {
     versionHistory: normalizedVersionHistory,
     tokenCollections,
     dimensions,
+    dimensionOrder,
     tokens,
     platforms: normalizedPlatforms,
     themes: normalizedThemes,

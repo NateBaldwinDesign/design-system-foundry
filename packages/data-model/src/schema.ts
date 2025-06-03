@@ -344,6 +344,7 @@ export const TokenSystem = z.object({
   versionHistory: z.array(VersionHistoryEntry),
   dimensionEvolution: DimensionEvolution.optional(),
   dimensions: z.array(Dimension),
+  dimensionOrder: z.array(z.string().regex(/^[a-zA-Z0-9-_]+$/)).optional(),
   tokenCollections: z.array(TokenCollection),
   tokens: z.array(Token),
   platforms: z.array(Platform),
@@ -355,7 +356,17 @@ export const TokenSystem = z.object({
     tokenGroups: z.array(TokenGroup).optional(),
     tokenVariants: z.record(z.any()).optional()
   }).optional()
-});
+}).refine(
+  (data) => {
+    if (!data.dimensionOrder) return true;
+    const dimensionIds = new Set(data.dimensions.map(d => d.id));
+    return data.dimensionOrder.every(id => dimensionIds.has(id));
+  },
+  {
+    message: "All dimensionOrder IDs must match existing dimension IDs",
+    path: ["dimensionOrder"]
+  }
+);
 
 // Validation functions
 export const validateTokenSystem = (data: unknown): TokenSystem => {

@@ -24,10 +24,6 @@ import theme from './theme';
 import { TokensTab } from './views/tokens/TokensTab';
 import { CollectionsTab } from './views/tokens/CollectionsTab';
 import AlgorithmsTab from './views/tokens/AlgorithmsTab';
-import { DimensionsTab } from './views/setup/DimensionsTab';
-import { ClassificationTab } from './views/setup/ClassificationTab';
-import { NamingRulesTab } from './views/setup/NamingRulesTab';
-import { ValueTypesTab } from './views/setup/ValueTypesTab';
 import { PlatformsTab } from './views/publishing/PlatformsTab';
 import { ValidationTab } from './views/publishing/ValidationTab';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
@@ -40,6 +36,10 @@ import { TokenEditorDialog, ExtendedToken, migrateTokenValuesByMode } from './co
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 const exampleDataFiles = import.meta.glob('../../data-model/examples/**/*.json', { as: 'raw' });
+import { DimensionsTab } from './views/setup/DimensionsTab';
+import { ClassificationTab } from './views/setup/ClassificationTab';
+import { NamingRulesTab } from './views/setup/NamingRulesTab';
+import { ValueTypesTab } from './views/setup/ValueTypesTab';
 
 function getDataSourceOptions() {
   return Object.keys(exampleDataFiles).map((filePath) => {
@@ -64,12 +64,35 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [dataOptions, setDataOptions] = useState<{ label: string; value: string; filePath: string }[]>([]);
   const [taxonomyOrder, setTaxonomyOrder] = useState<string[]>([]);
+  const [dimensionOrder, setDimensionOrder] = useState<string[]>(() => {
+    const storedOrder = StorageService.getDimensionOrder();
+    if (storedOrder && Array.isArray(storedOrder) && storedOrder.length > 0) {
+      return storedOrder;
+    }
+    return dimensions.map(d => d.id);
+  });
   const [selectedToken, setSelectedToken] = useState<ExtendedToken | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   useEffect(() => {
     setDataOptions(getDataSourceOptions());
   }, []);
+
+  // Update dimension order when dimensions change
+  useEffect(() => {
+    const currentIds = dimensions.map(d => d.id);
+    const newOrder = dimensionOrder.filter(id => currentIds.includes(id));
+    // Add any new dimensions to the end
+    currentIds.forEach(id => {
+      if (!newOrder.includes(id)) {
+        newOrder.push(id);
+      }
+    });
+    if (JSON.stringify(newOrder) !== JSON.stringify(dimensionOrder)) {
+      setDimensionOrder(newOrder);
+      StorageService.setDimensionOrder(newOrder);
+    }
+  }, [dimensions]);
 
   const loadDataFromSource = async (filePath: string) => {
     try {
@@ -299,17 +322,29 @@ const App = () => {
                 <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />
                 <Route path="/schemas/core-data" element={<CoreDataView />} />
                 <Route path="/schemas/theme-overrides" element={<ThemeOverridesView />} />
-                <Route path="/setup" element={<Navigate to="/setup/dimensions" replace />} />
-                <Route path="/setup/dimensions" element={<DimensionsTab dimensions={dimensions} setDimensions={setDimensions} />} />
-                <Route path="/setup/classification" element={<ClassificationTab taxonomies={taxonomies} setTaxonomies={setTaxonomies} />} />
-                <Route path="/setup/naming-rules" element={<NamingRulesTab taxonomies={taxonomies} taxonomyOrder={taxonomyOrder} setTaxonomyOrder={setTaxonomyOrder} />} />
-                <Route path="/setup/value-types" element={<ValueTypesTab valueTypes={resolvedValueTypes} onUpdate={setResolvedValueTypes} />} />
+                <Route path="/setup" element={<Navigate to="/dimensions" replace />} />
+                <Route path="/dimensions" element={
+                  <DimensionsTab 
+                    dimensions={dimensions} 
+                    setDimensions={setDimensions}
+                    dimensionOrder={dimensionOrder}
+                    setDimensionOrder={setDimensionOrder}
+                    onDataChange={(data) => {
+                      setDimensions(data.dimensions);
+                      setDimensionOrder(data.dimensionOrder);
+                      StorageService.setDimensionOrder(data.dimensionOrder);
+                    }}
+                  />
+                } />
+                <Route path="/classification" element={<ClassificationTab taxonomies={taxonomies} setTaxonomies={setTaxonomies} />} />
+                <Route path="/naming-rules" element={<NamingRulesTab taxonomies={taxonomies} taxonomyOrder={taxonomyOrder} setTaxonomyOrder={setTaxonomyOrder} />} />
+                <Route path="/value-types" element={<ValueTypesTab valueTypes={resolvedValueTypes} onUpdate={setResolvedValueTypes} />} />
                 <Route path="/themes" element={<ThemesView themes={themes} setThemes={setThemes} />} />
-                <Route path="/publishing" element={<Navigate to="/publishing/platforms" replace />} />
-                <Route path="/publishing/platforms" element={<PlatformsTab platforms={platforms} setPlatforms={setPlatforms} tokens={tokens} setTokens={setTokens} taxonomies={taxonomies} />} />
-                <Route path="/publishing/export-settings" element={<Box p={4}>Export settings content coming soon...</Box>} />
-                <Route path="/publishing/validation" element={<ValidationTab tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />} />
-                <Route path="/publishing/version-history" element={<Box p={4}>Version history content coming soon...</Box>} />
+                <Route path="/publishing" element={<Navigate to="/platforms" replace />} />
+                <Route path="/platforms" element={<PlatformsTab platforms={platforms} setPlatforms={setPlatforms} tokens={tokens} setTokens={setTokens} taxonomies={taxonomies} />} />
+                <Route path="/export-settings" element={<Box p={4}>Export settings content coming soon...</Box>} />
+                <Route path="/validation" element={<ValidationTab tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />} />
+                <Route path="/version-history" element={<Box p={4}>Version history content coming soon...</Box>} />
                 <Route path="/access" element={<Box p={4}>Access management coming soon...</Box>} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
