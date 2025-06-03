@@ -450,6 +450,51 @@
           ]
         }
       ]
+    },
+    {
+      "id": "token-1748981426585",
+      "displayName": "Font primary",
+      "description": "",
+      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
+      "resolvedValueTypeId": "font_family",
+      "propertyTypes": [],
+      "private": false,
+      "themeable": false,
+      "status": "experimental",
+      "taxonomies": [
+        {
+          "taxonomyId": "taxonomyId-1111-1111-1111",
+          "termId": "termId-1111-1111-1111"
+        }
+      ],
+      "codeSyntax": [
+        {
+          "platformId": "platform-000000",
+          "formattedName": "Text"
+        },
+        {
+          "platformId": "platform-111111",
+          "formattedName": "--sptext"
+        },
+        {
+          "platformId": "platform-222222",
+          "formattedName": "SpText"
+        },
+        {
+          "platformId": "platform-333333",
+          "formattedName": "SPTEXT"
+        }
+      ],
+      "constraints": [],
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "type": "COLOR",
+            "value": "#000000"
+          }
+        }
+      ]
     }
   ],
   "platforms": [
@@ -522,6 +567,9 @@
           "name": "Black",
           "description": "No description provided."
         }
+      ],
+      "resolvedValueTypeIds": [
+        "color"
       ]
     },
     {
@@ -539,6 +587,13 @@
           "name": "Button",
           "description": "Clickable elements"
         }
+      ],
+      "resolvedValueTypeIds": [
+        "color",
+        "spacing",
+        "opacity",
+        "shadow",
+        "radius"
       ]
     },
     {
@@ -550,7 +605,29 @@
           "id": "termId-1111-1111-1111",
           "name": "Accent",
           "description": ""
+        },
+        {
+          "id": "termId-2030ee73-668f-4c75-8f4d-43404fcbf7c1",
+          "name": "Primary",
+          "description": ""
+        },
+        {
+          "id": "termId-e053c2dc-3511-4165-9dbd-8320e4e7a6e5",
+          "name": "Secondary",
+          "description": ""
+        },
+        {
+          "id": "termId-786d0fe0-5142-4b40-a5b0-af58f2e56dda",
+          "name": "Tertiary",
+          "description": ""
         }
+      ],
+      "resolvedValueTypeIds": [
+        "color",
+        "spacing",
+        "shadow",
+        "radius",
+        "font_family"
       ]
     },
     {
@@ -562,7 +639,112 @@
           "id": "termId-2222-2222-2227",
           "name": "500",
           "description": "500th thing"
+        },
+        {
+          "id": "termId-852b2d86-b7bd-462f-9f77-90cd227dd537",
+          "name": "100",
+          "description": ""
+        },
+        {
+          "id": "termId-971de9e1-718a-4938-b6eb-a239fd1c92ea",
+          "name": "200",
+          "description": ""
+        },
+        {
+          "id": "termId-ec28bd9e-1b35-4280-9ae3-da39459059c7",
+          "name": "300",
+          "description": ""
+        },
+        {
+          "id": "termId-d99320c2-3815-4248-8bf8-8832202e08cb",
+          "name": "400",
+          "description": ""
+        },
+        {
+          "id": "termId-80e11568-8932-43cc-9ae6-195e41de2f53",
+          "name": "600",
+          "description": ""
+        },
+        {
+          "id": "termId-f681e235-2597-46ef-8c23-6e2be1989041",
+          "name": "700",
+          "description": ""
         }
+      ],
+      "resolvedValueTypeIds": [
+        "color",
+        "font_family",
+        "line_height",
+        "font_weight",
+        "spacing",
+        "opacity",
+        "shadow",
+        "border",
+        "radius",
+        "z_index"
+      ]
+    },
+    {
+      "id": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
+      "name": "Token type",
+      "description": "",
+      "terms": [
+        {
+          "id": "termId-e98c905e-5a83-4be1-ae19-2c2b69523791",
+          "name": "Font family",
+          "description": ""
+        },
+        {
+          "id": "termId-1b8fc8e2-690c-4543-bc41-983ead501aad",
+          "name": "Font weight",
+          "description": ""
+        },
+        {
+          "id": "termId-df64aabc-b85d-4004-898a-76ac08143144",
+          "name": "Line height",
+          "description": ""
+        },
+        {
+          "id": "termId-1b26134e-783a-42a7-9817-c21b8207ecca",
+          "name": "Spacing",
+          "description": ""
+        },
+        {
+          "id": "termId-d7808190-c50a-4d53-a620-5d92d6cb208a",
+          "name": "Opacity",
+          "description": ""
+        },
+        {
+          "id": "termId-d5bbaeed-b76f-4b2f-9339-a4f8ab9abb4c",
+          "name": "Shadow",
+          "description": ""
+        },
+        {
+          "id": "termId-51dc0fab-2ffb-4cba-a3d6-d52c625e21ba",
+          "name": "Border",
+          "description": ""
+        },
+        {
+          "id": "termId-00a5e0fb-5da2-42ef-b7d3-8b116d952b64",
+          "name": "Radius",
+          "description": ""
+        },
+        {
+          "id": "termId-f888d6f7-0218-4c58-be57-5c8ac239f020",
+          "name": "Z Index",
+          "description": ""
+        }
+      ],
+      "resolvedValueTypeIds": [
+        "font_family",
+        "font_weight",
+        "line_height",
+        "spacing",
+        "opacity",
+        "shadow",
+        "border",
+        "radius",
+        "z_index"
       ]
     }
   ],
@@ -616,8 +798,11 @@
   ],
   "namingRules": {
     "taxonomyOrder": [
+      "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
+      "taxonomyId-0000-0000-0000",
       "taxonomyId-1111-1111-1111",
-      "taxonomyId-2222-2222-2222"
+      "taxonomyId-2222-2222-2222",
+      "taxonomyId-3333-3333-3333"
     ]
   }
 }

@@ -16,6 +16,7 @@ import {
 import { LuGripVertical, LuTrash2, LuChevronUp, LuChevronDown } from 'react-icons/lu';
 import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided } from '@hello-pangea/dnd';
 import type { Taxonomy } from '@token-model/data-model';
+import { StorageService } from '../../services/storage';
 
 interface NamingRulesTabProps {
   taxonomies: Taxonomy[];
@@ -39,6 +40,7 @@ export function NamingRulesTab({
     items.splice(result.destination.index, 0, reorderedItem);
 
     setTaxonomyOrder(items);
+    StorageService.setNamingRules({ taxonomyOrder: items });
   };
 
   const handleAddTaxonomy = (taxonomyId: string) => {
@@ -52,11 +54,15 @@ export function NamingRulesTab({
       return;
     }
 
-    setTaxonomyOrder([...taxonomyOrder, taxonomyId]);
+    const newOrder = [...taxonomyOrder, taxonomyId];
+    setTaxonomyOrder(newOrder);
+    StorageService.setNamingRules({ taxonomyOrder: newOrder });
   };
 
   const handleRemoveTaxonomy = (taxonomyId: string) => {
-    setTaxonomyOrder(taxonomyOrder.filter(id => id !== taxonomyId));
+    const newOrder = taxonomyOrder.filter(id => id !== taxonomyId);
+    setTaxonomyOrder(newOrder);
+    StorageService.setNamingRules({ taxonomyOrder: newOrder });
   };
 
   const handleMoveUp = (index: number) => {
@@ -64,6 +70,7 @@ export function NamingRulesTab({
     const newOrder = [...taxonomyOrder];
     [newOrder[index - 1], newOrder[index]] = [newOrder[index], newOrder[index - 1]];
     setTaxonomyOrder(newOrder);
+    StorageService.setNamingRules({ taxonomyOrder: newOrder });
   };
 
   const handleMoveDown = (index: number) => {
@@ -71,6 +78,7 @@ export function NamingRulesTab({
     const newOrder = [...taxonomyOrder];
     [newOrder[index], newOrder[index + 1]] = [newOrder[index + 1], newOrder[index]];
     setTaxonomyOrder(newOrder);
+    StorageService.setNamingRules({ taxonomyOrder: newOrder });
   };
 
   const availableTaxonomies = taxonomies.filter(t => !taxonomyOrder.includes(t.id));
