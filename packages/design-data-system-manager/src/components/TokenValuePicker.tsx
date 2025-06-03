@@ -8,11 +8,6 @@ import {
   PopoverBody,
   PopoverArrow,
   PopoverCloseButton,
-  Tabs,
-  TabList,
-  TabPanels,
-  TabPanel,
-  Tab,
   Input,
   List,
   ListItem,
@@ -24,7 +19,9 @@ import {
   NumberInputField,
   NumberInputStepper,
   NumberIncrementStepper,
-  NumberDecrementStepper
+  NumberDecrementStepper,
+  Select,
+  ButtonGroup
 } from '@chakra-ui/react';
 import type { Token, TokenValue } from '@token-model/data-model';
 
@@ -103,10 +100,15 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
       return null;
     }
 
-    let bezierValue: string;
-    let x1: number, y1: number, x2: number, y2: number;
     let colorValue: string;
     let fontValue: string;
+    let fontWeightValue: number;
+    let bezierValue: string;
+    let x1: number, y1: number, x2: number, y2: number;
+    let durationValue: number;
+    let numericValue: number;
+    let step: number;
+    let unit: string;
 
     switch (value.type) {
       case 'COLOR':
@@ -127,6 +129,7 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
             />
           </VStack>
         );
+
       case 'FONT_FAMILY':
         fontValue = typeof value === 'object' && value.type === 'FONT_FAMILY' ? value.value : '';
         return (
@@ -136,6 +139,27 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ type: 'FONT_FAMILY', value: e.target.value })}
           />
         );
+
+      case 'FONT_WEIGHT':
+        fontWeightValue = typeof value === 'object' && value.type === 'FONT_WEIGHT' ? value.value : 400;
+        return (
+          <Select
+            size="sm"
+            value={fontWeightValue}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange({ type: 'FONT_WEIGHT', value: Number(e.target.value) })}
+          >
+            <option value="100">Thin (100)</option>
+            <option value="200">Extra Light (200)</option>
+            <option value="300">Light (300)</option>
+            <option value="400">Regular (400)</option>
+            <option value="500">Medium (500)</option>
+            <option value="600">Semi Bold (600)</option>
+            <option value="700">Bold (700)</option>
+            <option value="800">Extra Bold (800)</option>
+            <option value="900">Black (900)</option>
+          </Select>
+        );
+
       case 'CUBIC_BEZIER':
         bezierValue = typeof value === 'object' && value.type === 'CUBIC_BEZIER' ? value.value : '0, 0, 1, 1';
         [x1, y1, x2, y2] = bezierValue.split(',').map(Number);
@@ -145,6 +169,9 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
               <NumberInput
                 size="sm"
                 value={x1}
+                min={0}
+                max={1}
+                step={0.1}
                 onChange={(_, newVal) => {
                   onChange({ type: 'CUBIC_BEZIER', value: `${newVal}, ${y1}, ${x2}, ${y2}` });
                 }}
@@ -158,6 +185,7 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
               <NumberInput
                 size="sm"
                 value={y1}
+                step={0.1}
                 onChange={(_, newVal) => {
                   onChange({ type: 'CUBIC_BEZIER', value: `${x1}, ${newVal}, ${x2}, ${y2}` });
                 }}
@@ -171,6 +199,9 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
               <NumberInput
                 size="sm"
                 value={x2}
+                min={0}
+                max={1}
+                step={0.1}
                 onChange={(_, newVal) => {
                   onChange({ type: 'CUBIC_BEZIER', value: `${x1}, ${y1}, ${newVal}, ${y2}` });
                 }}
@@ -184,6 +215,7 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
               <NumberInput
                 size="sm"
                 value={y2}
+                step={0.1}
                 onChange={(_, newVal) => {
                   onChange({ type: 'CUBIC_BEZIER', value: `${x1}, ${y1}, ${x2}, ${newVal}` });
                 }}
@@ -197,16 +229,18 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
             </HStack>
           </VStack>
         );
-      default:
-        if (['DIMENSION', 'SPACING', 'FONT_WEIGHT', 'FONT_SIZE', 'LINE_HEIGHT', 'LETTER_SPACING', 'DURATION', 'BLUR', 'SPREAD', 'RADIUS'].includes(value.type)) {
-          const type = value.type as Exclude<TokenValue['type'], 'ALIAS' | 'COLOR' | 'FONT_FAMILY' | 'CUBIC_BEZIER'>;
-          const numericValue = typeof value === 'object' && value.type === type ? (value as { type: typeof type; value: number }).value : 0;
-          return (
+
+      case 'DURATION':
+        durationValue = typeof value === 'object' && value.type === 'DURATION' ? value.value : 0;
+        return (
+          <HStack>
             <NumberInput
               size="sm"
-              value={numericValue}
+              value={durationValue}
+              min={0}
+              step={50}
               onChange={(_, newVal) => {
-                onChange({ type, value: newVal });
+                onChange({ type: 'DURATION', value: newVal });
               }}
             >
               <NumberInputField />
@@ -215,6 +249,59 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
                 <NumberDecrementStepper />
               </NumberInputStepper>
             </NumberInput>
+            <Text fontSize="sm">ms</Text>
+          </HStack>
+        );
+
+      default:
+        if (['DIMENSION', 'SPACING', 'FONT_SIZE', 'LINE_HEIGHT', 'LETTER_SPACING', 'BLUR', 'SPREAD', 'RADIUS'].includes(value.type)) {
+          const type = value.type as Exclude<TokenValue['type'], 'ALIAS' | 'COLOR' | 'FONT_FAMILY' | 'FONT_WEIGHT' | 'CUBIC_BEZIER' | 'DURATION'>;
+          numericValue = typeof value === 'object' && value.type === type ? (value as { type: typeof type; value: number }).value : 0;
+          
+          // Determine step and unit based on type
+          step = 1;
+          unit = '';
+          
+          switch (type) {
+            case 'DIMENSION':
+            case 'SPACING':
+            case 'BLUR':
+            case 'SPREAD':
+            case 'RADIUS':
+              unit = 'px';
+              break;
+            case 'FONT_SIZE':
+              unit = 'px';
+              step = 0.5;
+              break;
+            case 'LINE_HEIGHT':
+              step = 0.1;
+              break;
+            case 'LETTER_SPACING':
+              unit = 'px';
+              step = 0.5;
+              break;
+          }
+
+          return (
+            <HStack>
+              <NumberInput
+                size="sm"
+                value={numericValue}
+                min={0}
+                step={step}
+                onChange={(_, newVal) => {
+                  onChange({ type, value: newVal });
+                }}
+              >
+                <NumberInputField />
+                <NumberInputStepper>
+                  <NumberIncrementStepper />
+                  <NumberDecrementStepper />
+                </NumberInputStepper>
+              </NumberInput>
+              {unit && <Text fontSize="sm">{unit}</Text>}
+            </HStack>
           );
         }
         return null;
@@ -230,21 +317,62 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
       </PopoverTrigger>
       <PopoverContent w="320px">
         <PopoverArrow />
-        <PopoverCloseButton />
         <PopoverBody>
-          <Tabs index={tabIndex} onChange={setTabIndex}>
-            <TabList>
-              <Tab>Custom</Tab>
-              <Tab>Token</Tab>
-            </TabList>
-            <TabPanels>
-              <TabPanel px={0}>
-                <VStack align="stretch" spacing={3} mt={2}>
+          <VStack spacing={3}>
+            <ButtonGroup
+              size="sm"
+              isAttached
+              variant="outline"
+              w="full"
+              bg="gray.200"
+              p={1}
+              borderRadius="md"
+            >
+              <Button
+                flex={1}
+                size="xs"
+                variant="unstyled"
+                onClick={() => setTabIndex(0)}
+                bg={tabIndex === 0 ? 'white' : 'transparent'}
+                color={tabIndex === 0 ? 'gray.800' : 'gray.600'}
+                _hover={{
+                  bg: tabIndex === 0 ? 'white' : 'gray.200',
+                  color: 'gray.800'
+                }}
+                transition="all 0.2s"
+                boxShadow={tabIndex === 0 ? 'sm' : 'none'}
+                borderRadius="md"
+                fontWeight="medium"
+              >
+                Custom
+              </Button>
+              <Button
+                flex={1}
+                size='xs'
+                variant="unstyled"
+                onClick={() => setTabIndex(1)}
+                bg={tabIndex === 1 ? 'white' : 'transparent'}
+                color={tabIndex === 1 ? 'gray.800' : 'gray.600'}
+                _hover={{
+                  bg: tabIndex === 1 ? 'white' : 'gray.200',
+                  color: 'gray.800'
+                }}
+                transition="all 0.2s"
+                boxShadow={tabIndex === 1 ? 'sm' : 'none'}
+                borderRadius="md"
+                fontWeight="medium"
+              >
+                Token
+              </Button>
+            </ButtonGroup>
+
+            <Box w="full">
+              {tabIndex === 0 ? (
+                <VStack align="stretch" spacing={3}>
                   {renderCustomInput()}
                 </VStack>
-              </TabPanel>
-              <TabPanel px={0}>
-                <Box mt={2}>
+              ) : (
+                <Box>
                   {filteredTokens.length === 0 ? (
                     <Text color="gray.500">No matching tokens available.</Text>
                   ) : (
@@ -269,9 +397,9 @@ export const TokenValuePicker: React.FC<TokenValuePickerProps> = ({
                     </List>
                   )}
                 </Box>
-              </TabPanel>
-            </TabPanels>
-          </Tabs>
+              )}
+            </Box>
+          </VStack>
         </PopoverBody>
       </PopoverContent>
     </Popover>
