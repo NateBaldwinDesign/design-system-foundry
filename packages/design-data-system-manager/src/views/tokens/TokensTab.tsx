@@ -72,7 +72,7 @@ export function TokensTab({
       const value = modeValue.value;
       if (!value) return null;
 
-      let displayValue;
+      let displayValue: React.ReactNode;
       switch (value.type) {
         case 'COLOR':
           displayValue = (

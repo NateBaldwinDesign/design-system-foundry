@@ -17,12 +17,12 @@ import {
   AlertDialogOverlay,
   AlertDialogFooter,
   Code,
-  Modal as ChakraModal,
-  ModalOverlay as ChakraModalOverlay,
-  ModalContent as ChakraModalContent,
-  ModalHeader as ChakraModalHeader,
-  ModalBody as ChakraModalBody,
-  ModalCloseButton as ChakraModalCloseButton
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton
 } from '@chakra-ui/react';
 import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { ValidationService } from '../../services/validation';
@@ -284,20 +284,20 @@ export function ValidationTab({ tokens = [], collections = [], dimensions = [], 
       </AlertDialog>
 
       {/* JSON Preview Modal */}
-      <ChakraModal isOpen={isJsonPreviewOpen} onClose={() => setIsJsonPreviewOpen(false)} size="6xl">
-        <ChakraModalOverlay />
-        <ChakraModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'} maxH="80vh" overflowY="auto">
-          <ChakraModalHeader>Local Storage Data Preview</ChakraModalHeader>
-          <ChakraModalCloseButton />
-          <ChakraModalBody>
+      <Modal isOpen={isJsonPreviewOpen} onClose={() => setIsJsonPreviewOpen(false)}>
+        <ModalOverlay />
+        <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'} maxH="80vh" overflowY="auto">
+          <ModalHeader>Local Storage Data Preview</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
             <Box maxH="60vh" overflowY="auto">
               <Code width="100%" whiteSpace="pre" p={4} fontSize="sm" display="block">
                 {jsonPreview}
               </Code>
             </Box>
-          </ChakraModalBody>
-        </ChakraModalContent>
-      </ChakraModal>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 } 
