@@ -147,7 +147,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#8db324"
           }
         }
@@ -197,7 +197,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#7a9f1f"
           }
         }
@@ -247,7 +247,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#c58b5c"
           }
         }
@@ -297,7 +297,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#6b0e16"
           }
         }
@@ -347,7 +347,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#c0df2c"
           }
         }
@@ -397,7 +397,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#6afda3"
           }
         }
@@ -447,7 +447,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#f82a05"
           }
         }
@@ -497,7 +497,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#0ccca1"
           }
         }
@@ -547,7 +547,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#c31121"
           }
         }
@@ -597,7 +597,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#763250"
           }
         }
@@ -647,7 +647,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#53c10d"
           }
         }
@@ -697,7 +697,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#68ee6a"
           }
         }
@@ -747,7 +747,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#fae300"
           }
         }
@@ -797,7 +797,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#63d7d5"
           }
         }
@@ -847,7 +847,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#a93955"
           }
         }
@@ -897,7 +897,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#b19702"
           }
         }
@@ -947,7 +947,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#a05a28"
           }
         }
@@ -997,7 +997,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#cb89e0"
           }
         }
@@ -1047,7 +1047,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#80b9f5"
           }
         }
@@ -1097,7 +1097,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#acd673"
           }
         }
@@ -1147,7 +1147,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#c04795"
           }
         }
@@ -1197,7 +1197,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#0e04be"
           }
         }
@@ -1247,7 +1247,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#6dfebe"
           }
         }
@@ -1297,7 +1297,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#ca76e2"
           }
         }
@@ -1347,7 +1347,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "color",
+
             "value": "#6afda3"
           }
         }
@@ -1388,7 +1388,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "dimension",
+
             "value": "8"
           }
         }
@@ -1429,7 +1429,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "dimension",
+
             "value": "16"
           }
         }
@@ -1470,7 +1470,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "dimension",
+
             "value": "24"
           }
         }
@@ -1511,7 +1511,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "dimension",
+
             "value": "32"
           }
         }
@@ -1552,7 +1552,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "dimension",
+
             "value": "40"
           }
         }
@@ -1593,7 +1593,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "font_family",
+
             "value": "Inter"
           }
         }
@@ -1634,7 +1634,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "font_family",
+
             "value": "Roboto"
           }
         }
@@ -1675,7 +1675,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "font_family",
+
             "value": "SF Pro"
           }
         }
@@ -1716,7 +1716,7 @@
         {
           "modeIds": [],
           "value": {
-            "resolvedValueTypeId": "font_family",
+
             "value": "SF Pro"
           }
         }

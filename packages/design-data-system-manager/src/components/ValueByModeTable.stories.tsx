@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { ValueByModeTable } from './ValueByModeTable';
-import type { Mode, TokenValue } from '@token-model/data-model';
+import type { Mode, TokenValue, ResolvedValueType } from '@token-model/data-model';
 import { Input, Select } from '@chakra-ui/react';
 import type { ChangeEvent } from 'react';
 
@@ -25,48 +25,56 @@ const mockModes: Mode[] = [
   { id: 'desktop', name: 'Desktop', dimensionId: 'device' },
 ];
 
+const mockResolvedValueTypes: ResolvedValueType[] = [
+  {
+    id: 'color',
+    displayName: 'Color',
+    type: 'COLOR',
+    description: 'A color value'
+  },
+  {
+    id: 'spacing',
+    displayName: 'Spacing',
+    type: 'SPACING',
+    description: 'A spacing value'
+  }
+];
+
 // Mock value editor function
-const getValueEditor = (value: TokenValue | string, modeIndex: number, isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => {
+const getValueEditor = (
+  value: TokenValue | string,
+  modeIndex: number,
+  modeIds: string[],
+  isOverride?: boolean,
+  onChange?: (newValue: TokenValue) => void
+) => {
   if (typeof value === 'string') {
     return <Input value={value} size="sm" w="100px" />;
   }
 
-  switch (value.type) {
-    case 'COLOR':
-      return (
-        <Input
-          type="color"
-          value={value.value}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => onChange?.({ type: 'COLOR', value: e.target.value })}
-          size="sm"
-          w="100px"
-        />
-      );
-    case 'DIMENSION':
-      return (
-        <Input
-          type="number"
-          value={value.value}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => onChange?.({ type: 'DIMENSION', value: parseFloat(e.target.value) })}
-          size="sm"
-          w="120px"
-        />
-      );
-    case 'ALIAS':
-      return (
-        <Select
-          value={value.tokenId}
-          onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange?.({ type: 'ALIAS', tokenId: e.target.value })}
-          size="sm"
-          w="120px"
-        >
-          <option value="token1">Token 1</option>
-          <option value="token2">Token 2</option>
-        </Select>
-      );
-    default:
-      return <Input value={String(value.value)} size="sm" w="100px" />;
+  if ('tokenId' in value) {
+    return (
+      <Select
+        value={value.tokenId}
+        onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange?.({ tokenId: e.target.value })}
+        size="sm"
+        w="120px"
+      >
+        <option value="token1">Token 1</option>
+        <option value="token2">Token 2</option>
+      </Select>
+    );
   }
+
+  // For direct values, we'll use a simple input
+  return (
+    <Input
+      value={String(value.value)}
+      onChange={(e: ChangeEvent<HTMLInputElement>) => onChange?.({ value: e.target.value })}
+      size="sm"
+      w="100px"
+    />
+  );
 };
 
 // Base story with simple color values
@@ -76,15 +84,15 @@ export const Default: Story = {
     valuesByMode: [
       {
         modeIds: ['light'],
-        value: { type: 'COLOR', value: '#000000' },
+        value: { value: '#000000' }
       },
       {
         modeIds: ['dark'],
-        value: { type: 'COLOR', value: '#FFFFFF' },
-      },
+        value: { value: '#FFFFFF' }
+      }
     ],
-    getValueEditor,
-  },
+    getValueEditor
+  }
 };
 
 // Story with 2D mode grid (theme × device)
@@ -94,23 +102,23 @@ export const TwoDimensional: Story = {
     valuesByMode: [
       {
         modeIds: ['light', 'mobile'],
-        value: { type: 'COLOR', value: '#000000' },
+        value: { value: '#000000' }
       },
       {
         modeIds: ['light', 'desktop'],
-        value: { type: 'COLOR', value: '#111111' },
+        value: { value: '#111111' }
       },
       {
         modeIds: ['dark', 'mobile'],
-        value: { type: 'COLOR', value: '#FFFFFF' },
+        value: { value: '#FFFFFF' }
       },
       {
         modeIds: ['dark', 'desktop'],
-        value: { type: 'COLOR', value: '#EEEEEE' },
-      },
+        value: { value: '#EEEEEE' }
+      }
     ],
-    getValueEditor,
-  },
+    getValueEditor
+  }
 };
 
 // Story with mixed value types
@@ -120,23 +128,23 @@ export const MixedValueTypes: Story = {
     valuesByMode: [
       {
         modeIds: ['light'],
-        value: { type: 'COLOR', value: '#000000' },
+        value: { value: '#000000' }
       },
       {
         modeIds: ['dark'],
-        value: { type: 'DIMENSION', value: 1.5 },
+        value: { value: 16 }
       },
       {
         modeIds: ['mobile'],
-        value: { type: 'COLOR', value: '#FF0000' },
+        value: { value: '#FF0000' }
       },
       {
         modeIds: ['desktop'],
-        value: { type: 'ALIAS', tokenId: 'token1' },
-      },
+        value: { tokenId: 'token1' }
+      }
     ],
-    getValueEditor,
-  },
+    getValueEditor
+  }
 };
 
 // Story with global values (no mode IDs)
@@ -146,9 +154,9 @@ export const GlobalValues: Story = {
     valuesByMode: [
       {
         modeIds: [],
-        value: { type: 'COLOR', value: '#000000' },
-      },
+        value: { value: '#000000' }
+      }
     ],
-    getValueEditor,
-  },
+    getValueEditor
+  }
 }; 

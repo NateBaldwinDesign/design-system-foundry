@@ -1,7 +1,7 @@
 import React from 'react';
-import { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react';
 import { TokenValuePicker } from './TokenValuePicker';
-import type { Token, TokenValue } from '@token-model/data-model';
+import type { Token, ResolvedValueType } from '@token-model/data-model';
 import { ChakraProvider } from '@chakra-ui/react';
 
 const meta: Meta<typeof TokenValuePicker> = {
@@ -17,22 +17,103 @@ const meta: Meta<typeof TokenValuePicker> = {
       </ChakraProvider>
     ),
   ],
+  tags: ['autodocs'],
 };
 
 export default meta;
 type Story = StoryObj<typeof TokenValuePicker>;
 
-// Sample tokens for reference
-const sampleTokens: Token[] = [
+// Sample resolved value types
+const resolvedValueTypes: ResolvedValueType[] = [
   {
-    id: 'color-primary',
+    id: 'color',
+    displayName: 'Color',
+    type: 'COLOR',
+    description: 'A color value'
+  },
+  {
+    id: 'spacing',
+    displayName: 'Spacing',
+    type: 'SPACING',
+    description: 'A spacing value'
+  },
+  {
+    id: 'font-family',
+    displayName: 'Font Family',
+    type: 'FONT_FAMILY',
+    description: 'A font family value'
+  },
+  {
+    id: 'font-weight',
+    displayName: 'Font Weight',
+    type: 'FONT_WEIGHT',
+    description: 'A font weight value'
+  },
+  {
+    id: 'font-size',
+    displayName: 'Font Size',
+    type: 'FONT_SIZE',
+    description: 'A font size value'
+  },
+  {
+    id: 'line-height',
+    displayName: 'Line Height',
+    type: 'LINE_HEIGHT',
+    description: 'A line height value'
+  },
+  {
+    id: 'letter-spacing',
+    displayName: 'Letter Spacing',
+    type: 'LETTER_SPACING',
+    description: 'A letter spacing value'
+  },
+  {
+    id: 'duration',
+    displayName: 'Duration',
+    type: 'DURATION',
+    description: 'A duration value'
+  },
+  {
+    id: 'cubic-bezier',
+    displayName: 'Cubic Bezier',
+    type: 'CUBIC_BEZIER',
+    description: 'A cubic bezier value'
+  },
+  {
+    id: 'blur',
+    displayName: 'Blur',
+    type: 'BLUR',
+    description: 'A blur value'
+  },
+  {
+    id: 'spread',
+    displayName: 'Spread',
+    type: 'SPREAD',
+    description: 'A spread value'
+  },
+  {
+    id: 'radius',
+    displayName: 'Radius',
+    type: 'RADIUS',
+    description: 'A radius value'
+  }
+];
+
+// Sample tokens
+const tokens: Token[] = [
+  {
+    id: 'token-1',
     displayName: 'Primary Color',
-    description: 'The primary brand color',
+    description: 'The primary color of the application',
     resolvedValueTypeId: 'color',
     valuesByMode: [
       {
         modeIds: ['light'],
-        value: { type: 'COLOR', value: '#007AFF' }
+        value: { value: '#000000' }
+      },
+      {
+        modeIds: ['dark'],
+        value: { value: '#FFFFFF' }
       }
     ],
     taxonomies: [],
@@ -44,33 +125,18 @@ const sampleTokens: Token[] = [
     codeSyntax: []
   },
   {
-    id: 'spacing-base',
-    displayName: 'Base Spacing',
-    description: 'The base spacing unit',
-    resolvedValueTypeId: 'spacing',
+    id: 'token-2',
+    displayName: 'Secondary Color',
+    description: 'The secondary color of the application',
+    resolvedValueTypeId: 'color',
     valuesByMode: [
       {
         modeIds: ['light'],
-        value: { type: 'SPACING', value: 8 }
-      }
-    ],
-    taxonomies: [],
-    status: 'stable',
-    private: false,
-    themeable: true,
-    tokenCollectionId: 'default',
-    propertyTypes: [],
-    codeSyntax: []
-  },
-  {
-    id: 'font-primary',
-    displayName: 'Primary Font',
-    description: 'The primary font family',
-    resolvedValueTypeId: 'font-family',
-    valuesByMode: [
+        value: { value: '#666666' }
+      },
       {
-        modeIds: ['light'],
-        value: { type: 'FONT_FAMILY', value: 'Inter' }
+        modeIds: ['dark'],
+        value: { value: '#999999' }
       }
     ],
     taxonomies: [],
@@ -83,121 +149,127 @@ const sampleTokens: Token[] = [
   }
 ];
 
-// Base story with common props
+// Base props for all stories
 const baseProps = {
-  tokens: sampleTokens,
-  onChange: (value: TokenValue) => console.log('Value changed:', value)
+  tokens,
+  resolvedValueTypes,
+  onChange: (value: any) => console.log('Value changed:', value)
 };
 
-// Color value story
-export const ColorValue: Story = {
+// Color story
+export const Color: Story = {
   args: {
     ...baseProps,
-    value: { type: 'COLOR', value: '#007AFF' }
+    resolvedValueTypeId: 'color',
+    value: { value: '#FF0000' }
   }
 };
 
-// Dimension value story
-export const DimensionValue: Story = {
+// Spacing story
+export const Spacing: Story = {
   args: {
     ...baseProps,
-    value: { type: 'DIMENSION', value: 16 }
+    resolvedValueTypeId: 'spacing',
+    value: { value: 16 }
   }
 };
 
-// Spacing value story
-export const SpacingValue: Story = {
+// Font Family story
+export const FontFamily: Story = {
   args: {
     ...baseProps,
-    value: { type: 'SPACING', value: 16 }
+    resolvedValueTypeId: 'font-family',
+    value: { value: 'Inter' }
   }
 };
 
-// Font family value story
-export const FontFamilyValue: Story = {
+// Font Weight story
+export const FontWeight: Story = {
   args: {
     ...baseProps,
-    value: { type: 'FONT_FAMILY', value: 'Inter' }
+    resolvedValueTypeId: 'font-weight',
+    value: { value: 400 }
   }
 };
 
-// Font weight value story
-export const FontWeightValue: Story = {
+// Font Size story
+export const FontSize: Story = {
   args: {
     ...baseProps,
-    value: { type: 'FONT_WEIGHT', value: 600 }
+    resolvedValueTypeId: 'font-size',
+    value: { value: 16 }
   }
 };
 
-// Font size value story
-export const FontSizeValue: Story = {
+// Line Height story
+export const LineHeight: Story = {
   args: {
     ...baseProps,
-    value: { type: 'FONT_SIZE', value: 16 }
+    resolvedValueTypeId: 'line-height',
+    value: { value: 1.5 }
   }
 };
 
-// Line height value story
-export const LineHeightValue: Story = {
+// Letter Spacing story
+export const LetterSpacing: Story = {
   args: {
     ...baseProps,
-    value: { type: 'LINE_HEIGHT', value: 1.5 }
+    resolvedValueTypeId: 'letter-spacing',
+    value: { value: 0 }
   }
 };
 
-// Letter spacing value story
-export const LetterSpacingValue: Story = {
+// Duration story
+export const Duration: Story = {
   args: {
     ...baseProps,
-    value: { type: 'LETTER_SPACING', value: 0.5 }
+    resolvedValueTypeId: 'duration',
+    value: { value: 300 }
   }
 };
 
-// Duration value story
-export const DurationValue: Story = {
+// Cubic Bezier story
+export const CubicBezier: Story = {
   args: {
     ...baseProps,
-    value: { type: 'DURATION', value: 300 }
+    resolvedValueTypeId: 'cubic-bezier',
+    value: { value: 'cubic-bezier(0.4, 0, 0.2, 1)' }
   }
 };
 
-// Cubic bezier value story
-export const CubicBezierValue: Story = {
+// Blur story
+export const Blur: Story = {
   args: {
     ...baseProps,
-    value: { type: 'CUBIC_BEZIER', value: '0.4, 0.0, 0.2, 1' }
+    resolvedValueTypeId: 'blur',
+    value: { value: 10 }
   }
 };
 
-// Blur value story
-export const BlurValue: Story = {
+// Spread story
+export const Spread: Story = {
   args: {
     ...baseProps,
-    value: { type: 'BLUR', value: 4 }
+    resolvedValueTypeId: 'spread',
+    value: { value: 0 }
   }
 };
 
-// Spread value story
-export const SpreadValue: Story = {
+// Radius story
+export const Radius: Story = {
   args: {
     ...baseProps,
-    value: { type: 'SPREAD', value: 2 }
+    resolvedValueTypeId: 'radius',
+    value: { value: 4 }
   }
 };
 
-// Radius value story
-export const RadiusValue: Story = {
+// Alias story
+export const Alias: Story = {
   args: {
     ...baseProps,
-    value: { type: 'RADIUS', value: 8 }
-  }
-};
-
-// Alias value story
-export const AliasValue: Story = {
-  args: {
-    ...baseProps,
-    value: { type: 'ALIAS', tokenId: 'color-primary' }
+    resolvedValueTypeId: 'color',
+    value: { tokenId: 'token-1' }
   }
 };
 
@@ -221,7 +293,7 @@ export const EmptyValue: Story = {
 export const WithExcludedToken: Story = {
   args: {
     ...baseProps,
-    value: { type: 'COLOR', value: '#007AFF' },
+    value: { value: '#007AFF' },
     excludeTokenId: 'color-primary'
   }
 };
@@ -230,7 +302,7 @@ export const WithExcludedToken: Story = {
 export const WithConstraints: Story = {
   args: {
     ...baseProps,
-    value: { type: 'COLOR', value: '#007AFF' },
+    value: { value: '#007AFF' },
     constraints: [
       {
         type: 'contrast',

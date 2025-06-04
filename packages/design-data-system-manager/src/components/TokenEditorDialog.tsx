@@ -34,52 +34,56 @@ import { ValueByModeTable } from './ValueByModeTable';
 import { PlatformOverridesTable } from './PlatformOverridesTable';
 import { TokenValuePicker } from './TokenValuePicker';
 import { TaxonomyPicker } from './TaxonomyPicker';
-import type { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef } from '@token-model/data-model';
+import type { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef, ResolvedValueType, TokenValue } from '@token-model/data-model';
 import { createUniqueId } from '../utils/id';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
-import type { TokenValue } from '@token-model/data-model';
 
-// Redefine ExtendedToken to override valuesByMode and resolvedValueTypeId
-export type ExtendedToken = Omit<Token, 'valuesByMode' | 'resolvedValueTypeId'> & {
+// ExtendedToken type to include platformOverrides
+export interface ValueByMode {
+  modeIds: string[];
+  value: TokenValue;
+  platformOverrides?: {
+    platformId: string;
+    value: string;
+  }[];
+  metadata?: Record<string, unknown>;
+}
+
+export type ExtendedToken = Omit<Token, 'valuesByMode'> & {
   valuesByMode: ValueByMode[];
-  resolvedValueTypeId: string; // string id, not enum
 };
 
-// Helper function to get a default token value
-function getDefaultTokenValue(resolvedValueTypeId: string): TokenValue {
-  switch (resolvedValueTypeId) {
-    case 'color':
-      return { type: 'COLOR', value: '#000000' };
-    case 'dimension':
-      return { type: 'DIMENSION', value: 0 };
-    case 'spacing':
-      return { type: 'SPACING', value: 0 };
-    case 'font-family':
-      return { type: 'FONT_FAMILY', value: '' };
-    case 'font-weight':
-      return { type: 'FONT_WEIGHT', value: 400 };
-    case 'font-size':
-      return { type: 'FONT_SIZE', value: 16 };
-    case 'line-height':
-      return { type: 'LINE_HEIGHT', value: 1 };
-    case 'letter-spacing':
-      return { type: 'LETTER_SPACING', value: 0 };
-    case 'duration':
-      return { type: 'DURATION', value: 0 };
-    case 'cubic-bezier':
-      return { type: 'CUBIC_BEZIER', value: '0, 0, 1, 1' };
-    case 'blur':
-      return { type: 'BLUR', value: 0 };
-    case 'spread':
-      return { type: 'SPREAD', value: 0 };
-    case 'radius':
-      return { type: 'RADIUS', value: 0 };
-    case 'alias':
-      return { type: 'ALIAS', tokenId: '' };
+// Helper function to get a default token value based on schema
+function getDefaultTokenValue(resolvedValueTypeId: string, schema: { resolvedValueTypes: ResolvedValueType[] }): TokenValue {
+  const valueType = schema.resolvedValueTypes.find((vt: ResolvedValueType) => vt.id === resolvedValueTypeId);
+  if (!valueType) {
+    throw new Error(`Unknown value type: ${resolvedValueTypeId}`);
+  }
+
+  // Use sensible defaults based on the value type
+  switch (valueType.type) {
+    case 'COLOR':
+      return { value: '#000000' };
+    case 'DIMENSION':
+    case 'SPACING':
+    case 'FONT_SIZE':
+    case 'LINE_HEIGHT':
+    case 'LETTER_SPACING':
+    case 'BLUR':
+    case 'SPREAD':
+    case 'RADIUS':
+      return { value: 0 };
+    case 'FONT_WEIGHT':
+      return { value: 400 };
+    case 'FONT_FAMILY':
+      return { value: 'system-ui' };
+    case 'DURATION':
+      return { value: 0 };
+    case 'CUBIC_BEZIER':
+      return { value: 'cubic-bezier(0.4, 0, 0.2, 1)' };
     default:
-      // Fallback to color for unknown types
-      return { type: 'COLOR', value: '#000000' };
+      return { value: '' };
   }
 }
 
@@ -89,13 +93,6 @@ interface Taxonomy {
   description: string;
   terms: { id: string; name: string; description?: string }[];
   resolvedValueTypeIds?: string[];
-}
-
-interface ResolvedValueTypeObj {
-  id: string;
-  displayName: string;
-  type?: string;
-  description?: string;
 }
 
 export interface TokenEditorDialogProps {
@@ -108,7 +105,7 @@ export interface TokenEditorDialogProps {
   onClose: () => void;
   onSave: (token: ExtendedToken) => void;
   taxonomies: Taxonomy[];
-  resolvedValueTypes: ResolvedValueTypeObj[];
+  resolvedValueTypes: ResolvedValueType[];
   isNew?: boolean;
   onViewClassifications?: () => void;
 }
@@ -121,111 +118,31 @@ function cartesianProduct(arrays: string[][]): string[][] {
   );
 }
 
-// Update migrateToTokenValue to convert legacy type-based values to canonical format
-function migrateToTokenValue(val: unknown): TokenValue {
-  if (val && typeof val === 'object') {
-    if ('type' in val) {
-      // Already canonical
-      return val as TokenValue;
-    }
-    if ('resolvedValueTypeId' in val) {
-      const legacyVal = val as { resolvedValueTypeId: string; value?: unknown; tokenId?: string };
-      if (legacyVal.resolvedValueTypeId === 'alias') {
-        return { type: 'ALIAS', tokenId: String(legacyVal.tokenId ?? '') };
-      }
-      switch (legacyVal.resolvedValueTypeId) {
-        case 'color': return { type: 'COLOR', value: String(legacyVal.value ?? '') };
-        case 'dimension': return { type: 'DIMENSION', value: Number(legacyVal.value ?? 0) };
-        case 'spacing': return { type: 'SPACING', value: Number(legacyVal.value ?? 0) };
-        case 'font-family': return { type: 'FONT_FAMILY', value: String(legacyVal.value ?? '') };
-        case 'font-weight': return { type: 'FONT_WEIGHT', value: Number(legacyVal.value ?? 0) };
-        case 'font-size': return { type: 'FONT_SIZE', value: Number(legacyVal.value ?? 0) };
-        case 'line-height': return { type: 'LINE_HEIGHT', value: Number(legacyVal.value ?? 0) };
-        case 'letter-spacing': return { type: 'LETTER_SPACING', value: Number(legacyVal.value ?? 0) };
-        case 'duration': return { type: 'DURATION', value: Number(legacyVal.value ?? 0) };
-        case 'cubic-bezier': return { type: 'CUBIC_BEZIER', value: String(legacyVal.value ?? '0, 0, 1, 1') };
-        case 'blur': return { type: 'BLUR', value: Number(legacyVal.value ?? 0) };
-        case 'spread': return { type: 'SPREAD', value: Number(legacyVal.value ?? 0) };
-        case 'radius': return { type: 'RADIUS', value: Number(legacyVal.value ?? 0) };
-        default: return { type: 'COLOR', value: String(legacyVal.value ?? '') };
-      }
-    }
-  }
-  // Fallback
-  return { type: 'COLOR', value: String(val ?? '') };
-}
-
-// Update migrateTokenValuesByMode to handle both old and new formats
-function migrateTokenValuesByMode(valuesByMode: unknown[]): { modeIds: string[]; value: TokenValue; metadata?: Record<string, unknown>; platformOverrides?: { platformId: string; value: string }[] }[] {
-  return Array.isArray(valuesByMode)
-    ? valuesByMode.map(vbm => {
-        const valueByMode = vbm as { modeIds?: string[]; value: unknown; metadata?: Record<string, unknown>; platformOverrides?: { platformId: string; value: string }[] };
-        const canonicalValue = migrateToTokenValue(valueByMode.value);
-        // Type guard: only access .value for non-ALIAS
-        if (canonicalValue.type === 'ALIAS') {
-          return {
-            modeIds: Array.isArray(valueByMode.modeIds) ? valueByMode.modeIds : [],
-            value: { type: 'ALIAS', tokenId: canonicalValue.tokenId },
-            metadata: valueByMode.metadata,
-            platformOverrides: valueByMode.platformOverrides
-          };
-        } else {
-          return {
-            modeIds: Array.isArray(valueByMode.modeIds) ? valueByMode.modeIds : [],
-            value: canonicalValue,
-            metadata: valueByMode.metadata,
-            platformOverrides: valueByMode.platformOverrides
-          };
-        }
-      })
-    : [];
-}
-
-// Update ValueByMode type to include platformOverrides
-export interface ValueByMode {
-  modeIds: string[];
-  value: TokenValue;
-  platformOverrides?: {
-    platformId: string;
-    value: string;
-  }[];
-  metadata?: Record<string, unknown>;
-}
-
-export { migrateTokenValuesByMode, migrateToTokenValue };
-
-// Helper: convert schema-compliant TokenValue to legacy type-based TokenValue for canonical Token
-function toLegacyTokenValue(val: TokenValue): TokenValue {
-  switch (val.type) {
-    case 'COLOR': return { type: 'COLOR', value: val.value };
-    case 'DIMENSION': return { type: 'DIMENSION', value: val.value };
-    case 'SPACING': return { type: 'SPACING', value: val.value };
-    case 'FONT_FAMILY': return { type: 'FONT_FAMILY', value: val.value };
-    case 'FONT_WEIGHT': return { type: 'FONT_WEIGHT', value: val.value };
-    case 'FONT_SIZE': return { type: 'FONT_SIZE', value: val.value };
-    case 'LINE_HEIGHT': return { type: 'LINE_HEIGHT', value: val.value };
-    case 'LETTER_SPACING': return { type: 'LETTER_SPACING', value: val.value };
-    case 'DURATION': return { type: 'DURATION', value: val.value };
-    case 'CUBIC_BEZIER': return { type: 'CUBIC_BEZIER', value: val.value };
-    case 'BLUR': return { type: 'BLUR', value: val.value };
-    case 'SPREAD': return { type: 'SPREAD', value: val.value };
-    case 'RADIUS': return { type: 'RADIUS', value: val.value };
-    case 'ALIAS': return { type: 'ALIAS', tokenId: val.tokenId };
-    default: return { type: 'COLOR', value: '' };
-  }
-}
-
-// Helper: convert legacy type-based TokenValue to schema-compliant TokenValue
-function toCanonicalTokenValue(val: TokenValue): TokenValue {
-  return toLegacyTokenValue(val); // Already canonical
-}
-
 // Helper function to filter taxonomies by value type
 function filterTaxonomiesByValueType(taxonomies: Taxonomy[], resolvedValueTypeId: string): Taxonomy[] {
   return taxonomies.filter(taxonomy => 
     Array.isArray(taxonomy.resolvedValueTypeIds) && 
     taxonomy.resolvedValueTypeIds.includes(resolvedValueTypeId)
   );
+}
+
+// Helper function to migrate token values by mode
+export function migrateTokenValuesByMode(valuesByMode: unknown[]): ValueByMode[] {
+  if (!Array.isArray(valuesByMode)) {
+    return [];
+  }
+
+  return valuesByMode.map(vbm => {
+    const value = (vbm as any).value;
+    const tokenId = (vbm as any).tokenId;
+    
+    return {
+      modeIds: Array.isArray((vbm as any).modeIds) ? (vbm as any).modeIds : [],
+      value: tokenId ? { tokenId } : { value: value ?? '' },
+      platformOverrides: Array.isArray((vbm as any).platformOverrides) ? (vbm as any).platformOverrides : undefined,
+      metadata: (vbm as any).metadata
+    };
+  });
 }
 
 export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, resolvedValueTypes, isNew = false, onViewClassifications }: TokenEditorDialogProps) {
@@ -239,15 +156,15 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
         ...token,
         id: createUniqueId('token'),
         themeable: token.themeable ?? false,
-        resolvedValueTypeId: token.resolvedValueTypeId,
-        valuesByMode: migrateTokenValuesByMode(token.valuesByMode),
+        valuesByMode: [{
+          modeIds: [],
+          value: getDefaultTokenValue(token.resolvedValueTypeId, schema)
+        }]
       };
     }
     return {
       ...token,
-      themeable: token.themeable ?? false,
-      resolvedValueTypeId: token.resolvedValueTypeId,
-      valuesByMode: migrateTokenValuesByMode(token.valuesByMode),
+      themeable: token.themeable ?? false
     };
   });
 
@@ -273,13 +190,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
 
   // Reset internal state when dialog opens with new token
   useEffect(() => {
-    console.log('[TokenEditorDialog] useEffect triggered - open:', open, 'token:', token);
     if (open) {
       setEditedToken({
         ...token,
-        themeable: token.themeable ?? false,
-        resolvedValueTypeId: token.resolvedValueTypeId,
-        valuesByMode: migrateTokenValuesByMode(token.valuesByMode),
+        themeable: token.themeable ?? false
       });
       setTaxonomyEdits(Array.isArray(token.taxonomies) ? token.taxonomies : []);
       setActiveDimensionIds(dimensions.filter(d => d.required).map(d => d.id));
@@ -288,13 +202,11 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
 
   // Initialize active dimensions from current valuesByMode
   useEffect(() => {
-    console.log('[TokenEditorDialog] Initializing active dimensions - token:', token);
     if (token.valuesByMode && token.valuesByMode.length > 0) {
       const allModeIds = token.valuesByMode.flatMap(vbm => vbm.modeIds);
       const presentDims = dimensions.filter(dim =>
         dim.modes.some((mode: Mode) => allModeIds.includes(mode.id))
       ).map(dim => dim.id);
-      console.log('[TokenEditorDialog] Setting active dimensions:', presentDims);
       setActiveDimensionIds(presentDims);
     } else {
       setActiveDimensionIds([]);
@@ -303,48 +215,52 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
 
   // When dimensions or their modes change, update valuesByMode to reflect new/removed modes
   useEffect(() => {
-    if (!open) return;
-    if (activeDimensionIds.length === 0) return;
+    if (!open || activeDimensionIds.length === 0) return;
+    
     const activeDims = dimensions.filter(d => activeDimensionIds.includes(d.id));
     const modeArrays = activeDims.map(d => d.modes.map((m: Mode) => m.id));
     const combos = modeArrays.length > 0 ? cartesianProduct(modeArrays) : [[]];
+    
     setEditedToken((prev: ExtendedToken) => {
       const prevMap = new Map(prev.valuesByMode.map((vbm: ValueByMode) => [vbm.modeIds.slice().sort().join(','), vbm.value]));
       const newValuesByMode = combos.map((modeIds: string[]) => {
         const key = modeIds.slice().sort().join(',');
         if (prevMap.has(key)) {
           const val = prevMap.get(key);
-          return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
+          return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
         }
         for (let i = 0; i < modeIds.length; i++) {
           const parentIds = modeIds.slice(0, i).concat(modeIds.slice(i + 1));
           const parentKey = parentIds.slice().sort().join(',');
           if (prevMap.has(parentKey)) {
             const val = prevMap.get(parentKey);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
           }
         }
-        return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId) };
+        return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
       });
       return {
         ...prev,
-        valuesByMode: migrateTokenValuesByMode(newValuesByMode)
+        valuesByMode: newValuesByMode
       };
     });
-  }, [dimensions, activeDimensionIds, open]);
+  }, [dimensions, activeDimensionIds, open, schema]);
 
   // Add or remove a dimension from the token
   const handleToggleDimension = (dimensionId: string) => {
     const isActive = activeDimensionIds.includes(dimensionId);
     let newActiveDims: string[];
+    
     if (isActive) {
       const dim = dimensions.find(d => d.id === dimensionId);
       if (!dim) return;
+      
       newActiveDims = activeDimensionIds.filter((id: string) => id !== dimensionId);
       const defaultModeId = dim.defaultMode;
       const remainingDims = dimensions.filter(d => newActiveDims.includes(d.id));
       const modeArrays = remainingDims.map(d => d.modes.map((m: Mode) => m.id));
       const combos = modeArrays.length > 0 ? cartesianProduct(modeArrays) : [[]];
+      
       setEditedToken((prev: ExtendedToken) => {
         // Preserve all values that include the removed dimension
         const removedMap: Record<string, TokenValue> = {};
@@ -355,12 +271,13 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           }
         });
         preservedValuesByRemovedDimension.current[dimensionId] = removedMap;
+        
         const prevMap = new Map(prev.valuesByMode.map((vbm: ValueByMode) => [vbm.modeIds.slice().sort().join(','), vbm.value]));
         const newValuesByMode = combos.map((modeIds: string[]) => {
           const key = modeIds.slice().sort().join(',');
           if (prevMap.has(key)) {
             const val = prevMap.get(key);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
           }
           // Find all previous combos that are a superset of modeIds
           const candidates = prev.valuesByMode.filter((vbm: ValueByMode) =>
@@ -372,20 +289,22 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           if (found) {
             return { modeIds, value: found.value };
           }
-          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId) };
+          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
         });
         return {
           ...prev,
-          valuesByMode: migrateTokenValuesByMode(newValuesByMode)
+          valuesByMode: newValuesByMode
         };
       });
     } else {
       const dim = dimensions.find(d => d.id === dimensionId);
       if (!dim) return;
+      
       newActiveDims = [...activeDimensionIds, dimensionId];
       const activeDims = dimensions.filter(d => newActiveDims.includes(d.id));
       const modeArrays = activeDims.map(d => d.modes.map((m: Mode) => m.id));
       const combos = cartesianProduct(modeArrays);
+      
       setEditedToken((prev: ExtendedToken) => {
         const prevMap = new Map(prev.valuesByMode.map((vbm: ValueByMode) => [vbm.modeIds.slice().sort().join(','), vbm.value]));
         // Try to restore from preserved values if available
@@ -394,7 +313,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
           const key = modeIds.slice().sort().join(',');
           if (prevMap.has(key)) {
             const val = prevMap.get(key);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
+            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
           }
           // Try to restore from preserved
           if (preserved[key]) {
@@ -406,21 +325,21 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
             const parentKey = parentIds.slice().sort().join(',');
             if (prevMap.has(parentKey)) {
               const val = prevMap.get(parentKey);
-              return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId) };
+              return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
             }
           }
-          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId) };
+          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
         });
         return {
           ...prev,
-          valuesByMode: migrateTokenValuesByMode(newValuesByMode)
+          valuesByMode: newValuesByMode
         };
       });
     }
     setActiveDimensionIds(newActiveDims);
   };
 
-  // Update getValueEditor to use canonical TokenValue
+  // Update getValueEditor to use schema-driven value handling
   const getValueEditor = (
     value: TokenValue | string,
     modeIndex: number,
@@ -428,26 +347,26 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     isOverride?: boolean,
     onChange?: (newValue: TokenValue) => void
   ): React.ReactNode => {
-    console.log('getValueEditor', { modeIndex, modeIds });
     if (typeof value === 'string') {
       return <Text fontSize="sm" color="gray.500">{value}</Text>;
     }
-    const canonicalValue = toCanonicalTokenValue(value);
+    
     return (
       <TokenValuePicker
-        value={canonicalValue}
+        value={value}
         tokens={tokens}
         excludeTokenId={editedToken.id}
         modes={modeIds}
         resolvedValueTypeId={editedToken.resolvedValueTypeId}
+        resolvedValueTypes={resolvedValueTypes}
         onChange={(newValue: TokenValue) => {
           if (onChange) {
-            onChange(toLegacyTokenValue(newValue));
+            onChange(newValue);
           } else {
             setEditedToken((prev: ExtendedToken) => ({
               ...prev,
               valuesByMode: prev.valuesByMode.map((item: ValueByMode, idx: number) =>
-                idx === modeIndex ? { ...item, value: toLegacyTokenValue(newValue) } : item
+                idx === modeIndex ? { ...item, value: newValue } : item
               )
             }));
           }
@@ -456,10 +375,10 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
     );
   };
 
-  // Update handleSave to convert the entire ExtendedToken to canonical Token type
+  // Update handleSave to use schema validation
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[TokenEditorDialog] handleSave called with token:', editedToken);
+    
     // Compose schema for codeSyntax generation
     const codeSyntaxSchema = { platforms, taxonomies, namingRules: schema.namingRules };
     const updatedToken: ExtendedToken = {
@@ -474,9 +393,16 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
         codeSyntaxSchema
       )
     };
-    // Call onSave with canonical ExtendedToken type
+    
+    // Validate against schema
+    const validationResult = schema.validateToken(updatedToken);
+    if (!validationResult.isValid) {
+      // Handle validation errors
+      console.error('Token validation failed:', validationResult.errors);
+      return;
+    }
+    
     onSave(updatedToken);
-    console.log('[TokenEditorDialog] Calling onClose');
     onClose();
   };
 
@@ -563,11 +489,11 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                         setEditedToken((prev: ExtendedToken) => ({
                           ...prev,
                           resolvedValueTypeId: newType,
-                          valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType) }]
+                          valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType, schema) }]
                         }));
                       }}
                     >
-                      {resolvedValueTypes.map((vt: ResolvedValueTypeObj) => (
+                      {resolvedValueTypes.map((vt: ResolvedValueType) => (
                         <option key={vt.id} value={vt.id}>
                           {vt.type ? `${vt.displayName} (${vt.type})` : `${vt.displayName} (custom)`}
                         </option>
@@ -575,7 +501,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     </Select>
                     {editedToken.resolvedValueTypeId && (
                       <Text fontSize="sm" color="gray.500" mt={1}>
-                        {resolvedValueTypes.find((vt: ResolvedValueTypeObj) => vt.id === editedToken.resolvedValueTypeId)?.description}
+                        {resolvedValueTypes.find((vt: ResolvedValueType) => vt.id === editedToken.resolvedValueTypeId)?.description}
                       </Text>
                     )}
                   </FormControl>
@@ -592,19 +518,19 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     </Select>
                   </FormControl>
                   <VStack mt={2} spacing={3} align="stretch" flex={1}>
-                  <Checkbox
-                    isChecked={editedToken.private}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, private: e.target.checked }))}
-                  >
-                    Private
-                  </Checkbox>
-                  <Checkbox
-                    isChecked={!!editedToken.themeable}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, themeable: e.target.checked }))}
-                  >
-                    Themeable
-                  </Checkbox>
-                </VStack>
+                    <Checkbox
+                      isChecked={editedToken.private}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, private: e.target.checked }))}
+                    >
+                      Private
+                    </Checkbox>
+                    <Checkbox
+                      isChecked={!!editedToken.themeable}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, themeable: e.target.checked }))}
+                    >
+                      Themeable
+                    </Checkbox>
+                  </VStack>
                 </Flex>
               </VStack>
             </Box>
@@ -714,7 +640,7 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                             ...prev,
                             valuesByMode: [
                               ...prev.valuesByMode,
-                              { modeIds: [], value: getDefaultTokenValue(prev.resolvedValueTypeId) }
+                              { modeIds: [], value: getDefaultTokenValue(prev.resolvedValueTypeId, schema) }
                             ]
                           }))}
                         >
@@ -725,16 +651,17 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                     return (
                       <HStack gap={2}>
                         <TokenValuePicker
-                          value={toCanonicalTokenValue(globalValue.value)}
+                          value={globalValue.value}
                           tokens={tokens}
                           excludeTokenId={editedToken.id}
                           modes={[]}
                           resolvedValueTypeId={editedToken.resolvedValueTypeId}
+                          resolvedValueTypes={resolvedValueTypes}
                           onChange={(newValue: TokenValue) => setEditedToken((prev: ExtendedToken) => ({
                             ...prev,
                             valuesByMode: prev.valuesByMode.map((item: ValueByMode) =>
                               Array.isArray(item.modeIds) && item.modeIds.length === 0
-                                ? { ...item, value: toLegacyTokenValue(newValue) }
+                                ? { ...item, value: newValue }
                                 : item
                             )
                           }))}

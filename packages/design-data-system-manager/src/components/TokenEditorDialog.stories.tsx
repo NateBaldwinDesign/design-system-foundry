@@ -1,6 +1,6 @@
 import { Meta, StoryObj } from '@storybook/react';
 import { TokenEditorDialog } from './TokenEditorDialog';
-import type { Token, Dimension, Platform, TokenStatus, TokenValue } from '@token-model/data-model';
+import type { Token, Dimension, Platform, TokenStatus, TokenValue, StandardValueType } from '@token-model/data-model';
 
 const meta: Meta<typeof TokenEditorDialog> = {
   title: 'Components/TokenEditorDialog',
@@ -70,13 +70,13 @@ const sampleResolvedValueTypes = [
   {
     id: 'color',
     displayName: 'Color',
-    type: 'COLOR',
+    type: 'COLOR' as StandardValueType,
     description: 'A color value'
   },
   {
     id: 'spacing',
     displayName: 'Spacing',
-    type: 'SPACING',
+    type: 'SPACING' as StandardValueType,
     description: 'A spacing value'
   }
 ];
@@ -89,11 +89,11 @@ const sampleToken = {
   valuesByMode: [
     {
       modeIds: ['light'],
-      value: { type: 'COLOR' as const, value: '#FFFFFF' }
+      value: { value: '#FFFFFF' }
     },
     {
       modeIds: ['dark'],
-      value: { type: 'COLOR' as const, value: '#000000' }
+      value: { value: '#000000' }
     }
   ] as { modeIds: string[]; value: TokenValue }[],
   taxonomies: [
@@ -162,19 +162,19 @@ export const MultipleDimensions: Story = {
       valuesByMode: [
         {
           modeIds: ['light', 'mobile'],
-          value: { type: 'COLOR' as const, value: '#FFFFFF' }
+          value: { value: '#FFFFFF' }
         },
         {
           modeIds: ['light', 'desktop'],
-          value: { type: 'COLOR' as const, value: '#F5F5F5' }
+          value: { value: '#F5F5F5' }
         },
         {
           modeIds: ['dark', 'mobile'],
-          value: { type: 'COLOR' as const, value: '#000000' }
+          value: { value: '#000000' }
         },
         {
           modeIds: ['dark', 'desktop'],
-          value: { type: 'COLOR' as const, value: '#121212' }
+          value: { value: '#121212' }
         }
       ] as { modeIds: string[]; value: TokenValue }[]
     },
@@ -192,7 +192,7 @@ export const WithPlatformOverrides: Story = {
       valuesByMode: [
         {
           modeIds: ['light'],
-          value: { type: 'COLOR' as const, value: '#FFFFFF' },
+          value: { value: '#FFFFFF' },
           platformOverrides: [
             { platformId: 'ios', value: '#F8F8F8' },
             { platformId: 'android', value: '#FAFAFA' }
@@ -200,10 +200,10 @@ export const WithPlatformOverrides: Story = {
         },
         {
           modeIds: ['dark'],
-          value: { type: 'COLOR' as const, value: '#000000' },
+          value: { value: '#000000' },
           platformOverrides: [
-            { platformId: 'ios', value: '#111111' },
-            { platformId: 'android', value: '#121212' }
+            { platformId: 'ios', value: '#121212' },
+            { platformId: 'android', value: '#1A1A1A' }
           ]
         }
       ] as { modeIds: string[]; value: TokenValue; platformOverrides?: { platformId: string; value: string }[] }[]
