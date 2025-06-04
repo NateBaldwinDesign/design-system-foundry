@@ -18,7 +18,6 @@ import {
   ModalBody,
   ModalFooter,
   ModalCloseButton,
-  useColorMode,
   Switch
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
@@ -53,7 +52,6 @@ export function DimensionsEditor({
   onClose,
   editingIndex
 }: DimensionsEditorProps) {
-  const { colorMode } = useColorMode();
   const [form, setForm] = useState<DimensionFormData>({
     id: '',
     displayName: '',
@@ -302,92 +300,94 @@ export function DimensionsEditor({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="lg">
-      <ModalOverlay />
-      <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <ModalHeader>{editingIndex !== null ? 'Edit Dimension' : 'Add Dimension'}</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <VStack spacing={4} align="stretch">
-            <FormControl isRequired>
-              <FormLabel>ID</FormLabel>
-              <Input
-                value={form.id}
-                isReadOnly
-              />
-            </FormControl>
-            <FormControl isRequired>
-              <FormLabel>Display Name</FormLabel>
-              <Input
-                value={form.displayName}
-                onChange={e => handleFormChange('displayName', e.target.value)}
-              />
-            </FormControl>
-            <FormControl>
-              <FormLabel>Description</FormLabel>
-              <Input
-                value={form.description}
-                onChange={e => handleFormChange('description', e.target.value)}
-              />
-            </FormControl>
-            <FormControl isRequired display="flex" alignItems="center">
-              <FormLabel mb="0">Required</FormLabel>
-              <Switch
-                isChecked={form.required || false}
-                onChange={e => setForm((prev: DimensionFormData) => ({ ...prev, required: e.target.checked }))}
-              />
-            </FormControl>
-            <FormControl isRequired>
-              <FormLabel>Default Mode</FormLabel>
-              <Select
-                value={form.defaultMode}
-                onChange={e => handleFormChange('defaultMode', e.target.value)}
-              >
-                <option value="">None</option>
-                {form.modes.map((mode: Mode) => (
-                  <option key={mode.id} value={mode.id}>{mode.name}</option>
-                ))}
-              </Select>
-            </FormControl>
-            <Box>
-              <Text fontWeight="bold" mb={2}>Modes <span style={{color: 'red'}}>*</span></Text>
-              <Button leftIcon={<LuPlus />} size="sm" onClick={() => handleModeDialogOpen(null)} mb={2}>
-                Add Mode
-              </Button>
-              <VStack align="stretch" spacing={1}>
-                {form.modes.map((mode: Mode, idx: number) => (
-                  <HStack key={mode.id}>
-                    <Text>{mode.name}</Text>
-                    <IconButton aria-label="Edit mode" icon={<LuPencil />} size="xs" onClick={() => handleModeDialogOpen(idx)} />
-                    <IconButton aria-label="Delete mode" icon={<LuTrash2 />} size="xs" colorScheme="red" onClick={() => handleModeDelete(idx)} />
-                  </HStack>
-                ))}
-              </VStack>
-            </Box>
-            <FormControl>
-              <ResolvedValueTypePicker
-                value={form.resolvedValueTypeIds}
-                onChange={vals => setForm(prev => ({ ...prev, resolvedValueTypeIds: vals }))}
-                label="Value Types"
-                isRequired={false}
-                error={undefined}
-              />
-            </FormControl>
-          </VStack>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="ghost" mr={3} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button colorScheme="blue" onClick={handleSave}>
-            Save
-          </Button>
-        </ModalFooter>
-      </ModalContent>
+    <>
+      <Modal isOpen={isOpen} onClose={onClose} size="lg">
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>{editingIndex !== null ? 'Edit Dimension' : 'Add Dimension'}</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4} align="stretch">
+              <FormControl isRequired>
+                <FormLabel>ID</FormLabel>
+                <Input
+                  value={form.id}
+                  isReadOnly
+                />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel>Display Name</FormLabel>
+                <Input
+                  value={form.displayName}
+                  onChange={e => handleFormChange('displayName', e.target.value)}
+                />
+              </FormControl>
+              <FormControl>
+                <FormLabel>Description</FormLabel>
+                <Input
+                  value={form.description}
+                  onChange={e => handleFormChange('description', e.target.value)}
+                />
+              </FormControl>
+              <FormControl isRequired display="flex" alignItems="center">
+                <FormLabel mb="0">Required</FormLabel>
+                <Switch
+                  isChecked={form.required || false}
+                  onChange={e => setForm((prev: DimensionFormData) => ({ ...prev, required: e.target.checked }))}
+                />
+              </FormControl>
+              <FormControl isRequired>
+                <FormLabel>Default Mode</FormLabel>
+                <Select
+                  value={form.defaultMode}
+                  onChange={e => handleFormChange('defaultMode', e.target.value)}
+                >
+                  <option value="">None</option>
+                  {form.modes.map((mode: Mode) => (
+                    <option key={mode.id} value={mode.id}>{mode.name}</option>
+                  ))}
+                </Select>
+              </FormControl>
+              <Box>
+                <Text fontWeight="bold" mb={2}>Modes <span style={{color: 'red'}}>*</span></Text>
+                <Button leftIcon={<LuPlus />} size="sm" onClick={() => handleModeDialogOpen(null)} mb={2}>
+                  Add Mode
+                </Button>
+                <VStack align="stretch" spacing={1}>
+                  {form.modes.map((mode: Mode, idx: number) => (
+                    <HStack key={mode.id}>
+                      <Text>{mode.name}</Text>
+                      <IconButton aria-label="Edit mode" icon={<LuPencil />} size="xs" onClick={() => handleModeDialogOpen(idx)} />
+                      <IconButton aria-label="Delete mode" icon={<LuTrash2 />} size="xs" colorScheme="red" onClick={() => handleModeDelete(idx)} />
+                    </HStack>
+                  ))}
+                </VStack>
+              </Box>
+              <FormControl>
+                <ResolvedValueTypePicker
+                  value={form.resolvedValueTypeIds}
+                  onChange={vals => setForm(prev => ({ ...prev, resolvedValueTypeIds: vals }))}
+                  label="Value Types"
+                  isRequired={false}
+                  error={undefined}
+                />
+              </FormControl>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button colorScheme="blue" onClick={handleSave}>
+              {editingIndex !== null ? 'Save' : 'Add'}
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
       {/* Mode Editor Modal */}
       <Modal isOpen={modeDialogOpen} onClose={handleModeDialogClose} size="sm">
         <ModalOverlay />
-        <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+        <ModalContent>
           <ModalHeader>{modeEditIndex !== null ? 'Edit Mode' : 'Add Mode'}</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
@@ -413,11 +413,11 @@ export function DimensionsEditor({
               Cancel
             </Button>
             <Button colorScheme="blue" onClick={handleModeSave}>
-              Save
+              {modeEditIndex !== null ? 'Save' : 'Add'}
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </Modal>
+    </>
   );
 } 

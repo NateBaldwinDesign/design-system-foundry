@@ -28,6 +28,22 @@ const theme = extendTheme({
       baseStyle: {
         dialog: {
           bg: 'chakra-body-bg',
+          maxH: 'calc(100vh - 80px)',
+          my: '40px',
+          overflow: 'hidden',
+        },
+        header: {
+          px: 6,
+          py: 4,
+        },
+        body: {
+          px: 6,
+          py: 4,
+          overflowY: 'auto',
+        },
+        footer: {
+          px: 6,
+          py: 4,
         },
       },
     },

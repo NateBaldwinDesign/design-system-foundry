@@ -36,7 +36,7 @@ export interface ValueByMode {
 interface ValueByModeTableProps {
   valuesByMode: ValueByMode[];
   modes: Mode[];
-  getValueEditor: (value: TokenValue | string, modeIndex: number, isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode;
+  getValueEditor: (value: TokenValue | string, modeIndex: number, modeIds: string[], isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode;
 }
 
 export function ValueByModeTable({ valuesByMode, modes, getValueEditor }: ValueByModeTableProps) {
@@ -62,7 +62,7 @@ export function ValueByModeTable({ valuesByMode, modes, getValueEditor }: ValueB
         </Thead>
         <Tbody>
           {Object.entries(modeGroups).map(([modeKey, group]) => {
-            const modeIds = modeKey.split(',');
+            const modeIds = modeKey.split(',').filter(Boolean);
             const modeNames = modeIds.map(id => modes.find(m => m.id === id)?.name || id).join(' + ');
             return (
               <Tr key={modeKey}>
@@ -72,7 +72,7 @@ export function ValueByModeTable({ valuesByMode, modes, getValueEditor }: ValueB
                 <Td>
                   {group.map((vbm, idx) => (
                     <Box key={idx} mb={idx < group.length - 1 ? 2 : 0}>
-                      {getValueEditor(vbm.value, idx)}
+                      {getValueEditor(vbm.value, idx, vbm.modeIds)}
                     </Box>
                   ))}
                 </Td>

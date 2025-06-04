@@ -25,7 +25,7 @@ interface PlatformOverridesTableProps {
   platforms: Platform[];
   valuesByMode: ValueByMode[];
   modes: Mode[];
-  getValueEditor: (value: TokenValue | string, modeIndex: number, isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode;
+  getValueEditor: (value: TokenValue | string, modeIndex: number, modeIds: string[], isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode;
   onPlatformOverrideChange: (platformId: string, modeIndex: number, newValue: TokenValue) => void;
 }
 
@@ -59,7 +59,7 @@ export function PlatformOverridesTable({
         </Thead>
         <Tbody>
           {Object.entries(modeGroups).map(([modeKey, group]) => {
-            const modeIds = modeKey.split(',');
+            const modeIds = modeKey.split(',').filter(Boolean);
             const modeNames = modeIds.map(id => modes.find(m => m.id === id)?.name || id).join(' + ');
             return (
               <Tr key={modeKey}>
@@ -73,6 +73,7 @@ export function PlatformOverridesTable({
                       {getValueEditor(
                         override ? override.value : '',
                         group[0] ? valuesByMode.indexOf(group[0]) : 0,
+                        group[0]?.modeIds || [],
                         true,
                         (newValue) => onPlatformOverrideChange(platform.id, group[0] ? valuesByMode.indexOf(group[0]) : 0, newValue)
                       )}

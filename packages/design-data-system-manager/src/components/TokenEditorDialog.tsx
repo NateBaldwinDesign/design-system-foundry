@@ -424,9 +424,11 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
   const getValueEditor = (
     value: TokenValue | string,
     modeIndex: number,
+    modeIds: string[],
     isOverride?: boolean,
     onChange?: (newValue: TokenValue) => void
   ): React.ReactNode => {
+    console.log('getValueEditor', { modeIndex, modeIds });
     if (typeof value === 'string') {
       return <Text fontSize="sm" color="gray.500">{value}</Text>;
     }
@@ -436,6 +438,8 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
         value={canonicalValue}
         tokens={tokens}
         excludeTokenId={editedToken.id}
+        modes={modeIds}
+        resolvedValueTypeId={editedToken.resolvedValueTypeId}
         onChange={(newValue: TokenValue) => {
           if (onChange) {
             onChange(toLegacyTokenValue(newValue));
@@ -587,6 +591,20 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                       <option value="deprecated">Deprecated</option>
                     </Select>
                   </FormControl>
+                  <VStack mt={2} spacing={3} align="stretch" flex={1}>
+                  <Checkbox
+                    isChecked={editedToken.private}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, private: e.target.checked }))}
+                  >
+                    Private
+                  </Checkbox>
+                  <Checkbox
+                    isChecked={!!editedToken.themeable}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, themeable: e.target.checked }))}
+                  >
+                    Themeable
+                  </Checkbox>
+                </VStack>
                 </Flex>
               </VStack>
             </Box>
@@ -710,6 +728,8 @@ export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms,
                           value={toCanonicalTokenValue(globalValue.value)}
                           tokens={tokens}
                           excludeTokenId={editedToken.id}
+                          modes={[]}
+                          resolvedValueTypeId={editedToken.resolvedValueTypeId}
                           onChange={(newValue: TokenValue) => setEditedToken((prev: ExtendedToken) => ({
                             ...prev,
                             valuesByMode: prev.valuesByMode.map((item: ValueByMode) =>
