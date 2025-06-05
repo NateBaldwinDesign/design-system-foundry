@@ -468,7 +468,6 @@
           "formattedName": "SPFONT FAMILY_PRIMARY"
         }
       ],
-      "constraints": [],
       "valuesByMode": [
         {
           "modeIds": [
@@ -542,12 +541,11 @@
           "formattedName": "SPLINE HEIGHT_PRIMARY"
         }
       ],
-      "constraints": [],
       "valuesByMode": [
         {
           "modeIds": [],
           "value": {
-            "value": "#000000"
+            "value": "1.5"
           }
         }
       ]
@@ -590,7 +588,6 @@
           "formattedName": "SPFONT WEIGHT_PRIMARY"
         }
       ],
-      "constraints": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -638,7 +635,6 @@
           "formattedName": "SPSPACING_100"
         }
       ],
-      "constraints": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -686,7 +682,6 @@
           "formattedName": "SPRADIUS_100"
         }
       ],
-      "constraints": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -734,7 +729,6 @@
           "formattedName": "SPSPACING_200"
         }
       ],
-      "constraints": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -782,7 +776,6 @@
           "formattedName": "SPFONT FAMILY_SECONDARY"
         }
       ],
-      "constraints": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -830,7 +823,6 @@
           "formattedName": "SPLINE HEIGHT_200"
         }
       ],
-      "constraints": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -878,7 +870,6 @@
           "formattedName": "SPFONT WEIGHT_200"
         }
       ],
-      "constraints": [],
       "valuesByMode": [
         {
           "modeIds": [],
