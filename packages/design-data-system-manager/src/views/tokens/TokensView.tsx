@@ -4,7 +4,7 @@ import { Edit, Trash2 } from 'lucide-react';
 import type { TokenCollection, ResolvedValueType, Mode, Taxonomy } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
 
-interface TokensTabProps {
+interface TokensViewProps {
   tokens: ExtendedToken[];
   collections: TokenCollection[];
   resolvedValueTypes: ResolvedValueType[];
@@ -15,7 +15,7 @@ interface TokensTabProps {
   onDeleteToken?: (tokenId: string) => void;
 }
 
-export function TokensTab({ 
+export function TokensView({ 
   tokens, 
   collections, 
   resolvedValueTypes, 
@@ -24,7 +24,7 @@ export function TokensTab({
   renderAddTokenButton,
   onEditToken,
   onDeleteToken 
-}: TokensTabProps) {
+}: TokensViewProps) {
   // Filter state
   const [collectionFilter, setCollectionFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');

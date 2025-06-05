@@ -28,7 +28,7 @@ import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@tok
 import { ValidationService } from '../../services/validation';
 import { createSchemaJsonFromLocalStorage } from '../../services/createJson';
 
-interface ValidationTabProps {
+interface ValidationViewProps {
   tokens: Token[];
   collections: TokenCollection[];
   dimensions: Dimension[];
@@ -70,7 +70,7 @@ interface TokenSystemData {
   tokenVariants?: any[]; // Optional
 }
 
-export function ValidationTab({ tokens = [], collections = [], dimensions = [], platforms = [], taxonomies = [], version = '1.0.0', versionHistory = [], onValidate }: ValidationTabProps) {
+export function ValidationView({ tokens = [], collections = [], dimensions = [], platforms = [], taxonomies = [], version = '1.0.0', versionHistory = [], onValidate }: ValidationViewProps) {
   const { colorMode } = useColorMode();
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [isTokenValidationOpen, setIsTokenValidationOpen] = useState(false);

@@ -20,7 +20,7 @@ import { TaxonomyEditorDialog } from '../../components/TaxonomyEditorDialog';
 import { TermEditorDialog } from '../../components/TermEditorDialog';
 import { StorageService } from '../../services/storage';
 
-interface ClassificationTabProps {
+interface ClassificationViewProps {
   taxonomies: Taxonomy[];
   setTaxonomies: (taxonomies: Taxonomy[]) => void;
 }
@@ -38,7 +38,7 @@ function normalizeTerms(terms: { id: string; name: string; description?: string 
   }));
 }
 
-export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationTabProps) {
+export function ClassificationView({ taxonomies, setTaxonomies }: ClassificationViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -120,11 +120,11 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
         versionHistory
       };
 
-      console.log('[ClassificationTab] Validation data:', JSON.stringify(data, null, 2));
+      console.log('[ClassificationView] Validation data:', JSON.stringify(data, null, 2));
       const result = ValidationService.validateData(data);
-      console.log('[ClassificationTab] Validation result:', result);
+      console.log('[ClassificationView] Validation result:', result);
       if (!result.isValid) {
-        console.error('[ClassificationTab] Validation errors:', result.errors);
+        console.error('[ClassificationView] Validation errors:', result.errors);
         toast({
           title: "Validation Error",
           description: `Schema Validation Failed: ${Array.isArray(result.errors) ? result.errors.join(', ') : 'See console for details.'}`,
@@ -138,7 +138,7 @@ export function ClassificationTab({ taxonomies, setTaxonomies }: ClassificationT
       StorageService.setTaxonomies(taxonomies);
       setTaxonomies(taxonomies);
     } catch (error) {
-      console.error('[ClassificationTab] Validation error:', error);
+      console.error('[ClassificationView] Validation error:', error);
       toast({
         title: 'Validation Error',
         description: 'An error occurred while validating the data',

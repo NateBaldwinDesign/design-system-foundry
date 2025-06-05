@@ -19,7 +19,7 @@ import { ValidationService } from '../../services/validation';
 import { DimensionsEditor } from '../../components/DimensionsEditor';
 import { StorageService } from '../../services/storage';
 
-interface DimensionsTabProps {
+interface DimensionsViewProps {
   dimensions: Dimension[];
   setDimensions: (dims: Dimension[]) => void;
   dimensionOrder: string[];
@@ -27,13 +27,13 @@ interface DimensionsTabProps {
   onDataChange?: (data: { dimensions: Dimension[], dimensionOrder: string[] }) => void;
 }
 
-export function DimensionsTab({ 
+export function DimensionsView({ 
   dimensions, 
   setDimensions, 
   dimensionOrder, 
   setDimensionOrder,
   onDataChange
-}: DimensionsTabProps) {
+}: DimensionsViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);

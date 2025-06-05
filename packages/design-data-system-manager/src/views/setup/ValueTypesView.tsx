@@ -26,12 +26,12 @@ import { ValidationService } from '../../services/validation';
 import type { Token, TokenCollection, Dimension, Platform, Taxonomy, Theme, ResolvedValueType, StandardValueType } from '@token-model/data-model/src/schema';
 import { StandardValueType as StandardValueTypeSchema } from '@token-model/data-model/src/schema';
 
-interface ValueTypesTabProps {
+interface ValueTypesViewProps {
   valueTypes: ResolvedValueType[];
   onUpdate: (valueTypes: ResolvedValueType[]) => void;
 }
 
-export function ValueTypesTab({ valueTypes, onUpdate }: ValueTypesTabProps) {
+export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
   const { colorMode } = useColorMode();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<ResolvedValueType | null>(null);
