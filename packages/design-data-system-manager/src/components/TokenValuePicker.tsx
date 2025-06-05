@@ -26,6 +26,11 @@ import { Search } from 'lucide-react';
 import type { Token, TokenValue, ResolvedValueType } from '@token-model/data-model';
 import TokenTag from './TokenTag';
 
+type TokenValueChange = 
+  | { value: string }
+  | { value: number }
+  | { tokenId: string };
+
 interface TokenValuePickerProps {
   value: TokenValue;
   tokens: Token[];
@@ -33,7 +38,7 @@ interface TokenValuePickerProps {
   modes: string[];
   resolvedValueTypeId: string;
   resolvedValueTypes: ResolvedValueType[];
-  onChange: (value: { value: string | number } | { tokenId: string }) => void;
+  onChange: (value: TokenValueChange) => void;
 }
 
 // Helper to get a display value for a token
@@ -73,7 +78,7 @@ export function TokenValuePicker({
 
   // Handle token selection (alias)
   const handleTokenSelect = (token: Token) => {
-    onChange({ tokenId: token.id });
+    onChange({ tokenId: token.id } as TokenValueChange);
     onClose();
   };
 
@@ -85,7 +90,7 @@ export function TokenValuePicker({
         case 'COLOR':
         case 'FONT_FAMILY':
         case 'CUBIC_BEZIER':
-          onChange({ value: String(newValue) });
+          onChange({ value: String(newValue) } as TokenValueChange);
           break;
         case 'DIMENSION':
         case 'SPACING':
@@ -97,13 +102,13 @@ export function TokenValuePicker({
         case 'BLUR':
         case 'SPREAD':
         case 'RADIUS':
-          onChange({ value: Number(newValue) });
+          onChange({ value: Number(newValue) } as TokenValueChange);
           break;
         default:
-          onChange({ value: String(newValue) });
+          onChange({ value: String(newValue) } as TokenValueChange);
       }
     } else {
-      onChange({ value: String(newValue) });
+      onChange({ value: String(newValue) } as TokenValueChange);
     }
   };
 
