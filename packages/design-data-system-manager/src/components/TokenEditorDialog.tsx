@@ -127,60 +127,21 @@ function filterTaxonomiesByValueType(taxonomies: Taxonomy[], resolvedValueTypeId
   );
 }
 
-// Helper function to migrate token values by mode
-export function migrateTokenValuesByMode(valuesByMode: unknown[]): ValueByMode[] {
-  if (!Array.isArray(valuesByMode)) {
-    return [];
-  }
 
-  return valuesByMode.map(vbm => {
-    const value = (vbm as any).value;
-    const tokenId = (vbm as any).tokenId;
-    
-    // Handle legacy format with type field
-    if (value && typeof value === 'object') {
-      // If it's an alias value
-      if ('tokenId' in value) {
-        return {
-          modeIds: Array.isArray((vbm as any).modeIds) ? (vbm as any).modeIds : [],
-          value: { tokenId: value.tokenId },
-          platformOverrides: Array.isArray((vbm as any).platformOverrides) ? (vbm as any).platformOverrides : undefined,
-          metadata: (vbm as any).metadata
-        };
-      }
-      
-      // If it has a type field (legacy format)
-      if ('type' in value) {
-        return {
-          modeIds: Array.isArray((vbm as any).modeIds) ? (vbm as any).modeIds : [],
-          value: { value: value.value },
-          platformOverrides: Array.isArray((vbm as any).platformOverrides) ? (vbm as any).platformOverrides : undefined,
-          metadata: (vbm as any).metadata
-        };
-      }
-      
-      // If it's a direct value object
-      if ('value' in value) {
-        return {
-          modeIds: Array.isArray((vbm as any).modeIds) ? (vbm as any).modeIds : [],
-          value: { value: value.value },
-          platformOverrides: Array.isArray((vbm as any).platformOverrides) ? (vbm as any).platformOverrides : undefined,
-          metadata: (vbm as any).metadata
-        };
-      }
-    }
-    
-    // Handle direct value or tokenId at the top level
-    return {
-      modeIds: Array.isArray((vbm as any).modeIds) ? (vbm as any).modeIds : [],
-      value: tokenId ? { tokenId } : { value: value ?? '' },
-      platformOverrides: Array.isArray((vbm as any).platformOverrides) ? (vbm as any).platformOverrides : undefined,
-      metadata: (vbm as any).metadata
-    };
-  });
-}
-
-export function TokenEditorDialog({ token, tokens, dimensions, modes, platforms, open, onClose, onSave, taxonomies, resolvedValueTypes, isNew = false, onViewClassifications }: TokenEditorDialogProps) {
+export function TokenEditorDialog({ 
+    token, 
+    tokens, 
+    dimensions, 
+    modes, 
+    platforms, 
+    open, 
+    onClose, 
+    onSave, 
+    taxonomies, 
+    resolvedValueTypes, 
+    isNew = false, 
+    onViewClassifications 
+  }: TokenEditorDialogProps) {
   const { colorMode } = useColorMode();
   const { schema } = useSchema();
   
