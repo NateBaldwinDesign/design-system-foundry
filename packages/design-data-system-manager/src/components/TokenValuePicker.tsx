@@ -18,9 +18,10 @@ import {
   useDisclosure,
   IconButton,
   List,
-  ListItem
+  ListItem,
+  Box
 } from '@chakra-ui/react';
-import { Search } from 'lucide-react';
+import { Search, Unlink } from 'lucide-react';
 import type { Token, TokenValue, ResolvedValueType } from '@token-model/data-model';
 import TokenTag from './TokenTag';
 
@@ -50,6 +51,7 @@ export function TokenValuePicker({
   value,
   tokens,
   excludeTokenId,
+  modes,
   resolvedValueTypeId,
   resolvedValueTypes,
   onChange
@@ -118,6 +120,7 @@ export function TokenValuePicker({
         case 'COLOR':
           return (
             <Input
+              size="sm"
               value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
               onChange={(e) => handleValueChange(e.target.value)}
               placeholder="Enter color (hex)"
@@ -135,6 +138,7 @@ export function TokenValuePicker({
         case 'RADIUS':
           return (
             <NumberInput
+              size="sm"
               value={typeof value === 'object' && 'value' in value ? Number(value.value) : 0}
               onChange={(_, val) => handleValueChange(val)}
             >
@@ -149,6 +153,7 @@ export function TokenValuePicker({
         case 'CUBIC_BEZIER':
           return (
             <Input
+              size="sm"
               value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
               onChange={(e) => handleValueChange(e.target.value)}
               placeholder={`Enter ${valueType.type.toLowerCase()}`}
@@ -157,6 +162,7 @@ export function TokenValuePicker({
         default:
           return (
             <Input
+              size="sm"
               value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
               onChange={(e) => handleValueChange(e.target.value)}
               placeholder="Enter value"
@@ -166,6 +172,7 @@ export function TokenValuePicker({
     }
     return (
       <Input
+        size="sm"
         value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
         onChange={(e) => handleValueChange(e.target.value)}
         placeholder="Enter value"
@@ -173,51 +180,150 @@ export function TokenValuePicker({
     );
   };
 
+  // Find the referenced token if value is an alias
+  const referencedToken = (typeof value === 'object' && 'tokenId' in value)
+    ? tokens.find(t => t.id === value.tokenId)
+    : undefined;
+
+  // Helper to resolve the value of a token (using modes or default)
+  function resolveTokenValue(token: Token): TokenValue | undefined {
+    // Try to find a value for the current modes (if provided)
+    if (Array.isArray(token.valuesByMode)) {
+      // If modes are provided, try to find a matching entry
+      if (Array.isArray(modes) && modes.length > 0) {
+        const match = token.valuesByMode.find(vbm =>
+          Array.isArray(vbm.modeIds) &&
+          vbm.modeIds.length === modes.length &&
+          vbm.modeIds.every((id, idx) => id === modes[idx])
+        );
+        if (match) return match.value;
+      }
+      // Otherwise, try to find a global/default value (modeIds: [])
+      const global = token.valuesByMode.find(vbm => Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0);
+      if (global) return global.value;
+      // Fallback: just use the first value
+      if (token.valuesByMode.length > 0) return token.valuesByMode[0].value;
+    }
+    return undefined;
+  }
+
+  // Handler for unlinking the alias
+  const handleUnlink = () => {
+    if (referencedToken) {
+      const resolved = resolveTokenValue(referencedToken);
+      if (resolved && 'value' in resolved) {
+        onChange({ value: resolved.value });
+      }
+    }
+  };
+
   return (
     <VStack spacing={2} align="stretch">
       <HStack>
-        {renderInput()}
-        <Popover isOpen={isOpen} onClose={onClose} placement="bottom-start">
-          <PopoverTrigger>
-            <IconButton
-              aria-label="Search tokens"
-              icon={<Search />}
-              onClick={onOpen}
-            />
-          </PopoverTrigger>
-          <PopoverContent>
-            <PopoverArrow />
-            <PopoverCloseButton />
-            <PopoverBody>
-              <VStack spacing={2} align="stretch">
-                <Input
-                  placeholder="Search tokens..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+        {/* If value is an alias (tokenId), show TokenTag as PopoverTrigger, else show input and IconButton as before */}
+        {typeof value === 'object' && 'tokenId' in value && referencedToken ? (
+          <>
+          <Popover isOpen={isOpen} onClose={onClose} placement="bottom-start">
+            <PopoverTrigger>
+              <Box width="100%">
+                <TokenTag
+                  displayName={referencedToken.displayName}
+                  resolvedValueTypeId={referencedToken.resolvedValueTypeId}
+                  resolvedValueTypes={resolvedValueTypes}
+                  value={getTokenDisplayValue(referencedToken)}
+                  onClick={onOpen}
                 />
-                <List spacing={2}>
-                  {filteredTokens.map((token) => (
-                    <ListItem key={token.id}>
-                      <Button
-                        variant="ghost"
-                        width="100%"
-                        justifyContent="flex-start"
-                        onClick={() => handleTokenSelect(token)}
-                      >
-                        <TokenTag
-                          displayName={token.displayName}
-                          resolvedValueTypeId={token.resolvedValueTypeId}
-                          resolvedValueTypes={resolvedValueTypes}
-                          value={getTokenDisplayValue(token)}
-                        />
-                      </Button>
-                    </ListItem>
-                  ))}
-                </List>
-              </VStack>
-            </PopoverBody>
-          </PopoverContent>
-        </Popover>
+              </Box>
+            </PopoverTrigger>
+            <PopoverContent>
+              <PopoverArrow />
+              <PopoverCloseButton />
+              <PopoverBody>
+                <VStack spacing={2} align="stretch">
+                  <Input
+                    placeholder="Search tokens..."
+                    value={searchTerm}
+                    size="sm"
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <List spacing={2}>
+                    {filteredTokens.map((token) => (
+                      <ListItem key={token.id}>
+                        <Button
+                          variant="ghost"
+                          width="100%"
+                          justifyContent="flex-start"
+                          onClick={() => handleTokenSelect(token)}
+                        >
+                          <TokenTag
+                            displayName={token.displayName}
+                            resolvedValueTypeId={token.resolvedValueTypeId}
+                            resolvedValueTypes={resolvedValueTypes}
+                            value={getTokenDisplayValue(token)}
+                          />
+                        </Button>
+                      </ListItem>
+                    ))}
+                  </List>
+                </VStack>
+              </PopoverBody>
+            </PopoverContent>
+          </Popover>
+            <IconButton
+              size="sm"
+              aria-label="Unlink token alias"
+              icon={<Unlink size={16} />}
+              onClick={handleUnlink}
+          />
+          </>
+        ) : (
+          <>
+            {renderInput()}
+            <Popover isOpen={isOpen} onClose={onClose} placement="bottom-start">
+              <PopoverTrigger>
+                <IconButton
+                  size="sm"
+                  aria-label="Search tokens"
+                  icon={<Search size={16} />}
+                  onClick={onOpen}
+                />
+              </PopoverTrigger>
+              <PopoverContent>
+                <PopoverArrow />
+                <PopoverCloseButton />
+                <PopoverBody>
+                  <VStack spacing={2} align="stretch">
+                    <Input
+                      size="sm"
+                      placeholder="Search tokens..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <List spacing={2}>
+                      {filteredTokens.map((token) => (
+                        <ListItem key={token.id}>
+                          <Button
+                            variant="ghost"
+                            width="100%"
+                            justifyContent="flex-start"
+                            onClick={() => handleTokenSelect(token)}
+                          >
+                            <TokenTag
+                              displayName={token.displayName}
+                              resolvedValueTypeId={token.resolvedValueTypeId}
+                              resolvedValueTypes={resolvedValueTypes}
+                              value={getTokenDisplayValue(token)}
+                            />
+                          </Button>
+                        </ListItem>
+                      ))}
+                    </List>
+                  </VStack>
+                </PopoverBody>
+              </PopoverContent>
+            </Popover>
+          </>
+        )}
       </HStack>
     </VStack>
   );

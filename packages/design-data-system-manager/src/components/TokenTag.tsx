@@ -34,11 +34,13 @@ const TokenTag: React.FC<TokenTagProps> = ({
             borderRadius="md"
             p={2}
         >
-            <HStack>
-                {valueType.type === 'COLOR' && (
-                    <div style={{ display: 'flex', flexGrow: 0, flexShrink: 0, width: '24px', height: '24px', borderRadius: '4px', backgroundColor: String(value) }}></div>
-                )}
-                <Text>{displayName}</Text>
+            <HStack width="100%" justifyContent="space-between">
+                <HStack>
+                    {valueType.type === 'COLOR' && (
+                        <div style={{ display: 'flex', flexGrow: 0, flexShrink: 0, width: '16px', height: '16px', borderRadius: '4px', backgroundColor: String(value) }}></div>
+                    )}
+                    <Text className="kode-mono">{displayName}</Text>
+                </HStack>
                 <Text color="gray.500">{String(value)}</Text>
             </HStack>
         </Box>

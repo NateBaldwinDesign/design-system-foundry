@@ -153,11 +153,22 @@ const tokens: Token[] = [
 const baseProps = {
   tokens,
   resolvedValueTypes,
-  onChange: (value: any) => console.log('Value changed:', value)
 };
 
-// Color story
+// Stateful Template for all stories
+const Template = (args: React.ComponentProps<typeof TokenValuePicker>) => {
+  const [value, setValue] = React.useState(args.value);
+  return (
+    <TokenValuePicker
+      {...args}
+      value={value}
+      onChange={setValue}
+    />
+  );
+};
+
 export const Color: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'color',
@@ -165,8 +176,8 @@ export const Color: Story = {
   }
 };
 
-// Spacing story
 export const Spacing: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'spacing',
@@ -174,8 +185,8 @@ export const Spacing: Story = {
   }
 };
 
-// Font Family story
 export const FontFamily: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'font-family',
@@ -183,8 +194,8 @@ export const FontFamily: Story = {
   }
 };
 
-// Font Weight story
 export const FontWeight: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'font-weight',
@@ -192,8 +203,8 @@ export const FontWeight: Story = {
   }
 };
 
-// Font Size story
 export const FontSize: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'font-size',
@@ -201,8 +212,8 @@ export const FontSize: Story = {
   }
 };
 
-// Line Height story
 export const LineHeight: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'line-height',
@@ -210,8 +221,8 @@ export const LineHeight: Story = {
   }
 };
 
-// Letter Spacing story
 export const LetterSpacing: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'letter-spacing',
@@ -219,8 +230,8 @@ export const LetterSpacing: Story = {
   }
 };
 
-// Duration story
 export const Duration: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'duration',
@@ -228,8 +239,8 @@ export const Duration: Story = {
   }
 };
 
-// Cubic Bezier story
 export const CubicBezier: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'cubic-bezier',
@@ -237,8 +248,8 @@ export const CubicBezier: Story = {
   }
 };
 
-// Blur story
 export const Blur: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'blur',
@@ -246,8 +257,8 @@ export const Blur: Story = {
   }
 };
 
-// Spread story
 export const Spread: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'spread',
@@ -255,8 +266,8 @@ export const Spread: Story = {
   }
 };
 
-// Radius story
 export const Radius: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'radius',
@@ -264,8 +275,8 @@ export const Radius: Story = {
   }
 };
 
-// Alias story
 export const Alias: Story = {
+  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'color',
@@ -273,48 +284,11 @@ export const Alias: Story = {
   }
 };
 
-// String value story
-export const StringValue: Story = {
-  args: {
-    ...baseProps,
-    value: 'custom-value'
-  }
-};
-
-// Empty value story
-export const EmptyValue: Story = {
-  args: {
-    ...baseProps,
-    value: ''
-  }
-};
-
-// With excluded token story
 export const WithExcludedToken: Story = {
+  render: Template,
   args: {
     ...baseProps,
     value: { value: '#007AFF' },
     excludeTokenId: 'color-primary'
-  }
-};
-
-// With constraints story
-export const WithConstraints: Story = {
-  args: {
-    ...baseProps,
-    value: { value: '#007AFF' },
-    constraints: [
-      {
-        type: 'contrast',
-        rule: {
-          minimum: 4.5,
-          comparator: {
-            resolvedValueTypeId: 'color',
-            value: '#000000',
-            method: 'WCAG21'
-          }
-        }
-      }
-    ]
   }
 }; 
