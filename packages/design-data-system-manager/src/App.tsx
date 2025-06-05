@@ -30,7 +30,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import CoreDataView from './views/schemas/CoreDataView';
 import ThemeOverridesView from './views/schemas/ThemeOverridesView';
 import { Plus } from 'lucide-react';
-import { TokenEditorDialog, ExtendedToken, migrateTokenValuesByMode } from './components/TokenEditorDialog';
+import { TokenEditorDialog, ExtendedToken } from './components/TokenEditorDialog';
 
 // TypeScript declaration for import.meta.glob
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -122,7 +122,7 @@ const App = () => {
       const normalizedDimensions = d.dimensions ?? [];
       const normalizedTokens = (d.tokens ?? []).map((token: any) => ({
         ...token,
-        valuesByMode: migrateTokenValuesByMode(token.valuesByMode)
+        valuesByMode: token.valuesByMode
       }));
       const normalizedPlatforms = d.platforms ?? [];
       const normalizedThemes = (d.themes ?? []).map((theme) => ({
