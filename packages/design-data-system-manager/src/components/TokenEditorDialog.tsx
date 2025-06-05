@@ -38,7 +38,6 @@ import { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef, Resolv
 import { createUniqueId } from '../utils/id';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
-import { ValidationService } from '../services/validation';
 
 // ExtendedToken type to include platformOverrides
 export interface ValueByMode {
@@ -676,7 +675,27 @@ export function TokenEditorDialog({
                   <ValueByModeTable
                     valuesByMode={editedToken.valuesByMode}
                     modes={modes}
+                    dimensions={dimensions.filter(d => activeDimensionIds.includes(d.id))}
                     getValueEditor={getValueEditor}
+                    onDeleteValue={(modeIds: string[]) => {
+                      setEditedToken((prev: ExtendedToken) => ({
+                        ...prev,
+                        valuesByMode: prev.valuesByMode.filter(vbm => 
+                          vbm.modeIds.slice().sort().join(',') !== modeIds.slice().sort().join(',')
+                        )
+                      }));
+                    }}
+                    resolvedValueTypeId={editedToken.resolvedValueTypeId}
+                    resolvedValueTypes={resolvedValueTypes}
+                    onAddValue={(modeIds: string[], value: TokenValue) => {
+                      setEditedToken((prev: ExtendedToken) => ({
+                        ...prev,
+                        valuesByMode: [
+                          ...prev.valuesByMode,
+                          { modeIds, value }
+                        ]
+                      }));
+                    }}
                   />
                 )}
                 {/* Platform Overrides as a nested box */}
