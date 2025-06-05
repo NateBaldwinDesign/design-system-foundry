@@ -33,7 +33,7 @@ interface Platform {
   };
 }
 
-export const SettingsPlatformsTab: React.FC = () => {
+export const SettingsPlatformsView: React.FC = () => {
   const { schema, updateSchema } = useSchema();
   const [newPlatformName, setNewPlatformName] = React.useState('');
   const bg = useColorModeValue('white', 'gray.800');

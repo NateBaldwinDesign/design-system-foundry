@@ -17,13 +17,13 @@ import type { TokenCollection, Mode, ResolvedValueType } from '@token-model/data
 import { CollectionEditorDialog } from '../../components/CollectionEditorDialog';
 import { StorageService } from '../../services/storage';
 
-interface CollectionsTabProps {
+interface CollectionsViewProps {
   collections: TokenCollection[];
   modes: Mode[];
   onUpdate: (collections: TokenCollection[]) => void;
 }
 
-export function CollectionsTab({ collections, modes, onUpdate }: CollectionsTabProps) {
+export function CollectionsView({ collections, modes, onUpdate }: CollectionsViewProps) {
   const { colorMode } = useColorMode();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCollection, setEditingCollection] = useState<TokenCollection | null>(null);

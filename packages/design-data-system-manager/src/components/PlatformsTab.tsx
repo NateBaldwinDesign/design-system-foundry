@@ -20,7 +20,7 @@ import { CodeSyntaxService } from '../services/codeSyntax';
 import type { Platform, Taxonomy } from '@token-model/data-model';
 import { PlatformEditorDialog } from './PlatformEditorDialog';
 
-export function PlatformsTab() {
+export function PlatformsView() {
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [editingPlatform, setEditingPlatform] = useState<Platform | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);

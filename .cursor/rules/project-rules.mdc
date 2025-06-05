@@ -1,0 +1,149 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# AI Assistant Rules for Token Design System
+
+## CRITICAL: Schema as Single Source of Truth
+
+**BEFORE ANY CODE CHANGES:** Always check `@schema.json` first. All code must derive from this schema.
+
+### Schema Compliance Rules
+- `@schema.json` is the ONLY source of truth for data models, validation, and application logic
+- `@index.ts` MUST mirror `@schema.json` exactly (except TypeScript-specific syntax)
+- NEVER create new models, keys, or properties if they exist in `@schema.json`
+- ALWAYS evaluate schema impact before making changes and include impact assessment in response
+
+### Required Schema Analysis
+When making any change, explicitly state:
+1. Which schema elements are affected
+2. Whether the change maintains schema compliance
+3. If schema updates are needed
+
+## Core Domain Concepts (Follow These Definitions)
+
+1. **Resolved Value Type**: UI-compatible value types (`color`, `font`, `gap`, `shadow`)
+2. **Dimensions**: Mutually exclusive mode groups with common themes
+3. **Modes**: Specific options within a single dimension (never repeated across dimensions)
+4. **Token Collections**: Flexible grouping system supporting multiple resolved value types
+5. **Aliases**: Tokens referencing other tokens (inherit referenced token's resolved value type)
+
+### Schema-Specific Technical Decisions (MANDATORY)
+
+#### ID and Reference Naming
+- **SINGLE REFERENCES**: Always use `Id` suffix (e.g., `resolvedValueTypeId`, `tokenCollectionId`)
+- **ARRAY REFERENCES**: Always use `Ids` suffix (e.g., `resolvedValueTypeIds`, `supportedDimensionIds`)
+- **VALIDATION**: All reference fields must match existing IDs in their respective arrays
+
+#### Value Type System
+- **SOURCE OF TRUTH**: `resolvedValueTypes` array at schema root defines all valid types
+- **REFERENCE PATTERN**: Use `resolvedValueTypeId` (string) to reference `resolvedValueTypes[].id`
+- **NO DIRECT ENUMS**: Never use UPPER_CASE type values directly (e.g., "COLOR") - always reference by ID
+- **OPTIONAL TYPE FIELD**: `resolvedValueTypes[].type` is optional UPPER_CASE for standards compliance
+
+#### Token Value Structure
+- **DIRECT VALUES**: `{ "value": <actual_value> }` - type determined by token's `resolvedValueTypeId`
+- **ALIAS VALUES**: `{ "tokenId": "referenced-token-id" }` - inherits referenced token's type
+- **NO REDUNDANT TYPE**: Never add `resolvedValueTypeId` to individual values in `valuesByMode`
+
+#### Platform Code Syntax
+- **ARRAY STRUCTURE**: `codeSyntax` is always an array of `{ platformId, formattedName }` objects
+- **NO OBJECT MAPS**: Never use platform names as object keys
+- **REFERENCE BY ID**: Always reference platforms by their `platformId`
+
+#### Dimension Migration Rules
+- **DEFAULT MODE ONLY**: Always use dimension's `defaultMode` for "Map to Defaults" - no arbitrary mapping
+- **PRESERVE VALUES**: Always preserve original values during migration - never reset or discard
+- **NO MIGRATION OPTIONS**: Don't create UI for "Map Empty modeIds To" or "Preserve Original Values" toggles
+
+### Component Development
+- **FIRST**: Search `/src/packages/design-system-data-manager/` for existing components
+- **USE**: Existing components like `@TokenTag.tsx` before creating new ones
+- **NEW COMPONENTS**: Use Chakra-UI v3 only
+- **REFERENCE**: https://chakra-ui.com/llms-components.txt and https://chakra-ui.com/llms-styling.txt
+- **UI CONTROLS**: Always use Chakra UI `Select` component for dropdowns/filters - never custom or native HTML selects
+- **UI MAPPING**: Assign mapping logic to constants above return statement, not inline in JSX (unless performance requires memoization)
+
+### Data Handling Rules
+- **CONSISTENT PROPS**: Use identical property names and types across component chains
+- **EXAMPLE**: If passing `value: { value: "#000000" }`, maintain this structure throughout the component tree
+- **ID NAMING CONVENTION**: ALL reference fields MUST use `Id` suffix (single) or `Ids` suffix (arrays)
+  - Examples: `resolvedValueTypeId`, `tokenCollectionId`, `supportedDimensionIds`, `resolvedValueTypeIds`
+- **VALUE TYPE REFERENCES**: Always use `resolvedValueTypeId` (string) to reference the `id` field in `resolvedValueTypes` array
+- **NO ENUM TYPES**: Never use UPPER_CASE enum values directly - always reference by string ID
+
+### UI Architecture & Navigation
+- **TOP-LEVEL VIEWS**: Each view in `src/views/{Name}View.tsx` (e.g., `TokensView`, `SetupView`)
+- **VIEW COMPONENTS**: Default export functional components
+- **ALL UI PRIMITIVES**: Use Chakra UI components (`Select`, `Button`, `Box`, `FormControl`)
+- **DROPDOWNS/FILTERS**: Always use Chakra UI `Select` - never custom or native HTML selects
+### Display Name Requirements
+- **GLOBAL DATA**: Always pass complete, current lists of modes/dimensions/tokens/platforms etcetera to components
+- **LOOKUP PATTERN**: Use list-based lookups for all display names
+- **FALLBACK**: Show "Unknown {data type} ({id})" for missing IDs + log warning
+- **VALIDATION**: Verify all referenced IDs exist in global lists on data load/save
+
+### Data Validation & Integrity
+- **ALL MUTATIONS**: Validate complete data object against schema before state updates
+- **VALIDATION SERVICE**: Use ValidationService as single point of schema validation
+- **ERROR HANDLING**: Show clear, actionable error messages via Chakra UI toast notifications
+- **PREVENT INVALID CHANGES**: Block mutations that would create invalid data
+- **THEME OVERRIDES**: Always merge with complete core data to ensure schema compliance
+- **REFERENTIAL INTEGRITY**: Verify all referenced IDs exist during mutations and loads
+- **ALL INPUTS**: Validate against schema constraints before saving
+- **REFERENTIAL INTEGRITY**: Verify all IDs and relationships (modeIds, taxonomyIds) exist
+- **DIALOG PATTERN**: Stage changes in local state, only commit on explicit user save/apply
+
+### File Management
+- **REFACTORING**: Never delete original files until new location is verified and working
+- **MIGRATION**: Complete content transfer before cleanup
+
+### Code Quality Standards
+- Write modular, well-commented code
+- Add inline comments for human comprehension
+- Prioritize clarity and reusability
+- Check `@technical-decisions.md` before making architectural decisions
+
+## AI Response Format
+
+For every response involving code changes, include:
+
+1. **Schema Impact Assessment**: Which schema elements are affected
+2. **UI Impact from Schema Updates**: Which elements of the UI will be affected by a schema change
+3. **Component Reuse Check**: What existing components were evaluated
+4. **Validation Plan**: How new code will be validated against schema
+5. **UI Organization**: How the change aligns with user-friendly organization
+
+## Forbidden Actions
+- Creating data models outside of `@schema.json`
+- Maintaining or translating from other data models to or from `@schema.json` within individual components
+- Using partial or filtered data lists for display names
+- Making API/property changes that conflict with schema
+- Assuming relationships not explicitly defined in schema
+- Deleting files during refactoring before verification
+- **Using UPPER_CASE enum values directly instead of string ID references**
+- **Adding `resolvedValueTypeId` fields to individual token values**
+- **Using object maps for `codeSyntax` instead of array structure**
+- **Creating reference fields without `Id`/`Ids` suffix**
+- **Referencing value types by anything other than their string `id`**
+- **Using custom or native HTML selects instead of Chakra UI `Select`**
+- **Inlining UI mapping logic in JSX (use constants above return)**
+- **Creating migration UI with arbitrary mapping or value reset options**
+- **Making mutations without schema validation via ValidationService**
+
+## Quick Reference Checklist
+Before suggesting any code:
+- [ ] Checked `@schema.json` for existing definitions
+- [ ] Searched for reusable components
+- [ ] Planned validation against schema constraints
+- [ ] Considered display name lookup requirements
+- [ ] Assessed impact on existing relationships
+- [ ] **Verified all reference fields use `Id`/`Ids` suffix**
+- [ ] **Confirmed value type references use string IDs, not enums**
+- [ ] **Checked token value structure (direct value vs alias)**
+- [ ] **Validated platform code syntax uses array structure**
+- [ ] **Ensured UI controls use Chakra UI components**
+- [ ] **Planned UI mapping logic as constants, not inline JSX**
+- [ ] **Included ValidationService for all mutations**
+- [ ] **Considered toast notifications for user feedback**

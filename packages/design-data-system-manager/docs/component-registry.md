@@ -220,12 +220,12 @@ interface SettingsWorkflowProps {
 - Persists changes through StorageService
 
 **Dependencies:**
-- SettingsCollectionsTab
-- SettingsDimensionsTab
-- SettingsValueTypesTab
+- SettingsCollectionsView
+- SettingsDimensionsView
+- SettingsValueTypesView
 - SettingsThemesTab
 - SettingsTaxonomiesTab
-- SettingsPlatformsTab
+- SettingsPlatformsView
 
 ---
 
@@ -341,11 +341,11 @@ interface ValueTypesWorkflowProps {
 
 **Purpose:** Interface for managing token collections within the settings workflow.
 
-**Location:** `/src/views/settings/SettingsCollectionsTab.tsx`
+**Location:** `/src/views/settings/SettingsCollectionsView.tsx`
 
 **Props:**
 ```typescript
-interface SettingsCollectionsTabProps {
+interface SettingsCollectionsViewProps {
   collections: TokenCollection[];
   setCollections: (collections: TokenCollection[]) => void;
   newCollection: Partial<TokenCollection>;
@@ -371,11 +371,11 @@ interface SettingsCollectionsTabProps {
 
 **Purpose:** Interface for managing dimensions within the settings workflow.
 
-**Location:** `/src/views/settings/SettingsDimensionsTab.tsx`
+**Location:** `/src/views/settings/SettingsDimensionsView.tsx`
 
 **Props:**
 ```typescript
-interface SettingsDimensionsTabProps {
+interface SettingsDimensionsViewProps {
   dimensions: Dimension[];
   setDimensions: (dimensions: Dimension[]) => void;
   modes: Mode[];
@@ -397,7 +397,7 @@ interface SettingsDimensionsTabProps {
 
 **Purpose:** Display and manage supported value types.
 
-**Location:** `/src/views/settings/SettingsValueTypesTab.tsx`
+**Location:** `/src/views/settings/SettingsValueTypesView.tsx`
 
 **Props:** None
 

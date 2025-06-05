@@ -42,17 +42,15 @@
                   "oneOf": [
                     {
                       "type": "object",
-                      "required": ["type", "value"],
+                      "required": ["value"],
                       "properties": {
-                        "type": { "type": "string" },
                         "value": {}
                       }
                     },
                     {
                       "type": "object",
-                      "required": ["type", "tokenId"],
+                      "required": ["tokenId"],
                       "properties": {
-                        "type": { "const": "ALIAS" },
                         "tokenId": { "type": "string" }
                       }
                     }

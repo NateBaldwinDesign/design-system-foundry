@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
-import { SettingsPlatformsTab } from './SettingsPlatformsTab';
+import { SettingsPlatformsView } from './SettingsPlatformsView';
 import { ChakraProvider } from '@chakra-ui/react';
 
 // Mock the useSchema hook
@@ -34,7 +34,7 @@ const mockSchema = {
 };
 
 // Create a wrapper component that provides the mock schema
-const SettingsPlatformsTabWrapper: React.FC = () => {
+const SettingsPlatformsViewWrapper: React.FC = () => {
   const [schema, setSchema] = React.useState(mockSchema);
 
   // Mock the useSchema hook by providing the schema and update function
@@ -49,12 +49,12 @@ const SettingsPlatformsTabWrapper: React.FC = () => {
     });
   }, [schema]);
 
-  return <SettingsPlatformsTab />;
+  return <SettingsPlatformsView />;
 };
 
-const meta: Meta<typeof SettingsPlatformsTabWrapper> = {
-  title: 'Components/SettingsPlatformsTab',
-  component: SettingsPlatformsTabWrapper,
+const meta: Meta<typeof SettingsPlatformsViewWrapper> = {
+  title: 'Components/SettingsPlatformsView',
+  component: SettingsPlatformsViewWrapper,
   parameters: {
     layout: 'centered',
   },
@@ -69,7 +69,7 @@ const meta: Meta<typeof SettingsPlatformsTabWrapper> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof SettingsPlatformsTabWrapper>;
+type Story = StoryObj<typeof SettingsPlatformsViewWrapper>;
 
 // Base story with default mock data
 export const Default: Story = {

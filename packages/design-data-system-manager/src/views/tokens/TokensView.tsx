@@ -3,8 +3,9 @@ import { Box, Text, HStack, Flex, FormControl, FormLabel, Select, Input, Table, 
 import { Edit, Trash2 } from 'lucide-react';
 import type { TokenCollection, ResolvedValueType, Mode, Taxonomy } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
+import TokenTag from '../../components/TokenTag';
 
-interface TokensTabProps {
+interface TokensViewProps {
   tokens: ExtendedToken[];
   collections: TokenCollection[];
   resolvedValueTypes: ResolvedValueType[];
@@ -15,7 +16,7 @@ interface TokensTabProps {
   onDeleteToken?: (tokenId: string) => void;
 }
 
-export function TokensTab({ 
+export function TokensView({ 
   tokens, 
   collections, 
   resolvedValueTypes, 
@@ -24,7 +25,7 @@ export function TokensTab({
   renderAddTokenButton,
   onEditToken,
   onDeleteToken 
-}: TokensTabProps) {
+}: TokensViewProps) {
   // Filter state
   const [collectionFilter, setCollectionFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
@@ -72,59 +73,130 @@ export function TokensTab({
       const value = modeValue.value;
       if (!value) return null;
 
-      let displayValue: React.ReactNode;
-      switch (value.type) {
-        case 'COLOR':
-          displayValue = (
-            <HStack spacing={2}>
-              <Box
-                w={4}
-                h={4}
-                borderRadius="sm"
-                bg={value.value}
-                border="1px solid"
-                borderColor="gray.200"
-              />
-              <Text>{value.value}</Text>
-            </HStack>
-          );
-          break;
-        case 'DIMENSION':
-        case 'SPACING':
-        case 'FONT_SIZE':
-        case 'LINE_HEIGHT':
-        case 'LETTER_SPACING':
-        case 'DURATION':
-        case 'BLUR':
-        case 'SPREAD':
-        case 'RADIUS':
-          displayValue = `${value.value}px`;
-          break;
-        case 'FONT_WEIGHT':
-          displayValue = value.value.toString();
-          break;
-        case 'FONT_FAMILY':
-        case 'CUBIC_BEZIER':
-          displayValue = value.value;
-          break;
-        case 'ALIAS': {
-          const aliasToken = tokens.find(t => t.id === value.tokenId);
-          displayValue = aliasToken ? aliasToken.displayName : value.tokenId;
-          break;
-        }
-        default:
-          displayValue = '-';
+      // Debug logging for value structure
+      console.log('Token Value Debug:', {
+        tokenId: token.id,
+        tokenName: token.displayName,
+        resolvedValueTypeId: token.resolvedValueTypeId,
+        modeValue,
+        rawValue: value
+      });
+
+      // Get the resolved value type for this token
+      const valueType = resolvedValueTypes.find(vt => vt.id === token.resolvedValueTypeId);
+      if (!valueType) {
+        console.warn('No resolved value type found for token:', {
+          tokenId: token.id,
+          resolvedValueTypeId: token.resolvedValueTypeId
+        });
+        return '-';
       }
 
-      return (
-        <Box key={idx}>
-          <Text fontSize="sm" color="gray.500">
-            {getModeNames(modeValue.modeIds)}:
-          </Text>
-          {displayValue}
-        </Box>
-      );
-    }).filter(Boolean);
+      let displayValue: React.ReactNode;
+
+      // Helper function to extract tokenId from nested structure
+      const extractTokenId = (val: unknown): string | null => {
+        if (!val || typeof val !== 'object') return null;
+        
+        const obj = val as Record<string, unknown>;
+        if ('tokenId' in obj && typeof obj.tokenId === 'string') {
+          return obj.tokenId;
+        }
+        
+        if ('value' in obj && obj.value && typeof obj.value === 'object') {
+          return extractTokenId(obj.value);
+        }
+        
+        return null;
+      };
+
+      // Check for tokenId in the value structure
+      const tokenId = extractTokenId(value);
+      if (tokenId) {
+        const aliasToken = tokens.find(t => t.id === tokenId);
+        if (aliasToken) {
+          // Get the actual value from the alias token
+          const aliasValue = aliasToken.valuesByMode?.[0]?.value;
+          if (aliasValue && 'value' in aliasValue) {
+            const rawAliasValue = typeof aliasValue.value === 'object' && aliasValue.value !== null && 'value' in aliasValue.value
+              ? (aliasValue.value as { value: string | number }).value
+              : aliasValue.value;
+
+            displayValue = (
+              <TokenTag
+                displayName={aliasToken.displayName}
+                resolvedValueTypeId={aliasToken.resolvedValueTypeId}
+                resolvedValueTypes={resolvedValueTypes}
+                value={rawAliasValue}
+              />
+            );
+          } else {
+            displayValue = aliasToken.displayName;
+          }
+        } else {
+          displayValue = tokenId;
+        }
+        console.log('Alias value resolved:', {
+          tokenId: token.id,
+          aliasTokenId: tokenId,
+          displayValue
+        });
+      }
+      // Handle direct values based on resolvedValueTypeId
+      else if (typeof value === 'object' && value !== null && 'value' in value) {
+        // Extract the actual value, handling nested structure
+        const rawValue = typeof value.value === 'object' && value.value !== null && 'value' in value.value
+          ? (value.value as { value: string | number }).value
+          : value.value;
+
+        console.log('Direct value processing:', {
+          tokenId: token.id,
+          valueType: valueType.type,
+          rawValue,
+          rawValueType: typeof rawValue
+        });
+        
+        switch (valueType.type) {
+          case 'COLOR':
+            displayValue = (
+              <HStack spacing={2}>
+                <Box
+                  w={4}
+                  h={4}
+                  borderRadius="sm"
+                  bg={typeof rawValue === 'string' ? rawValue : String(rawValue)}
+                  border="1px solid"
+                  borderColor="gray.200"
+                />
+                <Text>{typeof rawValue === 'string' ? rawValue : String(rawValue)}</Text>
+              </HStack>
+            );
+            break;
+          case 'DIMENSION':
+          case 'SPACING':
+          case 'FONT_SIZE':
+          case 'LINE_HEIGHT':
+          case 'LETTER_SPACING':
+          case 'DURATION':
+          case 'BLUR':
+          case 'SPREAD':
+          case 'RADIUS':
+            displayValue = `${typeof rawValue === 'number' ? rawValue : Number(rawValue)}px`;
+            break;
+          case 'FONT_WEIGHT':
+            displayValue = typeof rawValue === 'number' ? rawValue.toString() : String(rawValue);
+            break;
+          case 'FONT_FAMILY':
+          case 'CUBIC_BEZIER':
+            displayValue = typeof rawValue === 'string' ? rawValue : String(rawValue);
+            break;
+          default:
+            displayValue = typeof rawValue === 'string' ? rawValue : String(rawValue);
+        }
+      }
+
+      return displayValue;
+    });
   };
 
   // Helper to get taxonomy term names for a token

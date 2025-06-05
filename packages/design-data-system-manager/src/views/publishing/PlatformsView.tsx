@@ -20,7 +20,7 @@ import { ValidationService } from '../../services/validation';
 import { ExtendedToken } from '../../components/TokenEditorDialog';
 import { StorageService } from '../../services/storage';
 
-interface PlatformsTabProps {
+interface PlatformsViewProps {
   platforms: Platform[];
   setPlatforms: (platforms: Platform[]) => void;
   tokens: ExtendedToken[];
@@ -28,13 +28,13 @@ interface PlatformsTabProps {
   taxonomies: Taxonomy[];
 }
 
-export const PlatformsTab: React.FC<PlatformsTabProps> = ({ 
+export const PlatformsView: React.FC<PlatformsViewProps> = ({ 
   platforms: initialPlatforms, 
   setPlatforms,
   tokens,
   setTokens,
   taxonomies
-}: PlatformsTabProps) => {
+}: PlatformsViewProps) => {
   const { colorMode } = useColorMode();
   const [editingPlatform, setEditingPlatform] = useState<Platform | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);

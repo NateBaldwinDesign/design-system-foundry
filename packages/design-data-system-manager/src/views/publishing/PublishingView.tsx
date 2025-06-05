@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Box } from '@chakra-ui/react';
 import { VerticalTabsLayout } from '../../components/VerticalTabsLayout';
-import { PlatformsTab } from './PlatformsTab';
-import { ValidationTab } from './ValidationTab';
+import { PlatformsView } from './PlatformsView';
+import { ValidationView } from './ValidationView';
 import { TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { ExtendedToken } from '../../components/TokenEditorDialog';
 
@@ -27,7 +27,7 @@ const PublishingView: React.FC<PublishingViewProps> = (props: PublishingViewProp
           id: 'platforms',
           label: 'Platforms',
           content: (
-            <PlatformsTab
+            <PlatformsView
               platforms={platforms}
               setPlatforms={setPlatforms}
               tokens={tokens}
@@ -45,7 +45,7 @@ const PublishingView: React.FC<PublishingViewProps> = (props: PublishingViewProp
           id: 'validation',
           label: 'Validation',
           content: (
-            <ValidationTab
+            <ValidationView
               tokens={tokens}
               collections={collections}
               dimensions={dimensions}

@@ -62,14 +62,6 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    id: 'schemas',
-    label: 'Schemas',
-    children: [
-      { id: 'core-data', label: 'Core Data', icon: FileCode, route: '/schemas/core-data' },
-      { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode, route: '/schemas/theme-overrides' },
-    ],
-  },
-  {
     id: 'setup',
     label: 'Setup',
     children: [
@@ -91,6 +83,14 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { id: 'access', label: 'Access', icon: Users, route: '/access' },
+  {
+    id: 'schemas',
+    label: 'Schemas',
+    children: [
+      { id: 'core-data', label: 'Core Data', icon: FileCode, route: '/schemas/core-data' },
+      { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode, route: '/schemas/theme-overrides' },
+    ],
+  },
 ];
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({

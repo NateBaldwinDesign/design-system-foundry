@@ -206,17 +206,6 @@ export const Token = z.object({
     platformId: z.string(),
     formattedName: z.string()
   })),
-  constraints: z.array(z.object({
-    type: z.literal('contrast'),
-    rule: z.object({
-      minimum: z.number(),
-      comparator: z.object({
-        resolvedValueTypeId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
-        value: z.string(),
-        method: z.enum(['WCAG21', 'APCA', 'Lstar'])
-      })
-    })
-  })).optional(),
   valuesByMode: z.array(
     z.object({
       modeIds: z.array(z.string()),
@@ -278,7 +267,6 @@ export const Theme = z.object({
 
 // ThemeOverride schema
 export const ThemeOverrideValue = z.object({
-  type: z.enum(["COLOR", "FLOAT", "INTEGER", "STRING", "BOOLEAN", "ALIAS"]),
   value: z.union([z.string(), z.number(), z.boolean()]),
   tokenId: z.string().regex(/^[a-zA-Z0-9-_]+$/).optional()
 });

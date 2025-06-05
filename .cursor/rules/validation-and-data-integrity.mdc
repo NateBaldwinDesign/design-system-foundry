@@ -1,9 +1,0 @@
----
-description: 
-globs: 
-alwaysApply: true
----
-summary: All editable fields and data changes must be validated against schema constraints.
-details:
-- Validate all user input and data changes using schema-defined constraints.
-- Ensure referential integrity for all IDs and relationships (e.g., modeIds, taxonomyIds).

@@ -1,4 +1,6 @@
-# Token Model
+![image](packages/design-data-system-manager/src/logoIcon.png) – 
+
+# Design System Foundry
 
 A monorepo containing a JSON data model for tokens and a Design data system manager for managing them.
 

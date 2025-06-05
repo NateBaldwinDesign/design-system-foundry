@@ -21,25 +21,25 @@ import DashboardView from './views/dashboard/DashboardView';
 import './App.css';
 import { AppLayout } from './components/AppLayout';
 import theme from './theme';
-import { TokensTab } from './views/tokens/TokensTab';
-import { CollectionsTab } from './views/tokens/CollectionsTab';
-import AlgorithmsTab from './views/tokens/AlgorithmsTab';
-import { PlatformsTab } from './views/publishing/PlatformsTab';
-import { ValidationTab } from './views/publishing/ValidationTab';
+import { TokensView } from './views/tokens/TokensView';
+import { CollectionsView } from './views/tokens/CollectionsView';
+import AlgorithmsTab from './views/tokens/AlgorithmsView';
+import { PlatformsView } from './views/publishing/PlatformsView';
+import { ValidationView } from './views/publishing/ValidationView';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import CoreDataView from './views/schemas/CoreDataView';
 import ThemeOverridesView from './views/schemas/ThemeOverridesView';
 import { Plus } from 'lucide-react';
-import { TokenEditorDialog, ExtendedToken, migrateTokenValuesByMode } from './components/TokenEditorDialog';
+import { TokenEditorDialog, ExtendedToken } from './components/TokenEditorDialog';
 
 // TypeScript declaration for import.meta.glob
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 const exampleDataFiles = import.meta.glob('../../data-model/examples/**/*.json', { as: 'raw' });
-import { DimensionsTab } from './views/setup/DimensionsTab';
-import { ClassificationTab } from './views/setup/ClassificationTab';
-import { NamingRulesTab } from './views/setup/NamingRulesTab';
-import { ValueTypesTab } from './views/setup/ValueTypesTab';
+import { DimensionsView } from './views/setup/DimensionsView';
+import { ClassificationView } from './views/setup/ClassificationView';
+import { NamingRulesView } from './views/setup/NamingRulesView';
+import { ValueTypesView } from './views/setup/ValueTypesView';
 
 function getDataSourceOptions() {
   return Object.keys(exampleDataFiles).map((filePath) => {
@@ -122,7 +122,7 @@ const App = () => {
       const normalizedDimensions = d.dimensions ?? [];
       const normalizedTokens = (d.tokens ?? []).map((token: any) => ({
         ...token,
-        valuesByMode: migrateTokenValuesByMode(token.valuesByMode)
+        valuesByMode: token.valuesByMode
       }));
       const normalizedPlatforms = d.platforms ?? [];
       const normalizedThemes = (d.themes ?? []).map((theme) => ({
@@ -283,7 +283,7 @@ const App = () => {
                 <Route path="/tokens" element={<Navigate to="/tokens/tokens" replace />} />
                 <Route path="/tokens/tokens" element={
                   <>
-                    <TokensTab
+                    <TokensView
                       tokens={tokens}
                       collections={collections}
                       resolvedValueTypes={resolvedValueTypes}
@@ -324,14 +324,14 @@ const App = () => {
                     )}
                   </>
                 } />
-                <Route path="/tokens/collections" element={<CollectionsTab collections={collections} modes={modes} onUpdate={setCollections} />} />
+                <Route path="/tokens/collections" element={<CollectionsView collections={collections} modes={modes} onUpdate={setCollections} />} />
                 <Route path="/tokens/algorithms" element={<AlgorithmsTab />} />
                 <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />
                 <Route path="/schemas/core-data" element={<CoreDataView />} />
                 <Route path="/schemas/theme-overrides" element={<ThemeOverridesView />} />
                 <Route path="/setup" element={<Navigate to="/dimensions" replace />} />
                 <Route path="/dimensions" element={
-                  <DimensionsTab 
+                  <DimensionsView 
                     dimensions={dimensions} 
                     setDimensions={setDimensions}
                     dimensionOrder={dimensionOrder}
@@ -343,14 +343,14 @@ const App = () => {
                     }}
                   />
                 } />
-                <Route path="/classification" element={<ClassificationTab taxonomies={taxonomies} setTaxonomies={setTaxonomies} />} />
-                <Route path="/naming-rules" element={<NamingRulesTab taxonomies={taxonomies} taxonomyOrder={taxonomyOrder} setTaxonomyOrder={setTaxonomyOrder} />} />
-                <Route path="/value-types" element={<ValueTypesTab valueTypes={resolvedValueTypes} onUpdate={setResolvedValueTypes} />} />
+                <Route path="/classification" element={<ClassificationView taxonomies={taxonomies} setTaxonomies={setTaxonomies} />} />
+                <Route path="/naming-rules" element={<NamingRulesView taxonomies={taxonomies} taxonomyOrder={taxonomyOrder} setTaxonomyOrder={setTaxonomyOrder} />} />
+                <Route path="/value-types" element={<ValueTypesView valueTypes={resolvedValueTypes} onUpdate={setResolvedValueTypes} />} />
                 <Route path="/themes" element={<ThemesView themes={themes} setThemes={setThemes} />} />
                 <Route path="/publishing" element={<Navigate to="/platforms" replace />} />
-                <Route path="/platforms" element={<PlatformsTab platforms={platforms} setPlatforms={setPlatforms} tokens={tokens} setTokens={setTokens} taxonomies={taxonomies} />} />
+                <Route path="/platforms" element={<PlatformsView platforms={platforms} setPlatforms={setPlatforms} tokens={tokens} setTokens={setTokens} taxonomies={taxonomies} />} />
                 <Route path="/export-settings" element={<Box p={4}>Export settings content coming soon...</Box>} />
-                <Route path="/validation" element={<ValidationTab tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />} />
+                <Route path="/validation" element={<ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />} />
                 <Route path="/version-history" element={<Box p={4}>Version history content coming soon...</Box>} />
                 <Route path="/access" element={<Box p={4}>Access management coming soon...</Box>} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />

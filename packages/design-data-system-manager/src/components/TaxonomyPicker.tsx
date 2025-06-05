@@ -78,6 +78,68 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false, 
 
   return (
     <Box>
+      {!adding && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setAdding(true)}
+          isDisabled={availableTaxonomies.length === 0 || disabled}
+        >
+          Add Taxonomy
+        </Button>
+      )}
+      {adding ? (
+        <HStack spacing={2} align="center" mb={2}>
+          <FormControl isDisabled={disabled} minW="140px">
+            <Select
+              value={selectedTaxonomyId}
+              placeholder="Select taxonomy"
+              onChange={e => {
+                setSelectedTaxonomyId(e.target.value);
+                setSelectedTermId('');
+              }}
+              isDisabled={disabled}
+              size="sm"
+            >
+              {availableTaxonomies.map(tax => (
+                <option key={tax.id} value={tax.id}>{tax.name}</option>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl isDisabled={!selectedTaxonomyId || disabled} minW="140px">
+            <Select
+              value={selectedTermId}
+              placeholder="Select term"
+              onChange={e => setSelectedTermId(e.target.value)}
+              isDisabled={!selectedTaxonomyId || disabled}
+              size="sm"
+            >
+              {taxonomies.find(t => t.id === selectedTaxonomyId)?.terms?.map((term: Taxonomy["terms"][number]) => (
+                <option key={term.id} value={term.id}>{term.name}</option>
+              )) || []}
+            </Select>
+          </FormControl>
+          <Button
+            colorScheme="blue"
+            size="sm"
+            onClick={handleAdd}
+            isDisabled={!selectedTaxonomyId || !selectedTermId || disabled}
+          >
+            Add
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setAdding(false);
+              setSelectedTaxonomyId('');
+              setSelectedTermId('');
+            }}
+          >
+            Cancel
+          </Button>
+        </HStack>
+      ) : null}
       <HStack wrap="wrap" spacing={2} mb={2}>
         {value.map((assignment, idx) => {
           const taxonomy = taxonomies.find(t => t.id === assignment.taxonomyId);
@@ -154,68 +216,7 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false, 
           );
         })}
       </HStack>
-      {!adding && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setAdding(true)}
-          isDisabled={availableTaxonomies.length === 0 || disabled}
-        >
-          Add Taxonomy
-        </Button>
-      )}
-      {adding ? (
-        <HStack spacing={2} align="center" mb={2}>
-          <FormControl isDisabled={disabled} minW="140px">
-            <Select
-              value={selectedTaxonomyId}
-              placeholder="Select taxonomy"
-              onChange={e => {
-                setSelectedTaxonomyId(e.target.value);
-                setSelectedTermId('');
-              }}
-              isDisabled={disabled}
-              size="sm"
-            >
-              {availableTaxonomies.map(tax => (
-                <option key={tax.id} value={tax.id}>{tax.name}</option>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl isDisabled={!selectedTaxonomyId || disabled} minW="140px">
-            <Select
-              value={selectedTermId}
-              placeholder="Select term"
-              onChange={e => setSelectedTermId(e.target.value)}
-              isDisabled={!selectedTaxonomyId || disabled}
-              size="sm"
-            >
-              {taxonomies.find(t => t.id === selectedTaxonomyId)?.terms?.map((term: Taxonomy["terms"][number]) => (
-                <option key={term.id} value={term.id}>{term.name}</option>
-              )) || []}
-            </Select>
-          </FormControl>
-          <Button
-            colorScheme="blue"
-            size="sm"
-            onClick={handleAdd}
-            isDisabled={!selectedTaxonomyId || !selectedTermId || disabled}
-          >
-            Add
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setAdding(false);
-              setSelectedTaxonomyId('');
-              setSelectedTermId('');
-            }}
-          >
-            Cancel
-          </Button>
-        </HStack>
-      ) : null}
+      
     </Box>
   );
 } 

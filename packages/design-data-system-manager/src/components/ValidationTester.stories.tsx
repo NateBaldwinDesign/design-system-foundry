@@ -25,7 +25,7 @@ const mockTokens: Token[] = [
     valuesByMode: [
       {
         modeIds: ['mode1'],
-        value: { type: 'COLOR', value: '#000000' },
+        value: { value: '#000000' },
       },
     ],
   },
@@ -48,7 +48,7 @@ const mockTokens: Token[] = [
     valuesByMode: [
       {
         modeIds: ['mode1'],
-        value: { type: 'DIMENSION', value: 8 },
+        value: {  value: 8 },
       },
     ],
   },

@@ -1,0 +1,68 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Component reuse
+Always reuse components that have been created in /src/packages/design-system-data-manager/ when creating net new features. Look for existing components before creating new ones. For example, if building a feature that will display a token, use the [TokenTag.tsx](mdc:packages/design-data-system-manager/src/components/TokenTag.tsx).
+
+# Create new comopnents with Chakra-UI v3
+All new components should use the latest v3 version of Chakra-UI components. Review Chakra-UI's component documentation at https://chakra-ui.com/llms-components.txt for all v3 compliant component examples. Review Chakra-UI's styling documentation at https://chakra-ui.com/llms-styling.txt when creating custom styling.
+
+# Use consistent property types for common data
+When data is passed through multiple components, the properties of each component passing this data should be of the same type always, and using the same name. For example, if passing a value object:
+```js
+  const obj = { "value": { "value": "#000000" }}
+  // or alternatively
+  const obj = { "value": { "tokenId": "token-id-0000000000" }}
+```
+The properties for components using this data should be consistent, such as:
+```js
+interface MyChildComponentProps {
+  value: obj
+}
+const MyChildComponent = (<MyChildComponentProps>) => {
+    return (
+        <p>{value.value}</p>
+    )
+}
+
+interface MyComponentProps {
+  value: obj
+}
+const MyComponent = (<MyComponentProps> ) => {
+    return (
+        <MyChildComponent value={value} />
+    )
+}
+```
+
+# Favor user-friendly UI organization.
+Organize UI for clarity and usability, even if it means deviating from schema structure for presentation.
+
+# Always follow the [schema.json](mdc:packages/data-model/src/schema.json) for organization and data types
+When creating UI structures and relationships, follow the same structures and methods as the [schema.json](mdc:packages/data-model/src/schema.json) uses. 
+
+For example, the schema uses "resolvedValueTypeIds" as a method of identifying the "resolvedValueType" of any token. Some of the "resolvedValueTypes" have a "type" property, but the entire schema references "resolvedValueTypeId" and "resolvedValueTypeIds" for a reason. So when referencing these, be sure to also always use "resolvedValueTypeId"
+
+
+
+# Code must be modular, well-commented, and favor clarity and reusability.
+- Modularize functions and components.
+- Use inline comments to assist human comprehension.
+- Favor reusing existing components and patterns.
+
+# Code Refactoring Rules
+
+**IMPORTANT:** When moving or renaming files, do not delete the original file until after the full content has been migrated and verified in the new location. This prevents accidental loss of code during refactoring.
+
+# Dialog workflows must not change stored data until the user explicitly saves or applies changes.
+- All dialog-based edits must be staged in local state.
+- Only commit changes to storage on explicit user action (save/apply).
+
+# All display names must use the global, up-to-date list of data from stored data, and adhere to the schema.
+- Always pass the complete, up-to-date list of all modes, dimensions, tokens, or any other data that has a display name property as a prop within a component or via context to any component showing display names.
+- Always look up display names using a list.
+- If an ID is not found when looking up a display name, display a fallback (“Unknown {data type} ({id})”) and log a warning.
+- Never use a filtered, partial, or stale list of data for display.
+- Validate on data load/save that all IDs referenced in values are present in the global list.
