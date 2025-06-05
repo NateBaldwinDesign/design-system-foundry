@@ -149,3 +149,46 @@ Recent updates have focused on ensuring that all data mutations and data loading
 - The app now provides robust, user-friendly validation and data integrity guarantees.
 - Users are prevented from making invalid changes and are always informed of the reason for any failure.
 - Theme overrides are seamlessly merged, and all data sources are loaded in a schema-compliant way. 
+
+# Resolved Value Type Handling in UI Components
+
+## Context
+The UI components currently handle resolved value types inconsistently, sometimes using the `id` field and sometimes using the `type` field. This creates potential issues with schema compliance and data integrity.
+
+## Decision
+Implement a clear separation between data operations (using `id`) and UI operations (using `type`):
+
+1. **Data Operations**
+   - All data storage, validation, and API operations MUST use `resolvedValueTypeId`
+   - All references to value types in data structures MUST use `id`
+   - No direct usage of `type` enum values in data operations
+
+2. **UI Operations**
+   - Use `type` field for:
+     - Grouping similar value types
+     - Selecting appropriate UI components
+     - Formatting values for display
+     - Determining default values
+   - Use `id` field for:
+     - Data validation
+     - API operations
+     - State management
+     - Schema compliance
+
+3. **Implementation Pattern**
+   - Create a utility function to map between IDs and types
+   - Use type information only for UI/display purposes
+   - Use IDs for all data operations and storage
+   - Maintain a registry of value type handlers for different operations
+
+### Rationale
+- **Schema Compliance:** The schema defines both `id` and `type` fields for different purposes
+- **Data Integrity:** Using `id` for data operations ensures referential integrity
+- **UI Flexibility:** Using `type` for UI operations provides better grouping and display options
+- **Maintainability:** Clear separation of concerns between data and UI operations
+
+### Outcome
+- Components will use `resolvedValueTypeId` for all data operations
+- UI components will use `type` field for display and formatting
+- A utility function will handle mapping between IDs and types
+- Value type handlers will support both standard and custom types 

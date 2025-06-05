@@ -1,11 +1,9 @@
-import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy, Theme, ResolvedValueType, StandardValueType } from '@token-model/data-model';
+import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy, Theme, ResolvedValueType } from '@token-model/data-model';
+import { generateDefaultValueTypes } from '../utils/defaultValueTypes';
 
 type ValueType = ResolvedValueType;
 
-const DEFAULT_VALUE_TYPES: ValueType[] = [
-  { id: "color", displayName: "Color", type: "COLOR" as StandardValueType },
-  { id: "dimension", displayName: "Dimension", type: "DIMENSION" as StandardValueType }
-];
+const DEFAULT_VALUE_TYPES = generateDefaultValueTypes();
 
 const STORAGE_KEYS = {
   TOKENS: 'token-model:tokens',

@@ -60,6 +60,7 @@ import { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef, Resolv
 import { createUniqueId } from '../utils/id';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
+import { getDefaultValueForType, getValueTypeFromId } from '../utils/valueTypeUtils';
 
 // ExtendedToken type to include platformOverrides
 export interface ValueByMode {
@@ -78,35 +79,7 @@ export type ExtendedToken = Omit<Token, 'valuesByMode'> & {
 
 // Helper function to get a default token value based on schema
 function getDefaultTokenValue(resolvedValueTypeId: string, schema: { resolvedValueTypes: ResolvedValueType[] }): TokenValue {
-  const valueType = schema.resolvedValueTypes.find((vt: ResolvedValueType) => vt.id === resolvedValueTypeId);
-  if (!valueType) {
-    throw new Error(`Unknown value type: ${resolvedValueTypeId}`);
-  }
-
-  // Use sensible defaults based on the value type
-  switch (valueType.type) {
-    case 'COLOR':
-      return { value: '#000000' };
-    case 'DIMENSION':
-    case 'SPACING':
-    case 'FONT_SIZE':
-    case 'LINE_HEIGHT':
-    case 'LETTER_SPACING':
-    case 'BLUR':
-    case 'SPREAD':
-    case 'RADIUS':
-      return { value: 0 };
-    case 'FONT_WEIGHT':
-      return { value: 400 };
-    case 'FONT_FAMILY':
-      return { value: 'system-ui' };
-    case 'DURATION':
-      return { value: 0 };
-    case 'CUBIC_BEZIER':
-      return { value: 'cubic-bezier(0.4, 0, 0.2, 1)' };
-    default:
-      return { value: '' };
-  }
+  return getDefaultValueForType(resolvedValueTypeId, schema.resolvedValueTypes);
 }
 
 interface Taxonomy {
@@ -671,35 +644,35 @@ export function TokenEditorDialog({
   const { isOpen, onToggle } = useDisclosure();
 
   // Get the current resolved value type
-  const currentValueType = resolvedValueTypes.find(vt => vt.id === editedToken.resolvedValueTypeId);
+  const valueTypeType = getValueTypeFromId(editedToken.resolvedValueTypeId, resolvedValueTypes);
   
   // Determine which icon to show based on the resolved value type
-  const valuesIcon = currentValueType ? (
-    currentValueType.type === 'COLOR' ? (
+  const valuesIcon = valueTypeType ? (
+    valueTypeType === 'COLOR' ? (
       <Palette size={24} />
-    ) : currentValueType.type === 'DIMENSION' ? (
+    ) : valueTypeType === 'DIMENSION' ? (
       <Ruler size={24} />
-    ) : currentValueType.type === 'SPACING' ? (
+    ) : valueTypeType === 'SPACING' ? (
       <Expand size={24} />
-    ) : currentValueType.type === 'FONT_FAMILY' ? (
+    ) : valueTypeType === 'FONT_FAMILY' ? (
       <Type size={24} />
-    ) : currentValueType.type === 'FONT_WEIGHT' ? (
+    ) : valueTypeType === 'FONT_WEIGHT' ? (
       <Type size={24} />
-    ) : currentValueType.type === 'FONT_SIZE' ? (
+    ) : valueTypeType === 'FONT_SIZE' ? (
       <Type size={24} />
-    ) : currentValueType.type === 'LINE_HEIGHT' ? (
+    ) : valueTypeType === 'LINE_HEIGHT' ? (
       <MoveVertical size={24} />
-    ) : currentValueType.type === 'LETTER_SPACING' ? (
+    ) : valueTypeType === 'LETTER_SPACING' ? (
       <MoveHorizontal size={24} />
-    ) : currentValueType.type === 'DURATION' ? (
+    ) : valueTypeType === 'DURATION' ? (
       <Timer size={24} />
-    ) : currentValueType.type === 'CUBIC_BEZIER' ? (
+    ) : valueTypeType === 'CUBIC_BEZIER' ? (
       <Circle size={24} />
-    ) : currentValueType.type === 'BLUR' ? (
+    ) : valueTypeType === 'BLUR' ? (
       <Minus size={24} />
-    ) : currentValueType.type === 'SPREAD' ? (
+    ) : valueTypeType === 'SPREAD' ? (
       <Plus size={24} />
-    ) : currentValueType.type === 'RADIUS' ? (
+    ) : valueTypeType === 'RADIUS' ? (
       <Circle size={24} />
     ) : (
       <PencilRuler size={24} />

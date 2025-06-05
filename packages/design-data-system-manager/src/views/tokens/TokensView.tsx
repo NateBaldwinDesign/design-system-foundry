@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { Box, Text, HStack, Flex, FormControl, FormLabel, Select, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge } from '@chakra-ui/react';
 import { Edit, Trash2 } from 'lucide-react';
-import type { TokenCollection, ResolvedValueType, Mode, Taxonomy } from '@token-model/data-model';
+import type { TokenCollection, ResolvedValueType, Taxonomy } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
 import TokenTag from '../../components/TokenTag';
+import { formatValueForDisplay } from '../../utils/valueTypeUtils';
 
 interface TokensViewProps {
   tokens: ExtendedToken[];
   collections: TokenCollection[];
   resolvedValueTypes: ResolvedValueType[];
-  modes: Mode[];
   taxonomies: Taxonomy[];
   renderAddTokenButton?: React.ReactNode;
   onEditToken?: (token: ExtendedToken) => void;
@@ -20,7 +20,6 @@ export function TokensView({
   tokens, 
   collections, 
   resolvedValueTypes, 
-  modes,
   taxonomies,
   renderAddTokenButton,
   onEditToken,
@@ -54,22 +53,11 @@ export function TokensView({
     return typeObj.displayName;
   };
 
-  // Helper to get mode name(s) from modeIds
-  const getModeNames = (modeIds: string[]): string => {
-    if (!modeIds || modeIds.length === 0) return 'Global';
-    if (!modes || !Array.isArray(modes)) return modeIds.join(' / ');
-    const names = modeIds.map(modeId => {
-      const mode = modes.find(m => m.id === modeId);
-      return mode ? mode.name : modeId;
-    });
-    return names.join(' / ');
-  };
-
   // Get display for a token value
   const getValueDisplay = (token: ExtendedToken) => {
     if (!token.valuesByMode?.length) return '-';
 
-    return token.valuesByMode.map((modeValue, idx) => {
+    return token.valuesByMode.map((modeValue) => {
       const value = modeValue.value;
       if (!value) return null;
 
@@ -156,6 +144,8 @@ export function TokensView({
           rawValueType: typeof rawValue
         });
         
+        const formattedValue = formatValueForDisplay(rawValue, token.resolvedValueTypeId, resolvedValueTypes);
+        
         switch (valueType.type) {
           case 'COLOR':
             displayValue = (
@@ -168,7 +158,7 @@ export function TokensView({
                   border="1px solid"
                   borderColor="gray.200"
                 />
-                <Text>{typeof rawValue === 'string' ? rawValue : String(rawValue)}</Text>
+                <Text>{formattedValue}</Text>
               </HStack>
             );
             break;
@@ -191,7 +181,7 @@ export function TokensView({
             displayValue = typeof rawValue === 'string' ? rawValue : String(rawValue);
             break;
           default:
-            displayValue = typeof rawValue === 'string' ? rawValue : String(rawValue);
+            displayValue = formattedValue;
         }
       }
 

@@ -198,32 +198,32 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
           ))}
         </VStack>
       </Box>
-      <Modal isOpen={dialogOpen} onClose={handleDialogClose} size="md">
+      <Modal isOpen={dialogOpen} onClose={handleDialogClose}>
         <ModalOverlay />
-        <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+        <ModalContent>
           <ModalHeader>{editingType ? 'Edit Value Type' : 'Create Value Type'}</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <VStack spacing={4} align="stretch">
-              <FormControl isInvalid={!!errors.name} isRequired>
+            <VStack spacing={4}>
+              <FormControl isInvalid={!!errors.name}>
                 <FormLabel>Name</FormLabel>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter value type name"
                 />
                 {errors.name && <FormErrorMessage>{errors.name}</FormErrorMessage>}
               </FormControl>
-              <FormControl isInvalid={!!errors.type} isRequired>
-                <FormLabel>Standard Type</FormLabel>
+              <FormControl isInvalid={!!errors.type}>
+                <FormLabel>Type</FormLabel>
                 <Select
                   value={type}
                   onChange={(e) => setType(e.target.value as StandardValueType | 'CUSTOM')}
-                  placeholder="Select standard type"
                 >
-                  {availableStandardTypes.map((enumValue) => (
-                    <option key={enumValue} value={enumValue}>{enumValue.charAt(0) + enumValue.slice(1).toLowerCase().replace(/_/g, ' ')}</option>
+                  <option value="CUSTOM">Custom</option>
+                  {availableStandardTypes.map((type) => (
+                    <option key={type} value={type}>{type}</option>
                   ))}
-                  <option key="CUSTOM" value="CUSTOM">Custom</option>
                 </Select>
                 {errors.type && <FormErrorMessage>{errors.type}</FormErrorMessage>}
               </FormControl>
@@ -234,7 +234,7 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
               Cancel
             </Button>
             <Button colorScheme="blue" onClick={handleDialogSave}>
-              {editingType ? 'Update' : 'Create'}
+              Save
             </Button>
           </ModalFooter>
         </ModalContent>

@@ -42,6 +42,14 @@ interface ValidationViewProps {
 interface ResolvedValueType {
   id: string;
   displayName: string;
+  type?: string;
+  description?: string;
+  validation?: {
+    pattern?: string;
+    minimum?: number;
+    maximum?: number;
+    allowedValues?: string[];
+  };
 }
 
 interface TokenSystemData {
