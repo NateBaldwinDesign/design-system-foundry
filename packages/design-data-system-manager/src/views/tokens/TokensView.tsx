@@ -107,6 +107,7 @@ export function TokensView({
                 resolvedValueTypeId={aliasToken.resolvedValueTypeId}
                 resolvedValueTypes={resolvedValueTypes}
                 value={rawAliasValue}
+                isPill={true}
               />
             );
           } else {

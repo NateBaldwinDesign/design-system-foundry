@@ -217,6 +217,43 @@ export function TokenValuePicker({
     }
   };
 
+  const popoverContent = (
+    <PopoverContent>
+      <PopoverArrow />
+      <PopoverCloseButton />
+      <PopoverBody>
+        <VStack spacing={2} align="stretch">
+          <Input
+            placeholder="Search tokens..."
+            value={searchTerm}
+            size="sm"
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <List spacing={0}>
+            {filteredTokens.map((token) => (
+              <ListItem key={token.id}>
+                <Button
+                  variant="ghost"
+                  width="100%"
+                  justifyContent="flex-start"
+                  size="sm"
+                  onClick={() => handleTokenSelect(token)}
+                >
+                  <TokenTag
+                    displayName={token.displayName}
+                    resolvedValueTypeId={token.resolvedValueTypeId}
+                    resolvedValueTypes={resolvedValueTypes}
+                    value={getTokenDisplayValue(token)}
+                  />
+                </Button>
+              </ListItem>
+            ))}
+          </List>
+        </VStack>
+      </PopoverBody>
+    </PopoverContent>
+  );
+
   return (
     <VStack spacing={2} align="stretch">
       <HStack>
@@ -235,39 +272,7 @@ export function TokenValuePicker({
                 />
               </Box>
             </PopoverTrigger>
-            <PopoverContent>
-              <PopoverArrow />
-              <PopoverCloseButton />
-              <PopoverBody>
-                <VStack spacing={2} align="stretch">
-                  <Input
-                    placeholder="Search tokens..."
-                    value={searchTerm}
-                    size="sm"
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                  <List spacing={2}>
-                    {filteredTokens.map((token) => (
-                      <ListItem key={token.id}>
-                        <Button
-                          variant="ghost"
-                          width="100%"
-                          justifyContent="flex-start"
-                          onClick={() => handleTokenSelect(token)}
-                        >
-                          <TokenTag
-                            displayName={token.displayName}
-                            resolvedValueTypeId={token.resolvedValueTypeId}
-                            resolvedValueTypes={resolvedValueTypes}
-                            value={getTokenDisplayValue(token)}
-                          />
-                        </Button>
-                      </ListItem>
-                    ))}
-                  </List>
-                </VStack>
-              </PopoverBody>
-            </PopoverContent>
+            {popoverContent}
           </Popover>
             <IconButton
               size="sm"
@@ -288,39 +293,7 @@ export function TokenValuePicker({
                   onClick={onOpen}
                 />
               </PopoverTrigger>
-              <PopoverContent>
-                <PopoverArrow />
-                <PopoverCloseButton />
-                <PopoverBody>
-                  <VStack spacing={2} align="stretch">
-                    <Input
-                      size="sm"
-                      placeholder="Search tokens..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <List spacing={2}>
-                      {filteredTokens.map((token) => (
-                        <ListItem key={token.id}>
-                          <Button
-                            variant="ghost"
-                            width="100%"
-                            justifyContent="flex-start"
-                            onClick={() => handleTokenSelect(token)}
-                          >
-                            <TokenTag
-                              displayName={token.displayName}
-                              resolvedValueTypeId={token.resolvedValueTypeId}
-                              resolvedValueTypes={resolvedValueTypes}
-                              value={getTokenDisplayValue(token)}
-                            />
-                          </Button>
-                        </ListItem>
-                      ))}
-                    </List>
-                  </VStack>
-                </PopoverBody>
-              </PopoverContent>
+              {popoverContent}
             </Popover>
           </>
         )}

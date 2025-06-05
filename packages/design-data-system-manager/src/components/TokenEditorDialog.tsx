@@ -51,7 +51,8 @@ import {
   Minus,
   Plus,
   MoveHorizontal,
-  MoveVertical
+  MoveVertical,
+  SquareRoundCorner
 } from 'lucide-react';
 import { ValueByModeTable } from './ValueByModeTable';
 import { TokenValuePicker } from './TokenValuePicker';
@@ -61,6 +62,7 @@ import { createUniqueId } from '../utils/id';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
 import { getDefaultValueForType, getValueTypeFromId } from '../utils/valueTypeUtils';
+import { getValueTypeIcon } from '../utils/getValueTypeIcon';
 import type { Schema } from '../hooks/useSchema';
 
 // ExtendedToken type to include platformOverrides
@@ -652,39 +654,6 @@ export function TokenEditorDialog({
   // Get the current resolved value type
   const valueTypeType = getValueTypeFromId(editedToken.resolvedValueTypeId, resolvedValueTypes);
   
-  // Determine which icon to show based on the resolved value type
-  const valuesIcon = valueTypeType ? (
-    valueTypeType === 'COLOR' ? (
-      <Palette size={24} />
-    ) : valueTypeType === 'DIMENSION' ? (
-      <Ruler size={24} />
-    ) : valueTypeType === 'SPACING' ? (
-      <Expand size={24} />
-    ) : valueTypeType === 'FONT_FAMILY' ? (
-      <Type size={24} />
-    ) : valueTypeType === 'FONT_WEIGHT' ? (
-      <Type size={24} />
-    ) : valueTypeType === 'FONT_SIZE' ? (
-      <Type size={24} />
-    ) : valueTypeType === 'LINE_HEIGHT' ? (
-      <MoveVertical size={24} />
-    ) : valueTypeType === 'LETTER_SPACING' ? (
-      <MoveHorizontal size={24} />
-    ) : valueTypeType === 'DURATION' ? (
-      <Timer size={24} />
-    ) : valueTypeType === 'CUBIC_BEZIER' ? (
-      <Circle size={24} />
-    ) : valueTypeType === 'BLUR' ? (
-      <Minus size={24} />
-    ) : valueTypeType === 'SPREAD' ? (
-      <Plus size={24} />
-    ) : valueTypeType === 'RADIUS' ? (
-      <Circle size={24} />
-    ) : (
-      <PencilRuler size={24} />
-    )
-  ) : null;
-
   return (
     <Modal isOpen={open} onClose={onClose} isCentered size="xl">
       <ModalOverlay />
@@ -728,13 +697,13 @@ export function TokenEditorDialog({
                         setEditedToken((prev: ExtendedToken) => ({
                           ...prev,
                           resolvedValueTypeId: newType,
-                          valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType, schema) }]
+                          valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType, { resolvedValueTypes }) }]
                         }));
                       }}
                     >
                       {resolvedValueTypes.map((vt: ResolvedValueType) => (
                         <option key={vt.id} value={vt.id}>
-                          {vt.type ? `${vt.displayName} (${vt.type})` : `${vt.displayName} (custom)`}
+                          {vt.displayName}
                         </option>
                       ))}
                     </Select>
@@ -851,7 +820,7 @@ export function TokenEditorDialog({
 
             {/* Values */}
             <HStack gap={2} align="center" mt={3}>
-              {valuesIcon}
+              {getValueTypeIcon(valueTypeType)}
               <Text fontSize="lg" fontWeight="bold">Values</Text>
             </HStack>
             <Box
@@ -964,8 +933,8 @@ export function TokenEditorDialog({
                   justifyContent="space-between"
                   mb={2}
                 >
-                  <MonitorSmartphone size={16} />
-                  <Text fontSize="sm" fontWeight="bold">Platform overrides</Text>
+                  <MonitorSmartphone size={24} />
+                  <Text fontSize="md" fontWeight="bold">Platform overrides</Text>
                   <ChevronDown size={16}
                     style={{
                       transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',

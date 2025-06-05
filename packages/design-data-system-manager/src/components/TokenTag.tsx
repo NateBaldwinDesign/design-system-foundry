@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, HStack, Text } from "@chakra-ui/react"
 import type { ResolvedValueType } from '@token-model/data-model';
+import { getValueTypeIcon } from '../utils/getValueTypeIcon';
 
 interface TokenTagProps {
     displayName: string;
@@ -15,6 +16,7 @@ const TokenTag: React.FC<TokenTagProps> = ({
     resolvedValueTypeId,
     resolvedValueTypes,
     value,
+    isPill = false,
     onClick
 }) => {
 
@@ -29,15 +31,24 @@ const TokenTag: React.FC<TokenTagProps> = ({
             onClick={onClick}
             width="100%"
             textAlign="left"
-            _hover={{ bg: 'gray.50' }}
-            _active={{ bg: 'gray.100' }}
-            borderRadius="md"
-            p={2}
+            _hover={{ bg: isPill ? 'gray.200' : 'transparent' }}
+            _active={{ bg: isPill ? 'gray.200' : 'transparent' }}
+            borderRadius={isPill ? 'md' : 'md'}
+            py={1}
+            px={2}
+            bg={isPill ? 'gray.100' : 'transparent'}
+            borderWidth={isPill ? '1px' : '0'}
+            borderColor="gray.200"
         >
             <HStack width="100%" justifyContent="space-between">
                 <HStack>
                     {valueType.type === 'COLOR' && (
                         <div style={{ display: 'flex', flexGrow: 0, flexShrink: 0, width: '16px', height: '16px', borderRadius: '4px', backgroundColor: String(value) }}></div>
+                    )}
+                    {valueType.type !== 'COLOR' && (
+                        <div style={{ display: 'flex', flexGrow: 0, flexShrink: 0, width: '16px', height: '16px' }}>
+                            {getValueTypeIcon(valueType.type, 16)}
+                        </div>
                     )}
                     <Text className="kode-mono">{displayName}</Text>
                 </HStack>
