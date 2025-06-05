@@ -61,15 +61,6 @@ export function TokensView({
       const value = modeValue.value;
       if (!value) return null;
 
-      // Debug logging for value structure
-      console.log('Token Value Debug:', {
-        tokenId: token.id,
-        tokenName: token.displayName,
-        resolvedValueTypeId: token.resolvedValueTypeId,
-        modeValue,
-        rawValue: value
-      });
-
       // Get the resolved value type for this token
       const valueType = resolvedValueTypes.find(vt => vt.id === token.resolvedValueTypeId);
       if (!valueType) {
@@ -124,11 +115,7 @@ export function TokensView({
         } else {
           displayValue = tokenId;
         }
-        console.log('Alias value resolved:', {
-          tokenId: token.id,
-          aliasTokenId: tokenId,
-          displayValue
-        });
+
       }
       // Handle direct values based on resolvedValueTypeId
       else if (typeof value === 'object' && value !== null && 'value' in value) {
@@ -137,12 +124,6 @@ export function TokensView({
           ? (value.value as { value: string | number }).value
           : value.value;
 
-        console.log('Direct value processing:', {
-          tokenId: token.id,
-          valueType: valueType.type,
-          rawValue,
-          rawValueType: typeof rawValue
-        });
         
         const formattedValue = formatValueForDisplay(rawValue, token.resolvedValueTypeId, resolvedValueTypes);
         

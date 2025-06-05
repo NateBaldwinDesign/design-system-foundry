@@ -1,48 +1,69 @@
 import { useState, useEffect } from 'react';
 import { useStorage } from './useStorage';
 import { exampleData } from '@token-model/data-model';
-
-export interface ExportConfiguration {
-  prefix: string;
-  delimiter: string;
-  capitalization: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
-}
-
-export interface Platform {
-  id: string;
-  displayName: string;
-  description?: string;
-  syntaxPatterns?: {
-    prefix?: string;
-    suffix?: string;
-    delimiter?: string;
-    capitalization?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
-    formatString?: string;
-  };
-  valueFormatters?: {
-    color?: 'hex' | 'rgb' | 'rgba' | 'hsl' | 'hsla';
-    dimension?: 'px' | 'rem' | 'em' | 'pt' | 'dp' | 'sp';
-    numberPrecision?: number;
-  };
-}
+import { StorageService } from '../services/storage';
+import { ValidationService } from '../services/validation';
+import { useToast } from '@chakra-ui/react';
+import type { TokenCollection, Dimension, Platform, Taxonomy, Theme, ResolvedValueType, FallbackStrategy } from '@token-model/data-model';
 
 export interface Schema {
   version: string;
-  metadata?: {
-    description?: string;
-    lastUpdated?: string;
-    maintainers?: string[];
-  };
-  platforms?: Platform[];
-  exportConfigurations?: Record<string, ExportConfiguration>;
-  // Add other schema properties as needed
+  description?: string;
+  systemName: string;
+  systemId: string;
+  tokenCollections: TokenCollection[];
+  dimensions: Dimension[];
+  platforms: Platform[];
+  taxonomies: Taxonomy[];
+  themes: Theme[];
+  namingRules: { taxonomyOrder: string[] };
+  resolvedValueTypes: ResolvedValueType[];
+  versionHistory: Array<{
+    version: string;
+    dimensions: string[];
+    date: string;
+  }>;
 }
 
 export const useSchema = () => {
   const { getItem, setItem } = useStorage();
-  const [schema, setSchema] = useState<any>(() => {
+  const toast = useToast();
+  const [schema, setSchema] = useState<Schema | null>(() => {
     const stored = getItem('schema');
-    if (stored) return JSON.parse(stored);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        // Ensure naming rules are included from storage
+        const namingRules = StorageService.getNamingRules();
+        const schemaWithNamingRules = { ...parsed, namingRules };
+        
+        // Validate schema before setting
+        const validationResult = ValidationService.validateData(schemaWithNamingRules);
+        if (validationResult.isValid) {
+          return schemaWithNamingRules;
+        } else {
+          console.error('Invalid schema in storage:', validationResult.errors);
+          toast({
+            title: 'Schema Error',
+            description: 'Invalid schema found in storage',
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          });
+          return null;
+        }
+      } catch (err) {
+        console.error('Failed to parse stored schema:', err);
+        toast({
+          title: 'Schema Error',
+          description: 'Failed to parse stored schema',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        return null;
+      }
+    }
     return null; // We'll load the default data asynchronously
   });
 
@@ -50,29 +71,112 @@ export const useSchema = () => {
     const loadDefaultSchema = async () => {
       if (!schema) {
         try {
-          const coreData = await exampleData.core();
-          setSchema(coreData.default);
+          const coreDataModule = await exampleData.core();
+          const coreData = coreDataModule.default;
+          const namingRules = StorageService.getNamingRules();
+          
+          // Process the data to ensure proper typing
+          const processedData = {
+            ...coreData,
+            namingRules,
+            tokenCollections: coreData.tokenCollections.map(collection => ({
+              ...collection,
+              modeResolutionStrategy: collection.modeResolutionStrategy ? {
+                ...collection.modeResolutionStrategy,
+                fallbackStrategy: collection.modeResolutionStrategy.fallbackStrategy as FallbackStrategy
+              } : undefined
+            })),
+            platforms: coreData.platforms.map(platform => ({
+              ...platform,
+              syntaxPatterns: platform.syntaxPatterns ? {
+                ...platform.syntaxPatterns,
+                delimiter: platform.syntaxPatterns.delimiter as '' | '_' | '-' | '.' | '/',
+                capitalization: platform.syntaxPatterns.capitalization as 'none' | 'uppercase' | 'lowercase' | 'capitalize'
+              } : undefined
+            })),
+            resolvedValueTypes: coreData.resolvedValueTypes.map(type => ({
+              ...type,
+              type: type.type as 'COLOR' | 'DIMENSION' | 'SPACING' | 'FONT_FAMILY' | 'FONT_WEIGHT' | 'FONT_SIZE' | 'LINE_HEIGHT' | 'LETTER_SPACING' | 'DURATION' | 'CUBIC_BEZIER' | 'BLUR' | 'SPREAD' | 'RADIUS' | undefined
+            })),
+            // Ensure taxonomies are properly loaded from core data
+            taxonomies: coreData.taxonomies || []
+          };
+          
+          // Debug log the processed data
+          console.debug('[useSchema] Processed data:', {
+            taxonomies: processedData.taxonomies,
+            namingRules: processedData.namingRules
+          });
+          
+          // Validate processed data before setting
+          const validationResult = ValidationService.validateData(processedData);
+          if (validationResult.isValid) {
+            setSchema(processedData);
+          } else {
+            throw new Error(`Invalid schema structure in default data: ${validationResult.errors?.join(', ')}`);
+          }
         } catch (err) {
           console.error('Failed to load default schema:', err);
+          toast({
+            title: 'Schema Error',
+            description: 'Failed to load default schema',
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          });
         }
       }
     };
     loadDefaultSchema();
-  }, [schema]);
+  }, [schema, toast]);
 
   useEffect(() => {
     if (schema) {
-      setItem('schema', JSON.stringify(schema));
+      try {
+        // Validate schema before saving
+        const validationResult = ValidationService.validateData(schema);
+        if (validationResult.isValid) {
+          setItem('schema', JSON.stringify(schema));
+        } else {
+          throw new Error(`Invalid schema structure: ${validationResult.errors?.join(', ')}`);
+        }
+      } catch (err) {
+        console.error('Failed to save schema:', err);
+        toast({
+          title: 'Schema Error',
+          description: 'Failed to save schema',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
     }
-  }, [schema, setItem]);
+  }, [schema, setItem, toast]);
 
-  // Debug: log platforms
+  // Debug: log schema state
   useEffect(() => {
-    console.log('Loaded platforms:', schema?.platforms);
-  }, [schema?.platforms]);
+    console.debug('[useSchema] Current schema:', schema);
+  }, [schema]);
 
   const updateSchema = (newSchema: Schema) => {
-    setSchema(newSchema);
+    try {
+      // Validate new schema before updating
+      const validationResult = ValidationService.validateData(newSchema);
+      if (validationResult.isValid) {
+        setSchema(newSchema);
+      } else {
+        throw new Error(`Invalid schema structure: ${validationResult.errors?.join(', ')}`);
+      }
+    } catch (err) {
+      console.error('Failed to update schema:', err);
+      toast({
+        title: 'Schema Error',
+        description: 'Failed to update schema',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
   };
 
   return { schema, updateSchema };

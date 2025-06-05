@@ -5,6 +5,8 @@ type ValueType = ResolvedValueType;
 
 const DEFAULT_VALUE_TYPES = generateDefaultValueTypes();
 
+console.debug('[StorageService] Initialized default value types:', DEFAULT_VALUE_TYPES);
+
 const STORAGE_KEYS = {
   TOKENS: 'token-model:tokens',
   COLLECTIONS: 'token-model:collections',
@@ -57,10 +59,13 @@ export class StorageService {
   }
 
   static getValueTypes(): ValueType[] {
-    return this.getItem(STORAGE_KEYS.VALUE_TYPES, DEFAULT_VALUE_TYPES);
+    const valueTypes = this.getItem(STORAGE_KEYS.VALUE_TYPES, DEFAULT_VALUE_TYPES);
+    console.debug('[StorageService] Retrieved value types:', valueTypes);
+    return valueTypes;
   }
 
   static setValueTypes(valueTypes: ValueType[]): void {
+    console.debug('[StorageService] Setting value types:', valueTypes);
     localStorage.setItem(STORAGE_KEYS.VALUE_TYPES, JSON.stringify(valueTypes));
   }
 

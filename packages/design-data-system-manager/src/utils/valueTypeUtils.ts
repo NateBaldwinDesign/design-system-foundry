@@ -9,7 +9,9 @@ export function getValueTypeFromId(
   resolvedValueTypeId: string,
   resolvedValueTypes: ResolvedValueType[]
 ): string | undefined {
+  console.debug('[getValueTypeFromId] Input:', { resolvedValueTypeId, availableTypes: resolvedValueTypes.map(vt => ({ id: vt.id, type: vt.type })) });
   const valueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
+  console.debug('[getValueTypeFromId] Found value type:', valueType);
   return valueType?.type;
 }
 
@@ -20,7 +22,9 @@ export function getValueTypeIdFromType(
   type: string,
   resolvedValueTypes: ResolvedValueType[]
 ): string | undefined {
+  console.debug('[getValueTypeIdFromType] Input:', { type, availableTypes: resolvedValueTypes.map(vt => ({ id: vt.id, type: vt.type })) });
   const valueType = resolvedValueTypes.find(vt => vt.type === type);
+  console.debug('[getValueTypeIdFromType] Found value type:', valueType);
   return valueType?.id;
 }
 
@@ -31,15 +35,30 @@ export function getDefaultValueForType(
   resolvedValueTypeId: string,
   resolvedValueTypes: ResolvedValueType[]
 ): TokenValue {
+  console.debug('[getDefaultValueForType] Input:', { 
+    resolvedValueTypeId, 
+    availableTypes: resolvedValueTypes.map(vt => ({ id: vt.id, type: vt.type }))
+  });
+
   const valueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
+  console.debug('[getDefaultValueForType] Found value type:', valueType);
+
   if (!valueType) {
+    console.error('[getDefaultValueForType] Error: Unknown value type', { 
+      requestedId: resolvedValueTypeId,
+      availableIds: resolvedValueTypes.map(vt => vt.id)
+    });
     throw new Error(`Unknown value type: ${resolvedValueTypeId}`);
   }
 
   // Use type for determining default value
+  console.debug('[getDefaultValueForType] Determining default value for type:', valueType.type);
+  let defaultValue: TokenValue;
+
   switch (valueType.type) {
     case 'COLOR':
-      return { value: '#000000' };
+      defaultValue = { value: '#000000' };
+      break;
     case 'DIMENSION':
     case 'SPACING':
     case 'FONT_SIZE':
@@ -48,22 +67,31 @@ export function getDefaultValueForType(
     case 'BLUR':
     case 'SPREAD':
     case 'RADIUS':
-      return { value: 0 };
+      defaultValue = { value: 0 };
+      break;
     case 'FONT_WEIGHT':
-      return { value: 400 };
+      defaultValue = { value: 400 };
+      break;
     case 'FONT_FAMILY':
-      return { value: 'system-ui' };
+      defaultValue = { value: 'system-ui' };
+      break;
     case 'DURATION':
-      return { value: 0 };
+      defaultValue = { value: 0 };
+      break;
     case 'CUBIC_BEZIER':
-      return { value: 'cubic-bezier(0.4, 0, 0.2, 1)' };
+      defaultValue = { value: 'cubic-bezier(0.4, 0, 0.2, 1)' };
+      break;
     default:
       // For custom types or when type is not specified, use a sensible default based on the type
       if (valueType.type === 'LINE_HEIGHT') {
-        return { value: 1.5 }; // Default line height is 1.5 (unitless)
+        defaultValue = { value: 1.5 }; // Default line height is 1.5 (unitless)
+      } else {
+        defaultValue = { value: '' };
       }
-      return { value: '' };
   }
+
+  console.debug('[getDefaultValueForType] Generated default value:', defaultValue);
+  return defaultValue;
 }
 
 /**

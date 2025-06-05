@@ -61,6 +61,7 @@ import { createUniqueId } from '../utils/id';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
 import { getDefaultValueForType, getValueTypeFromId } from '../utils/valueTypeUtils';
+import type { Schema } from '../hooks/useSchema';
 
 // ExtendedToken type to include platformOverrides
 export interface ValueByMode {
@@ -79,7 +80,8 @@ export type ExtendedToken = Omit<Token, 'valuesByMode'> & {
 
 // Helper function to get a default token value based on schema
 function getDefaultTokenValue(resolvedValueTypeId: string, schema: { resolvedValueTypes: ResolvedValueType[] }): TokenValue {
-  return getDefaultValueForType(resolvedValueTypeId, schema.resolvedValueTypes);
+  const defaultValue = getDefaultValueForType(resolvedValueTypeId, schema.resolvedValueTypes);
+  return { value: defaultValue };
 }
 
 interface Taxonomy {
@@ -103,6 +105,7 @@ export interface TokenEditorDialogProps {
   resolvedValueTypes: ResolvedValueType[];
   isNew?: boolean;
   onViewClassifications?: () => void;
+  schema: Schema | null;
 }
 
 // Helper function to filter taxonomies by value type
@@ -218,10 +221,12 @@ export function TokenEditorDialog({
     taxonomies, 
     resolvedValueTypes, 
     isNew = false, 
-    onViewClassifications 
+    onViewClassifications,
+    schema
   }: TokenEditorDialogProps) {
+  console.debug('[TokenEditorDialog] Received resolvedValueTypes:', resolvedValueTypes);
+
   const { colorMode } = useColorMode();
-  const { schema } = useSchema();
   
   // Initialize internal state from parent state when dialog opens
   const [editedToken, setEditedToken] = useState<ExtendedToken>(() => {
@@ -232,7 +237,7 @@ export function TokenEditorDialog({
         themeable: token.themeable ?? false,
         valuesByMode: [{
           modeIds: [],
-          value: getDefaultTokenValue(token.resolvedValueTypeId, schema)
+          value: getDefaultTokenValue(token.resolvedValueTypeId, { resolvedValueTypes })
         }]
       };
     }
@@ -269,7 +274,7 @@ export function TokenEditorDialog({
 
   // Reset internal state when dialog opens with new token
   useEffect(() => {
-    if (open) {
+    if (open && schema) {
       const { valuesByMode, ...rest } = token;
       const newToken = {
         ...rest,
@@ -285,7 +290,11 @@ export function TokenEditorDialog({
       setActiveDimensionIds(dimensions.filter(d => d.required).map(d => d.id));
 
       // Generate code syntax on dialog open
-      const codeSyntaxSchema = { platforms, taxonomies, namingRules: schema.namingRules };
+      const codeSyntaxSchema = { 
+        platforms, 
+        taxonomies, 
+        namingRules: schema?.namingRules || { taxonomyOrder: [] }
+      };
       const updatedToken = {
         ...newToken,
         taxonomies: Array.isArray(token.taxonomies) ? token.taxonomies : [],
@@ -300,7 +309,7 @@ export function TokenEditorDialog({
       };
       setEditedToken(updatedToken);
     }
-  }, [token, open, dimensions, platforms, taxonomies, schema.namingRules]);
+  }, [token, open, dimensions, platforms, taxonomies, schema?.namingRules]);
 
   // Initialize active dimensions from current valuesByMode
   useEffect(() => {
@@ -575,39 +584,36 @@ export function TokenEditorDialog({
     e.preventDefault();
     
     // Compose schema for codeSyntax generation
-    const codeSyntaxSchema = { platforms, taxonomies, namingRules: schema.namingRules };
+    const codeSyntaxSchema = { 
+      platforms, 
+      taxonomies, 
+      namingRules: schema?.namingRules || { taxonomyOrder: [] } 
+    };
     
     const updatedToken = {
       ...editedToken,
       taxonomies: taxonomyEdits,
       codeSyntax: CodeSyntaxService.generateAllCodeSyntaxes(
-        {
-          ...editedToken,
-          taxonomies: taxonomyEdits,
-          valuesByMode: editedToken.valuesByMode
-        },
+        editedToken,
         codeSyntaxSchema
       )
     };
-    
-    // Validate against schema
-    try {
-      const validatedToken = validateToken(updatedToken);
-      onSave(validatedToken);
-      onClose();
-    } catch (error) {
-      console.error('Token validation failed:', error);
-      return;
-    }
+
+    onSave(updatedToken);
+    onClose();
   };
 
   function handleTaxonomyChange(newTaxonomies: TokenTaxonomyRef[]) {
     setTaxonomyEdits(newTaxonomies);
-    const codeSyntaxSchema = { platforms, taxonomies, namingRules: schema.namingRules };
+    const codeSyntaxSchema = { 
+      platforms, 
+      taxonomies, 
+      namingRules: schema?.namingRules || { taxonomyOrder: [] } 
+    };
     setEditedToken((prev: ExtendedToken) => ({
       ...prev,
       codeSyntax: CodeSyntaxService.generateAllCodeSyntaxes(
-        { ...prev, taxonomies: newTaxonomies },
+        prev,
         codeSyntaxSchema
       )
     }));
