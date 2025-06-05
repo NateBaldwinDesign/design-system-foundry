@@ -36,7 +36,23 @@ import {
   TabPanel,
   TabPanels
 } from '@chakra-ui/react';
-import { Trash2, ChevronDown } from 'lucide-react';
+import { 
+  Trash2, 
+  ChevronDown, 
+  MonitorSmartphone, 
+  Tags, 
+  Palette, 
+  Ruler, 
+  PencilRuler,
+  Type,
+  Timer,
+  Circle,
+  Expand,
+  Minus,
+  Plus,
+  MoveHorizontal,
+  MoveVertical
+} from 'lucide-react';
 import { ValueByModeTable } from './ValueByModeTable';
 import { TokenValuePicker } from './TokenValuePicker';
 import { TaxonomyPicker } from './TaxonomyPicker';
@@ -294,8 +310,24 @@ export function TokenEditorDialog({
       originalTokenRef.current = newToken;
       setTaxonomyEdits(Array.isArray(token.taxonomies) ? token.taxonomies : []);
       setActiveDimensionIds(dimensions.filter(d => d.required).map(d => d.id));
+
+      // Generate code syntax on dialog open
+      const codeSyntaxSchema = { platforms, taxonomies, namingRules: schema.namingRules };
+      const updatedToken = {
+        ...newToken,
+        taxonomies: Array.isArray(token.taxonomies) ? token.taxonomies : [],
+        codeSyntax: CodeSyntaxService.generateAllCodeSyntaxes(
+          {
+            ...newToken,
+            taxonomies: Array.isArray(token.taxonomies) ? token.taxonomies : [],
+            valuesByMode: newToken.valuesByMode
+          },
+          codeSyntaxSchema
+        )
+      };
+      setEditedToken(updatedToken);
     }
-  }, [token, open, dimensions]);
+  }, [token, open, dimensions, platforms, taxonomies, schema.namingRules]);
 
   // Initialize active dimensions from current valuesByMode
   useEffect(() => {
@@ -638,6 +670,42 @@ export function TokenEditorDialog({
 
   const { isOpen, onToggle } = useDisclosure();
 
+  // Get the current resolved value type
+  const currentValueType = resolvedValueTypes.find(vt => vt.id === editedToken.resolvedValueTypeId);
+  
+  // Determine which icon to show based on the resolved value type
+  const valuesIcon = currentValueType ? (
+    currentValueType.type === 'COLOR' ? (
+      <Palette size={24} />
+    ) : currentValueType.type === 'DIMENSION' ? (
+      <Ruler size={24} />
+    ) : currentValueType.type === 'SPACING' ? (
+      <Expand size={24} />
+    ) : currentValueType.type === 'FONT_FAMILY' ? (
+      <Type size={24} />
+    ) : currentValueType.type === 'FONT_WEIGHT' ? (
+      <Type size={24} />
+    ) : currentValueType.type === 'FONT_SIZE' ? (
+      <Type size={24} />
+    ) : currentValueType.type === 'LINE_HEIGHT' ? (
+      <MoveVertical size={24} />
+    ) : currentValueType.type === 'LETTER_SPACING' ? (
+      <MoveHorizontal size={24} />
+    ) : currentValueType.type === 'DURATION' ? (
+      <Timer size={24} />
+    ) : currentValueType.type === 'CUBIC_BEZIER' ? (
+      <Circle size={24} />
+    ) : currentValueType.type === 'BLUR' ? (
+      <Minus size={24} />
+    ) : currentValueType.type === 'SPREAD' ? (
+      <Plus size={24} />
+    ) : currentValueType.type === 'RADIUS' ? (
+      <Circle size={24} />
+    ) : (
+      <PencilRuler size={24} />
+    )
+  ) : null;
+
   return (
     <Modal isOpen={open} onClose={onClose} isCentered size="xl">
       <ModalOverlay />
@@ -728,7 +796,10 @@ export function TokenEditorDialog({
             </Box>
 
             {/* Classification */}
-            <Text fontSize="lg" fontWeight="bold" mb={2}>Classification</Text>
+            <HStack gap={2} align="center" mt={3}>
+              <Tags size={24} />
+              <Text fontSize="lg" fontWeight="bold">Classification</Text>
+            </HStack>
             <Box
               p={3}
               borderWidth={1}
@@ -800,7 +871,10 @@ export function TokenEditorDialog({
             </Box>
 
             {/* Values */}
-            <Text fontSize="lg" fontWeight="bold" mb={2}>Values</Text>
+            <HStack gap={2} align="center" mt={3}>
+              {valuesIcon}
+              <Text fontSize="lg" fontWeight="bold">Values</Text>
+            </HStack>
             <Box
               p={3}
               borderWidth={1}
@@ -911,6 +985,7 @@ export function TokenEditorDialog({
                   justifyContent="space-between"
                   mb={2}
                 >
+                  <MonitorSmartphone size={16} />
                   <Text fontSize="sm" fontWeight="bold">Platform overrides</Text>
                   <ChevronDown size={16}
                     style={{
