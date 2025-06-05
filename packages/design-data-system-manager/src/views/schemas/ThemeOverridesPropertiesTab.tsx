@@ -61,7 +61,6 @@ export const ThemeOverridesPropertiesTab: React.FC = () => {
             {
               tokenId: "token-accent-color",
               value: {
-                type: "COLOR",
                 value: "#FF6F61"
               }
             }
@@ -85,7 +84,6 @@ export const ThemeOverridesPropertiesTab: React.FC = () => {
             {
               platformId: "platform-web",
               value: {
-                type: "COLOR",
                 value: "#FF6F61"
               }
             }
