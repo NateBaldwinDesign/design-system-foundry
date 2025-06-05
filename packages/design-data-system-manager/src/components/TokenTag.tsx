@@ -27,12 +27,9 @@ const TokenTag: React.FC<TokenTagProps> = ({
 
     return (
         <Box
-            as="button"
             onClick={onClick}
             width="100%"
             textAlign="left"
-            _hover={{ bg: isPill ? 'gray.200' : 'transparent' }}
-            _active={{ bg: isPill ? 'gray.200' : 'transparent' }}
             borderRadius={isPill ? 'md' : 'md'}
             py={1}
             px={2}

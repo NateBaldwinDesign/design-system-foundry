@@ -74,6 +74,14 @@ const App = () => {
   const [selectedToken, setSelectedToken] = useState<ExtendedToken | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
+  // Add effect to reload collections from storage when they change
+  useEffect(() => {
+    const storedCollections = StorageService.getCollections();
+    if (JSON.stringify(storedCollections) !== JSON.stringify(collections)) {
+      setCollections(storedCollections);
+    }
+  }, [collections]);
+
   useEffect(() => {
     setDataOptions(getDataSourceOptions());
   }, []);
