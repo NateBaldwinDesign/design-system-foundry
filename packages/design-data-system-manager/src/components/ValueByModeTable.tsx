@@ -38,7 +38,7 @@ interface ValueByModeTableProps {
   valuesByMode: ValueByMode[];
   modes: Mode[];
   dimensions: Dimension[];
-  getValueEditor: (value: TokenValue | string, modeIndex: number, modeIds: string[], isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode;
+  getValueEditor: (value: TokenValue | string, modeIds: string[], isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode;
   onDeleteValue: (modeIds: string[]) => void;
   resolvedValueTypeId: string;
   resolvedValueTypes: ResolvedValueType[];
@@ -135,7 +135,7 @@ function NestedModeTable({
   rowDimensions: Dimension[];
   modes: Mode[];
   valueMap: Map<string, ValueByMode>;
-  getValueEditor: (value: TokenValue | string, modeIndex: number, modeIds: string[], isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode;
+  getValueEditor: (value: TokenValue | string, modeIds: string[], isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => React.ReactNode;
   onDeleteValue: (modeIds: string[]) => void;
   resolvedValueTypeId: string;
   resolvedValueTypes: ResolvedValueType[];
@@ -171,49 +171,54 @@ function NestedModeTable({
                       {getModeName(primaryMode.id, modes)}
                     </Td>
                   )}
-                  {columnCombinations.map((colCombo, colIdx) => (
-                    <Td key={colIdx}>
-                      <Table size="sm" variant="simple">
-                        <Tbody>
-                          {secondaryCombo.map((modeId, modeIdx) => {
-                            const allModeIds = [primaryMode.id, ...secondaryCombo, ...colCombo].sort();
-                            const key = allModeIds.join(',');
-                            const value = valueMap.get(key);
-                            return (
-                              <Tr key={modeIdx}>
-                                <Td>{getModeName(modeId, modes)}</Td>
-                                <Td>
-                                  <Box display="flex" alignItems="center" gap={2}>
-                                    {value ? (
-                                      getValueEditor(value.value, secondaryIdx * columnCombinations.length + colIdx, allModeIds)
-                                    ) : (
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => onAddValue(allModeIds, getDefaultTokenValue(resolvedValueTypeId, resolvedValueTypes))}
-                                      >
-                                        Add value
-                                      </Button>
-                                    )}
-                                    {value && (
-                                      <IconButton
-                                        aria-label="Remove value"
-                                        icon={<Trash2 size={16} />}
-                                        size="sm"
-                                        variant="ghost"
-                                        colorScheme="red"
-                                        onClick={() => onDeleteValue(allModeIds)}
-                                      />
-                                    )}
-                                  </Box>
-                                </Td>
-                              </Tr>
-                            );
-                          })}
-                        </Tbody>
-                      </Table>
-                    </Td>
-                  ))}
+                  {columnCombinations.map((colCombo, colIdx) => {
+                    const allModeIds = [primaryMode.id, ...secondaryCombo, ...colCombo].sort();
+                    const key = allModeIds.join(',');
+                    const value = valueMap.get(key);
+                    return (
+                      <Td key={colIdx}>
+                        <Table size="sm" variant="simple">
+                          <Tbody>
+                            {secondaryCombo.map((modeId, modeIdx) => {
+                              const allModeIds = [primaryMode.id, ...secondaryCombo, ...colCombo].sort();
+                              const key = allModeIds.join(',');
+                              const value = valueMap.get(key);
+                              return (
+                                <Tr key={modeIdx}>
+                                  <Td>{getModeName(modeId, modes)}</Td>
+                                  <Td>
+                                    <Box display="flex" alignItems="center" gap={2}>
+                                      {value ? (
+                                        getValueEditor(value.value, allModeIds)
+                                      ) : (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => onAddValue(allModeIds, getDefaultTokenValue(resolvedValueTypeId, resolvedValueTypes))}
+                                        >
+                                          Add value
+                                        </Button>
+                                      )}
+                                      {value && (
+                                        <IconButton
+                                          aria-label="Remove value"
+                                          icon={<Trash2 size={16} />}
+                                          size="sm"
+                                          variant="ghost"
+                                          colorScheme="red"
+                                          onClick={() => onDeleteValue(allModeIds)}
+                                        />
+                                      )}
+                                    </Box>
+                                  </Td>
+                                </Tr>
+                              );
+                            })}
+                          </Tbody>
+                        </Table>
+                      </Td>
+                    );
+                  })}
                 </Tr>
               ))}
             </React.Fragment>
@@ -266,7 +271,7 @@ function NestedModeTable({
                             <Td key={idx}>
                               <Box display="flex" alignItems="center" gap={2}>
                                 {value ? (
-                                  getValueEditor(value.value, rowIdx * columnCombinations.length + idx, allModeIds)
+                                  getValueEditor(value.value, allModeIds)
                                 ) : (
                                   <Button
                                     size="sm"
@@ -333,7 +338,7 @@ function NestedModeTable({
                 <Td key={colIdx}>
                   <Box display="flex" alignItems="center" gap={2}>
                     {value ? (
-                      getValueEditor(value.value, rowIdx * columnCombinations.length + colIdx, allModeIds)
+                      getValueEditor(value.value, allModeIds)
                     ) : (
                       <Button
                         size="sm"

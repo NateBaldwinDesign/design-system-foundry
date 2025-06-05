@@ -27,11 +27,17 @@ import {
   Tbody,
   Td,
   Alert,
-  AlertIcon
+  AlertIcon,
+  Collapse,
+  useDisclosure,
+  Tab,
+  TabList,
+  Tabs,
+  TabPanel,
+  TabPanels
 } from '@chakra-ui/react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ChevronDown } from 'lucide-react';
 import { ValueByModeTable } from './ValueByModeTable';
-import { PlatformOverridesTable } from './PlatformOverridesTable';
 import { TokenValuePicker } from './TokenValuePicker';
 import { TaxonomyPicker } from './TaxonomyPicker';
 import { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef, ResolvedValueType, TokenValue, validateToken } from '@token-model/data-model';
@@ -110,14 +116,6 @@ export interface TokenEditorDialogProps {
   onViewClassifications?: () => void;
 }
 
-// Helper: get all mode combinations for selected dimensions
-function cartesianProduct(arrays: string[][]): string[][] {
-  return arrays.reduce<string[][]>(
-    (a, b) => a.flatMap(d => b.map(e => [...d, e])),
-    [[]]
-  );
-}
-
 // Helper function to filter taxonomies by value type
 function filterTaxonomiesByValueType(taxonomies: Taxonomy[], resolvedValueTypeId: string): Taxonomy[] {
   return taxonomies.filter(taxonomy => 
@@ -126,6 +124,98 @@ function filterTaxonomiesByValueType(taxonomies: Taxonomy[], resolvedValueTypeId
   );
 }
 
+// Helper function to transform platform overrides into ValueByModeTable format
+function getPlatformOverridesForTable(
+  valuesByMode: ValueByMode[],
+  platformId: string,
+  modes: Mode[],
+  dimensions: Dimension[],
+  resolvedValueTypeId: string,
+  resolvedValueTypes: ResolvedValueType[]
+): ValueByMode[] {
+  console.log('getPlatformOverridesForTable input:', {
+    valuesByMode: valuesByMode.map(vbm => ({
+      modeIds: vbm.modeIds,
+      hasOverrides: !!vbm.platformOverrides,
+      overrideCount: vbm.platformOverrides?.length || 0,
+      overridePlatforms: vbm.platformOverrides?.map(po => po.platformId) || []
+    })),
+    platformId,
+    resolvedValueTypeId
+  });
+
+  // First, get all mode combinations that have overrides for this platform
+  const modeCombinationsWithOverrides = valuesByMode.filter(vbm => {
+    const hasOverride = vbm.platformOverrides?.some(po => po.platformId === platformId);
+    console.log('Checking modeIds:', vbm.modeIds, 'hasOverride:', hasOverride);
+    return hasOverride;
+  });
+
+  console.log('Mode combinations with overrides:', modeCombinationsWithOverrides.map(vbm => ({
+    modeIds: vbm.modeIds,
+    overrides: vbm.platformOverrides
+  })));
+
+  // If no overrides exist, return an empty array
+  if (modeCombinationsWithOverrides.length === 0) {
+    console.log('No overrides found for platform:', platformId);
+    return [];
+  }
+
+  // Transform each mode combination into a ValueByMode entry
+  const transformedOverrides = modeCombinationsWithOverrides.map(vbm => {
+    const override = vbm.platformOverrides?.find(po => po.platformId === platformId);
+    console.log('Processing override:', { 
+      modeIds: vbm.modeIds,
+      override,
+      allOverrides: vbm.platformOverrides
+    });
+
+    if (!override) {
+      console.log('No override found for modeIds:', vbm.modeIds);
+      return {
+        modeIds: vbm.modeIds,
+        value: getDefaultTokenValue(resolvedValueTypeId, { resolvedValueTypes })
+      };
+    }
+
+    // Parse the override value based on the value type
+    let parsedValue: TokenValue;
+    try {
+      // For color values, they might be stored directly as strings
+      if (resolvedValueTypeId === 'color') {
+        parsedValue = { value: override.value };
+      } else {
+        // For other types, try to parse as JSON
+        parsedValue = JSON.parse(override.value);
+      }
+    } catch (e) {
+      console.warn('Failed to parse override value:', override.value, e);
+      // If parsing fails, use the raw string value
+      parsedValue = { value: override.value };
+    }
+
+    const result = {
+      modeIds: vbm.modeIds,
+      value: parsedValue
+    };
+    console.log('Transformed override:', result);
+    return result;
+  });
+
+  console.log('Final transformed overrides:', transformedOverrides);
+  return transformedOverrides;
+}
+
+// Add type for preserved values
+type PreservedValue = {
+  modeIds: string[];
+  value: TokenValue;
+  platformOverrides?: { platformId: string; value: string }[];
+};
+
+// Add type for the preserved values ref
+type PreservedValuesRef = Record<string, Record<string, PreservedValue>>;
 
 export function TokenEditorDialog({ 
     token, 
@@ -157,9 +247,14 @@ export function TokenEditorDialog({
         }]
       };
     }
+    const { valuesByMode, ...rest } = token;
     return {
-      ...token,
-      themeable: token.themeable ?? false
+      ...rest,
+      themeable: token.themeable ?? false,
+      valuesByMode: valuesByMode.map(vbm => ({
+        ...vbm,
+        platformOverrides: vbm.platformOverrides ? [...vbm.platformOverrides] : []
+      }))
     };
   });
 
@@ -170,7 +265,8 @@ export function TokenEditorDialog({
 
   // Track which dimensions are active for this token
   const [activeDimensionIds, setActiveDimensionIds] = useState<string[]>([]);
-  const preservedValuesByRemovedDimension = useRef<Record<string, Record<string, TokenValue>>>({});
+  const preservedValuesByRemovedDimension = useRef<PreservedValuesRef>({});
+  const originalTokenRef = useRef<ExtendedToken | null>(null);
 
   // Add state for filtered taxonomies
   const [filteredTaxonomies, setFilteredTaxonomies] = useState<Taxonomy[]>(() => 
@@ -185,10 +281,17 @@ export function TokenEditorDialog({
   // Reset internal state when dialog opens with new token
   useEffect(() => {
     if (open) {
-      setEditedToken({
-        ...token,
-        themeable: token.themeable ?? false
-      });
+      const { valuesByMode, ...rest } = token;
+      const newToken = {
+        ...rest,
+        themeable: token.themeable ?? false,
+        valuesByMode: valuesByMode.map(vbm => ({
+          ...vbm,
+          platformOverrides: vbm.platformOverrides ? [...vbm.platformOverrides] : []
+        }))
+      };
+      setEditedToken(newToken);
+      originalTokenRef.current = newToken;
       setTaxonomyEdits(Array.isArray(token.taxonomies) ? token.taxonomies : []);
       setActiveDimensionIds(dimensions.filter(d => d.required).map(d => d.id));
     }
@@ -207,39 +310,6 @@ export function TokenEditorDialog({
     }
   }, [token, open, dimensions]);
 
-  // When dimensions or their modes change, update valuesByMode to reflect new/removed modes
-  useEffect(() => {
-    if (!open || activeDimensionIds.length === 0) return;
-    
-    const activeDims = dimensions.filter(d => activeDimensionIds.includes(d.id));
-    const modeArrays = activeDims.map(d => d.modes.map((m: Mode) => m.id));
-    const combos = modeArrays.length > 0 ? cartesianProduct(modeArrays) : [[]];
-    
-    setEditedToken((prev: ExtendedToken) => {
-      const prevMap = new Map(prev.valuesByMode.map((vbm: ValueByMode) => [vbm.modeIds.slice().sort().join(','), vbm.value]));
-      const newValuesByMode = combos.map((modeIds: string[]) => {
-        const key = modeIds.slice().sort().join(',');
-        if (prevMap.has(key)) {
-          const val = prevMap.get(key);
-          return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
-        }
-        for (let i = 0; i < modeIds.length; i++) {
-          const parentIds = modeIds.slice(0, i).concat(modeIds.slice(i + 1));
-          const parentKey = parentIds.slice().sort().join(',');
-          if (prevMap.has(parentKey)) {
-            const val = prevMap.get(parentKey);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
-          }
-        }
-        return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
-      });
-      return {
-        ...prev,
-        valuesByMode: newValuesByMode
-      };
-    });
-  }, [dimensions, activeDimensionIds, open, schema]);
-
   // Add or remove a dimension from the token
   const handleToggleDimension = (dimensionId: string) => {
     const isActive = activeDimensionIds.includes(dimensionId);
@@ -251,40 +321,50 @@ export function TokenEditorDialog({
       
       newActiveDims = activeDimensionIds.filter((id: string) => id !== dimensionId);
       const defaultModeId = dim.defaultMode;
-      const remainingDims = dimensions.filter(d => newActiveDims.includes(d.id));
-      const modeArrays = remainingDims.map(d => d.modes.map((m: Mode) => m.id));
-      const combos = modeArrays.length > 0 ? cartesianProduct(modeArrays) : [[]];
       
       setEditedToken((prev: ExtendedToken) => {
-        // Preserve all values that include the removed dimension
-        const removedMap: Record<string, TokenValue> = {};
-        prev.valuesByMode.forEach((vbm: ValueByMode) => {
+        // Store the original values from localStorage for this dimension
+        const originalValues = prev.valuesByMode.reduce((acc, vbm) => {
+          // Store ALL values that include any mode from this dimension
           if (vbm.modeIds.includes(defaultModeId) || dim.modes.some((mode: Mode) => vbm.modeIds.includes(mode.id))) {
             const key = vbm.modeIds.slice().sort().join(',');
-            removedMap[key] = vbm.value;
+            acc[key] = {
+              modeIds: vbm.modeIds,
+              value: vbm.value,
+              platformOverrides: vbm.platformOverrides ? [...vbm.platformOverrides] : undefined
+            };
           }
-        });
-        preservedValuesByRemovedDimension.current[dimensionId] = removedMap;
-        
-        const prevMap = new Map(prev.valuesByMode.map((vbm: ValueByMode) => [vbm.modeIds.slice().sort().join(','), vbm.value]));
-        const newValuesByMode = combos.map((modeIds: string[]) => {
-          const key = modeIds.slice().sort().join(',');
-          if (prevMap.has(key)) {
-            const val = prevMap.get(key);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
+          return acc;
+        }, {} as Record<string, PreservedValue>);
+
+        // Store these original values for potential restoration
+        preservedValuesByRemovedDimension.current[dimensionId] = originalValues;
+
+        // For each value that includes the removed dimension's modes,
+        // create a new value without those modes
+        const newValuesByMode = prev.valuesByMode.flatMap(vbm => {
+          // If this value doesn't include any modes from the removed dimension,
+          // keep it as is
+          if (!vbm.modeIds.includes(defaultModeId) && 
+              !dim.modes.some((mode: Mode) => vbm.modeIds.includes(mode.id))) {
+            return [vbm];
           }
-          // Find all previous combos that are a superset of modeIds
-          const candidates = prev.valuesByMode.filter((vbm: ValueByMode) =>
-            vbm.modeIds.length === modeIds.length + 1 &&
-            modeIds.every((id: string) => vbm.modeIds.includes(id))
+
+          // If this value does include modes from the removed dimension,
+          // create a new value without those modes
+          const remainingModeIds = vbm.modeIds.filter(modeId => 
+            modeId !== defaultModeId && 
+            !dim.modes.some((mode: Mode) => mode.id === modeId)
           );
-          let found = candidates.find((vbm: ValueByMode) => vbm.modeIds.includes(defaultModeId));
-          if (!found && candidates.length > 0) found = candidates[0];
-          if (found) {
-            return { modeIds, value: found.value };
-          }
-          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
+
+          // Only create the new value if there are remaining modes
+          return remainingModeIds.length > 0 ? [{
+            modeIds: remainingModeIds,
+            value: vbm.value,
+            platformOverrides: vbm.platformOverrides
+          }] : [];
         });
+
         return {
           ...prev,
           valuesByMode: newValuesByMode
@@ -295,38 +375,102 @@ export function TokenEditorDialog({
       if (!dim) return;
       
       newActiveDims = [...activeDimensionIds, dimensionId];
-      const activeDims = dimensions.filter(d => newActiveDims.includes(d.id));
-      const modeArrays = activeDims.map(d => d.modes.map((m: Mode) => m.id));
-      const combos = cartesianProduct(modeArrays);
+      const defaultModeId = dim.defaultMode;
       
       setEditedToken((prev: ExtendedToken) => {
-        const prevMap = new Map(prev.valuesByMode.map((vbm: ValueByMode) => [vbm.modeIds.slice().sort().join(','), vbm.value]));
-        // Try to restore from preserved values if available
-        const preserved = preservedValuesByRemovedDimension.current[dimensionId] || {};
-        const newValuesByMode = combos.map(modeIds => {
-          const key = modeIds.slice().sort().join(',');
-          if (prevMap.has(key)) {
-            const val = prevMap.get(key);
-            return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
-          }
-          // Try to restore from preserved
-          if (preserved[key]) {
-            return { modeIds, value: preserved[key] };
-          }
-          // Try to find a parent combo
-          for (let i = 0; i < modeIds.length; i++) {
-            const parentIds = modeIds.slice(0, i).concat(modeIds.slice(i + 1));
-            const parentKey = parentIds.slice().sort().join(',');
-            if (prevMap.has(parentKey)) {
-              const val = prevMap.get(parentKey);
-              return { modeIds, value: val !== undefined ? val : getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
+        // First, restore any preserved values for this dimension
+        const preservedValues = preservedValuesByRemovedDimension.current[dimensionId] || {};
+        
+        // Create new combinations with the default mode
+        const newCombinations = prev.valuesByMode.flatMap(vbm => {
+          const combinations = [];
+          
+          // Check if we have a preserved value for this combination
+          const preservedKey = [...vbm.modeIds, defaultModeId].sort().join(',');
+          const preservedValue = preservedValues[preservedKey];
+          
+          if (preservedValue) {
+            // If we have a preserved value, use it
+            combinations.push({
+              modeIds: [...vbm.modeIds, defaultModeId].sort(),
+              value: preservedValue.value,
+              platformOverrides: preservedValue.platformOverrides
+            });
+          } else {
+            // Check if we have an original value from the initial token
+            const originalValue = originalTokenRef.current?.valuesByMode.find(ovbm => 
+              ovbm.modeIds.slice().sort().join(',') === [...vbm.modeIds, defaultModeId].sort().join(',')
+            );
+            
+            if (originalValue) {
+              // If we have an original value, use it
+              combinations.push({
+                modeIds: [...vbm.modeIds, defaultModeId].sort(),
+                value: originalValue.value,
+                platformOverrides: originalValue.platformOverrides
+              });
+            } else {
+              // Otherwise, use the current value
+              combinations.push({
+                modeIds: [...vbm.modeIds, defaultModeId].sort(),
+                value: vbm.value,
+                platformOverrides: vbm.platformOverrides
+              });
             }
           }
-          return { modeIds, value: getDefaultTokenValue(prev.resolvedValueTypeId, schema) };
+          
+          // Find parent combinations and create new ones with the default mode
+          const parentCombinations = vbm.modeIds.map((_, index) => {
+            const parentModeIds = vbm.modeIds.filter((_, i) => i !== index);
+            const preservedKey = [...parentModeIds, defaultModeId].sort().join(',');
+            const preservedValue = preservedValues[preservedKey];
+            
+            if (preservedValue) {
+              // If we have a preserved value, use it
+              return {
+                modeIds: [...parentModeIds, defaultModeId].sort(),
+                value: preservedValue.value,
+                platformOverrides: preservedValue.platformOverrides
+              };
+            } else {
+              // Check if we have an original value from the initial token
+              const originalValue = originalTokenRef.current?.valuesByMode.find(ovbm => 
+                ovbm.modeIds.slice().sort().join(',') === [...parentModeIds, defaultModeId].sort().join(',')
+              );
+              
+              if (originalValue) {
+                // If we have an original value, use it
+                return {
+                  modeIds: [...parentModeIds, defaultModeId].sort(),
+                  value: originalValue.value,
+                  platformOverrides: originalValue.platformOverrides
+                };
+              } else {
+                // Otherwise, use the current value
+                return {
+                  modeIds: [...parentModeIds, defaultModeId].sort(),
+                  value: vbm.value,
+                  platformOverrides: vbm.platformOverrides
+                };
+              }
+            }
+          });
+          
+          return [...combinations, ...parentCombinations];
         });
+
+        // Combine all values, removing duplicates
+        const uniqueValues = newCombinations.reduce((acc, curr) => {
+          const key = curr.modeIds.sort().join(',');
+          if (!acc[key]) {
+            acc[key] = curr;
+          }
+          return acc;
+        }, {} as Record<string, ValueByMode>);
+
         return {
           ...prev,
-          valuesByMode: newValuesByMode
+          valuesByMode: Object.values(uniqueValues)
         };
       });
     }
@@ -336,7 +480,6 @@ export function TokenEditorDialog({
   // Update getValueEditor to use schema-driven value handling
   const getValueEditor = (
     value: TokenValue | string,
-    modeIndex: number,
     modeIds: string[],
     isOverride?: boolean,
     onChange?: (newValue: TokenValue) => void
@@ -359,10 +502,63 @@ export function TokenEditorDialog({
           } else {
             setEditedToken((prev: ExtendedToken) => ({
               ...prev,
-              valuesByMode: prev.valuesByMode.map((item: ValueByMode, idx: number) =>
-                idx === modeIndex ? { ...item, value: newValue } : item
+              valuesByMode: prev.valuesByMode.map((item: ValueByMode) =>
+                item.modeIds.slice().sort().join(',') === modeIds.slice().sort().join(',')
+                  ? { ...item, value: newValue }
+                  : item
               )
             }));
+          }
+        }}
+      />
+    );
+  };
+
+  // Add this new function for platform override value editing
+  const getPlatformOverrideValueEditor = (
+    value: string | TokenValue,
+    modeIds: string[],
+    platformId: string,
+    isOverride?: boolean,
+    onChange?: (newValue: TokenValue) => void
+  ): React.ReactNode => {
+    // For platform overrides, we need to handle the value differently
+    // since it's stored as a string in the platformOverrides array
+    const parsedValue = typeof value === 'string' ? JSON.parse(value) : value;
+    
+    return (
+      <TokenValuePicker
+        value={parsedValue}
+        tokens={tokens}
+        excludeTokenId={editedToken.id}
+        modes={modeIds}
+        resolvedValueTypeId={editedToken.resolvedValueTypeId}
+        resolvedValueTypes={resolvedValueTypes}
+        onChange={(newValue: TokenValue) => {
+          if (onChange) {
+            onChange(newValue);
+          } else {
+            setEditedToken((prev: ExtendedToken) => {
+              const updatedValuesByMode = prev.valuesByMode.map(vbm => {
+                if (vbm.modeIds.slice().sort().join(',') === modeIds.slice().sort().join(',')) {
+                  return {
+                    ...vbm,
+                    platformOverrides: [
+                      ...(vbm.platformOverrides || []).filter(po => po.platformId !== platformId),
+                      {
+                        platformId,
+                        value: JSON.stringify(newValue)
+                      }
+                    ]
+                  };
+                }
+                return vbm;
+              });
+              return {
+                ...prev,
+                valuesByMode: updatedValuesByMode
+              };
+            });
           }
         }}
       />
@@ -439,6 +635,8 @@ export function TokenEditorDialog({
       status: newStatus
     }));
   };
+
+  const { isOpen, onToggle } = useDisclosure();
 
   return (
     <Modal isOpen={open} onClose={onClose} isCentered size="xl">
@@ -542,7 +740,7 @@ export function TokenEditorDialog({
                 <Box flex={1} minW={0}>
                   <FormControl isRequired mb={3}>
                     <FormLabel>
-                      Taxonomies <Box as="span" color="red.500" aria-label="required">*</Box>
+                      Taxonomies 
                     </FormLabel>
                     <TaxonomyPicker
                       taxonomies={filteredTaxonomies}
@@ -699,45 +897,143 @@ export function TokenEditorDialog({
                   />
                 )}
                 {/* Platform Overrides as a nested box */}
-                <Text fontSize="md" fontWeight="bold" mb={2} mt={4}>Platform overrides</Text>
-                <Box
-                  p={3}
-                  borderWidth={1}
-                  borderRadius="md"
-                  bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-                  borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                <Button
+                  variant="ghost"
+                  onClick={onToggle}
+                  width="100%"
+                  justifyContent="space-between"
+                  mb={2}
                 >
-                  <PlatformOverridesTable
-                    platforms={platforms}
-                    valuesByMode={editedToken.valuesByMode}
-                    modes={modes}
-                    getValueEditor={getValueEditor}
-                    onPlatformOverrideChange={(platformId: string, modeIndex: number, newValue: TokenValue) => {
-                      setEditedToken((prev: ExtendedToken) => ({
-                        ...prev,
-                        valuesByMode: prev.valuesByMode.map((item: ValueByMode, i: number) =>
-                          i === modeIndex
-                            ? {
-                                ...item,
-                                platformOverrides: [
-                                  ...(item.platformOverrides || []).filter((p) => p.platformId !== platformId),
-                                  {
-                                    platformId,
-                                    value: typeof newValue === 'string' ? newValue : JSON.stringify(newValue)
-                                  }
-                                ]
-                              }
-                            : item
-                        )
-                      }));
+                  <Text fontSize="md" fontWeight="bold">Platform overrides</Text>
+                  <ChevronDown
+                    style={{
+                      transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s'
                     }}
                   />
-                  {editedToken.valuesByMode.every((vbm: ValueByMode) => !vbm.platformOverrides || vbm.platformOverrides.length === 0) && (
-                    <Button variant="outline" mt={2}>
-                      Add override
-                    </Button>
-                  )}
-                </Box>
+                </Button>
+                <Collapse in={isOpen} animateOpacity>
+                  <Box
+                    p={3}
+                    borderWidth={1}
+                    borderRadius="md"
+                    bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                    borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                  >
+                    <Tabs size="sm">
+                      <TabList>
+                        {platforms.map(platform => (
+                          <Tab key={platform.id}>{platform.displayName}</Tab>
+                        ))}
+                      </TabList>
+                      <TabPanels>
+                        {platforms.map(platform => {
+                          console.log('Rendering tab for platform:', platform.id);
+                          const platformOverrides = getPlatformOverridesForTable(
+                            editedToken.valuesByMode,
+                            platform.id,
+                            modes,
+                            dimensions.filter(d => activeDimensionIds.includes(d.id)),
+                            editedToken.resolvedValueTypeId,
+                            resolvedValueTypes
+                          );
+                          console.log('Platform overrides for table:', platformOverrides);
+
+                          return (
+                            <TabPanel key={platform.id}>
+                              {platformOverrides.length > 0 ? (
+                                <ValueByModeTable
+                                  valuesByMode={platformOverrides}
+                                  modes={modes}
+                                  dimensions={dimensions.filter(d => activeDimensionIds.includes(d.id))}
+                                  getValueEditor={(value: TokenValue | string, modeIds: string[], isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => 
+                                    getPlatformOverrideValueEditor(value, modeIds, platform.id, isOverride, onChange)
+                                  }
+                                  onDeleteValue={(modeIds: string[]) => {
+                                    console.log('Deleting override for modeIds:', modeIds);
+                                    setEditedToken((prev: ExtendedToken) => {
+                                      const updatedValuesByMode = prev.valuesByMode.map(vbm => {
+                                        if (vbm.modeIds.slice().sort().join(',') === modeIds.slice().sort().join(',')) {
+                                          return {
+                                            ...vbm,
+                                            platformOverrides: vbm.platformOverrides?.filter(po => po.platformId !== platform.id)
+                                          };
+                                        }
+                                        return vbm;
+                                      });
+                                      return {
+                                        ...prev,
+                                        valuesByMode: updatedValuesByMode
+                                      };
+                                    });
+                                  }}
+                                  resolvedValueTypeId={editedToken.resolvedValueTypeId}
+                                  resolvedValueTypes={resolvedValueTypes}
+                                  onAddValue={(modeIds: string[], value: TokenValue) => {
+                                    console.log('Adding override for modeIds:', modeIds, value);
+                                    setEditedToken((prev: ExtendedToken) => {
+                                      const updatedValuesByMode = prev.valuesByMode.map(vbm => {
+                                        if (vbm.modeIds.slice().sort().join(',') === modeIds.slice().sort().join(',')) {
+                                          return {
+                                            ...vbm,
+                                            platformOverrides: [
+                                              ...(vbm.platformOverrides || []).filter(po => po.platformId !== platform.id),
+                                              {
+                                                platformId: platform.id,
+                                                value: JSON.stringify(value)
+                                              }
+                                            ]
+                                          };
+                                        }
+                                        return vbm;
+                                      });
+                                      return {
+                                        ...prev,
+                                        valuesByMode: updatedValuesByMode
+                                      };
+                                    });
+                                  }}
+                                />
+                              ) : (
+                                <Box textAlign="center" py={4}>
+                                  <Text color="gray.500">No overrides for this platform</Text>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    mt={2}
+                                    onClick={() => {
+                                      // Add a default override for the first mode combination
+                                      setEditedToken((prev: ExtendedToken) => ({
+                                        ...prev,
+                                        valuesByMode: prev.valuesByMode.map((vbm, index) => {
+                                          if (index === 0) {
+                                            return {
+                                              ...vbm,
+                                              platformOverrides: [
+                                                ...(vbm.platformOverrides || []),
+                                                {
+                                                  platformId: platform.id,
+                                                  value: JSON.stringify(getDefaultTokenValue(prev.resolvedValueTypeId, { resolvedValueTypes }))
+                                                }
+                                              ]
+                                            };
+                                          }
+                                          return vbm;
+                                        })
+                                      }));
+                                    }}
+                                  >
+                                    Add override
+                                  </Button>
+                                </Box>
+                              )}
+                            </TabPanel>
+                          );
+                        })}
+                      </TabPanels>
+                    </Tabs>
+                  </Box>
+                </Collapse>
               </VStack>
             </Box>
           </VStack>
