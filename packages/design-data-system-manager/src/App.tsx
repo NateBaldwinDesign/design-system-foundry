@@ -3,7 +3,8 @@ import {
   Box,
   ChakraProvider,
   Spinner,
-  Button
+  Button,
+  useToast
 } from '@chakra-ui/react';
 import {
   TokenCollection,
@@ -52,7 +53,7 @@ function getDataSourceOptions() {
 }
 
 const App = () => {
-  const [dataSource, setDataSource] = useState<string>('../../data-model/examples/themed/core-data.json');
+  const [dataSource, setDataSource] = useState<string>('../../data-model/examples/unthemed/example-minimal-data.json');
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
@@ -73,6 +74,7 @@ const App = () => {
   });
   const [selectedToken, setSelectedToken] = useState<ExtendedToken | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const toast = useToast();
 
   // Add effect to reload collections from storage when they change
   useEffect(() => {
@@ -265,6 +267,25 @@ const App = () => {
     handleCloseEditor();
   };
 
+  const handleDeleteToken = (tokenId: string) => {
+    const tokenToDelete = tokens.find(t => t.id === tokenId);
+    setTokens(prevTokens => {
+      const updatedTokens = prevTokens.filter(t => t.id !== tokenId);
+      StorageService.setTokens(updatedTokens);
+      return updatedTokens;
+    });
+    
+    if (tokenToDelete) {
+      toast({
+        title: "Token deleted",
+        description: `Token "${tokenToDelete.displayName}" has been deleted`,
+        status: "info",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -306,18 +327,15 @@ const App = () => {
                         setSelectedToken(token);
                         setIsEditorOpen(true);
                       }}
-                      onDeleteToken={(tokenId) => {
-                        setTokens(prevTokens => {
-                          const updatedTokens = prevTokens.filter(t => t.id !== tokenId);
-                          StorageService.setTokens(updatedTokens);
-                          return updatedTokens;
-                        });
-                      }}
+                      onDeleteToken={handleDeleteToken}
                     />
                     {isEditorOpen && selectedToken && (
                       <TokenEditorDialog
                         token={selectedToken}
                         tokens={tokens}
+                        dimensions={dimensions}
+                        modes={modes}
+                        platforms={platforms}
                         open={isEditorOpen}
                         onClose={handleCloseEditor}
                         onSave={handleSaveToken}
@@ -325,9 +343,7 @@ const App = () => {
                         resolvedValueTypes={resolvedValueTypes}
                         isNew={!selectedToken.id}
                         onViewClassifications={() => {}}
-                        modes={modes}
-                        dimensions={dimensions}
-                        platforms={platforms}
+                        onDeleteToken={handleDeleteToken}
                       />
                     )}
                   </>

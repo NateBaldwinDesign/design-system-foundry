@@ -34,7 +34,13 @@ import {
   TabList,
   Tabs,
   TabPanel,
-  TabPanels
+  TabPanels,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogOverlay
 } from '@chakra-ui/react';
 import { 
   Trash2, 
@@ -108,6 +114,7 @@ export interface TokenEditorDialogProps {
   isNew?: boolean;
   onViewClassifications?: () => void;
   schema: Schema | null;
+  onDeleteToken: (tokenId: string) => void;
 }
 
 // Helper function to filter taxonomies by value type
@@ -224,7 +231,8 @@ export function TokenEditorDialog({
     resolvedValueTypes, 
     isNew = false, 
     onViewClassifications,
-    schema
+    schema,
+    onDeleteToken
   }: TokenEditorDialogProps) {
   console.debug('[TokenEditorDialog] Received resolvedValueTypes:', resolvedValueTypes);
 
@@ -654,429 +662,585 @@ export function TokenEditorDialog({
   // Get the current resolved value type
   const valueTypeType = getValueTypeFromId(editedToken.resolvedValueTypeId, resolvedValueTypes);
   
-  return (
-    <Modal isOpen={open} onClose={onClose} isCentered size="xl">
-      <ModalOverlay />
-      <ModalContent maxW="900px">
-        <ModalHeader>
-          {isNew ? 'Create Token' : `Edit Token: ${editedToken.displayName}`}
-        </ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <VStack gap={4} align="stretch">
-            <Box
-              p={3}
-              borderWidth={1}
-              borderRadius="md"
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-            >
-              <VStack gap={3} align="stretch">
-                <FormControl isRequired>
-                  <FormLabel>Display Name</FormLabel>
-                  <Input
-                    value={editedToken.displayName}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, displayName: e.target.value }))}
-                  />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Description</FormLabel>
-                  <Input
-                    value={editedToken.description || ''}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, description: e.target.value }))}
-                  />
-                </FormControl>
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const deleteDialogCancelRef = useRef<HTMLButtonElement>(null);
 
-                <Flex direction="row" gap={6} align="flex-start">
+  // Function to find all references to this token
+  const findTokenReferences = () => {
+    const references = {
+      aliases: [] as string[],
+      groups: [] as string[],
+      variants: [] as string[],
+      themeOverrides: [] as string[]
+    };
+
+    // Check for aliases in other tokens
+    tokens.forEach(t => {
+      t.valuesByMode.forEach(vbm => {
+        if ('tokenId' in vbm.value && vbm.value.tokenId === token.id) {
+          references.aliases.push(t.id);
+        }
+      });
+    });
+
+    // Check for references in token groups
+    if (schema?.extensions?.tokenGroups) {
+      schema.extensions.tokenGroups.forEach(group => {
+        if (group.tokenIds.includes(token.id)) {
+          references.groups.push(group.id);
+        }
+      });
+    }
+
+    // Check for references in token variants
+    if (schema?.extensions?.tokenVariants) {
+      Object.entries(schema.extensions.tokenVariants).forEach(([variantId, variant]) => {
+        if (Object.values(variant).some(v => v.tokenId === token.id)) {
+          references.variants.push(variantId);
+        }
+      });
+    }
+
+    // Check for references in theme overrides
+    if (schema?.themes) {
+      schema.themes.forEach(theme => {
+        if (theme.overrides?.tokenOverrides?.some(o => o.tokenId === token.id)) {
+          references.themeOverrides.push(theme.id);
+        }
+      });
+    }
+
+    return references;
+  };
+
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    onDeleteToken(token.id);
+    setIsDeleteDialogOpen(false);
+    onClose();
+  };
+
+  const references = findTokenReferences();
+  const hasReferences = Object.values(references).some(arr => arr.length > 0);
+
+  return (
+    <>
+      <Modal isOpen={open} onClose={onClose} isCentered size="xl">
+        <ModalOverlay />
+        <ModalContent maxW="900px">
+          <ModalHeader>
+            {isNew ? 'Create Token' : `Edit Token: ${editedToken.displayName}`}
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack gap={4} align="stretch">
+              <Box
+                p={3}
+                borderWidth={1}
+                borderRadius="md"
+                bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+              >
+                <VStack gap={3} align="stretch">
                   <FormControl isRequired>
-                    <FormLabel>Value Type</FormLabel>
-                    <Select
-                      value={editedToken.resolvedValueTypeId}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                        const newType = e.target.value;
-                        setEditedToken((prev: ExtendedToken) => ({
-                          ...prev,
-                          resolvedValueTypeId: newType,
-                          valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType, { resolvedValueTypes }) }]
-                        }));
-                      }}
-                    >
-                      {resolvedValueTypes.map((vt: ResolvedValueType) => (
-                        <option key={vt.id} value={vt.id}>
-                          {vt.displayName}
-                        </option>
-                      ))}
-                    </Select>
-                    {editedToken.resolvedValueTypeId && (
-                      <Text fontSize="sm" color="gray.500" mt={1}>
-                        {resolvedValueTypes.find((vt: ResolvedValueType) => vt.id === editedToken.resolvedValueTypeId)?.description}
-                      </Text>
-                    )}
+                    <FormLabel>Display Name</FormLabel>
+                    <Input
+                      value={editedToken.displayName}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, displayName: e.target.value }))}
+                    />
                   </FormControl>
                   <FormControl>
-                    <FormLabel>Status</FormLabel>
-                    <Select
-                      value={editedToken.status || ''}
-                      onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleStatusChange(e.target.value as TokenStatus)}
-                    >
-                      <option value="">None</option>
-                      <option value="experimental">Experimental</option>
-                      <option value="stable">Stable</option>
-                      <option value="deprecated">Deprecated</option>
-                    </Select>
-                  </FormControl>
-                  <VStack mt={2} spacing={3} align="stretch" flex={1}>
-                    <Checkbox
-                      isChecked={editedToken.private}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, private: e.target.checked }))}
-                    >
-                      Private
-                    </Checkbox>
-                    <Checkbox
-                      isChecked={!!editedToken.themeable}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, themeable: e.target.checked }))}
-                    >
-                      Themeable
-                    </Checkbox>
-                  </VStack>
-                </Flex>
-              </VStack>
-            </Box>
-
-            {/* Classification */}
-            <HStack gap={2} align="center" mt={3}>
-              <Tags size={24} />
-              <Text fontSize="lg" fontWeight="bold">Classification</Text>
-            </HStack>
-            <Box
-              p={3}
-              borderWidth={1}
-              borderRadius="md"
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-            >
-              <Flex direction="row" gap={6} align="flex-start">
-                <Box flex={1} minW={0}>
-                  <FormControl isRequired mb={3}>
-                    <FormLabel>
-                      Taxonomies 
-                    </FormLabel>
-                    <TaxonomyPicker
-                      taxonomies={filteredTaxonomies}
-                      value={taxonomyEdits}
-                      onChange={handleTaxonomyChange}
-                      disabled={filteredTaxonomies.length === 0}
-                      onViewClassifications={onViewClassifications}
+                    <FormLabel>Description</FormLabel>
+                    <Input
+                      value={editedToken.description || ''}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, description: e.target.value }))}
                     />
-                    {filteredTaxonomies.length === 0 && (
-                      <Alert status="warning" mt={2}>
-                        <AlertIcon />
-                        No taxonomies available for this value type. Please select a different value type or add taxonomies for this type.
-                      </Alert>
-                    )}
-                    {hasDuplicateTaxonomy && (
-                      <Alert status="error" mt={2}>
-                        <AlertIcon />
-                        Another token already uses this exact set of taxonomy assignments. Please choose a unique combination.
-                      </Alert>
-                    )}
                   </FormControl>
-                </Box>
-                {/* Generated names by platform (right column) */}
-                <Box flex={1} minW={0}>
-                  {hasTaxonomyError && (
-                    <Alert status="error" mb={2}>
-                      <AlertIcon />
-                      You must apply taxonomies to this token before a platform name can be generated.
-                    </Alert>
-                  )}
-                  <Text fontSize="sm" fontWeight="medium" mb={1}>Generated names per platform</Text>
-                  <Table size="sm" variant="simple">
-                    <Thead>
-                      <Tr>
-                        <Th>Platform</Th>
-                        <Th>Name</Th>
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      {platforms.map(platform => {
-                        const syntaxEntry = codeSyntaxArray.find(cs => cs.platformId === platform.id);
-                        return (
-                          <Tr key={platform.id}>
-                            <Td>{platform.displayName}</Td>
-                            <Td>
-                              <Text fontFamily="mono" fontSize="sm">
-                                {syntaxEntry?.formattedName || '—'}
-                              </Text>
-                            </Td>
-                          </Tr>
-                        );
-                      })}
-                    </Tbody>
-                  </Table>
-                </Box>
-              </Flex>
-            </Box>
 
-            {/* Values */}
-            <HStack gap={2} align="center" mt={3}>
-              {getValueTypeIcon(valueTypeType)}
-              <Text fontSize="lg" fontWeight="bold">Values</Text>
-            </HStack>
-            <Box
-              p={3}
-              borderWidth={1}
-              borderRadius="md"
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-            >
-              <VStack gap={8} justify="flex-start" align="stretch">
-                <HStack gap={4} align="center" width="100%">
-                  <Text fontSize="sm" fontWeight="medium">Dimensions</Text>
-                  {dimensions.map(dim => (
-                    <Checkbox
-                      key={dim.id}
-                      isChecked={activeDimensionIds.includes(dim.id)}
-                      onChange={() => handleToggleDimension(dim.id)}
-                    >
-                      {dim.displayName}
-                    </Checkbox>
-                  ))}
-                </HStack>
-                {activeDimensionIds.length === 0 ? (
-                  (() => {
-                    const globalValue = editedToken.valuesByMode.find((vbm: ValueByMode) => Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0);
-                    if (!globalValue) {
-                      return (
-                        <Button
-                          variant="outline"
-                          onClick={() => setEditedToken((prev: ExtendedToken) => ({
+                  <Flex direction="row" gap={6} align="flex-start">
+                    <FormControl isRequired>
+                      <FormLabel>Value Type</FormLabel>
+                      <Select
+                        value={editedToken.resolvedValueTypeId}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                          const newType = e.target.value;
+                          setEditedToken((prev: ExtendedToken) => ({
                             ...prev,
-                            valuesByMode: [
-                              ...prev.valuesByMode,
-                              { modeIds: [], value: getDefaultTokenValue(prev.resolvedValueTypeId, schema) }
-                            ]
-                          }))}
-                        >
-                          Add Value
-                        </Button>
-                      );
-                    }
-                    return (
-                      <HStack gap={2} width="100%">
-                        <TokenValuePicker
-                          value={globalValue.value}
-                          tokens={tokens}
-                          excludeTokenId={editedToken.id}
-                          modes={[]}
-                          resolvedValueTypeId={editedToken.resolvedValueTypeId}
-                          resolvedValueTypes={resolvedValueTypes}
-                          onChange={(newValue: TokenValue) => setEditedToken((prev: ExtendedToken) => ({
-                            ...prev,
-                            valuesByMode: prev.valuesByMode.map((item: ValueByMode) =>
-                              Array.isArray(item.modeIds) && item.modeIds.length === 0
-                                ? { ...item, value: newValue }
-                                : item
-                            )
-                          }))}
-                        />
-                        <IconButton
-                          aria-label="Remove value"
-                          icon={<Trash2 />}
-                          onClick={() => setEditedToken((prev: ExtendedToken) => ({
-                            ...prev,
-                            valuesByMode: prev.valuesByMode.filter(vbm => !(Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0))
-                          }))}
-                        />
-                      </HStack>
-                    );
-                  })()
-                ) : (
-                  <ValueByModeTable
-                    valuesByMode={editedToken.valuesByMode}
-                    modes={modes}
-                    dimensions={dimensions.filter(d => activeDimensionIds.includes(d.id))}
-                    getValueEditor={getValueEditor}
-                    onDeleteValue={(modeIds: string[]) => {
-                      setEditedToken((prev: ExtendedToken) => ({
-                        ...prev,
-                        valuesByMode: prev.valuesByMode.filter(vbm => 
-                          vbm.modeIds.slice().sort().join(',') !== modeIds.slice().sort().join(',')
-                        )
-                      }));
-                    }}
-                    resolvedValueTypeId={editedToken.resolvedValueTypeId}
-                    resolvedValueTypes={resolvedValueTypes}
-                    onAddValue={(modeIds: string[], value: TokenValue) => {
-                      setEditedToken((prev: ExtendedToken) => ({
-                        ...prev,
-                        valuesByMode: [
-                          ...prev.valuesByMode,
-                          { modeIds, value }
-                        ]
-                      }));
-                    }}
-                  />
-                )}
-
-                
-              </VStack>
-            </Box>
-            <Box>
-              <VStack gap={2} justify="flex-start" align="stretch">
-                {/* Platform Overrides as a nested box */}
-                <Button
-                  variant="ghost"
-                  onClick={onToggle}
-                  width="fit-content"
-                  gap={2}
-                  justifyContent="space-between"
-                  mb={2}
-                >
-                  <MonitorSmartphone size={24} />
-                  <Text fontSize="md" fontWeight="bold">Platform overrides</Text>
-                  <ChevronDown size={16}
-                    style={{
-                      transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s'
-                    }}
-                  />
-                </Button>
-                <Collapse in={isOpen} animateOpacity>
-                  <Box
-                    p={3}
-                    borderWidth={1}
-                    borderRadius="md"
-                    bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-                    borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-                  >
-                    <Tabs size="sm">
-                      <TabList>
-                        {platforms.map(platform => (
-                          <Tab key={platform.id}>{platform.displayName}</Tab>
+                            resolvedValueTypeId: newType,
+                            valuesByMode: [{ modeIds: [], value: getDefaultTokenValue(newType, { resolvedValueTypes }) }]
+                          }));
+                        }}
+                      >
+                        {resolvedValueTypes.map((vt: ResolvedValueType) => (
+                          <option key={vt.id} value={vt.id}>
+                            {vt.displayName}
+                          </option>
                         ))}
-                      </TabList>
-                      <TabPanels>
-                        {platforms.map(platform => {
-                          console.log('Rendering tab for platform:', platform.id);
-                          const platformOverrides = getPlatformOverridesForTable(
-                            editedToken.valuesByMode,
-                            platform.id,
-                            modes,
-                            dimensions.filter(d => activeDimensionIds.includes(d.id)),
-                            editedToken.resolvedValueTypeId,
-                            resolvedValueTypes
-                          );
-                          console.log('Platform overrides for table:', platformOverrides);
+                      </Select>
+                      {editedToken.resolvedValueTypeId && (
+                        <Text fontSize="sm" color="gray.500" mt={1}>
+                          {resolvedValueTypes.find((vt: ResolvedValueType) => vt.id === editedToken.resolvedValueTypeId)?.description}
+                        </Text>
+                      )}
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel>Status</FormLabel>
+                      <Select
+                        value={editedToken.status || ''}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleStatusChange(e.target.value as TokenStatus)}
+                      >
+                        <option value="">None</option>
+                        <option value="experimental">Experimental</option>
+                        <option value="stable">Stable</option>
+                        <option value="deprecated">Deprecated</option>
+                      </Select>
+                    </FormControl>
+                    <VStack mt={2} spacing={3} align="stretch" flex={1}>
+                      <Checkbox
+                        isChecked={editedToken.private}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, private: e.target.checked }))}
+                      >
+                        Private
+                      </Checkbox>
+                      <Checkbox
+                        isChecked={!!editedToken.themeable}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditedToken((prev: ExtendedToken) => ({ ...prev, themeable: e.target.checked }))}
+                      >
+                        Themeable
+                      </Checkbox>
+                    </VStack>
+                  </Flex>
+                </VStack>
+              </Box>
 
+              {/* Classification */}
+              <HStack gap={2} align="center" mt={3}>
+                <Tags size={24} />
+                <Text fontSize="lg" fontWeight="bold">Classification</Text>
+              </HStack>
+              <Box
+                p={3}
+                borderWidth={1}
+                borderRadius="md"
+                bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+              >
+                <Flex direction="row" gap={6} align="flex-start">
+                  <Box flex={1} minW={0}>
+                    <FormControl isRequired mb={3}>
+                      <FormLabel>
+                        Taxonomies 
+                      </FormLabel>
+                      <TaxonomyPicker
+                        taxonomies={filteredTaxonomies}
+                        value={taxonomyEdits}
+                        onChange={handleTaxonomyChange}
+                        disabled={filteredTaxonomies.length === 0}
+                        onViewClassifications={onViewClassifications}
+                      />
+                      {filteredTaxonomies.length === 0 && (
+                        <Alert status="warning" mt={2}>
+                          <AlertIcon />
+                          No taxonomies available for this value type. Please select a different value type or add taxonomies for this type.
+                        </Alert>
+                      )}
+                      {hasDuplicateTaxonomy && (
+                        <Alert status="error" mt={2}>
+                          <AlertIcon />
+                          Another token already uses this exact set of taxonomy assignments. Please choose a unique combination.
+                        </Alert>
+                      )}
+                    </FormControl>
+                  </Box>
+                  {/* Generated names by platform (right column) */}
+                  <Box flex={1} minW={0}>
+                    {hasTaxonomyError && (
+                      <Alert status="error" mb={2}>
+                        <AlertIcon />
+                        You must apply taxonomies to this token before a platform name can be generated.
+                      </Alert>
+                    )}
+                    <Text fontSize="sm" fontWeight="medium" mb={1}>Generated names per platform</Text>
+                    <Table size="sm" variant="simple">
+                      <Thead>
+                        <Tr>
+                          <Th>Platform</Th>
+                          <Th>Name</Th>
+                        </Tr>
+                      </Thead>
+                      <Tbody>
+                        {platforms.map(platform => {
+                          const syntaxEntry = codeSyntaxArray.find(cs => cs.platformId === platform.id);
                           return (
-                            <TabPanel key={platform.id}>
-                              {platformOverrides.length > 0 ? (
-                                <ValueByModeTable
-                                  valuesByMode={platformOverrides}
-                                  modes={modes}
-                                  dimensions={dimensions.filter(d => activeDimensionIds.includes(d.id))}
-                                  getValueEditor={(value: TokenValue | string, modeIds: string[], isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => 
-                                    getPlatformOverrideValueEditor(value, modeIds, platform.id, isOverride, onChange)
-                                  }
-                                  onDeleteValue={(modeIds: string[]) => {
-                                    console.log('Deleting override for modeIds:', modeIds);
-                                    setEditedToken((prev: ExtendedToken) => {
-                                      const updatedValuesByMode = prev.valuesByMode.map(vbm => {
-                                        if (vbm.modeIds.slice().sort().join(',') === modeIds.slice().sort().join(',')) {
-                                          return {
-                                            ...vbm,
-                                            platformOverrides: vbm.platformOverrides?.filter(po => po.platformId !== platform.id)
-                                          };
-                                        }
-                                        return vbm;
+                            <Tr key={platform.id}>
+                              <Td>{platform.displayName}</Td>
+                              <Td>
+                                <Text fontFamily="mono" fontSize="sm">
+                                  {syntaxEntry?.formattedName || '—'}
+                                </Text>
+                              </Td>
+                            </Tr>
+                          );
+                        })}
+                      </Tbody>
+                    </Table>
+                  </Box>
+                </Flex>
+              </Box>
+
+              {/* Values */}
+              <HStack gap={2} align="center" mt={3}>
+                {getValueTypeIcon(valueTypeType)}
+                <Text fontSize="lg" fontWeight="bold">Values</Text>
+              </HStack>
+              <Box
+                p={3}
+                borderWidth={1}
+                borderRadius="md"
+                bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+              >
+                <VStack gap={8} justify="flex-start" align="stretch">
+                  <HStack gap={4} align="center" width="100%">
+                    <Text fontSize="sm" fontWeight="medium">Dimensions</Text>
+                    {dimensions.map(dim => (
+                      <Checkbox
+                        key={dim.id}
+                        isChecked={activeDimensionIds.includes(dim.id)}
+                        onChange={() => handleToggleDimension(dim.id)}
+                      >
+                        {dim.displayName}
+                      </Checkbox>
+                    ))}
+                  </HStack>
+                  {activeDimensionIds.length === 0 ? (
+                    (() => {
+                      const globalValue = editedToken.valuesByMode.find((vbm: ValueByMode) => Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0);
+                      if (!globalValue) {
+                        return (
+                          <Button
+                            variant="outline"
+                            onClick={() => setEditedToken((prev: ExtendedToken) => ({
+                              ...prev,
+                              valuesByMode: [
+                                ...prev.valuesByMode,
+                                { modeIds: [], value: getDefaultTokenValue(prev.resolvedValueTypeId, schema) }
+                              ]
+                            }))}
+                          >
+                            Add Value
+                          </Button>
+                        );
+                      }
+                      return (
+                        <HStack gap={2} width="100%">
+                          <TokenValuePicker
+                            value={globalValue.value}
+                            tokens={tokens}
+                            excludeTokenId={editedToken.id}
+                            modes={[]}
+                            resolvedValueTypeId={editedToken.resolvedValueTypeId}
+                            resolvedValueTypes={resolvedValueTypes}
+                            onChange={(newValue: TokenValue) => setEditedToken((prev: ExtendedToken) => ({
+                              ...prev,
+                              valuesByMode: prev.valuesByMode.map((item: ValueByMode) =>
+                                Array.isArray(item.modeIds) && item.modeIds.length === 0
+                                  ? { ...item, value: newValue }
+                                  : item
+                              )
+                            }))}
+                          />
+                          <IconButton
+                            aria-label="Remove value"
+                            icon={<Trash2 />}
+                            onClick={() => setEditedToken((prev: ExtendedToken) => ({
+                              ...prev,
+                              valuesByMode: prev.valuesByMode.filter(vbm => !(Array.isArray(vbm.modeIds) && vbm.modeIds.length === 0))
+                            }))}
+                          />
+                        </HStack>
+                      );
+                    })()
+                  ) : (
+                    <ValueByModeTable
+                      valuesByMode={editedToken.valuesByMode}
+                      modes={modes}
+                      dimensions={dimensions.filter(d => activeDimensionIds.includes(d.id))}
+                      getValueEditor={getValueEditor}
+                      onDeleteValue={(modeIds: string[]) => {
+                        setEditedToken((prev: ExtendedToken) => ({
+                          ...prev,
+                          valuesByMode: prev.valuesByMode.filter(vbm => 
+                            vbm.modeIds.slice().sort().join(',') !== modeIds.slice().sort().join(',')
+                          )
+                        }));
+                      }}
+                      resolvedValueTypeId={editedToken.resolvedValueTypeId}
+                      resolvedValueTypes={resolvedValueTypes}
+                      onAddValue={(modeIds: string[], value: TokenValue) => {
+                        setEditedToken((prev: ExtendedToken) => ({
+                          ...prev,
+                          valuesByMode: [
+                            ...prev.valuesByMode,
+                            { modeIds, value }
+                          ]
+                        }));
+                      }}
+                    />
+                  )}
+
+                  
+                </VStack>
+              </Box>
+              <Box>
+                <VStack gap={2} justify="flex-start" align="stretch">
+                  {/* Platform Overrides as a nested box */}
+                  <Button
+                    variant="ghost"
+                    onClick={onToggle}
+                    width="fit-content"
+                    gap={2}
+                    justifyContent="space-between"
+                    mb={2}
+                  >
+                    <MonitorSmartphone size={24} />
+                    <Text fontSize="md" fontWeight="bold">Platform overrides</Text>
+                    <ChevronDown size={16}
+                      style={{
+                        transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s'
+                      }}
+                    />
+                  </Button>
+                  <Collapse in={isOpen} animateOpacity>
+                    <Box
+                      p={3}
+                      borderWidth={1}
+                      borderRadius="md"
+                      bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                      borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                    >
+                      <Tabs size="sm">
+                        <TabList>
+                          {platforms.map(platform => (
+                            <Tab key={platform.id}>{platform.displayName}</Tab>
+                          ))}
+                        </TabList>
+                        <TabPanels>
+                          {platforms.map(platform => {
+                            console.log('Rendering tab for platform:', platform.id);
+                            const platformOverrides = getPlatformOverridesForTable(
+                              editedToken.valuesByMode,
+                              platform.id,
+                              modes,
+                              dimensions.filter(d => activeDimensionIds.includes(d.id)),
+                              editedToken.resolvedValueTypeId,
+                              resolvedValueTypes
+                            );
+                            console.log('Platform overrides for table:', platformOverrides);
+
+                            return (
+                              <TabPanel key={platform.id}>
+                                {platformOverrides.length > 0 ? (
+                                  <ValueByModeTable
+                                    valuesByMode={platformOverrides}
+                                    modes={modes}
+                                    dimensions={dimensions.filter(d => activeDimensionIds.includes(d.id))}
+                                    getValueEditor={(value: TokenValue | string, modeIds: string[], isOverride?: boolean, onChange?: (newValue: TokenValue) => void) => 
+                                      getPlatformOverrideValueEditor(value, modeIds, platform.id, isOverride, onChange)
+                                    }
+                                    onDeleteValue={(modeIds: string[]) => {
+                                      console.log('Deleting override for modeIds:', modeIds);
+                                      setEditedToken((prev: ExtendedToken) => {
+                                        const updatedValuesByMode = prev.valuesByMode.map(vbm => {
+                                          if (vbm.modeIds.slice().sort().join(',') === modeIds.slice().sort().join(',')) {
+                                            return {
+                                              ...vbm,
+                                              platformOverrides: vbm.platformOverrides?.filter(po => po.platformId !== platform.id)
+                                            };
+                                          }
+                                          return vbm;
+                                        });
+                                        return {
+                                          ...prev,
+                                          valuesByMode: updatedValuesByMode
+                                        };
                                       });
-                                      return {
-                                        ...prev,
-                                        valuesByMode: updatedValuesByMode
-                                      };
-                                    });
-                                  }}
-                                  resolvedValueTypeId={editedToken.resolvedValueTypeId}
-                                  resolvedValueTypes={resolvedValueTypes}
-                                  onAddValue={(modeIds: string[], value: TokenValue) => {
-                                    console.log('Adding override for modeIds:', modeIds, value);
-                                    setEditedToken((prev: ExtendedToken) => {
-                                      const updatedValuesByMode = prev.valuesByMode.map(vbm => {
-                                        if (vbm.modeIds.slice().sort().join(',') === modeIds.slice().sort().join(',')) {
-                                          return {
-                                            ...vbm,
-                                            platformOverrides: [
-                                              ...(vbm.platformOverrides || []).filter(po => po.platformId !== platform.id),
-                                              {
-                                                platformId: platform.id,
-                                                value: JSON.stringify(value)
-                                              }
-                                            ]
-                                          };
-                                        }
-                                        return vbm;
-                                      });
-                                      return {
-                                        ...prev,
-                                        valuesByMode: updatedValuesByMode
-                                      };
-                                    });
-                                  }}
-                                />
-                              ) : (
-                                <Box textAlign="center" py={4}>
-                                  <Text color="gray.500">No overrides for this platform</Text>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    mt={2}
-                                    onClick={() => {
-                                      // Add a default override for the first mode combination
-                                      setEditedToken((prev: ExtendedToken) => ({
-                                        ...prev,
-                                        valuesByMode: prev.valuesByMode.map((vbm, index) => {
-                                          if (index === 0) {
+                                    }}
+                                    resolvedValueTypeId={editedToken.resolvedValueTypeId}
+                                    resolvedValueTypes={resolvedValueTypes}
+                                    onAddValue={(modeIds: string[], value: TokenValue) => {
+                                      console.log('Adding override for modeIds:', modeIds, value);
+                                      setEditedToken((prev: ExtendedToken) => {
+                                        const updatedValuesByMode = prev.valuesByMode.map(vbm => {
+                                          if (vbm.modeIds.slice().sort().join(',') === modeIds.slice().sort().join(',')) {
                                             return {
                                               ...vbm,
                                               platformOverrides: [
-                                                ...(vbm.platformOverrides || []),
+                                                ...(vbm.platformOverrides || []).filter(po => po.platformId !== platform.id),
                                                 {
                                                   platformId: platform.id,
-                                                  value: JSON.stringify(getDefaultTokenValue(prev.resolvedValueTypeId, { resolvedValueTypes }))
+                                                  value: JSON.stringify(value)
                                                 }
                                               ]
                                             };
                                           }
                                           return vbm;
-                                        })
-                                      }));
+                                        });
+                                        return {
+                                          ...prev,
+                                          valuesByMode: updatedValuesByMode
+                                        };
+                                      });
                                     }}
-                                  >
-                                    Add override
-                                  </Button>
-                                </Box>
-                              )}
-                            </TabPanel>
-                          );
-                        })}
-                      </TabPanels>
-                    </Tabs>
-                  </Box>
-                </Collapse>
+                                  />
+                                ) : (
+                                  <Box textAlign="center" py={4}>
+                                    <Text color="gray.500">No overrides for this platform</Text>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      mt={2}
+                                      onClick={() => {
+                                        // Add a default override for the first mode combination
+                                        setEditedToken((prev: ExtendedToken) => ({
+                                          ...prev,
+                                          valuesByMode: prev.valuesByMode.map((vbm, index) => {
+                                            if (index === 0) {
+                                              return {
+                                                ...vbm,
+                                                platformOverrides: [
+                                                  ...(vbm.platformOverrides || []),
+                                                  {
+                                                    platformId: platform.id,
+                                                    value: JSON.stringify(getDefaultTokenValue(prev.resolvedValueTypeId, { resolvedValueTypes }))
+                                                  }
+                                                ]
+                                              };
+                                            }
+                                            return vbm;
+                                          })
+                                        }));
+                                      }}
+                                    >
+                                      Add override
+                                    </Button>
+                                  </Box>
+                                )}
+                              </TabPanel>
+                            );
+                          })}
+                        </TabPanels>
+                      </Tabs>
+                    </Box>
+                  </Collapse>
+                </VStack>
+              </Box>
+            </VStack>
+          </ModalBody>
+          <ModalFooter justify="space-between" width="100%">
+            <Button 
+              variant="outline" 
+              mr={3} 
+              leftIcon={<Trash2 />} 
+              colorScheme="red"
+              onClick={handleDeleteClick}
+            >
+              Delete token
+            </Button>
+
+            <HStack justify="flex-end" width="100%">
+              <Button variant="ghost" mr={3} onClick={onClose}>
+                Cancel
+              </Button>
+              <Button colorScheme="blue" onClick={handleSave} disabled={hasError}>
+                {isNew ? 'Create token' : 'Save'}
+              </Button>
+            </HStack>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <AlertDialog
+        isOpen={isDeleteDialogOpen}
+        leastDestructiveRef={deleteDialogCancelRef}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        isCentered
+      >
+        <AlertDialogOverlay
+          bg="blackAlpha.300"
+          backdropFilter="blur(2px)"
+        >
+          <AlertDialogContent
+            maxW="500px"
+            mx="auto"
+            my="auto"
+            borderRadius="lg"
+            boxShadow="xl"
+          >
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Delete Token
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              <VStack align="stretch" spacing={4}>
+                <Text>
+                  Are you sure you want to delete the token &ldquo;{token.displayName}&rdquo;? This action cannot be undone.
+                </Text>
+
+                {hasReferences && (
+                  <Alert status="warning" borderRadius="md">
+                    <AlertIcon />
+                    <VStack align="start" spacing={1}>
+                      <Text fontWeight="bold">Warning: This token is referenced in:</Text>
+                      {references.aliases.length > 0 && (
+                        <Text>• {references.aliases.length} other token(s) as aliases</Text>
+                      )}
+                      {references.groups.length > 0 && (
+                        <Text>• {references.groups.length} token group(s)</Text>
+                      )}
+                      {references.variants.length > 0 && (
+                        <Text>• {references.variants.length} token variant(s)</Text>
+                      )}
+                      {references.themeOverrides.length > 0 && (
+                        <Text>• {references.themeOverrides.length} theme override(s)</Text>
+                      )}
+                    </VStack>
+                  </Alert>
+                )}
+
+                <FormControl>
+                  <FormLabel>Type "delete" to confirm</FormLabel>
+                  <Input
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="Type delete to confirm"
+                    autoFocus
+                  />
+                </FormControl>
               </VStack>
-            </Box>
-          </VStack>
-        </ModalBody>
-        <ModalFooter>
-          <Button variant="ghost" mr={3} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button colorScheme="blue" onClick={handleSave} disabled={hasError}>
-            {isNew ? 'Create token' : 'Save'}
-          </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button ref={deleteDialogCancelRef} onClick={() => setIsDeleteDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                colorScheme="red"
+                onClick={handleDeleteConfirm}
+                ml={3}
+                isDisabled={deleteConfirmText !== 'delete'}
+              >
+                Delete
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
+    </>
   );
 } 

@@ -34,13 +34,13 @@
       "private": false
     },
     {
-      "name": "Private collection",
+      "name": "Dimensions",
       "description": "",
       "resolvedValueTypeIds": [
-        "color",
-        "font_family"
+        "radius",
+        "spacing"
       ],
-      "private": true,
+      "private": false,
       "id": "22117476-608c-4115-ba72-ecbe1ecc637c"
     }
   ],
@@ -293,7 +293,7 @@
       "resolvedValueTypeId": "color",
       "private": false,
       "status": "stable",
-      "themeable": false,
+      "themeable": true,
       "taxonomies": [
         {
           "taxonomyId": "taxonomyId-1111-1111-1111",

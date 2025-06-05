@@ -5,6 +5,7 @@ import type { TokenCollection, ResolvedValueType, Taxonomy } from '@token-model/
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
 import TokenTag from '../../components/TokenTag';
 import { formatValueForDisplay } from '../../utils/valueTypeUtils';
+import { getValueTypeIcon } from '../../utils/getValueTypeIcon';
 
 interface TokensViewProps {
   tokens: ExtendedToken[];
@@ -51,6 +52,13 @@ export function TokensView({
     const typeObj = resolvedValueTypes.find(vt => vt.id === typeId);
     if (!typeObj) return typeId;
     return typeObj.displayName;
+  };
+
+  // Get type from resolved value type id
+  const getTypeFromId = (typeId: string) => {
+    const typeObj = resolvedValueTypes.find(vt => vt.id === typeId);
+    if (!typeObj) return typeId;
+    return typeObj.type;
   };
 
   // Get display for a token value
@@ -248,9 +256,9 @@ export function TokensView({
       <Table variant="simple">
         <Thead>
           <Tr>
+            <Th>Type</Th>
             <Th>Name</Th>
             <Th>Collection</Th>
-            <Th>Type</Th>
             <Th>Value</Th>
             <Th>Status</Th>
             <Th>Themeable</Th>
@@ -263,6 +271,11 @@ export function TokensView({
           {filteredTokens.map(token => (
             <Tr key={token.id}>
               <Td>
+                <HStack spacing={2}>
+                  {getValueTypeIcon(getTypeFromId(token.resolvedValueTypeId), 20)}
+                </HStack>
+              </Td>
+              <Td>
                 <Text fontWeight="medium">{token.displayName}</Text>
                 {token.description && (
                   <Text fontSize="sm" color="gray.500">
@@ -271,7 +284,6 @@ export function TokensView({
                 )}
               </Td>
               <Td>{collections.find(c => c.id === token.tokenCollectionId)?.name || token.tokenCollectionId}</Td>
-              <Td>{getTypeDisplay(token.resolvedValueTypeId || '')}</Td>
               <Td>{getValueDisplay(token)}</Td>
               <Td>
                 <Badge
@@ -302,7 +314,7 @@ export function TokensView({
                       onClick={() => handleEditToken(token)}
                     />
                   )}
-                  {onDeleteToken && (
+                  {/* {onDeleteToken && (
                     <IconButton
                       aria-label="Delete token"
                       icon={<Trash2 size={16} />}
@@ -311,7 +323,7 @@ export function TokensView({
                       colorScheme="red"
                       onClick={() => handleDeleteToken(token.id)}
                     />
-                  )}
+                  )} */}
                 </HStack>
               </Td>
             </Tr>
