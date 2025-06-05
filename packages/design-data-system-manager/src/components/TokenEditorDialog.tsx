@@ -808,8 +808,8 @@ export function TokenEditorDialog({
               bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
               borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
             >
-              <VStack gap={3}>
-                <HStack gap={4} align="center">
+              <VStack gap={8} justify="flex-start" align="stretch">
+                <HStack gap={4} align="center" width="100%">
                   <Text fontSize="sm" fontWeight="medium">Dimensions</Text>
                   {dimensions.map(dim => (
                     <Checkbox
@@ -841,7 +841,7 @@ export function TokenEditorDialog({
                       );
                     }
                     return (
-                      <HStack gap={2}>
+                      <HStack gap={2} width="100%">
                         <TokenValuePicker
                           value={globalValue.value}
                           tokens={tokens}
@@ -896,16 +896,23 @@ export function TokenEditorDialog({
                     }}
                   />
                 )}
+
+                
+              </VStack>
+            </Box>
+            <Box>
+              <VStack gap={2} justify="flex-start" align="stretch">
                 {/* Platform Overrides as a nested box */}
                 <Button
                   variant="ghost"
                   onClick={onToggle}
-                  width="100%"
+                  width="fit-content"
+                  gap={2}
                   justifyContent="space-between"
                   mb={2}
                 >
-                  <Text fontSize="md" fontWeight="bold">Platform overrides</Text>
-                  <ChevronDown
+                  <Text fontSize="sm" fontWeight="bold">Platform overrides</Text>
+                  <ChevronDown size={16}
                     style={{
                       transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                       transition: 'transform 0.2s'

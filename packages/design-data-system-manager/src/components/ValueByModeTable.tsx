@@ -150,12 +150,12 @@ function NestedModeTable({
     const secondaryRowDims = rowDimensions.slice(1);
     
     return (
-      <Table size="sm" variant="simple">
+      <Table size="sm" variant="simple" width="100%">
         <Thead>
           <Tr>
             <Th>{primaryRowDim.displayName}</Th>
             {columnCombinations.map((combo, idx) => (
-              <Th key={idx} colSpan={2}>
+              <Th key={idx} colSpan={1}>
                 {combo.map(modeId => getModeName(modeId, modes)).join(' + ')}
               </Th>
             ))}
@@ -185,9 +185,9 @@ function NestedModeTable({
                               const value = valueMap.get(key);
                               return (
                                 <Tr key={modeIdx}>
-                                  <Td>{getModeName(modeId, modes)}</Td>
-                                  <Td>
-                                    <Box display="flex" alignItems="center" gap={2}>
+                                  <Td align="left">{getModeName(modeId, modes)}</Td>
+                                  <Td align="left">
+                                    <Box display="flex" alignItems="flex-start" gap={2}>
                                       {value ? (
                                         getValueEditor(value.value, allModeIds)
                                       ) : (
@@ -239,7 +239,7 @@ function NestedModeTable({
           <Tr>
             <Th>{rowDimensions[0]?.displayName}</Th>
             {primaryColDim.modes.map(primaryMode => (
-              <Th key={primaryMode.id} colSpan={2}>
+              <Th key={primaryMode.id} colSpan={1}>
                 {getModeName(primaryMode.id, modes)}
               </Th>
             ))}

@@ -195,7 +195,25 @@
           "modeIds": [],
           "value": {
             "value": "#000000"
-          }
+          },
+          "platformOverrides": [
+            {
+              "platformId": "platform-000000",
+              "value": "#111111"
+            },
+            {
+              "platformId": "platform-111111",
+              "value": "#222222"
+            },
+            {
+              "platformId": "platform-222222",
+              "value": "#333333"
+            },
+            {
+              "platformId": "platform-333333",
+              "value": "#444444"
+            }
+          ]
         }
       ]
     },
