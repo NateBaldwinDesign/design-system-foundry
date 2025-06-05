@@ -1,5 +1,37 @@
 import { validateTokenSystem, Token, TokenValue } from '@token-model/data-model';
 
+// Define types based on schema
+interface TokenSystem {
+  resolvedValueTypes: Array<{ id: string; displayName: string; type?: string }>;
+  tokens: Token[];
+  dimensions: Array<{
+    id: string;
+    displayName: string;
+    modes: Array<{ id: string; name: string; dimensionId: string }>;
+    resolvedValueTypeIds: string[];
+  }>;
+  tokenCollections: Array<{
+    id: string;
+    name: string;
+    resolvedValueTypeIds: string[];
+  }>;
+  dimensionOrder?: string[];
+  taxonomies?: Array<{
+    id: string;
+    name: string;
+    terms: Array<{ id: string; name: string }>;
+    resolvedValueTypeIds?: string[];
+  }>;
+  themes?: Array<{
+    id: string;
+    displayName: string;
+    isDefault: boolean;
+  }>;
+  namingRules?: {
+    taxonomyOrder?: string[];
+  };
+}
+
 export interface ValidationResult {
   isValid: boolean;
   errors?: string[];
@@ -14,9 +46,12 @@ export class ValidationService {
       // First validate the overall schema
       validateTokenSystem(data);
 
+      // Type assertion after schema validation
+      const tokenSystem = data as TokenSystem;
+
       // Additional validation for resolvedValueTypeId
-      if (data.tokens) {
-        const resolvedValueTypeIds = new Set(data.resolvedValueTypes?.map((vt: { id: string }) => vt.id) || []);
+      if (tokenSystem.tokens) {
+        const resolvedValueTypeIds = new Set(tokenSystem.resolvedValueTypes?.map((vt) => vt.id) || []);
         if (resolvedValueTypeIds.size === 0) {
           return {
             isValid: false,
@@ -24,7 +59,7 @@ export class ValidationService {
           };
         }
         // Validate tokens
-        for (const token of data.tokens) {
+        for (const token of tokenSystem.tokens) {
           const valueTypeId = token.resolvedValueTypeId;
           if (!valueTypeId) {
             return {
@@ -43,7 +78,7 @@ export class ValidationService {
             const value = valueByMode.value as TokenValue;
             if ('tokenId' in value) {
               // Validate alias reference
-              const referencedToken = data.tokens.find((t: Token) => t.id === value.tokenId);
+              const referencedToken = tokenSystem.tokens.find((t) => t.id === value.tokenId);
               if (!referencedToken) {
                 return {
                   isValid: false,
@@ -55,12 +90,12 @@ export class ValidationService {
           }
         }
         // Validate dimensions
-        if (data.dimensions) {
-          const dimensionIds = new Set(data.dimensions.map((d: { id: string }) => d.id));
+        if (tokenSystem.dimensions) {
+          const dimensionIds = new Set(tokenSystem.dimensions.map((d) => d.id));
           // Validate dimensionOrder if present
-          if (data.dimensionOrder) {
+          if (tokenSystem.dimensionOrder) {
             // Check that all dimensionOrder IDs exist in dimensions
-            for (const orderId of data.dimensionOrder) {
+            for (const orderId of tokenSystem.dimensionOrder) {
               if (!dimensionIds.has(orderId)) {
                 return {
                   isValid: false,
@@ -69,8 +104,8 @@ export class ValidationService {
               }
             }
             // Check that all dimensions are included in dimensionOrder
-            const orderSet = new Set(data.dimensionOrder);
-            for (const dim of data.dimensions) {
+            const orderSet = new Set(tokenSystem.dimensionOrder);
+            for (const dim of tokenSystem.dimensions) {
               if (!orderSet.has(dim.id)) {
                 return {
                   isValid: false,
@@ -79,14 +114,14 @@ export class ValidationService {
               }
             }
             // Check for duplicate IDs in dimensionOrder
-            if (new Set(data.dimensionOrder).size !== data.dimensionOrder.length) {
+            if (new Set(tokenSystem.dimensionOrder).size !== tokenSystem.dimensionOrder.length) {
               return {
                 isValid: false,
                 errors: ['dimensionOrder contains duplicate IDs']
               };
             }
           }
-          for (const dimension of data.dimensions) {
+          for (const dimension of tokenSystem.dimensions) {
             if (!dimension.resolvedValueTypeIds) {
               return {
                 isValid: false,
@@ -105,11 +140,10 @@ export class ValidationService {
           }
         }
         // Validate collections
-        if (data.tokenCollections) {
-          for (const collection of data.tokenCollections) {
-            // Handle both resolvedValueTypes and resolvedValueTypeIds
-            const collectionTypeIds = collection.resolvedValueTypeIds || 
-              (collection.resolvedValueTypes ? collection.resolvedValueTypes.map((vt: { id: string }) => vt.id) : []);
+        if (tokenSystem.tokenCollections) {
+          for (const collection of tokenSystem.tokenCollections) {
+            // Only use resolvedValueTypeIds as per schema
+            const collectionTypeIds = collection.resolvedValueTypeIds;
             if (!collectionTypeIds || collectionTypeIds.length === 0) {
               return {
                 isValid: false,
@@ -124,6 +158,54 @@ export class ValidationService {
                   errors: [`Collection ${collection.id} has invalid resolvedValueTypeId "${typeId}". Must be one of: ${Array.from(resolvedValueTypeIds).join(', ')}`]
                 };
               }
+            }
+          }
+        }
+
+        // Validate taxonomies if present
+        if (tokenSystem.taxonomies) {
+          for (const taxonomy of tokenSystem.taxonomies) {
+            // Validate taxonomy terms
+            if (!taxonomy.terms || taxonomy.terms.length === 0) {
+              return {
+                isValid: false,
+                errors: [`Taxonomy ${taxonomy.id} must have at least one term`]
+              };
+            }
+            // Validate taxonomy resolvedValueTypeIds if present
+            if (taxonomy.resolvedValueTypeIds) {
+              for (const typeId of taxonomy.resolvedValueTypeIds) {
+                if (!resolvedValueTypeIds.has(typeId)) {
+                  return {
+                    isValid: false,
+                    errors: [`Taxonomy ${taxonomy.id} has invalid resolvedValueTypeId "${typeId}". Must be one of: ${Array.from(resolvedValueTypeIds).join(', ')}`]
+                  };
+                }
+              }
+            }
+          }
+        }
+
+        // Validate themes if present
+        if (tokenSystem.themes) {
+          const defaultThemes = tokenSystem.themes.filter(theme => theme.isDefault);
+          if (defaultThemes.length !== 1) {
+            return {
+              isValid: false,
+              errors: ['Exactly one theme must be marked as default']
+            };
+          }
+        }
+
+        // Validate namingRules if present
+        if (tokenSystem.namingRules?.taxonomyOrder) {
+          const taxonomyIds = new Set(tokenSystem.taxonomies?.map(t => t.id) || []);
+          for (const taxonomyId of tokenSystem.namingRules.taxonomyOrder) {
+            if (!taxonomyIds.has(taxonomyId)) {
+              return {
+                isValid: false,
+                errors: [`namingRules.taxonomyOrder contains ID "${taxonomyId}" that does not exist in taxonomies`]
+              };
             }
           }
         }
