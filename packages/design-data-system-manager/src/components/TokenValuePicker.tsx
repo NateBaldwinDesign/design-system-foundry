@@ -1,35 +1,31 @@
 import React, { useState } from 'react';
 import {
   Input,
-  NumberInput,
   Stack,
   Popover,
   Button,
   useDisclosure,
-  IconButton,
   Box,
-  InputGroup,
-  InputElement
+  InputGroup
 } from '@chakra-ui/react';
-import { Search, Unlink } from 'lucide-react';
-import type { Token, TokenValue, ResolvedValueType } from '@token-model/data-model';
+import { Search } from 'lucide-react';
+import type { Token, ResolvedValueType } from '@token-model/data-model';
 import TokenTag from './TokenTag';
 
 export interface TokenValuePickerProps {
-  value: { value?: any; tokenId?: string };
+  value: { value?: unknown; tokenId?: string };
   tokens: Token[];
   excludeTokenId?: string;
   modes: string[];
   resolvedValueTypeId: string;
   resolvedValueTypes: ResolvedValueType[];
-  onChange: (value: { value?: any; tokenId?: string }) => void;
+  onChange: (value: { value?: unknown; tokenId?: string }) => void;
 }
 
 export function TokenValuePicker({
   value,
   tokens,
   excludeTokenId,
-  modes,
   resolvedValueTypeId,
   resolvedValueTypes,
   onChange
@@ -64,7 +60,7 @@ export function TokenValuePicker({
             />
           ) : (
             <Input
-              value={value.value}
+              value={value.value as string}
               onChange={e => handleValueChange(e.target.value)}
               disabled={excludeTokenId === value.tokenId}
               onClick={excludeTokenId === value.tokenId ? undefined : onOpen}
@@ -72,44 +68,48 @@ export function TokenValuePicker({
           )}
         </Box>
       </Popover.Trigger>
-      <Popover.Content>
-        <Popover.Arrow />
-        <Button
-          position="absolute"
-          top={2}
-          right={2}
-          variant="ghost"
-          onClick={onClose}
-          aria-label="Close popover"
-        >
-          ×
-        </Button>
-        <Popover.Body>
-          <Stack gap={2}>
-            <InputGroup startElement={<Search size={16} />}>
-              <Input
-                placeholder="Search tokens..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-            </InputGroup>
-            <Box as="ul" listStyleType="none" p={0}>
-              {filteredTokens.map(token => (
-                <Box as="li" key={token.id}>
-                  <Button
-                    variant="ghost"
-                    width="full"
-                    justifyContent="flex-start"
-                    onClick={() => handleTokenSelect(token)}
-                  >
-                    {token.displayName}
-                  </Button>
-                </Box>
-              ))}
-            </Box>
-          </Stack>
-        </Popover.Body>
-      </Popover.Content>
+      <Popover.Positioner>
+        <Popover.Content>
+          <Popover.Arrow>
+            <Popover.ArrowTip />
+          </Popover.Arrow>
+          <Button
+            position="absolute"
+            top={2}
+            right={2}
+            variant="ghost"
+            onClick={onClose}
+            aria-label="Close popover"
+          >
+            ×
+          </Button>
+          <Popover.Body>
+            <Stack gap={2}>
+              <InputGroup flex="1" startElement={<Search size={16} />}>
+                <Input
+                  placeholder="Search tokens..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </InputGroup>
+              <Box as="ul" listStyleType="none" p={0}>
+                {filteredTokens.map(token => (
+                  <Box as="li" key={token.id}>
+                    <Button
+                      variant="ghost"
+                      width="full"
+                      justifyContent="flex-start"
+                      onClick={() => handleTokenSelect(token)}
+                    >
+                      {token.displayName}
+                    </Button>
+                  </Box>
+                ))}
+              </Box>
+            </Stack>
+          </Popover.Body>
+        </Popover.Content>
+      </Popover.Positioner>
     </Popover.Root>
   );
 } 

@@ -6,17 +6,17 @@ import {
 import type { Token } from '@token-model/data-model';
 
 interface TokenDeleteDialogProps {
-  isOpen: boolean;
+  open: boolean;
   onClose: () => void;
   token: Token;
   onDelete: (tokenId: string) => void;
 }
 
-export function TokenDeleteDialog({ isOpen, onClose, token, onDelete }: TokenDeleteDialogProps) {
+export function TokenDeleteDialog({ open, onClose, token, onDelete }: TokenDeleteDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={onClose}>
+    <Dialog.Root open={open} onOpenChange={onClose}>
       <Dialog.Content>
         <Dialog.Header>Delete Token</Dialog.Header>
         <Dialog.Body>

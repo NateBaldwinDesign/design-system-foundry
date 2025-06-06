@@ -135,7 +135,7 @@ export function TaxonomyEditorDialog({
         <Dialog.CloseButton />
         <Dialog.Body>
           <Stack gap={4} align="stretch">
-            <Field.Root isRequired>
+            <Field.Root required>
               <Field.Label>Name</Field.Label>
               <Input
                 value={editedTaxonomy.name}

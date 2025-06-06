@@ -65,7 +65,7 @@ export function PlatformEditorDialog({ open, onClose, onSave, platform, isNew = 
         <Dialog.CloseButton />
         <Dialog.Body>
           <Stack gap={4} align="stretch">
-            <Field.Root isRequired>
+            <Field.Root required>
               <Field.Label>Display Name</Field.Label>
               <Input
                 value={editedPlatform.displayName}

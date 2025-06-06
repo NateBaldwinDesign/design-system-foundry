@@ -139,7 +139,7 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Value Types</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4}>
+        <Button size="sm" onClick={handleOpenCreate} colorPalette="blue" mb={4}>
           <LuPlus />
           Create New Value Type
         </Button>
@@ -162,7 +162,7 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
                   <IconButton aria-label="Edit value type" size="sm" onClick={() => handleOpenEdit(valueType)}>
                     <LuPencil />
                   </IconButton>
-                  <IconButton aria-label="Delete value type" size="sm" colorScheme="red" onClick={() => handleDelete(valueType)}>
+                  <IconButton aria-label="Delete value type" size="sm" colorPalette="red" onClick={() => handleDelete(valueType)}>
                     <LuTrash2 />
                   </IconButton>
                 </HStack>
@@ -241,7 +241,7 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
             <Button variant="ghost" mr={3} onClick={handleDialogClose}>
               Cancel
             </Button>
-            <Button colorScheme="blue" onClick={handleDialogSave}>
+            <Button colorPalette="blue" onClick={handleDialogSave}>
               Save
             </Button>
           </Dialog.Footer>

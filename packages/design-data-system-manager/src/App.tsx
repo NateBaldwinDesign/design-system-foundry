@@ -4,7 +4,6 @@ import {
   ChakraProvider,
   Spinner,
   Button,
-  useToast
 } from '@chakra-ui/react';
 import {
   TokenCollection,
@@ -18,32 +17,44 @@ import {
 } from '@token-model/data-model';
 import { StorageService } from './services/storage';
 import ThemesView from './views/themes/ThemesView';
-import DashboardView from './views/dashboard/DashboardView';
+import { DashboardView } from './views/dashboard/DashboardView';
 import './App.css';
 import { AppLayout } from './components/AppLayout';
-import theme from './theme';
 import { TokensView } from './views/tokens/TokensView';
 import { CollectionsView } from './views/tokens/CollectionsView';
-import AlgorithmsTab from './views/tokens/AlgorithmsView';
+import AlgorithmsView from './views/tokens/AlgorithmsView';
 import { PlatformsView } from './views/publishing/PlatformsView';
-import { ValidationView } from './views/publishing/ValidationView';
+import ValidationView from './views/publishing/ValidationView';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import CoreDataView from './views/schemas/CoreDataView';
 import ThemeOverridesView from './views/schemas/ThemeOverridesView';
 import { Plus } from 'lucide-react';
-import { TokenEditorDialog, ExtendedToken } from './components/TokenEditorDialog';
-import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
-import { ValidationService } from './services/validation';
+import { TokenEditorDialog } from './components/TokenEditorDialog';
 import { useToast as useCustomToast } from './hooks/useToast';
+import { DimensionsView } from './views/setup/DimensionsView';
+import { ClassificationView } from './views/setup/ClassificationView';
+import { NamingRulesView } from './views/setup/NamingRulesView';
+import { ValueTypesView } from './views/setup/ValueTypesView';
+import system from './theme';
+
 
 // TypeScript declaration for import.meta.glob
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 const exampleDataFiles = import.meta.glob('../../data-model/examples/**/*.json', { as: 'raw' });
-import { DimensionsView } from './views/setup/DimensionsView';
-import { ClassificationView } from './views/setup/ClassificationView';
-import { NamingRulesView } from './views/setup/NamingRulesView';
-import { ValueTypesView } from './views/setup/ValueTypesView';
+
+interface ExtendedToken extends Omit<Token, 'valuesByMode' | 'private'> {
+  valuesByMode: Array<{
+    modeIds: string[];
+    value: { value?: unknown; tokenId?: string };
+    metadata?: Record<string, unknown>;
+    platformOverrides?: Array<{ platformId: string; value: string }>;
+  }>;
+  themeable: boolean;
+  private: boolean;
+  tokenCollectionId: string;
+  taxonomies: TokenTaxonomyRef[];
+}
 
 function getDataSourceOptions() {
   return Object.keys(exampleDataFiles).map((filePath) => {
@@ -289,102 +300,108 @@ const App = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
-        <Spinner />
-      </Box>
-    );
-  }
+  const handleEditToken = (token: ExtendedToken) => {
+    setSelectedToken(token);
+    setIsEditorOpen(true);
+  };
 
   return (
-    <ChakraProvider theme={theme}>
+    <ChakraProvider value={system}>
       <BrowserRouter>
-        <Box h="100vh" display="flex" flexDirection="column">
-          <Box flex="1" position="relative">
-            <AppLayout
-              dataSource={dataSource}
-              setDataSource={setDataSource}
-              dataOptions={dataOptions}
-              onResetData={handleResetData}
-              onExportData={() => {}}
-            >
-              <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<DashboardView />} />
-                <Route path="/tokens" element={<Navigate to="/tokens/tokens" replace />} />
-                <Route path="/tokens/tokens" element={
-                  <>
-                    <TokensView
-                      tokens={tokens}
-                      collections={collections}
-                      resolvedValueTypes={resolvedValueTypes}
-                      modes={modes}
-                      taxonomies={taxonomies}
-                      renderAddTokenButton={
-                        <Button colorScheme="blue" size="sm" onClick={handleAddToken} leftIcon={<Plus />}>
-                          Add Token
-                        </Button>
-                      }
-                      onEditToken={(token) => {
-                        setSelectedToken(token);
-                        setIsEditorOpen(true);
+        <AppLayout
+          dataSource={dataSource}
+          setDataSource={setDataSource}
+          dataOptions={dataOptions}
+          onResetData={handleResetData}
+          onExportData={() => {}}
+        >
+          {loading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" h="100vh">
+              <Spinner />
+            </Box>
+          ) : (
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<DashboardView />} />
+              <Route path="/tokens" element={<Navigate to="/tokens/tokens" replace />} />
+              <Route path="/tokens/tokens" element={
+                <>
+                  <TokensView
+                    tokens={tokens}
+                    collections={collections}
+                    resolvedValueTypes={resolvedValueTypes}
+                    taxonomies={taxonomies}
+                    renderAddTokenButton={
+                      <Button 
+                        colorPalette="blue" 
+                        size="sm" 
+                        onClick={handleAddToken}
+                      >
+                        <Plus />
+                        Add Token
+                      </Button>
+                    }
+                    onEditToken={handleEditToken}
+                    onDeleteToken={handleDeleteToken}
+                  />
+                  {isEditorOpen && selectedToken && (
+                    <TokenEditorDialog
+                      open={isEditorOpen}
+                      onClose={() => setIsEditorOpen(false)}
+                      onSave={handleSaveToken}
+                      token={selectedToken || {
+                        id: '',
+                        displayName: '',
+                        description: '',
+                        resolvedValueTypeId: '',
+                        tokenCollectionId: '',
+                        private: false,
+                        propertyTypes: [],
+                        taxonomies: [],
+                        valuesByMode: [],
+                        codeSyntax: [],
+                        platformOverrides: []
                       }}
+                      isNew={!selectedToken}
+                      tokenCollections={collections}
                       onDeleteToken={handleDeleteToken}
                     />
-                    {isEditorOpen && selectedToken && (
-                      <TokenEditorDialog
-                        token={selectedToken}
-                        tokens={tokens}
-                        dimensions={dimensions}
-                        modes={modes}
-                        platforms={platforms}
-                        open={isEditorOpen}
-                        onClose={handleCloseEditor}
-                        onSave={handleSaveToken}
-                        taxonomies={taxonomies}
-                        resolvedValueTypes={resolvedValueTypes}
-                        isNew={!selectedToken.id}
-                        onViewClassifications={() => {}}
-                        onDeleteToken={handleDeleteToken}
-                      />
-                    )}
-                  </>
-                } />
-                <Route path="/tokens/collections" element={<CollectionsView collections={collections} modes={modes} onUpdate={setCollections} />} />
-                <Route path="/tokens/algorithms" element={<AlgorithmsTab />} />
-                <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />
-                <Route path="/schemas/core-data" element={<CoreDataView />} />
-                <Route path="/schemas/theme-overrides" element={<ThemeOverridesView />} />
-                <Route path="/setup" element={<Navigate to="/dimensions" replace />} />
-                <Route path="/dimensions" element={
-                  <DimensionsView 
-                    dimensions={dimensions} 
-                    setDimensions={setDimensions}
-                    dimensionOrder={dimensionOrder}
-                    setDimensionOrder={setDimensionOrder}
-                    onDataChange={(data) => {
-                      setDimensions(data.dimensions);
-                      setDimensionOrder(data.dimensionOrder);
-                      StorageService.setDimensionOrder(data.dimensionOrder);
-                    }}
-                  />
-                } />
-                <Route path="/classification" element={<ClassificationView taxonomies={taxonomies} setTaxonomies={setTaxonomies} />} />
-                <Route path="/naming-rules" element={<NamingRulesView taxonomies={taxonomies} taxonomyOrder={taxonomyOrder} setTaxonomyOrder={setTaxonomyOrder} />} />
-                <Route path="/value-types" element={<ValueTypesView valueTypes={resolvedValueTypes} onUpdate={setResolvedValueTypes} />} />
-                <Route path="/themes" element={<ThemesView themes={themes} setThemes={setThemes} />} />
-                <Route path="/publishing" element={<Navigate to="/platforms" replace />} />
-                <Route path="/platforms" element={<PlatformsView platforms={platforms} setPlatforms={setPlatforms} tokens={tokens} setTokens={setTokens} taxonomies={taxonomies} />} />
-                <Route path="/export-settings" element={<Box p={4}>Export settings content coming soon...</Box>} />
-                <Route path="/validation" element={<ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />} />
-                <Route path="/version-history" element={<Box p={4}>Version history content coming soon...</Box>} />
-                <Route path="/access" element={<Box p={4}>Access management coming soon...</Box>} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-            </AppLayout>
-          </Box>
-        </Box>
+                  )}
+                </>
+              } />
+              <Route path="/tokens/collections" element={<CollectionsView collections={collections} modes={modes} onUpdate={setCollections} />} />
+              <Route path="/tokens/algorithms" element={<AlgorithmsView />} />
+              <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />
+              <Route path="/schemas/core-data" element={<CoreDataView />} />
+              <Route path="/schemas/theme-overrides" element={<ThemeOverridesView />} />
+              <Route path="/setup" element={<Navigate to="/dimensions" replace />} />
+              <Route path="/dimensions" element={
+                <DimensionsView 
+                  dimensions={dimensions} 
+                  setDimensions={setDimensions}
+                  dimensionOrder={dimensionOrder}
+                  setDimensionOrder={setDimensionOrder}
+                  onDataChange={(data) => {
+                    setDimensions(data.dimensions);
+                    setDimensionOrder(data.dimensionOrder);
+                    StorageService.setDimensionOrder(data.dimensionOrder);
+                  }}
+                />
+              } />
+              <Route path="/classification" element={<ClassificationView taxonomies={taxonomies} setTaxonomies={setTaxonomies} />} />
+              <Route path="/naming-rules" element={<NamingRulesView taxonomies={taxonomies} taxonomyOrder={taxonomyOrder} setTaxonomyOrder={setTaxonomyOrder} />} />
+              <Route path="/value-types" element={<ValueTypesView valueTypes={resolvedValueTypes} onUpdate={setResolvedValueTypes} />} />
+              <Route path="/themes" element={<ThemesView themes={themes} setThemes={setThemes} />} />
+              <Route path="/publishing" element={<Navigate to="/platforms" replace />} />
+              <Route path="/platforms" element={<PlatformsView platforms={platforms} setPlatforms={setPlatforms} tokens={tokens} setTokens={setTokens} taxonomies={taxonomies} />} />
+              <Route path="/export-settings" element={<Box p={4}>Export settings content coming soon...</Box>} />
+              <Route path="/validation" element={<ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />} />
+              <Route path="/version-history" element={<Box p={4}>Version history content coming soon...</Box>} />
+              <Route path="/access" element={<Box p={4}>Access management coming soon...</Box>} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          )}
+        </AppLayout>
       </BrowserRouter>
     </ChakraProvider>
   );

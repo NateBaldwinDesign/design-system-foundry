@@ -7,16 +7,14 @@ import {
   VStack,
   HStack,
   IconButton,
-  useColorMode,
   Dialog,
-  FormControl,
-  FormLabel,
+  Field,
   Tag
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
-import { StorageService } from '../../services/storage';
 import { ValidationService } from '../../services/validation';
 import { useToast } from '../../hooks/useToast';
+import { useTheme } from 'next-themes';
 import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 
 interface Theme {
@@ -32,7 +30,8 @@ interface ThemesTabProps {
 }
 
 export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
-  const { colorMode } = useColorMode();
+  const { resolvedTheme } = useTheme();
+  const colorMode = resolvedTheme;
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [form, setForm] = useState<Theme>({
@@ -91,7 +90,7 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
         description: 'Your change would make the data invalid. See the Validation tab for details.',
         status: 'error',
         duration: 4000,
-        isClosable: true,
+        closable: true,
       });
       return false;
     }
@@ -106,7 +105,7 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
         description: 'Display name is required for themes.',
         status: 'error', 
         duration: 4000,
-        isClosable: true 
+        closable: true 
       });
       return;
     }
@@ -117,7 +116,7 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
         description: 'A theme with this name already exists. Please choose a different name.',
         status: 'error', 
         duration: 4000,
-        isClosable: true 
+        closable: true 
       });
       return;
     }
@@ -150,7 +149,7 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
       description: `Successfully ${editingIndex !== null ? 'updated' : 'created'} theme "${form.displayName}"`,
       status: 'success', 
       duration: 3000,
-      isClosable: true 
+      closable: true 
     });
   };
 
@@ -165,7 +164,7 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
       description: `Successfully deleted theme "${themeToDelete.displayName}"`,
       status: 'info', 
       duration: 3000,
-      isClosable: true 
+      closable: true 
     });
   };
 
@@ -173,10 +172,16 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Themes</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button leftIcon={<LuPlus />} size="sm" onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+        <Button 
+          size="sm" 
+          onClick={() => handleOpen(null)} 
+          colorPalette="blue" 
+          mb={4}
+        >
+          <LuPlus style={{ marginRight: '0.5rem' }} />
           Add Theme
         </Button>
-        <VStack align="stretch" spacing={2}>
+        <VStack gap={2} align="stretch">
           {themes.map((theme, i) => (
             <Box 
               key={theme.id} 
@@ -195,25 +200,29 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
                     </Text>
                   )}
                   {theme.isDefault && (
-                    <Tag size="sm" colorScheme="green" mt={1}>Default</Tag>
+                    <Tag.Root size="sm" colorPalette="green" mt={1}>
+                      <Tag.Label>Default</Tag.Label>
+                    </Tag.Root>
                   )}
                 </Box>
                 <HStack>
                   <IconButton
                     aria-label="Edit theme"
-                    icon={<LuPencil />}
                     size="sm"
                     variant="ghost"
                     onClick={() => handleOpen(i)}
-                  />
+                  >
+                    <LuPencil />
+                  </IconButton>
                   <IconButton
                     aria-label="Delete theme"
-                    icon={<LuTrash2 />}
                     size="sm"
                     variant="ghost"
-                    colorScheme="red"
+                    colorPalette="red"
                     onClick={() => handleDelete(i)}
-                  />
+                  >
+                    <LuTrash2 />
+                  </IconButton>
                 </HStack>
               </HStack>
             </Box>
@@ -221,47 +230,46 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
         </VStack>
       </Box>
 
-      <Dialog isOpen={open} onClose={handleClose}>
-        <Dialog.Overlay />
+      <Dialog.Root open={open} onOpenChange={handleClose}>
         <Dialog.Content bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
           <Dialog.Header>{editingIndex !== null ? 'Edit Theme' : 'Add Theme'}</Dialog.Header>
-          <Dialog.CloseButton />
+          <Dialog.CloseTrigger />
           <Dialog.Body>
-            <VStack spacing={4} align="stretch">
-              <FormControl isRequired>
-                <FormLabel>Display Name</FormLabel>
+            <VStack gap={4} align="stretch">
+              <Field.Root required>
+                <Field.Label>Display Name</Field.Label>
                 <Input
                   value={form.displayName}
                   onChange={e => handleFormChange('displayName', e.target.value)}
                   bg={colorMode === 'dark' ? 'gray.700' : 'white'}
                 />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Description</FormLabel>
+              </Field.Root>
+              <Field.Root>
+                <Field.Label>Description</Field.Label>
                 <Input
                   value={form.description || ''}
                   onChange={e => handleFormChange('description', e.target.value)}
                   bg={colorMode === 'dark' ? 'gray.700' : 'white'}
                 />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Default Theme</FormLabel>
+              </Field.Root>
+              <Field.Root>
+                <Field.Label>Default Theme</Field.Label>
                 <Button
-                  colorScheme={form.isDefault ? 'green' : 'gray'}
+                  colorPalette={form.isDefault ? 'green' : 'gray'}
                   onClick={() => handleFormChange('isDefault', !form.isDefault)}
                   size="sm"
                 >
                   {form.isDefault ? 'Default Theme' : 'Set as Default'}
                 </Button>
-              </FormControl>
+              </Field.Root>
             </VStack>
           </Dialog.Body>
           <Dialog.Footer>
             <Button variant="ghost" mr={3} onClick={handleClose}>Cancel</Button>
-            <Button colorScheme="blue" onClick={handleSave}>Save</Button>
+            <Button colorPalette="blue" onClick={handleSave}>Save</Button>
           </Dialog.Footer>
         </Dialog.Content>
-      </Dialog>
+      </Dialog.Root>
     </Box>
   );
 } 

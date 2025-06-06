@@ -1,110 +1,87 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Dialog,
-  Button,
-  Text,
-  Input,
   Field,
-  Checkbox,
+  Input,
+  Button,
   Stack,
-  useToast
+  Checkbox
 } from '@chakra-ui/react';
 import type { TokenCollection } from '@token-model/data-model';
 import { ResolvedValueTypePicker } from './ResolvedValueTypePicker';
 
-export interface CollectionEditorDialogProps {
+interface CollectionEditorDialogProps {
   open: boolean;
   onClose: () => void;
   onSave: (collection: TokenCollection) => void;
-  collection?: TokenCollection | null;
+  collection?: TokenCollection;
   isNew?: boolean;
 }
 
-interface CollectionEditorFormState {
-  id: string;
-  name: string;
-  description?: string;
-  resolvedValueTypeIds: string[];
-  private?: boolean;
-}
-
 export function CollectionEditorDialog({ open, onClose, onSave, collection, isNew = false }: CollectionEditorDialogProps) {
-  const [editedCollection, setEditedCollection] = useState<CollectionEditorFormState>({
+  const [editedCollection, setEditedCollection] = React.useState(() => ({
     id: collection?.id || '',
     name: collection?.name || '',
     description: collection?.description || '',
     resolvedValueTypeIds: collection?.resolvedValueTypeIds || [],
     private: collection?.private || false
-  });
+  }));
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
 
-  useEffect(() => {
-    if (collection) {
-      setEditedCollection({
-        id: collection.id,
-        name: collection.name,
-        description: collection.description || '',
-        resolvedValueTypeIds: collection.resolvedValueTypeIds || [],
-        private: collection.private || false
-      });
-    }
-  }, [collection]);
-
-  const handleChange = (field: keyof CollectionEditorFormState, value: any) => {
+  const handleChange = (field: keyof typeof editedCollection, value: string | boolean | string[]) => {
     setEditedCollection(prev => ({
       ...prev,
       [field]: value
     }));
-    // Clear error when field is edited
+    // Clear error when field is modified
     if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
 
-  const handleSave = () => {
-    // Validate
+  const validate = () => {
     const newErrors: Record<string, string> = {};
-    if (!editedCollection.name) {
+    if (!editedCollection.name.trim()) {
       newErrors.name = 'Name is required';
     }
     if (!editedCollection.resolvedValueTypeIds.length) {
-      newErrors.resolvedValueTypeIds = 'At least one resolved value type is required';
+      newErrors.resolvedValueTypeIds = 'At least one value type is required';
     }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
+  const handleSave = () => {
+    if (validate()) {
+      onSave(editedCollection);
     }
-
-    onSave({
-      id: editedCollection.id,
-      name: editedCollection.name,
-      description: editedCollection.description,
-      resolvedValueTypeIds: editedCollection.resolvedValueTypeIds,
-      private: editedCollection.private
-    });
   };
 
   return (
     <Dialog.Root open={open} onOpenChange={onClose}>
       <Dialog.Content>
         <Dialog.Header>{isNew ? 'Create Collection' : 'Edit Collection'}</Dialog.Header>
-        <Dialog.CloseButton />
+        <Button 
+          position="absolute" 
+          top={2} 
+          right={2} 
+          variant="ghost" 
+          onClick={onClose}
+          aria-label="Close dialog"
+        >
+          ×
+        </Button>
         <Dialog.Body>
           <Stack gap={4} align="stretch">
-            <Field.Root isInvalid={!!errors.name} isRequired>
+            <Field.Root invalid={!!errors.name} required>
               <Field.Label>Name</Field.Label>
               <Input
                 value={editedCollection.name || ''}
                 onChange={e => handleChange('name', e.target.value)}
               />
               {errors.name && (
-                <Text color="red.500" fontSize="sm">{errors.name}</Text>
+                <Field.ErrorText>{errors.name}</Field.ErrorText>
               )}
             </Field.Root>
             <Field.Root>
@@ -112,26 +89,25 @@ export function CollectionEditorDialog({ open, onClose, onSave, collection, isNe
               <Input
                 value={editedCollection.description || ''}
                 onChange={e => handleChange('description', e.target.value)}
-                as="textarea"
-                rows={2}
               />
             </Field.Root>
-            <Field.Root isInvalid={!!errors.resolvedValueTypeIds} isRequired>
+            <Field.Root invalid={!!errors.resolvedValueTypeIds} required>
               <ResolvedValueTypePicker
                 value={editedCollection.resolvedValueTypeIds}
                 onChange={vals => handleChange('resolvedValueTypeIds', vals)}
                 label="Resolved Value Types"
-                isRequired={true}
+                required={true}
                 error={errors.resolvedValueTypeIds}
               />
             </Field.Root>
             <Field.Root>
-              <Checkbox
-                isChecked={!!editedCollection.private}
-                onChange={e => handleChange('private', e.target.checked)}
+              <Checkbox.Root
+                checked={!!editedCollection.private}
+                onCheckedChange={(details) => handleChange('private', details.checked === true)}
               >
-                Private
-              </Checkbox>
+                <Checkbox.Control />
+                <Checkbox.Label>Private</Checkbox.Label>
+              </Checkbox.Root>
             </Field.Root>
           </Stack>
         </Dialog.Body>

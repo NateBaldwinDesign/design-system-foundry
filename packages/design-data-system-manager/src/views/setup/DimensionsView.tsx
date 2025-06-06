@@ -120,7 +120,7 @@ export function DimensionsView({
         description: errorMessages.join('\n'),
         status: "error",
         duration: 5000,
-        isClosable: true,
+        closable: true,
       });
       return;
     }
@@ -185,11 +185,11 @@ export function DimensionsView({
     const validationResult = ValidationService.validateData(validationData);
     if (!validationResult.isValid) {
       toast({
-        title: 'Cannot Delete Dimension',
-        description: validationResult.errors?.join('\n'),
+        title: 'Error',
+        description: 'Failed to delete dimension. Please try again.',
         status: 'error',
-        duration: 5000,
-        isClosable: true,
+        duration: 3000,
+        closable: true,
       });
       return;
     }
@@ -206,7 +206,7 @@ export function DimensionsView({
       description: `Successfully deleted dimension "${dimToDelete.displayName}"`,
       status: 'info', 
       duration: 3000,
-      isClosable: true 
+      closable: true 
     });
   };
 

@@ -7,20 +7,20 @@ interface ToastOptions {
   description?: string
   status?: ToastStatus
   duration?: number
-  isClosable?: boolean
+  closable?: boolean
   position?: "top" | "top-right" | "top-left" | "bottom" | "bottom-right" | "bottom-left"
 }
 
 export const useToast = () => {
   return (options: ToastOptions) => {
-    const { title, description, status = "info", duration = 3000, isClosable = true } = options
+    const { title, description, status = "info", duration = 3000, closable = true } = options
 
     return toaster.create({
       title,
       description,
       type: status,
       duration,
-      closable: isClosable,
+      closable,
     })
   }
 } 

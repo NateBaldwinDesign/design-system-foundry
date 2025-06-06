@@ -33,7 +33,7 @@ export const TermEditorDialog: React.FC<TermEditorDialogProps> = ({
         <Dialog.CloseButton />
         <Dialog.Body>
           <Stack gap={4} align="stretch">
-            <Field.Root isRequired>
+            <Field.Root required>
               <Field.Label>Name</Field.Label>
               <Input
                 value={termForm.name}
