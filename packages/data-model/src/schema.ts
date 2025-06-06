@@ -47,6 +47,12 @@ export const TokenStatus = z.enum([
   'deprecated'
 ]);
 
+export const TokenTier = z.enum([
+  'PRIMITIVE',
+  'SEMANTIC',
+  'COMPONENT'
+]);
+
 export const FallbackStrategy = z.enum([
   'MOST_SPECIFIC_MATCH',
   'DIMENSION_PRIORITY',
@@ -481,4 +487,5 @@ export type TokenTaxonomyRef = z.infer<typeof TokenTaxonomyRef>;
 export type MigrationStrategy = z.infer<typeof MigrationStrategy>;
 export type VersionHistoryEntry = z.infer<typeof VersionHistoryEntry>;
 export type DimensionEvolutionRule = z.infer<typeof DimensionEvolutionRule>;
-export type DimensionEvolution = z.infer<typeof DimensionEvolution>; 
+export type DimensionEvolution = z.infer<typeof DimensionEvolution>;
+export type TokenTier = z.infer<typeof TokenTier>; 

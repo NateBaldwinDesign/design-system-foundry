@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Text, HStack, Flex, FormControl, FormLabel, Select, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge } from '@chakra-ui/react';
+import { Box, Text, HStack, Flex, FormControl, FormLabel, Select, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button } from '@chakra-ui/react';
 import { Edit, Trash2 } from 'lucide-react';
 import type { TokenCollection, ResolvedValueType, Taxonomy } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
@@ -30,7 +30,17 @@ export function TokensView({
   const [collectionFilter, setCollectionFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [tokenTierFilter, setTokenTierFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Handler for clearing all filters
+  const handleClearFilters = () => {
+    setCollectionFilter('');
+    setTypeFilter('');
+    setStatusFilter('');
+    setTokenTierFilter('');
+    setSearchTerm('');
+  };
 
   // Unique values for filters
   const statusOptions = Array.from(new Set(tokens.map(t => t.status).filter(Boolean))).sort();
@@ -43,8 +53,9 @@ export function TokensView({
     const matchesCollection = !collectionFilter || token.tokenCollectionId === collectionFilter;
     const matchesType = !typeFilter || token.resolvedValueTypeId === typeFilter;
     const matchesStatus = !statusFilter || token.status === statusFilter;
+    const matchesTokenTier = !tokenTierFilter || token.tokenTier === tokenTierFilter;
 
-    return matchesSearch && matchesCollection && matchesType && matchesStatus;
+    return matchesSearch && matchesCollection && matchesType && matchesStatus && matchesTokenTier;
   });
 
   // Get display name for a value type
@@ -224,6 +235,15 @@ export function TokensView({
       {/* Filter Controls */}
       <HStack spacing={4} wrap="nowrap" align="flex-start" mb={4}>
         <FormControl maxW="240px" flex="none">
+          <FormLabel>Token Tier</FormLabel>
+          <Select size="sm" value={tokenTierFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTokenTierFilter(e.target.value)}>
+            <option key="tier-all" value="">All</option>
+            <option key="tier-primitive" value="PRIMITIVE">Primitive</option>
+            <option key="tier-semantic" value="SEMANTIC">Semantic</option>
+            <option key="tier-component" value="COMPONENT">Component</option>
+          </Select>
+        </FormControl>
+        <FormControl maxW="240px" flex="none">
           <FormLabel>Collection</FormLabel>
           <Select size="sm" value={collectionFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCollectionFilter(e.target.value)}>
             <option key="collection-all" value="">All</option>
@@ -250,7 +270,18 @@ export function TokensView({
             ))}
           </Select>
         </FormControl>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleClearFilters}
+          alignSelf="flex-end"
+          mb={1}
+        >
+          Clear filters
+        </Button>
       </HStack>
+
+      
 
       {/* Token Table */}
       <Table variant="simple">
