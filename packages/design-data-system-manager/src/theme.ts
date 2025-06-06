@@ -1,14 +1,9 @@
-import { createSystem, defaultConfig } from '@chakra-ui/react';
+import { createSystem, defineConfig } from "@chakra-ui/react"
 
-// Log initial color mode detection
-const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
-console.log('System prefers dark mode:', prefersDark);
-
-export const system = createSystem(defaultConfig, {
+const config = defineConfig({
   theme: {
     tokens: {
       colors: {
-        // Base colors
         gray: {
           50: { value: "#fafafa" },
           100: { value: "#f4f4f5" },
@@ -43,7 +38,6 @@ export const system = createSystem(defaultConfig, {
     },
     semanticTokens: {
       colors: {
-        // Semantic color tokens
         bg: {
           value: { base: "{colors.gray.50}", _dark: "{colors.gray.900}" }
         },
@@ -52,88 +46,26 @@ export const system = createSystem(defaultConfig, {
         },
         border: {
           value: { base: "{colors.gray.200}", _dark: "{colors.gray.700}" }
-        },
-        // Status colors
-        success: {
-          solid: { value: "{colors.green.500}" },
-          contrast: { value: "{colors.green.100}" },
-          fg: { value: "{colors.green.700}" },
-          muted: { value: "{colors.green.100}" },
-          subtle: { value: "{colors.green.200}" },
-          emphasized: { value: "{colors.green.300}" },
-          focusRing: { value: "{colors.green.500}" }
-        },
-        error: {
-          solid: { value: "{colors.red.500}" },
-          contrast: { value: "{colors.red.100}" },
-          fg: { value: "{colors.red.700}" },
-          muted: { value: "{colors.red.100}" },
-          subtle: { value: "{colors.red.200}" },
-          emphasized: { value: "{colors.red.300}" },
-          focusRing: { value: "{colors.red.500}" }
-        },
-        warning: {
-          solid: { value: "{colors.yellow.500}" },
-          contrast: { value: "{colors.yellow.100}" },
-          fg: { value: "{colors.yellow.700}" },
-          muted: { value: "{colors.yellow.100}" },
-          subtle: { value: "{colors.yellow.200}" },
-          emphasized: { value: "{colors.yellow.300}" },
-          focusRing: { value: "{colors.yellow.500}" }
-        }
-      }
-    },
-    components: {
-      Stack: {
-        baseStyle: {
-          bg: 'transparent'
-        }
-      },
-      Dialog: {
-        baseStyle: {
-          content: {
-            bg: 'bg',
-            maxH: 'calc(100vh - 80px)',
-            my: '40px',
-            overflow: 'hidden'
-          },
-          header: {
-            px: 6,
-            py: 4
-          },
-          body: {
-            px: 6,
-            py: 4,
-            overflowY: 'auto'
-          },
-          footer: {
-            px: 6,
-            py: 4
-          }
-        }
-      },
-      Popover: {
-        baseStyle: {
-          content: {
-            bg: 'bg',
-            borderColor: 'border'
-          }
-        }
-      },
-      NumberInput: {
-        baseStyle: {
-          field: {
-            bg: 'bg',
-            borderColor: 'border'
-          },
-          stepper: {
-            borderColor: 'border'
-          }
         }
       }
     }
+  },
+  conditions: {
+    _dark: "@media (prefers-color-scheme: dark)"
+  },
+  globalCss: {
+    body: {
+      bg: "bg",
+      color: "text"
+    }
   }
-});
+})
+
+// Log initial color mode detection
+const prefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+console.log('System prefers dark mode:', prefersDark);
+
+export const system = createSystem(config);
 
 // Add color mode change listener
 if (typeof window !== 'undefined') {
