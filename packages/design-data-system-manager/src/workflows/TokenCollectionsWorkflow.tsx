@@ -3,8 +3,7 @@ import { useState } from 'react';
 import {
   Box,
   Button,
-  FormControl,
-  FormLabel,
+  Field,
   Input,
   Switch,
   VStack,
@@ -67,54 +66,57 @@ export default function TokenCollectionsWorkflow({
   };
 
   return (
-    <VStack spacing={4} align="stretch">
-      <Box p={4} borderWidth="1px" borderColor="gray.200" borderRadius="lg">
+    <VStack gap={4} align="stretch">
+      <Box p={4} borderWidth={1} borderColor="gray.200" borderRadius="lg">
         <Text fontSize="2xl" fontWeight="bold" mb={4}>
           Add New Token Collection
         </Text>
         <Box as="form" display="flex" flexDirection="column" gap={4}>
-          <FormControl isInvalid={Boolean(fieldErrors.name)}>
-            <FormLabel>Name</FormLabel>
+          <Field.Root invalid={Boolean(fieldErrors.name)}>
+            <Field.Label>Name</Field.Label>
             <Input
               type="text"
               value={newCollection.name}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCollection({ ...newCollection, name: e.target.value })}
             />
             {fieldErrors.name && (
-              <Text color="red.500">{fieldErrors.name}</Text>
+              <Field.ErrorText>{fieldErrors.name}</Field.ErrorText>
             )}
-          </FormControl>
-          <FormControl isInvalid={Boolean(fieldErrors.resolvedValueTypeIds)}>
-            <FormLabel>Resolved Value Type IDs (comma separated)</FormLabel>
+          </Field.Root>
+          <Field.Root invalid={Boolean(fieldErrors.resolvedValueTypeIds)}>
+            <Field.Label>Resolved Value Type IDs (comma separated)</Field.Label>
             <Input
               type="text"
               value={(newCollection.resolvedValueTypeIds || []).join(',')}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCollection({ ...newCollection, resolvedValueTypeIds: e.target.value.split(',').map((v: string) => v.trim()) })}
             />
             {fieldErrors.resolvedValueTypeIds && (
-              <Text color="red.500">{fieldErrors.resolvedValueTypeIds}</Text>
+              <Field.ErrorText>{fieldErrors.resolvedValueTypeIds}</Field.ErrorText>
             )}
-          </FormControl>
-          <FormControl>
-            <FormLabel>Private</FormLabel>
-            <Switch
-              isChecked={!!newCollection.private}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCollection({ ...newCollection, private: e.target.checked })}
-            />
-          </FormControl>
-          <FormControl isInvalid={Boolean(fieldErrors.defaultModeIds)}>
-            <FormLabel>Default Mode IDs (comma separated)</FormLabel>
+          </Field.Root>
+          <Field.Root>
+            <Field.Label>Private</Field.Label>
+            <Switch.Root
+              checked={!!newCollection.private}
+              onCheckedChange={(details) => setNewCollection({ ...newCollection, private: details.checked })}
+            >
+              <Switch.Control />
+              <Switch.Thumb />
+            </Switch.Root>
+          </Field.Root>
+          <Field.Root invalid={Boolean(fieldErrors.defaultModeIds)}>
+            <Field.Label>Default Mode IDs (comma separated)</Field.Label>
             <Input
               type="text"
               value={(newCollection.defaultModeIds || []).join(',')}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewCollection({ ...newCollection, defaultModeIds: e.target.value.split(',').map((v: string) => v.trim()) })}
             />
             {fieldErrors.defaultModeIds && (
-              <Text color="red.500">{fieldErrors.defaultModeIds}</Text>
+              <Field.ErrorText>{fieldErrors.defaultModeIds}</Field.ErrorText>
             )}
-          </FormControl>
-          <FormControl isInvalid={Boolean(fieldErrors['modeResolutionStrategy'])}>
-            <FormLabel>Mode Resolution Priority By Type (comma separated)</FormLabel>
+          </Field.Root>
+          <Field.Root invalid={Boolean(fieldErrors['modeResolutionStrategy'])}>
+            <Field.Label>Mode Resolution Priority By Type (comma separated)</Field.Label>
             <Input
               type="text"
               value={(newCollection.modeResolutionStrategy?.priorityByType || []).join(',')}
@@ -127,11 +129,11 @@ export default function TokenCollectionsWorkflow({
               })}
             />
             {fieldErrors['modeResolutionStrategy'] && (
-              <Text color="red.500">{fieldErrors['modeResolutionStrategy']}</Text>
+              <Field.ErrorText>{fieldErrors['modeResolutionStrategy']}</Field.ErrorText>
             )}
-          </FormControl>
-          <FormControl isInvalid={Boolean(fieldErrors['modeResolutionStrategy'])}>
-            <FormLabel>Mode Resolution Fallback Strategy</FormLabel>
+          </Field.Root>
+          <Field.Root invalid={Boolean(fieldErrors['modeResolutionStrategy'])}>
+            <Field.Label>Mode Resolution Fallback Strategy</Field.Label>
             <Input
               type="text"
               value={newCollection.modeResolutionStrategy?.fallbackStrategy || ''}
@@ -144,13 +146,13 @@ export default function TokenCollectionsWorkflow({
               })}
             />
             {fieldErrors['modeResolutionStrategy'] && (
-              <Text color="red.500">{fieldErrors['modeResolutionStrategy']}</Text>
+              <Field.ErrorText>{fieldErrors['modeResolutionStrategy']}</Field.ErrorText>
             )}
-          </FormControl>
+          </Field.Root>
           {fieldErrors.general && (
             <Text color="red.500">{fieldErrors.general}</Text>
           )}
-          <Button colorScheme="blue" onClick={handleAddCollection}>
+          <Button colorPalette="blue" onClick={handleAddCollection}>
             Add Collection
           </Button>
         </Box>

@@ -19,6 +19,7 @@ import { Platform, Taxonomy } from '@token-model/data-model';
 import { ValidationService } from '../../services/validation';
 import { ExtendedToken } from '../../components/TokenEditorDialog';
 import { StorageService } from '../../services/storage';
+import { useToast as useCustomToast } from '../../hooks/useToast';
 
 interface PlatformsViewProps {
   platforms: Platform[];
@@ -41,7 +42,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
   const [isNew, setIsNew] = useState(false);
   const cardBg = useColorModeValue('gray.50', 'gray.800');
   const cardBorder = useColorModeValue('gray.200', 'gray.600');
-  const toast = useToast();
+  const toast = useCustomToast();
 
   const validateAndSetPlatforms = (updatedPlatforms: Platform[]) => {
     // Get all required data from storage

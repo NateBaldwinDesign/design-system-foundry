@@ -6,12 +6,11 @@ import {
   HStack,
   Button,
   IconButton,
-  useToast,
-  useColorMode,
   Tag,
   TagLabel,
   Wrap
 } from '@chakra-ui/react';
+import { useTheme } from 'next-themes';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 import type { Taxonomy, Token, TokenCollection, Dimension, Platform, ResolvedValueType } from '@token-model/data-model';
 import { createUniqueId } from '../../utils/id';
@@ -19,6 +18,7 @@ import { ValidationService } from '../../services/validation';
 import { TaxonomyEditorDialog } from '../../components/TaxonomyEditorDialog';
 import { TermEditorDialog } from '../../components/TermEditorDialog';
 import { StorageService } from '../../services/storage';
+import { useToast } from '../../hooks/useToast';
 
 interface ClassificationViewProps {
   taxonomies: Taxonomy[];
@@ -39,7 +39,8 @@ function normalizeTerms(terms: { id: string; name: string; description?: string 
 }
 
 export function ClassificationView({ taxonomies, setTaxonomies }: ClassificationViewProps) {
-  const { colorMode } = useColorMode();
+  const { theme } = useTheme();
+  const colorMode = theme === 'dark' ? 'dark' : 'light';
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [form, setForm] = useState({
@@ -270,62 +271,70 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
 
   return (
     <Box>
-      <Text fontSize="2xl" fontWeight="bold" mb={4}>Classification</Text>
-      <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
-          Add Taxonomy
-        </Button>
-        <VStack align="stretch" spacing={2}>
-          {taxonomies.map((taxonomy, i) => {
-            const extendedTaxonomy = taxonomy as ExtendedTaxonomy;
-            return (
-              <Box 
-                key={taxonomy.id} 
-                p={3} 
-                borderWidth={1} 
-                borderRadius="md" 
-                bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-                borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-              >
-                <HStack justify="space-between" align="center">
-                  <Box>
-                    <Text fontSize="lg" fontWeight="medium">{taxonomy.name}</Text>
-                    <Text fontSize="sm" color="gray.600">{taxonomy.description}</Text>
-                    <Text fontSize="sm" color="gray.600">Terms: {taxonomy.terms.map((t: { name: string }) => t.name).join(', ')}</Text>
-                    {Array.isArray(extendedTaxonomy.resolvedValueTypeIds) && extendedTaxonomy.resolvedValueTypeIds.length > 0 && (
-                      <Wrap mt={2} spacing={2}>
-                        {extendedTaxonomy.resolvedValueTypeIds.map((typeId: string) => {
-                          const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
-                          return type ? (
-                            <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
-                              <TagLabel>{type.displayName}</TagLabel>
-                            </Tag>
-                          ) : null;
-                        })}
-                      </Wrap>
-                    )}
-                  </Box>
-                  <HStack>
-                    <IconButton aria-label="Edit taxonomy" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
-                    <IconButton aria-label="Delete taxonomy" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
-                  </HStack>
+      <VStack gap={4} align="stretch">
+        <HStack justify="space-between">
+          <Text fontSize="2xl" fontWeight="bold">Classification</Text>
+          <Button onClick={() => handleOpen()}>
+            <LuPlus />
+            Add Taxonomy
+          </Button>
+        </HStack>
+
+        <VStack gap={4} align="stretch">
+          {taxonomies.map((taxonomy, index) => (
+            <Box
+              key={taxonomy.id}
+              p={4}
+              borderWidth={1}
+              borderRadius="md"
+              bg={colorMode === 'dark' ? 'gray.900' : 'white'}
+            >
+              <HStack justify="space-between" mb={2}>
+                <Text fontSize="lg" fontWeight="medium">{taxonomy.name}</Text>
+                <HStack gap={2}>
+                  <IconButton
+                    aria-label="Edit taxonomy"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleOpen(index)}
+                  >
+                    <LuPencil />
+                  </IconButton>
+                  <IconButton
+                    aria-label="Delete taxonomy"
+                    size="sm"
+                    variant="ghost"
+                    colorScheme="red"
+                    onClick={() => handleDelete(index)}
+                  >
+                    <LuTrash2 />
+                  </IconButton>
                 </HStack>
-              </Box>
-            );
-          })}
+              </HStack>
+              {taxonomy.description && (
+                <Text color="gray.600" mb={2}>{taxonomy.description}</Text>
+              )}
+              <Wrap gap={2}>
+                {taxonomy.terms?.map((term) => (
+                  <Tag.Root key={term.id} size="md" borderRadius="full" variant="subtle">
+                    <Tag.Label>{term.name}</Tag.Label>
+                  </Tag.Root>
+                ))}
+              </Wrap>
+            </Box>
+          ))}
         </VStack>
-      </Box>
+      </VStack>
 
       <TaxonomyEditorDialog
         open={open}
         onClose={handleClose}
         onSave={handleSave}
-        form={{ ...form, editingIndex }}
-        handleFormChange={handleFormChange}
-        handleTermDialogOpen={handleTermDialogOpen}
-        handleTermDelete={handleTermDelete}
-        resolvedValueTypes={Array.isArray(resolvedValueTypes) ? resolvedValueTypes.map(vt => ({ id: vt.id, name: vt.displayName })) : []}
+        taxonomy={form}
+        isNew={editingIndex === null}
+        resolvedValueTypes={resolvedValueTypes.map(vt => ({ id: vt.id, name: vt.displayName }))}
       />
+
       <TermEditorDialog
         open={termDialogOpen}
         onClose={handleTermDialogClose}

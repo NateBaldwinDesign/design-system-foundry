@@ -2,14 +2,9 @@ import React from 'react';
 import {
   Box,
   Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
   Flex,
-  useColorModeValue,
-  useColorMode,
 } from '@chakra-ui/react';
+import { useTheme } from 'next-themes';
 
 export interface TabItem {
   id: string;
@@ -19,91 +14,53 @@ export interface TabItem {
 
 interface VerticalTabsLayoutProps {
   tabs: TabItem[];
-  activeTab?: number;
-  onChange?: (index: number) => void;
-  width?: string | number;
-  height?: string | number;
+  defaultTab?: string;
+  onChange?: (tabId: string) => void;
 }
 
-export function VerticalTabsLayout({
+export const VerticalTabsLayout: React.FC<VerticalTabsLayoutProps> = ({
   tabs,
-  activeTab = 0,
+  defaultTab,
   onChange,
-  width = '100%',
-  height = '100%',
-}: VerticalTabsLayoutProps) {
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
-  const selectedBg = useColorModeValue('blue.50', 'blue.900');
-  const hoverBg = useColorModeValue('gray.50', 'gray.700');
-  const { colorMode } = useColorMode();
+}) => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   return (
-    <Box 
-      width={width} 
-      height={height}
-      display="flex"
-      flexDirection="column"
-      flex="1"
-    >
-      <Tabs
-        orientation="vertical"
-        variant="line"
-        index={activeTab}
-        onChange={onChange}
-        display="flex"
-        flexDirection="row"
-        height="100%"
-        flex="1"
+    <Flex>
+      <Box
+        borderRightWidth={1}
+        borderColor={isDark ? 'gray.700' : 'gray.200'}
+        w="200px"
       >
-        <TabList
-          borderLeft="none"
-          width="200px"
-          height="100%"
-          overflowY="auto"
-          flexShrink={0}
+        <Tabs.Root
+          orientation="vertical"
+          variant="enclosed"
+          defaultValue={defaultTab || tabs[0].id}
+          onValueChange={(details) => onChange?.(details.value)}
         >
-          {tabs.map((tab) => (
-            <Tab
-              key={tab.id}
-              justifyContent="flex-start"
-              width="100%"
-              _selected={{
-                bg: selectedBg,
-                borderRight: '2px',
-                borderRightColor: 'blue.500',
-              }}
-              _hover={{
-                bg: hoverBg,
-              }}
-            >
-              {tab.label}
-            </Tab>
-          ))}
-        </TabList>
-
-        <TabPanels 
-          flex="1" 
-          overflowY="auto" 
-          borderLeft="1px" 
-          borderColor={borderColor} 
-          height="100%"
-          display="flex"
-          flexDirection="column"
-          bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}
-        >
-          {tabs.map((tab) => (
-            <TabPanel 
-              key={tab.id} 
-              p={4}
-              flex="1"
-              display="flex"
-              flexDirection="column"
-            >
-              {tab.content}
-            </TabPanel>
-          ))}
-        </TabPanels>
-      </Tabs>
-    </Box>
+          <Tabs.List>
+            {tabs.map((tab) => (
+              <Tabs.Trigger
+                key={tab.id}
+                value={tab.id}
+                bg={isDark ? 'gray.700' : 'gray.100'}
+                borderColor={isDark ? 'gray.600' : 'gray.200'}
+                justifyContent="flex-start"
+              >
+                {tab.label}
+              </Tabs.Trigger>
+            ))}
+          </Tabs.List>
+        </Tabs.Root>
+      </Box>
+      <Box flex={1} p={4}>
+        {tabs.map((tab) => (
+          <Tabs.Content key={tab.id} value={tab.id}>
+            {tab.content}
+          </Tabs.Content>
+        ))}
+      </Box>
+    </Flex>
   );
-} 
+}; 

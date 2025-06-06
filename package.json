@@ -11,22 +11,15 @@
     "nuclear-clean": "bash ./nuclear-clean.sh"
   },
   "devDependencies": {
-    "@types/node": "^20.17.57",
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.1",
     "eslint-plugin-react": "^7.37.5",
     "prettier": "^3.2.5",
     "typescript": "^5.3.3"
   },
   "packageManager": "pnpm@9.10.0+sha512.73a29afa36a0d092ece5271de5177ecbf8318d454ecd701343131b8ebc0c1a91c487da46ab77c8e596d6acf1461e3594ced4becedf8921b074fbd8653ed7051c",
   "dependencies": {
-    "@chakra-ui/react": "^3.19.1",
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
     "@types/react-syntax-highlighter": "^15.5.13",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
-    "framer-motion": "^12.15.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-syntax-highlighter": "^15.6.1",

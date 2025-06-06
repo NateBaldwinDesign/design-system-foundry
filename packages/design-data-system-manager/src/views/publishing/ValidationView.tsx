@@ -1,32 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Text,
   Button,
-  FormControl,
-  FormLabel,
+  Field,
   Select,
   VStack,
   Heading,
-  useColorMode,
-  useToast,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
-  AlertDialogFooter,
   Code,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton
+  Dialog,
+  createListCollection,
 } from '@chakra-ui/react';
+import { useTheme } from 'next-themes';
 import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { ValidationService } from '../../services/validation';
 import { createSchemaJsonFromLocalStorage } from '../../services/createJson';
+import { useToast } from '../../hooks/useToast';
 
 interface ValidationViewProps {
   tokens: Token[];
@@ -78,234 +67,118 @@ interface TokenSystemData {
   tokenVariants?: any[]; // Optional
 }
 
-export function ValidationView({ tokens = [], collections = [], dimensions = [], platforms = [], taxonomies = [], version = '1.0.0', versionHistory = [], onValidate }: ValidationViewProps) {
-  const { colorMode } = useColorMode();
+export default function ValidationView({
+  tokens,
+  collections,
+  dimensions,
+  platforms,
+  taxonomies,
+  version,
+  versionHistory,
+  onValidate,
+}: ValidationViewProps) {
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
-  const [isTokenValidationOpen, setIsTokenValidationOpen] = useState(false);
-  const [tokenValidationResult, setTokenValidationResult] = useState<{ isValid: boolean; errors?: any[] } | null>(null);
-  const [isGlobalValidationOpen, setIsGlobalValidationOpen] = useState(false);
-  const [globalValidationResult, setGlobalValidationResult] = useState<{ isValid: boolean; errors?: any[] } | null>(null);
-  const [isJsonPreviewOpen, setIsJsonPreviewOpen] = useState(false);
-  const [jsonPreview, setJsonPreview] = useState('');
-  const cancelRef = React.useRef<HTMLButtonElement>(null);
+  const [validationResults, setValidationResults] = useState<any>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { theme } = useTheme();
   const toast = useToast();
 
-  // Refresh JSON preview when data changes
-  useEffect(() => {
-    if (isJsonPreviewOpen) {
-      const data = createSchemaJsonFromLocalStorage();
-      setJsonPreview(JSON.stringify(data, null, 2));
-    }
-  }, [isJsonPreviewOpen, collections, dimensions, tokens, platforms, taxonomies, version, versionHistory]);
+  const handleValidate = async () => {
+    if (!selectedToken) return;
 
-  const handleGlobalValidate = () => {
+    setIsValidating(true);
     try {
-      const data = createSchemaJsonFromLocalStorage();
-      const result = ValidationService.validateData(data);
-      
-      if (result.isValid) {
-        toast({
-          title: 'Validation Successful',
-          description: 'Your data is valid according to the schema.',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
-      } else {
-        setGlobalValidationResult(result);
-        setIsGlobalValidationOpen(true);
-      }
-    } catch (error: unknown) {
+      const schema = await createSchemaJsonFromLocalStorage();
+      const results = await ValidationService.validateData(schema);
+      setValidationResults(results);
+      setIsDialogOpen(true);
+    } catch (error) {
       toast({
         title: 'Validation Error',
-        description: 'An error occurred during validation.',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
         status: 'error',
-        duration: 3000,
+        duration: 5000,
         isClosable: true,
       });
-    }
-  };
-
-  const handlePreviewJson = () => {
-    setIsJsonPreviewOpen(true);
-  };
-
-  const handleTokenSelect = (tokenId: string) => {
-    const token = tokens.find(t => t.id === tokenId);
-    setSelectedToken(token || null);
-    setTokenValidationResult(null);
-  };
-
-  const handleValidate = () => {
-    if (selectedToken) {
-      try {
-        onValidate(selectedToken);
-        toast({
-          title: 'Token Validation Successful',
-          description: 'The selected token is valid.',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
-      } catch (error: unknown) {
-        setTokenValidationResult({
-          isValid: false,
-          errors: [error]
-        });
-        setIsTokenValidationOpen(true);
-      }
+    } finally {
+      setIsValidating(false);
     }
   };
 
   return (
-    <Box>
-      <Box p={4}  bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <VStack align="stretch" spacing={6}>
-          <Box>
-            <Heading as="h2" size="md" mb={4}>
-              Global Data Validation
-            </Heading>
-            <Button
-              colorScheme="blue"
-              onClick={handleGlobalValidate}
-              mb={4}
-            >
-              Validate All Data
-            </Button>
-            <Button
-              variant="outline"
-              colorScheme="gray"
-              onClick={handlePreviewJson}
-              mb={4}
-              ml={2}
-            >
-              Preview JSON
-            </Button>
-          </Box>
+    <Box p={4}>
+      <Heading size="lg" mb={4}>Token Validation</Heading>
+      <VStack gap={4} align="stretch">
+        <Field.Root>
+          <Field.Label>Select Token</Field.Label>
+          <Select.Root
+            value={selectedToken ? [selectedToken.id] : []}
+            onValueChange={(details) => {
+              const value = Array.isArray(details.value) ? details.value[0] : details.value;
+              const token = tokens.find(t => t.id === value);
+              setSelectedToken(token || null);
+            }}
+            collection={createListCollection({
+              items: [
+                { value: '', label: 'Select a token' },
+                ...tokens.map(token => ({
+                  value: token.id,
+                  label: token.displayName
+                }))
+              ]
+            })}
+          >
+            <Select.HiddenSelect />
+            <Select.Control>
+              <Select.Trigger>
+                <Select.ValueText placeholder="Select a token" />
+              </Select.Trigger>
+              <Select.IndicatorGroup>
+                <Select.Indicator />
+              </Select.IndicatorGroup>
+            </Select.Control>
+            <Select.Positioner>
+              <Select.Content>
+                <Select.Item item={{ value: '', label: 'Select a token' }}>
+                  Select a token
+                  <Select.ItemIndicator />
+                </Select.Item>
+                {tokens.map((token) => (
+                  <Select.Item key={token.id} item={{ value: token.id, label: token.displayName }}>
+                    {token.displayName}
+                    <Select.ItemIndicator />
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Positioner>
+          </Select.Root>
+        </Field.Root>
 
-          <Box pt={6}>
-            <Heading as="h2" size="md" mb={4}>
-              Token Validation Tester
-            </Heading>
-            <VStack align="stretch" spacing={4}>
-              <FormControl>
-                <FormLabel>Select Token</FormLabel>
-                <Select
-                  value={selectedToken?.id || ''}
-                  onChange={(e) => handleTokenSelect(e.target.value)}
-                  placeholder="Select token"
-                >
-                  {tokens?.map((token) => (
-                    <option key={token.id} value={token.id}>
-                      {token.displayName}
-                    </option>
-                  ))}
-                </Select>
-              </FormControl>
+        <Button
+          colorPalette="blue"
+          onClick={handleValidate}
+          disabled={!selectedToken || isValidating}
+        >
+          {isValidating ? 'Validating...' : 'Validate Token'}
+        </Button>
 
-              {selectedToken && (
-                <Box>
-                  <Text fontWeight="semibold" mb={2}>
-                    Selected Token Details
-                  </Text>
-                  <Text fontSize="sm">
-                    Name: {selectedToken.displayName}
-                  </Text>
-                  <Text fontSize="sm">
-                    Collection: {collections?.find(c => c.id === selectedToken.tokenCollectionId)?.name}
-                  </Text>
-                  <Text fontSize="sm">
-                    Value Type: {selectedToken.resolvedValueTypeId}
-                  </Text>
-                  <Button
-                    colorScheme="blue"
-                    onClick={handleValidate}
-                    mt={3}
-                  >
-                    Validate Token
-                  </Button>
-                </Box>
+        <Dialog.Root open={isDialogOpen} onOpenChange={(details) => setIsDialogOpen(details.open)}>
+          <Dialog.Content>
+            <Dialog.Header>Validation Results</Dialog.Header>
+            <Dialog.Body>
+              {validationResults && (
+                <VStack gap={4} align="stretch">
+                  <Text>Validation completed for token: {selectedToken?.displayName}</Text>
+                  <Code p={4} borderRadius="md" bg={theme === 'dark' ? 'gray.800' : 'gray.100'}>
+                    {JSON.stringify(validationResults, null, 2)}
+                  </Code>
+                </VStack>
               )}
-            </VStack>
-          </Box>
-        </VStack>
-      </Box>
-
-      {/* Global Validation Dialog */}
-      <AlertDialog
-        isOpen={isGlobalValidationOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={() => setIsGlobalValidationOpen(false)}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Validation Failed
-            </AlertDialogHeader>
-
-            <AlertDialogBody>
-              <Text mb={4}>The following validation errors were found:</Text>
-              {globalValidationResult?.errors?.map((error: unknown, index: number) => (
-                <Code key={index} display="block" mb={2} p={2} whiteSpace="pre-wrap">
-                  {JSON.stringify(error, null, 2)}
-                </Code>
-              ))}
-            </AlertDialogBody>
-
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={() => setIsGlobalValidationOpen(false)}>
-                Close
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
-
-      {/* Token Validation Dialog */}
-      <AlertDialog
-        isOpen={isTokenValidationOpen}
-        leastDestructiveRef={cancelRef}
-        onClose={() => setIsTokenValidationOpen(false)}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader fontSize="lg" fontWeight="bold">
-              Token Validation Failed
-            </AlertDialogHeader>
-
-            <AlertDialogBody>
-              <Text mb={4}>The following validation errors were found:</Text>
-              {tokenValidationResult?.errors?.map((error: unknown, index: number) => (
-                <Code key={index} display="block" mb={2} p={2} whiteSpace="pre-wrap">
-                  {JSON.stringify(error, null, 2)}
-                </Code>
-              ))}
-            </AlertDialogBody>
-
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={() => setIsTokenValidationOpen(false)}>
-                Close
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
-
-      {/* JSON Preview Modal */}
-      <Modal isOpen={isJsonPreviewOpen} onClose={() => setIsJsonPreviewOpen(false)}>
-        <ModalOverlay />
-        <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'} maxH="80vh" overflowY="auto">
-          <ModalHeader>Local Storage Data Preview</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Box maxH="60vh" overflowY="auto">
-              <Code width="100%" whiteSpace="pre" p={4} fontSize="sm" display="block">
-                {jsonPreview}
-              </Code>
-            </Box>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+            </Dialog.Body>
+          </Dialog.Content>
+        </Dialog.Root>
+      </VStack>
     </Box>
   );
 } 

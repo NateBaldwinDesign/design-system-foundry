@@ -8,12 +8,10 @@ import {
   Input,
   Grid,
   GridItem,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
+  Field,
   Select,
   Checkbox,
-  useToast
+  createListCollection,
 } from '@chakra-ui/react';
 import { Token, TokenCollection, Taxonomy, TokenTaxonomyRef } from '@token-model/data-model';
 import { Token as TokenSchema } from '../../../data-model/src/schema';
@@ -21,6 +19,8 @@ import { ZodError } from 'zod';
 import { TaxonomyPicker } from '../components/TaxonomyPicker';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService } from '../services/codeSyntax';
+import { useToast } from '../hooks/useToast';
+import type { ChangeEvent } from 'react';
 
 interface TokensWorkflowProps {
   tokens: Token[];
@@ -113,67 +113,97 @@ export default function TokensWorkflow({
           <Text fontSize="xl" fontWeight="bold" mb={4}>
             Add New Token
           </Text>
-          <VStack spacing={4} align="stretch">
-            <FormControl isInvalid={Boolean(fieldErrors.displayName)}>
-              <FormLabel>Display Name</FormLabel>
+          <VStack gap={4} align="stretch">
+            <Field.Root invalid={Boolean(fieldErrors.displayName)}>
+              <Field.Label>Display Name</Field.Label>
               <Input
                 value={newToken.displayName}
-                onChange={(e) => setNewToken({ ...newToken, displayName: e.target.value })}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewToken({ ...newToken, displayName: e.target.value })}
               />
-              <FormErrorMessage>{fieldErrors.displayName}</FormErrorMessage>
-            </FormControl>
+              {fieldErrors.displayName && <Field.ErrorText>{fieldErrors.displayName}</Field.ErrorText>}
+            </Field.Root>
 
-            <FormControl isInvalid={Boolean(fieldErrors.description)}>
-              <FormLabel>Description</FormLabel>
+            <Field.Root invalid={Boolean(fieldErrors.description)}>
+              <Field.Label>Description</Field.Label>
               <Input
                 value={newToken.description}
-                onChange={(e) => setNewToken({ ...newToken, description: e.target.value })}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewToken({ ...newToken, description: e.target.value })}
               />
-              <FormErrorMessage>{fieldErrors.description}</FormErrorMessage>
-            </FormControl>
+              {fieldErrors.description && <Field.ErrorText>{fieldErrors.description}</Field.ErrorText>}
+            </Field.Root>
 
-            <FormControl isInvalid={Boolean(fieldErrors.tokenCollectionId)}>
-              <FormLabel>Token Collection</FormLabel>
-              <Select
-                value={newToken.tokenCollectionId || ''}
-                onChange={(e) => setNewToken({ ...newToken, tokenCollectionId: e.target.value })}
+            <Field.Root invalid={Boolean(fieldErrors.tokenCollectionId)}>
+              <Field.Label>Token Collection</Field.Label>
+              <Select.Root
+                value={[newToken.tokenCollectionId || '']}
+                onValueChange={(details) => {
+                  const value = Array.isArray(details.value) ? details.value[0] : details.value;
+                  setNewToken({ ...newToken, tokenCollectionId: value });
+                }}
+                collection={createListCollection({
+                  items: [
+                    { value: '', label: 'Select a collection' },
+                    ...tokenCollections.map(collection => ({
+                      value: collection.id,
+                      label: collection.name
+                    }))
+                  ]
+                })}
               >
-                <option value="">Select a collection</option>
-                {tokenCollections.map((collection) => (
-                  <option key={collection.id} value={collection.id}>
-                    {collection.name}
-                  </option>
-                ))}
-              </Select>
-              <FormErrorMessage>{fieldErrors.tokenCollectionId}</FormErrorMessage>
-            </FormControl>
+                <Select.HiddenSelect />
+                <Select.Control>
+                  <Select.Trigger>
+                    <Select.ValueText placeholder="Select a collection" />
+                  </Select.Trigger>
+                  <Select.IndicatorGroup>
+                    <Select.Indicator />
+                  </Select.IndicatorGroup>
+                </Select.Control>
+                <Select.Positioner>
+                  <Select.Content>
+                    <Select.Item item={{ value: '', label: 'Select a collection' }}>
+                      Select a collection
+                      <Select.ItemIndicator />
+                    </Select.Item>
+                    {tokenCollections.map((collection) => (
+                      <Select.Item key={collection.id} item={{ value: collection.id, label: collection.name }}>
+                        {collection.name}
+                        <Select.ItemIndicator />
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Positioner>
+              </Select.Root>
+              {fieldErrors.tokenCollectionId && <Field.ErrorText>{fieldErrors.tokenCollectionId}</Field.ErrorText>}
+            </Field.Root>
 
-            <FormControl isInvalid={Boolean(fieldErrors.resolvedValueTypeId)}>
-              <FormLabel>Resolved Value Type</FormLabel>
+            <Field.Root invalid={Boolean(fieldErrors.resolvedValueTypeId)}>
+              <Field.Label>Resolved Value Type</Field.Label>
               <Input
                 value={newToken.resolvedValueTypeId}
-                onChange={(e) => setNewToken({ ...newToken, resolvedValueTypeId: e.target.value })}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewToken({ ...newToken, resolvedValueTypeId: e.target.value })}
               />
-              <FormErrorMessage>{fieldErrors.resolvedValueTypeId}</FormErrorMessage>
-            </FormControl>
+              {fieldErrors.resolvedValueTypeId && <Field.ErrorText>{fieldErrors.resolvedValueTypeId}</Field.ErrorText>}
+            </Field.Root>
 
-            <FormControl>
-              <Checkbox
-                isChecked={!!newToken.private}
-                onChange={(e) => setNewToken({ ...newToken, private: e.target.checked })}
+            <Field.Root>
+              <Checkbox.Root
+                checked={!!newToken.private}
+                onCheckedChange={(checked: boolean) => setNewToken({ ...newToken, private: checked })}
               >
-                Private
-              </Checkbox>
-            </FormControl>
+                <Checkbox.Control />
+                <Checkbox.Label>Private</Checkbox.Label>
+              </Checkbox.Root>
+            </Field.Root>
 
-            <FormControl isInvalid={Boolean(fieldErrors.propertyTypes)}>
-              <FormLabel>Property Types (comma separated)</FormLabel>
+            <Field.Root invalid={Boolean(fieldErrors.propertyTypes)}>
+              <Field.Label>Property Types (comma separated)</Field.Label>
               <Input
                 value={(newToken.propertyTypes || []).join(',')}
-                onChange={(e) => setNewToken({ ...newToken, propertyTypes: e.target.value.split(',').map((v) => v.trim()) })}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setNewToken({ ...newToken, propertyTypes: e.target.value.split(',').map((v) => v.trim()) })}
               />
-              <FormErrorMessage>{fieldErrors.propertyTypes}</FormErrorMessage>
-            </FormControl>
+              {fieldErrors.propertyTypes && <Field.ErrorText>{fieldErrors.propertyTypes}</Field.ErrorText>}
+            </Field.Root>
 
             <Text fontSize="lg" fontWeight="medium">Taxonomies</Text>
             <TaxonomyPicker
@@ -184,21 +214,35 @@ export default function TokensWorkflow({
             />
 
             <Text fontSize="lg" fontWeight="medium">Code Syntax (auto-generated)</Text>
-            <VStack spacing={2} align="stretch">
-              {Object.entries(CodeSyntaxService.generateAllCodeSyntaxes(newToken as Token, schema)).map(([key, value]) => (
-                <HStack key={key} spacing={2}>
-                  <Text fontSize="sm">{key}: {value}</Text>
-                </HStack>
-              ))}
-            </VStack>
-
-            {fieldErrors.general && (
-              <Text color="red.500">{fieldErrors.general}</Text>
+            {schema && (
+              <VStack gap={4} align="stretch">
+                {Object.entries(CodeSyntaxService.generateCodeSyntax(newToken, schema)).map(([platformId, formattedName]) => (
+                  <HStack key={platformId} gap={4} align="start">
+                    <Text fontWeight="medium">{platformId}:</Text>
+                    <Text>{formattedName}</Text>
+                  </HStack>
+                ))}
+              </VStack>
             )}
 
-            <Button colorScheme="blue" onClick={handleAddToken}>
-              Add Token
-            </Button>
+            <HStack gap={4} align="start" mt={4}>
+              <Button
+                colorPalette="blue"
+                onClick={handleAddToken}
+                disabled={!newToken.displayName || !newToken.tokenCollectionId}
+              >
+                Add Token
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setNewToken({});
+                  setFieldErrors({});
+                }}
+              >
+                Cancel
+              </Button>
+            </HStack>
           </VStack>
         </Box>
       </GridItem>

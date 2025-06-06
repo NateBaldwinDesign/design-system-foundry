@@ -32,6 +32,9 @@ import CoreDataView from './views/schemas/CoreDataView';
 import ThemeOverridesView from './views/schemas/ThemeOverridesView';
 import { Plus } from 'lucide-react';
 import { TokenEditorDialog, ExtendedToken } from './components/TokenEditorDialog';
+import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
+import { ValidationService } from './services/validation';
+import { useToast as useCustomToast } from './hooks/useToast';
 
 // TypeScript declaration for import.meta.glob
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -74,7 +77,7 @@ const App = () => {
   });
   const [selectedToken, setSelectedToken] = useState<ExtendedToken | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const toast = useToast();
+  const toast = useCustomToast();
 
   // Add effect to reload collections from storage when they change
   useEffect(() => {

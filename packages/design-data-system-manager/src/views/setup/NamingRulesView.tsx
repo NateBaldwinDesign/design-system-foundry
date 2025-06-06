@@ -1,22 +1,21 @@
-import React from 'react';
+import React, { ChangeEvent } from 'react';
 import {
   Box,
   Text,
   VStack,
   HStack,
-  FormControl,
-  FormLabel,
-  Select,
+  Field,
   IconButton,
-  useToast,
   Heading,
-  Divider,
-  useColorMode
+  createListCollection
 } from '@chakra-ui/react';
+import { Select } from '@chakra-ui/react';
+import { useTheme } from 'next-themes';
 import { LuGripVertical, LuTrash2, LuChevronUp, LuChevronDown } from 'react-icons/lu';
 import { DragDropContext, Droppable, Draggable, DropResult, DroppableProvided, DraggableProvided } from '@hello-pangea/dnd';
 import type { Taxonomy } from '@token-model/data-model';
 import { StorageService } from '../../services/storage';
+import { useToast } from '../../hooks/useToast';
 
 interface NamingRulesViewProps {
   taxonomies: Taxonomy[];
@@ -29,7 +28,8 @@ export function NamingRulesView({
   taxonomyOrder,
   setTaxonomyOrder
 }: NamingRulesViewProps) {
-  const { colorMode } = useColorMode();
+  const { theme } = useTheme();
+  const colorMode = theme === 'dark' ? 'dark' : 'light';
   const toast = useToast();
 
   const handleDragEnd = (result: DropResult) => {
@@ -94,25 +94,36 @@ export function NamingRulesView({
         <Text fontSize="sm" color="gray.600" mb={4}>
           Define the order of taxonomies in token names. This order determines how taxonomy terms appear in generated code syntax.
         </Text>
-        <VStack spacing={4} align="stretch">
-          <FormControl>
-            <FormLabel>Add Taxonomy to Order</FormLabel>
+        <VStack gap={4} align="stretch">
+          <Field.Root>
+            <Field.Label>Add Taxonomy to Order</Field.Label>
             <HStack>
-              <Select
-                placeholder="Select taxonomy"
-                onChange={(e) => handleAddTaxonomy(e.target.value)}
-                value=""
+              <Select.Root
+                value={['']}
+                onValueChange={(details) => {
+                  const value = Array.isArray(details.value) ? details.value[0] : details.value;
+                  if (value) handleAddTaxonomy(value);
+                }}
+                collection={createListCollection({
+                  items: availableTaxonomies.map(taxonomy => ({
+                    value: taxonomy.id,
+                    label: taxonomy.name
+                  }))
+                })}
               >
-                {availableTaxonomies.map((taxonomy) => (
-                  <option key={taxonomy.id} value={taxonomy.id}>
-                    {taxonomy.name}
-                  </option>
-                ))}
-              </Select>
+                <Select.Trigger>
+                  <Select.ValueText placeholder="Select taxonomy" />
+                </Select.Trigger>
+                <Select.Content>
+                  {availableTaxonomies.map((taxonomy) => (
+                    <Select.Item key={taxonomy.id} item={{ value: taxonomy.id, label: taxonomy.name }}>
+                      {taxonomy.name}
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select.Root>
             </HStack>
-          </FormControl>
-
-          <Divider />
+          </Field.Root>
 
           <Box>
             <Text fontWeight="medium" mb={2}>Current Order</Text>
@@ -122,7 +133,7 @@ export function NamingRulesView({
                   <VStack
                     {...provided.droppableProps}
                     ref={provided.innerRef}
-                    spacing={2}
+                    gap={2}
                     align="stretch"
                   >
                     {filteredOrder.map((taxonomyId, index) => {
@@ -154,31 +165,34 @@ export function NamingRulesView({
                                 <LuGripVertical />
                               </Box>
                               <Text flex={1}>{taxonomy.name}</Text>
-                              <HStack spacing={1}>
+                              <HStack gap={1}>
                                 <IconButton
                                   aria-label="Move up"
-                                  icon={<LuChevronUp />}
                                   size="sm"
                                   variant="ghost"
-                                  isDisabled={index === 0}
+                                  disabled={index === 0}
                                   onClick={() => handleMoveUp(index)}
-                                />
+                                >
+                                  <LuChevronUp />
+                                </IconButton>
                                 <IconButton
                                   aria-label="Move down"
-                                  icon={<LuChevronDown />}
                                   size="sm"
                                   variant="ghost"
-                                  isDisabled={index === filteredOrder.length - 1}
+                                  disabled={index === filteredOrder.length - 1}
                                   onClick={() => handleMoveDown(index)}
-                                />
+                                >
+                                  <LuChevronDown />
+                                </IconButton>
                                 <IconButton
                                   aria-label="Remove taxonomy"
-                                  icon={<LuTrash2 />}
                                   size="sm"
                                   variant="ghost"
                                   colorScheme="red"
                                   onClick={() => handleRemoveTaxonomy(taxonomyId)}
-                                />
+                                >
+                                  <LuTrash2 />
+                                </IconButton>
                               </HStack>
                             </HStack>
                           )}

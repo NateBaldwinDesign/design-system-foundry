@@ -6,18 +6,18 @@ import {
   VStack,
   HStack,
   IconButton,
-  useToast,
-  useColorMode,
   Tag,
   TagLabel,
   Wrap
 } from '@chakra-ui/react';
+import { useTheme } from 'next-themes';
 import { LuPlus, LuTrash2, LuPencil, LuGripVertical } from 'react-icons/lu';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import type { Dimension, Mode, ResolvedValueType } from '@token-model/data-model';
 import { ValidationService } from '../../services/validation';
 import { DimensionsEditor } from '../../components/DimensionsEditor';
 import { StorageService } from '../../services/storage';
+import { useToast } from '../../hooks/useToast';
 
 interface DimensionsViewProps {
   dimensions: Dimension[];
@@ -34,7 +34,8 @@ export function DimensionsView({
   setDimensionOrder,
   onDataChange
 }: DimensionsViewProps) {
-  const { colorMode } = useColorMode();
+  const { theme } = useTheme();
+  const colorMode = theme === 'dark' ? 'dark' : 'light';
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const toast = useToast();
@@ -111,11 +112,9 @@ export function DimensionsView({
 
     if (!validationResult.isValid) {
       console.log('Validation failed:', validationResult.errors);
-      const errorMessages = validationResult.errors.map(error => 
-        typeof error === 'object' && error !== null && 'message' in error 
-          ? error.message 
-          : String(error)
-      );
+      const errorMessages = validationResult.errors?.map(error => 
+        typeof error === 'string' ? error : String(error)
+      ) || [];
       toast({
         title: "Validation Error",
         description: errorMessages.join('\n'),
@@ -226,11 +225,28 @@ export function DimensionsView({
 
   console.log('Sorted dimensions:', sortedDimensions);
 
+  const handleSave = (dimension: Dimension) => {
+    const newDims = [...dimensions];
+    if (editingIndex !== null) {
+      newDims[editingIndex] = dimension;
+    } else {
+      newDims.push(dimension);
+    }
+    setDimensions(newDims);
+    handleClose();
+    toast({
+      title: editingIndex !== null ? 'Dimension Updated' : 'Dimension Created',
+      description: `Successfully ${editingIndex !== null ? 'updated' : 'created'} dimension "${dimension.displayName}"`,
+      status: 'success'
+    });
+  };
+
   return (
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Dimensions</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+        <Button size="sm" onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+          <LuPlus />
           Add Dimension
         </Button>
         <DragDropContext onDragEnd={handleDragEnd}>
@@ -240,7 +256,7 @@ export function DimensionsView({
                 {...provided.droppableProps}
                 ref={provided.innerRef}
                 align="stretch"
-                spacing={2}
+                gap={2}
               >
                 {sortedDimensions.map((dim: Dimension, i: number) => (
                   <Draggable key={dim.id} draggableId={dim.id} index={i}>
@@ -257,7 +273,7 @@ export function DimensionsView({
                         transition="all 0.2s"
                       >
                         <HStack justify="space-between" align="center">
-                          <HStack spacing={2}>
+                          <HStack gap={2}>
                             <Box w="32px" textAlign="center" fontWeight="bold" color="gray.500">
                               {i + 1}
                             </Box>
@@ -269,13 +285,22 @@ export function DimensionsView({
                               <Text fontSize="sm" color="gray.600">Modes: {dim.modes.map((m: Mode) => m.name).join(', ')}</Text>
                               <Text fontSize="xs" color="gray.500">ID: {dim.id}</Text>
                               {Array.isArray(dim.resolvedValueTypeIds) && dim.resolvedValueTypeIds.length > 0 && (
-                                <Wrap mt={2} spacing={2}>
+                                <Wrap mt={2} gap={2}>
                                   {dim.resolvedValueTypeIds.map((typeId: string) => {
                                     const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
                                     return type ? (
-                                      <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
-                                        <TagLabel>{type.displayName}</TagLabel>
-                                      </Tag>
+                                      <Box
+                                        key={typeId}
+                                        as="span"
+                                        px={2}
+                                        py={1}
+                                        borderRadius="full"
+                                        bg="blue.500"
+                                        color="white"
+                                        fontSize="sm"
+                                      >
+                                        {type.displayName}
+                                      </Box>
                                     ) : null;
                                   })}
                                 </Wrap>
@@ -283,8 +308,12 @@ export function DimensionsView({
                             </Box>
                           </HStack>
                           <HStack>
-                            <IconButton aria-label="Edit dimension" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
-                            <IconButton aria-label="Delete dimension" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
+                            <IconButton aria-label="Edit dimension" size="sm" onClick={() => handleOpen(i)}>
+                              <LuPencil />
+                            </IconButton>
+                            <IconButton aria-label="Delete dimension" size="sm" colorScheme="red" onClick={() => handleDelete(i)}>
+                              <LuTrash2 />
+                            </IconButton>
                           </HStack>
                         </HStack>
                       </Box>
@@ -298,11 +327,11 @@ export function DimensionsView({
         </DragDropContext>
       </Box>
       <DimensionsEditor
-        dimensions={dimensions}
-        setDimensions={setDimensions}
-        isOpen={open}
+        open={open}
         onClose={handleClose}
-        editingIndex={editingIndex}
+        onSave={handleSave}
+        dimension={editingIndex !== null ? dimensions[editingIndex] : undefined}
+        isNew={editingIndex === null}
       />
     </Box>
   );

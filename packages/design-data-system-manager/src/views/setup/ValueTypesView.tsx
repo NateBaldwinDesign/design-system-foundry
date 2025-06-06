@@ -6,25 +6,19 @@ import {
   VStack,
   HStack,
   IconButton,
-  useToast,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
-  FormControl,
-  FormLabel,
+  Dialog,
   Input,
   Select,
-  FormErrorMessage,
-  useColorMode
+  Field,
+  Portal,
+  createListCollection,
 } from '@chakra-ui/react';
+import { useTheme } from 'next-themes';
 import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
 import { ValidationService } from '../../services/validation';
-import type { Token, TokenCollection, Dimension, Platform, Taxonomy, Theme, ResolvedValueType, StandardValueType } from '@token-model/data-model/src/schema';
-import { StandardValueType as StandardValueTypeSchema } from '@token-model/data-model/src/schema';
+import type { Token, TokenCollection, Dimension, Platform, Taxonomy, Theme, ResolvedValueType, StandardValueType } from '@token-model/data-model';
+import { useToast } from '../../hooks/useToast';
+import type { ChangeEvent } from 'react';
 
 interface ValueTypesViewProps {
   valueTypes: ResolvedValueType[];
@@ -32,12 +26,13 @@ interface ValueTypesViewProps {
 }
 
 export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
-  const { colorMode } = useColorMode();
+  const { theme } = useTheme();
+  const colorMode = theme === 'dark' ? 'dark' : 'light';
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<ResolvedValueType | null>(null);
   const [name, setName] = useState('');
   const [type, setType] = useState<StandardValueType | 'CUSTOM'>('CUSTOM');
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<{ name?: string; type?: string }>({});
   const toast = useToast();
   // Assume tokens, collections, dimensions, platforms, taxonomies, and themes are available via props or context (for this edit, use empty arrays as placeholders)
   const tokens: Token[] = [];
@@ -47,19 +42,27 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
   const taxonomies: Taxonomy[] = [];
   const themes: Theme[] = [];
 
-  // Compute available standard types (exclude those already used, except for the one being edited)
-  const usedTypes = valueTypes
-    .filter(vt => !editingType || vt.id !== editingType.id)
-    .map(vt => vt.type)
-    .filter((t): t is StandardValueType => !!t);
-  const availableStandardTypes = Object.values(StandardValueTypeSchema.enum).filter(
-    (enumValue) => !usedTypes.includes(enumValue)
-  );
+  const availableStandardTypes: StandardValueType[] = [
+    'COLOR',
+    'DIMENSION',
+    'SPACING',
+    'FONT_FAMILY',
+    'FONT_WEIGHT',
+    'FONT_SIZE',
+    'LINE_HEIGHT',
+    'LETTER_SPACING',
+    'DURATION',
+    'CUBIC_BEZIER',
+    'BLUR',
+    'SPREAD',
+    'RADIUS'
+  ];
 
   const handleOpenCreate = () => {
     setEditingType(null);
     setName('');
-    setType('CUSTOM'); // Use 'CUSTOM' as a sentinel value for custom types
+    setType('CUSTOM');
+    setErrors({});
     setDialogOpen(true);
   };
 
@@ -67,103 +70,68 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
     setEditingType(valueType);
     setName(valueType.displayName);
     setType(valueType.type || 'CUSTOM');
-    setDialogOpen(true);
-  };
-
-  const validateAndSetValueTypes = (updatedValueTypes: ResolvedValueType[]) => {
-    const data = {
-      tokenCollections: collections,
-      dimensions,
-      tokens,
-      platforms,
-      taxonomies,
-      themes,
-      resolvedValueTypes: updatedValueTypes,
-      version: '1.0.0',
-      versionHistory: []
-    };
-    const result = ValidationService.validateData(data);
-    if (!result.isValid) {
-      toast({
-        title: 'Schema Validation Failed',
-        description: 'Your change would make the data invalid. See the Validation tab for details.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-      });
-      return false;
-    }
-    onUpdate(updatedValueTypes);
-    return true;
-  };
-
-  const handleDialogSave = () => {
     setErrors({});
-    if (!name.trim()) {
-      setErrors({ name: 'Name is required' });
-      toast({
-        title: 'Required Field Missing',
-        description: 'Value type name is required.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true
-      });
-      return;
-    }
-    // No need to require type if custom
-    if (!type) {
-      setErrors({ type: 'Type is required' });
-      toast({
-        title: 'Required Field Missing',
-        description: 'Value type must be selected.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true
-      });
-      return;
-    }
-    const newType: ResolvedValueType = {
-      id: name.trim().toLowerCase().replace(/\s+/g, '-'),
-      displayName: name.trim(),
-      ...(type !== 'CUSTOM' ? { type: type as StandardValueType } : {})
-    };
-    if (editingType) {
-      const updated = valueTypes.map(t => t.id === editingType.id ? newType : t);
-      if (!validateAndSetValueTypes(updated)) return;
-      toast({ 
-        title: 'Value Type Updated', 
-        description: `Successfully updated value type "${newType.displayName}"`,
-        status: 'success', 
-        duration: 3000,
-        isClosable: true 
-      });
-    } else {
-      const updated = [...valueTypes, newType];
-      if (!validateAndSetValueTypes(updated)) return;
-      toast({ 
-        title: 'Value Type Created', 
-        description: `Successfully created value type "${newType.displayName}"`,
-        status: 'success', 
-        duration: 3000,
-        isClosable: true 
-      });
-    }
-    setDialogOpen(false);
+    setDialogOpen(true);
   };
 
   const handleDialogClose = () => {
     setDialogOpen(false);
+    setEditingType(null);
+    setName('');
+    setType('CUSTOM');
+    setErrors({});
+  };
+
+  const validateForm = () => {
+    const newErrors: { name?: string; type?: string } = {};
+    if (!name.trim()) {
+      newErrors.name = 'Name is required';
+    }
+    if (!type) {
+      newErrors.type = 'Type is required';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleDialogSave = () => {
+    if (!validateForm()) return;
+
+    const updatedValueTypes = [...valueTypes];
+    if (editingType) {
+      const index = updatedValueTypes.findIndex(t => t.id === editingType.id);
+      if (index !== -1) {
+        updatedValueTypes[index] = {
+          ...editingType,
+          displayName: name,
+          type: type === 'CUSTOM' ? undefined : type
+        };
+      }
+    } else {
+      const newValueType: ResolvedValueType = {
+        id: `value-type-${Date.now()}`,
+        displayName: name,
+        type: type === 'CUSTOM' ? undefined : type
+      };
+      updatedValueTypes.push(newValueType);
+    }
+
+    onUpdate(updatedValueTypes);
+    handleDialogClose();
+    toast({
+      title: editingType ? 'Value Type Updated' : 'Value Type Created',
+      description: `Successfully ${editingType ? 'updated' : 'created'} value type "${name}"`,
+      status: 'success'
+    });
   };
 
   const handleDelete = (valueType: ResolvedValueType) => {
-    const updated = valueTypes.filter(t => t.id !== valueType.id);
-    if (!validateAndSetValueTypes(updated)) return;
-    toast({ 
-      title: 'Value Type Deleted', 
+    const updatedValueTypes = valueTypes.filter(t => t.id !== valueType.id);
+    onUpdate(updatedValueTypes);
+    toast({
+      title: 'Value Type Deleted',
       description: `Successfully deleted value type "${valueType.displayName}"`,
-      status: 'info', 
-      duration: 3000,
-      isClosable: true 
+      status: 'success'
     });
   };
 
@@ -171,10 +139,11 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Value Types</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4} leftIcon={<LuPlus />}>
+        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4}>
+          <LuPlus />
           Create New Value Type
         </Button>
-        <VStack align="stretch" spacing={2}>
+        <VStack align="stretch" gap={2}>
           {valueTypes.map((valueType) => (
             <Box 
               key={valueType.id} 
@@ -190,55 +159,94 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
                   <Text fontSize="sm" color="gray.600">Type: {valueType.type || 'Custom'}</Text>
                 </Box>
                 <HStack>
-                  <IconButton aria-label="Edit value type" icon={<LuPencil />} size="sm" onClick={() => handleOpenEdit(valueType)} />
-                  <IconButton aria-label="Delete value type" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(valueType)} />
+                  <IconButton aria-label="Edit value type" size="sm" onClick={() => handleOpenEdit(valueType)}>
+                    <LuPencil />
+                  </IconButton>
+                  <IconButton aria-label="Delete value type" size="sm" colorScheme="red" onClick={() => handleDelete(valueType)}>
+                    <LuTrash2 />
+                  </IconButton>
                 </HStack>
               </HStack>
             </Box>
           ))}
         </VStack>
       </Box>
-      <Modal isOpen={dialogOpen} onClose={handleDialogClose}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>{editingType ? 'Edit Value Type' : 'Create Value Type'}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4}>
-              <FormControl isInvalid={!!errors.name}>
-                <FormLabel>Name</FormLabel>
+      <Dialog.Root open={dialogOpen} onOpenChange={handleDialogClose}>
+        <Dialog.Content>
+          <Dialog.Header>{editingType ? 'Edit Value Type' : 'Create Value Type'}</Dialog.Header>
+          <Button 
+            position="absolute" 
+            top={2} 
+            right={2} 
+            variant="ghost" 
+            onClick={handleDialogClose}
+            aria-label="Close dialog"
+          >
+            ×
+          </Button>
+          <Dialog.Body>
+            <VStack gap={4}>
+              <Field.Root invalid={!!errors.name}>
+                <Field.Label>Name</Field.Label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter value type name"
                 />
-                {errors.name && <FormErrorMessage>{errors.name}</FormErrorMessage>}
-              </FormControl>
-              <FormControl isInvalid={!!errors.type}>
-                <FormLabel>Type</FormLabel>
-                <Select
-                  value={type}
-                  onChange={(e) => setType(e.target.value as StandardValueType | 'CUSTOM')}
+                {errors.name && <Field.ErrorText>{errors.name}</Field.ErrorText>}
+              </Field.Root>
+              <Field.Root invalid={!!errors.type}>
+                <Field.Label>Type</Field.Label>
+                <Select.Root
+                  value={[type]}
+                  onValueChange={(details) => {
+                    const value = Array.isArray(details.value) ? details.value[0] : details.value;
+                    setType(value as StandardValueType | 'CUSTOM');
+                  }}
+                  collection={createListCollection({
+                    items: [
+                      { value: 'CUSTOM', label: 'Custom' },
+                      ...availableStandardTypes.map(type => ({ value: type, label: type }))
+                    ]
+                  })}
                 >
-                  <option value="CUSTOM">Custom</option>
-                  {availableStandardTypes.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </Select>
-                {errors.type && <FormErrorMessage>{errors.type}</FormErrorMessage>}
-              </FormControl>
+                  <Select.HiddenSelect />
+                  <Select.Control>
+                    <Select.Trigger>
+                      <Select.ValueText placeholder="Select type..." />
+                    </Select.Trigger>
+                    <Select.IndicatorGroup>
+                      <Select.Indicator />
+                    </Select.IndicatorGroup>
+                  </Select.Control>
+                  <Portal>
+                    <Select.Positioner>
+                      <Select.Content>
+                        <Select.Item item={{ value: 'CUSTOM', label: 'Custom' }}>Custom</Select.Item>
+                        {availableStandardTypes.map((type) => (
+                          <Select.Item key={type} item={{ value: type, label: type }}>
+                            {type}
+                            <Select.ItemIndicator />
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Positioner>
+                  </Portal>
+                </Select.Root>
+                {errors.type && <Field.ErrorText>{errors.type}</Field.ErrorText>}
+              </Field.Root>
             </VStack>
-          </ModalBody>
-          <ModalFooter>
+          </Dialog.Body>
+          <Dialog.Footer>
             <Button variant="ghost" mr={3} onClick={handleDialogClose}>
               Cancel
             </Button>
             <Button colorScheme="blue" onClick={handleDialogSave}>
               Save
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Root>
     </Box>
   );
 } 

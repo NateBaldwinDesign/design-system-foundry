@@ -7,9 +7,16 @@ import {
   VStack,
   HStack,
   IconButton,
-  useToast
+  Dialog,
+  Field,
+  Tag,
+  useColorMode
 } from '@chakra-ui/react';
-import { Trash2 } from 'lucide-react';
+import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
+import { StorageService } from '../services/storage';
+import { ValidationService } from '../services/validation';
+import { useToast } from '../hooks/useToast';
+import type { ResolvedValueType } from '@token-model/data-model';
 
 interface ValueTypeManagerProps {
   onSave: (valueTypes: string[]) => void;
@@ -66,7 +73,7 @@ export function ValueTypeManager({ onSave }: ValueTypeManagerProps) {
               <Text>{type}</Text>
               <IconButton
                 aria-label={`Delete ${type}`}
-                icon={<Trash2 />}
+                icon={<LuTrash2 />}
                 size="sm"
                 colorScheme="red"
                 onClick={() => handleDeleteValueType(type)}

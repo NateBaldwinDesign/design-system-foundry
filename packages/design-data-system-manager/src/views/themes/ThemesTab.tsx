@@ -4,25 +4,19 @@ import {
   Text,
   Input,
   Button,
-  FormControl,
-  FormLabel,
   VStack,
   HStack,
   IconButton,
-  useToast,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
-  Tag,
-  useColorMode
+  useColorMode,
+  Dialog,
+  FormControl,
+  FormLabel,
+  Tag
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 import { StorageService } from '../../services/storage';
 import { ValidationService } from '../../services/validation';
+import { useToast } from '../../hooks/useToast';
 import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 
 interface Theme {
@@ -194,27 +188,30 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
             >
               <HStack justify="space-between" align="center">
                 <Box>
-                  <Text fontSize="lg" fontWeight="medium">{theme.displayName}</Text>
-                  <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.400' : 'gray.600'}>
-                    {theme.description || ''}
-                  </Text>
+                  <Text fontWeight="bold">{theme.displayName}</Text>
+                  {theme.description && (
+                    <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.400' : 'gray.600'}>
+                      {theme.description}
+                    </Text>
+                  )}
                   {theme.isDefault && (
-                    <Tag colorScheme="green" size="sm" mt={1}>Default</Tag>
+                    <Tag size="sm" colorScheme="green" mt={1}>Default</Tag>
                   )}
                 </Box>
                 <HStack>
-                  <IconButton 
-                    aria-label="Edit theme" 
-                    icon={<LuPencil />} 
-                    size="sm" 
+                  <IconButton
+                    aria-label="Edit theme"
+                    icon={<LuPencil />}
+                    size="sm"
+                    variant="ghost"
                     onClick={() => handleOpen(i)}
-                    colorScheme={colorMode === 'dark' ? 'blue' : 'gray'}
                   />
-                  <IconButton 
-                    aria-label="Delete theme" 
-                    icon={<LuTrash2 />} 
-                    size="sm" 
-                    colorScheme="red" 
+                  <IconButton
+                    aria-label="Delete theme"
+                    icon={<LuTrash2 />}
+                    size="sm"
+                    variant="ghost"
+                    colorScheme="red"
                     onClick={() => handleDelete(i)}
                   />
                 </HStack>
@@ -223,13 +220,13 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
           ))}
         </VStack>
       </Box>
-      {/* Theme Editor Modal */}
-      <Modal isOpen={open} onClose={handleClose} size="lg">
-        <ModalOverlay />
-        <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-          <ModalHeader>{editingIndex !== null ? 'Edit Theme' : 'Add Theme'}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
+
+      <Dialog isOpen={open} onClose={handleClose}>
+        <Dialog.Overlay />
+        <Dialog.Content bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+          <Dialog.Header>{editingIndex !== null ? 'Edit Theme' : 'Add Theme'}</Dialog.Header>
+          <Dialog.CloseButton />
+          <Dialog.Body>
             <VStack spacing={4} align="stretch">
               <FormControl isRequired>
                 <FormLabel>Display Name</FormLabel>
@@ -258,17 +255,13 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
                 </Button>
               </FormControl>
             </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button colorScheme="blue" onClick={handleSave}>
-              Save
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="ghost" mr={3} onClick={handleClose}>Cancel</Button>
+            <Button colorScheme="blue" onClick={handleSave}>Save</Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog>
     </Box>
   );
 } 

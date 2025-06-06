@@ -1,17 +1,10 @@
 import React from 'react';
 import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
-  VStack,
-  FormControl,
-  FormLabel,
+  Dialog,
+  Field,
   Input,
   Button,
+  Stack,
   useColorMode
 } from '@chakra-ui/react';
 
@@ -34,38 +27,37 @@ export const TermEditorDialog: React.FC<TermEditorDialogProps> = ({
 }) => {
   const { colorMode } = useColorMode();
   return (
-    <Modal isOpen={open} onClose={onClose} size="sm">
-      <ModalOverlay />
-      <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <ModalHeader>{termEditIndex !== null ? 'Edit Term' : 'Add Term'}</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <VStack spacing={4} align="stretch">
-            <FormControl isRequired>
-              <FormLabel>Name</FormLabel>
+    <Dialog.Root open={open} onOpenChange={onClose}>
+      <Dialog.Content bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+        <Dialog.Header>{termEditIndex !== null ? 'Edit Term' : 'Add Term'}</Dialog.Header>
+        <Dialog.CloseButton />
+        <Dialog.Body>
+          <Stack gap={4} align="stretch">
+            <Field.Root isRequired>
+              <Field.Label>Name</Field.Label>
               <Input
                 value={termForm.name}
                 onChange={e => handleTermFormChange('name', e.target.value)}
               />
-            </FormControl>
-            <FormControl>
-              <FormLabel>Description</FormLabel>
+            </Field.Root>
+            <Field.Root>
+              <Field.Label>Description</Field.Label>
               <Input
                 value={termForm.description}
                 onChange={e => handleTermFormChange('description', e.target.value)}
               />
-            </FormControl>
-          </VStack>
-        </ModalBody>
-        <ModalFooter>
+            </Field.Root>
+          </Stack>
+        </Dialog.Body>
+        <Dialog.Footer>
           <Button variant="ghost" mr={3} onClick={onClose}>
             Cancel
           </Button>
-          <Button colorScheme="blue" onClick={onSave}>
+          <Button colorPalette="blue" onClick={onSave}>
             Save
           </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+        </Dialog.Footer>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 }; 

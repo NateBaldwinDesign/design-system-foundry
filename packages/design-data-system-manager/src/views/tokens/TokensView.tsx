@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { Box, Text, HStack, Flex, FormControl, FormLabel, Select, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button } from '@chakra-ui/react';
+import { Box, Text, HStack, Flex, Field, Input, Button, Badge, IconButton, createListCollection } from '@chakra-ui/react';
+import { Table } from '@chakra-ui/react';
+import { Select } from '@chakra-ui/react';
 import { Edit, Trash2 } from 'lucide-react';
-import type { TokenCollection, ResolvedValueType, Taxonomy } from '@token-model/data-model';
+import type { TokenCollection, ResolvedValueType, Taxonomy, TokenTaxonomyRef, TokenStatus, TokenValue } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
 import TokenTag from '../../components/TokenTag';
 import { formatValueForDisplay } from '../../utils/valueTypeUtils';
 import { getValueTypeIcon } from '../../utils/getValueTypeIcon';
+import { getValueTypeFromId } from '../../utils/valueTypeUtils';
 
 interface TokensViewProps {
   tokens: ExtendedToken[];
@@ -17,206 +20,79 @@ interface TokensViewProps {
   onDeleteToken?: (tokenId: string) => void;
 }
 
-export function TokensView({ 
-  tokens, 
-  collections, 
-  resolvedValueTypes, 
+export function TokensView({
+  tokens,
+  collections,
+  resolvedValueTypes,
   taxonomies,
   renderAddTokenButton,
   onEditToken,
-  onDeleteToken 
+  onDeleteToken
 }: TokensViewProps) {
-  // Filter state
-  const [collectionFilter, setCollectionFilter] = useState<string>('');
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [tokenTierFilter, setTokenTierFilter] = useState<string>('');
+  const [collectionFilter, setCollectionFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Handler for clearing all filters
+  const statusOptions: TokenStatus[] = ['experimental', 'stable', 'deprecated'];
+
   const handleClearFilters = () => {
     setCollectionFilter('');
     setTypeFilter('');
     setStatusFilter('');
-    setTokenTierFilter('');
     setSearchTerm('');
   };
 
-  // Unique values for filters
-  const statusOptions = Array.from(new Set(tokens.map(t => t.status).filter(Boolean))).sort();
+  const handleEditToken = (token: ExtendedToken) => {
+    if (onEditToken) {
+      onEditToken(token);
+    }
+  };
 
-  // Filter tokens based on search term and filters
-  const filteredTokens = tokens.filter(token => {
-    const matchesSearch = token.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      token.description?.toLowerCase().includes(searchTerm.toLowerCase());
+  const handleDeleteToken = (tokenId: string) => {
+    if (onDeleteToken) {
+      onDeleteToken(tokenId);
+    }
+  };
 
-    const matchesCollection = !collectionFilter || token.tokenCollectionId === collectionFilter;
-    const matchesType = !typeFilter || token.resolvedValueTypeId === typeFilter;
-    const matchesStatus = !statusFilter || token.status === statusFilter;
-    const matchesTokenTier = !tokenTierFilter || token.tokenTier === tokenTierFilter;
-
-    return matchesSearch && matchesCollection && matchesType && matchesStatus && matchesTokenTier;
-  });
-
-  // Get display name for a value type
   const getTypeDisplay = (typeId: string) => {
-    const typeObj = resolvedValueTypes.find(vt => vt.id === typeId);
-    if (!typeObj) return typeId;
-    return typeObj.displayName;
+    const type = resolvedValueTypes.find(t => t.id === typeId);
+    return type ? type.displayName : typeId;
   };
 
-  // Get type from resolved value type id
-  const getTypeFromId = (typeId: string) => {
-    const typeObj = resolvedValueTypes.find(vt => vt.id === typeId);
-    if (!typeObj) return typeId;
-    return typeObj.type;
-  };
-
-  // Get display for a token value
   const getValueDisplay = (token: ExtendedToken) => {
-    if (!token.valuesByMode?.length) return '-';
-
-    return token.valuesByMode.map((modeValue) => {
-      const value = modeValue.value;
-      if (!value) return null;
-
-      // Get the resolved value type for this token
-      const valueType = resolvedValueTypes.find(vt => vt.id === token.resolvedValueTypeId);
-      if (!valueType) {
-        console.warn('No resolved value type found for token:', {
-          tokenId: token.id,
-          resolvedValueTypeId: token.resolvedValueTypeId
-        });
-        return '-';
-      }
-
-      let displayValue: React.ReactNode;
-
-      // Helper function to extract tokenId from nested structure
-      const extractTokenId = (val: unknown): string | null => {
-        if (!val || typeof val !== 'object') return null;
-        
-        const obj = val as Record<string, unknown>;
-        if ('tokenId' in obj && typeof obj.tokenId === 'string') {
-          return obj.tokenId;
-        }
-        
-        if ('value' in obj && obj.value && typeof obj.value === 'object') {
-          return extractTokenId(obj.value);
-        }
-        
-        return null;
-      };
-
-      // Check for tokenId in the value structure
-      const tokenId = extractTokenId(value);
-      if (tokenId) {
-        const aliasToken = tokens.find(t => t.id === tokenId);
-        if (aliasToken) {
-          // Get the actual value from the alias token
-          const aliasValue = aliasToken.valuesByMode?.[0]?.value;
-          if (aliasValue && 'value' in aliasValue) {
-            const rawAliasValue = typeof aliasValue.value === 'object' && aliasValue.value !== null && 'value' in aliasValue.value
-              ? (aliasValue.value as { value: string | number }).value
-              : aliasValue.value;
-
-            displayValue = (
-              <TokenTag
-                displayName={aliasToken.displayName}
-                resolvedValueTypeId={aliasToken.resolvedValueTypeId}
-                resolvedValueTypes={resolvedValueTypes}
-                value={rawAliasValue}
-                isPill={true}
-              />
-            );
-          } else {
-            displayValue = aliasToken.displayName;
-          }
-        } else {
-          displayValue = tokenId;
-        }
-
-      }
-      // Handle direct values based on resolvedValueTypeId
-      else if (typeof value === 'object' && value !== null && 'value' in value) {
-        // Extract the actual value, handling nested structure
-        const rawValue = typeof value.value === 'object' && value.value !== null && 'value' in value.value
-          ? (value.value as { value: string | number }).value
-          : value.value;
-
-        
-        const formattedValue = formatValueForDisplay(rawValue, token.resolvedValueTypeId, resolvedValueTypes);
-        
-        switch (valueType.type) {
-          case 'COLOR':
-            displayValue = (
-              <HStack spacing={2}>
-                <Box
-                  w={4}
-                  h={4}
-                  borderRadius="sm"
-                  bg={typeof rawValue === 'string' ? rawValue : String(rawValue)}
-                  border="1px solid"
-                  borderColor="gray.200"
-                />
-                <Text>{formattedValue}</Text>
-              </HStack>
-            );
-            break;
-          case 'DIMENSION':
-          case 'SPACING':
-          case 'FONT_SIZE':
-          case 'LINE_HEIGHT':
-          case 'LETTER_SPACING':
-          case 'DURATION':
-          case 'BLUR':
-          case 'SPREAD':
-          case 'RADIUS':
-            displayValue = `${typeof rawValue === 'number' ? rawValue : Number(rawValue)}px`;
-            break;
-          case 'FONT_WEIGHT':
-            displayValue = typeof rawValue === 'number' ? rawValue.toString() : String(rawValue);
-            break;
-          case 'FONT_FAMILY':
-          case 'CUBIC_BEZIER':
-            displayValue = typeof rawValue === 'string' ? rawValue : String(rawValue);
-            break;
-          default:
-            displayValue = formattedValue;
-        }
-      }
-
-      return displayValue;
-    });
+    if (!token.valuesByMode || token.valuesByMode.length === 0) return '-';
+    const value = token.valuesByMode[0].value;
+    if ('tokenId' in value && typeof value.tokenId === 'string') {
+      return formatValueForDisplay({ tokenId: value.tokenId }, token.resolvedValueTypeId, resolvedValueTypes);
+    } else if ('value' in value && (typeof value.value === 'string' || typeof value.value === 'number')) {
+      return formatValueForDisplay({ value: value.value }, token.resolvedValueTypeId, resolvedValueTypes);
+    } else if (typeof value === 'string' || typeof value === 'number') {
+      return formatValueForDisplay({ value }, token.resolvedValueTypeId, resolvedValueTypes);
+    } else {
+      return '-';
+    }
   };
 
-  // Helper to get taxonomy term names for a token
-  const getTaxonomyNames = (token: ExtendedToken): string => {
-    if (!token.taxonomies || !Array.isArray(token.taxonomies) || token.taxonomies.length === 0) return '';
-    return token.taxonomies.map(ref => {
+  const getTaxonomyNames = (token: ExtendedToken) => {
+    if (!token.taxonomies || token.taxonomies.length === 0) return '-';
+    return token.taxonomies.map((ref: TokenTaxonomyRef) => {
       const taxonomy = taxonomies.find(t => t.id === ref.taxonomyId);
-      if (!taxonomy) {
-        console.warn('Taxonomy not found for id:', ref.taxonomyId, 'in', taxonomies);
-        return ref.taxonomyId;
-      }
-      const term = taxonomy.terms?.find(term => term.id === ref.termId);
-      if (!term) {
-        console.warn('Term not found for id:', ref.termId, 'in taxonomy', taxonomy);
-        return `${taxonomy.name}: ${ref.termId}`;
-      }
-      return `${taxonomy.name}: ${term.name}`;
+      const term = taxonomy?.terms.find(t => t.id === ref.termId);
+      return `${taxonomy?.name || ref.taxonomyId}: ${term?.name || ref.termId}`;
     }).join('\n');
   };
 
-  // Handler for editing a token
-  const handleEditToken = (token: ExtendedToken) => {
-    if (onEditToken) onEditToken(token);
-  };
+  const filteredTokens = tokens.filter(token => {
+    const matchesCollection = !collectionFilter || token.tokenCollectionId === collectionFilter;
+    const matchesType = !typeFilter || token.resolvedValueTypeId === typeFilter;
+    const matchesStatus = !statusFilter || token.status === statusFilter;
+    const matchesSearch = !searchTerm || 
+      token.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      token.description?.toLowerCase().includes(searchTerm.toLowerCase());
 
-  // Handler for deleting a token
-  const handleDeleteToken = (tokenId: string) => {
-    if (onDeleteToken) onDeleteToken(tokenId);
-  };
+    return matchesCollection && matchesType && matchesStatus && matchesSearch;
+  });
 
   return (
     <Box>
@@ -224,143 +100,192 @@ export function TokensView({
         <Text fontSize="2xl" fontWeight="bold">Tokens</Text>
         {renderAddTokenButton}
       </Flex>
-      <Flex justify="space-between" align="center" mb={4}>
-        <Input
-          placeholder="Search tokens..."
-          value={searchTerm}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-          maxW="320px"
-        />
-      </Flex>
-      {/* Filter Controls */}
-      <HStack spacing={4} wrap="nowrap" align="flex-start" mb={4}>
-        <FormControl maxW="240px" flex="none">
-          <FormLabel>Token Tier</FormLabel>
-          <Select size="sm" value={tokenTierFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTokenTierFilter(e.target.value)}>
-            <option key="tier-all" value="">All</option>
-            <option key="tier-primitive" value="PRIMITIVE">Primitive</option>
-            <option key="tier-semantic" value="SEMANTIC">Semantic</option>
-            <option key="tier-component" value="COMPONENT">Component</option>
-          </Select>
-        </FormControl>
-        <FormControl maxW="240px" flex="none">
-          <FormLabel>Collection</FormLabel>
-          <Select size="sm" value={collectionFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCollectionFilter(e.target.value)}>
-            <option key="collection-all" value="">All</option>
-            {collections.map(c => (
-              <option key={`collection-${c.id}`} value={c.id}>{c.name}</option>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl maxW="240px" flex="none">
-          <FormLabel>Type</FormLabel>
-          <Select size="sm" value={typeFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTypeFilter(e.target.value)}>
-            <option key="type-all" value="">All</option>
-            {resolvedValueTypes.map(typeObj => (
-              <option key={`type-${typeObj.id}`} value={typeObj.id}>{typeObj.displayName}</option>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl maxW="240px" flex="none">
-          <FormLabel>Status</FormLabel>
-          <Select size="sm" value={statusFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}>
-            <option key="status-all" value="">All</option>
-            {statusOptions.map(status => (
-              <option key={`status-${status}`} value={status}>{status}</option>
-            ))}
-          </Select>
-        </FormControl>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={handleClearFilters}
-          alignSelf="flex-end"
-          mb={1}
-        >
-          Clear filters
-        </Button>
-      </HStack>
-
-      
-
-      {/* Token Table */}
-      <Table variant="simple">
-        <Thead>
-          <Tr>
-            <Th>Type</Th>
-            <Th>Name</Th>
-            <Th>Collection</Th>
-            <Th>Value</Th>
-            <Th>Status</Th>
-            <Th>Themeable</Th>
-            <Th>Private</Th>
-            <Th>Taxonomies</Th>
-            <Th>Actions</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
-          {filteredTokens.map(token => (
-            <Tr key={token.id}>
-              <Td>
-                <HStack spacing={2}>
-                  {getValueTypeIcon(getTypeFromId(token.resolvedValueTypeId), 20)}
-                </HStack>
-              </Td>
-              <Td>
-                <Text fontWeight="medium">{token.displayName}</Text>
-                {token.description && (
-                  <Text fontSize="sm" color="gray.500">
-                    {token.description}
-                  </Text>
-                )}
-              </Td>
-              <Td>{collections.find(c => c.id === token.tokenCollectionId)?.name || token.tokenCollectionId}</Td>
-              <Td>{getValueDisplay(token)}</Td>
-              <Td>
-                <Badge
-                  colorScheme={
-                    token.status === 'stable' ? 'green' :
-                    token.status === 'deprecated' ? 'red' :
-                    'yellow'
-                  }
-                >
-                  {token.status || 'experimental'}
-                </Badge>
-              </Td>
-              <Td>{token.themeable ? 'Yes' : 'No'}</Td>
-              <Td>{token.private ? 'Yes' : 'No'}</Td>
-              <Td>
-                {getTaxonomyNames(token).split('\n').map((line, idx) => (
-                  <Text key={idx} fontSize="sm">{line}</Text>
+      <Flex gap={4} mb={4}>
+        <Field.Root>
+          <Field.Label>Collection</Field.Label>
+          <Select.Root
+            value={[collectionFilter]}
+            onValueChange={(details) => {
+              const value = Array.isArray(details.value) ? details.value[0] : details.value;
+              setCollectionFilter(value);
+            }}
+            collection={createListCollection({
+              items: [
+                { value: '', label: 'All Collections' },
+                ...collections.map(collection => ({ value: collection.id, label: collection.name }))
+              ]
+            })}
+          >
+            <Select.HiddenSelect />
+            <Select.Control>
+              <Select.Trigger>
+                <Select.ValueText placeholder="All Collections" />
+              </Select.Trigger>
+              <Select.IndicatorGroup>
+                <Select.Indicator />
+              </Select.IndicatorGroup>
+            </Select.Control>
+            <Select.Positioner>
+              <Select.Content>
+                <Select.Item item={{ value: '', label: 'All Collections' }}>All Collections</Select.Item>
+                {collections.map(collection => (
+                  <Select.Item key={collection.id} item={{ value: collection.id, label: collection.name }}>
+                    {collection.name}
+                    <Select.ItemIndicator />
+                  </Select.Item>
                 ))}
-              </Td>
-              <Td>
-                <HStack spacing={2}>
-                  {onEditToken && (
-                    <IconButton
-                      aria-label="Edit token"
-                      icon={<Edit size={16} />}
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleEditToken(token)}
-                    />
-                  )}
-                  {/* {onDeleteToken && (
-                    <IconButton
-                      aria-label="Delete token"
-                      icon={<Trash2 size={16} />}
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="red"
-                      onClick={() => handleDeleteToken(token.id)}
-                    />
-                  )} */}
+              </Select.Content>
+            </Select.Positioner>
+          </Select.Root>
+        </Field.Root>
+
+        <Field.Root>
+          <Field.Label>Type</Field.Label>
+          <Select.Root
+            value={[typeFilter]}
+            onValueChange={(details) => {
+              const value = Array.isArray(details.value) ? details.value[0] : details.value;
+              setTypeFilter(value);
+            }}
+            collection={createListCollection({
+              items: [
+                { value: '', label: 'All Types' },
+                ...resolvedValueTypes.map(type => ({ value: type.id, label: type.displayName }))
+              ]
+            })}
+          >
+            <Select.HiddenSelect />
+            <Select.Control>
+              <Select.Trigger>
+                <Select.ValueText placeholder="All Types" />
+              </Select.Trigger>
+              <Select.IndicatorGroup>
+                <Select.Indicator />
+              </Select.IndicatorGroup>
+            </Select.Control>
+            <Select.Positioner>
+              <Select.Content>
+                <Select.Item item={{ value: '', label: 'All Types' }}>All Types</Select.Item>
+                {resolvedValueTypes.map(type => (
+                  <Select.Item key={type.id} item={{ value: type.id, label: type.displayName }}>
+                    {type.displayName}
+                    <Select.ItemIndicator />
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Positioner>
+          </Select.Root>
+        </Field.Root>
+
+        <Field.Root>
+          <Field.Label>Status</Field.Label>
+          <Select.Root
+            value={[statusFilter]}
+            onValueChange={(details) => {
+              const value = Array.isArray(details.value) ? details.value[0] : details.value;
+              setStatusFilter(value);
+            }}
+            collection={createListCollection({
+              items: [
+                { value: '', label: 'All Statuses' },
+                ...statusOptions.map(status => ({ value: status, label: status }))
+              ]
+            })}
+          >
+            <Select.HiddenSelect />
+            <Select.Control>
+              <Select.Trigger>
+                <Select.ValueText placeholder="All Statuses" />
+              </Select.Trigger>
+              <Select.IndicatorGroup>
+                <Select.Indicator />
+              </Select.IndicatorGroup>
+            </Select.Control>
+            <Select.Positioner>
+              <Select.Content>
+                <Select.Item item={{ value: '', label: 'All Statuses' }}>All Statuses</Select.Item>
+                {statusOptions.map(status => (
+                  <Select.Item key={status} item={{ value: status, label: status }}>
+                    {status}
+                    <Select.ItemIndicator />
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Positioner>
+          </Select.Root>
+        </Field.Root>
+
+        <Field.Root>
+          <Field.Label>Search</Field.Label>
+          <Input
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Search tokens..."
+          />
+        </Field.Root>
+
+        <Button onClick={handleClearFilters}>Clear Filters</Button>
+      </Flex>
+
+      <Table.Root>
+        <Table.Header>
+          <Table.Row>
+            <Table.ColumnHeader>Name</Table.ColumnHeader>
+            <Table.ColumnHeader>Type</Table.ColumnHeader>
+            <Table.ColumnHeader>Value</Table.ColumnHeader>
+            <Table.ColumnHeader>Collection</Table.ColumnHeader>
+            <Table.ColumnHeader>Status</Table.ColumnHeader>
+            <Table.ColumnHeader>Taxonomies</Table.ColumnHeader>
+            <Table.ColumnHeader>Actions</Table.ColumnHeader>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body>
+          {filteredTokens.map(token => (
+            <Table.Row key={token.id}>
+              <Table.Cell>
+                <HStack gap={2}>
+                  {getValueTypeIcon(getValueTypeFromId(token.resolvedValueTypeId, resolvedValueTypes), 16)}
+                  <Text>{token.displayName}</Text>
                 </HStack>
-              </Td>
-            </Tr>
+              </Table.Cell>
+              <Table.Cell>{getTypeDisplay(token.resolvedValueTypeId)}</Table.Cell>
+              <Table.Cell>{getValueDisplay(token)}</Table.Cell>
+              <Table.Cell>
+                {collections.find(c => c.id === token.tokenCollectionId)?.name || '-'}
+              </Table.Cell>
+              <Table.Cell>
+                {token.status && (
+                  <Badge colorScheme={token.status === 'experimental' ? 'yellow' : token.status === 'stable' ? 'green' : 'red'}>
+                    {token.status}
+                  </Badge>
+                )}
+              </Table.Cell>
+              <Table.Cell>
+                <Text whiteSpace="pre-line">{getTaxonomyNames(token)}</Text>
+              </Table.Cell>
+              <Table.Cell>
+                <HStack gap={2}>
+                  <IconButton
+                    aria-label="Edit token"
+                    size="sm"
+                    onClick={() => handleEditToken(token)}
+                  >
+                    <Edit />
+                  </IconButton>
+                  <IconButton
+                    aria-label="Delete token"
+                    size="sm"
+                    colorScheme="red"
+                    onClick={() => handleDeleteToken(token.id)}
+                  >
+                    <Trash2 />
+                  </IconButton>
+                </HStack>
+              </Table.Cell>
+            </Table.Row>
           ))}
-        </Tbody>
-      </Table>
+        </Table.Body>
+      </Table.Root>
     </Box>
   );
 }

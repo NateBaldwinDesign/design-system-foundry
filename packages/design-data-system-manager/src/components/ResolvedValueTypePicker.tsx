@@ -1,5 +1,5 @@
 import React from 'react';
-import { FormControl, FormLabel, Select, Box, HStack, Tag, TagLabel, TagCloseButton, Text } from '@chakra-ui/react';
+import { Field, Select, Box, Stack, Tag, TagLabel, CloseButton, Text } from '@chakra-ui/react';
 import type { ResolvedValueType } from '@token-model/data-model';
 import { StorageService } from '../services/storage';
 
@@ -33,35 +33,37 @@ export function ResolvedValueTypePicker({
   };
 
   return (
-    <FormControl isRequired={isRequired} isInvalid={!!error} isDisabled={disabled}>
-      <FormLabel>{label}</FormLabel>
-      <Select
-        value=""
-        onChange={e => handleAddValueType(e.target.value)}
-      >
-        <option value="">Add a value type...</option>
-        {valueTypes
-          .filter(type => !value.includes(type.id))
-          .map(type => (
-            <option key={type.id} value={type.id}>{type.displayName}</option>
-          ))}
-      </Select>
+    <Field.Root isRequired={isRequired} isInvalid={!!error} isDisabled={disabled}>
+      <Field.Label>{label}</Field.Label>
+      <Select.Root>
+        <Select.Trigger>
+          <Select.Value placeholder="Add a value type..." />
+        </Select.Trigger>
+        <Select.Content>
+          <Select.Item value="">Add a value type...</Select.Item>
+          {valueTypes
+            .filter(type => !value.includes(type.id))
+            .map(type => (
+              <Select.Item key={type.id} value={type.id}>{type.displayName}</Select.Item>
+            ))}
+        </Select.Content>
+      </Select.Root>
       <Box mt={2}>
-        <HStack spacing={2} wrap="wrap">
+        <Stack direction="row" gap={2} flexWrap="wrap">
           {value.map((typeId: string) => {
             const type = valueTypes.find(t => t.id === typeId);
             return type ? (
-              <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
+              <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorPalette="blue">
                 <TagLabel>{type.displayName}</TagLabel>
-                <TagCloseButton onClick={() => handleRemoveValueType(typeId)} />
+                <CloseButton onClick={() => handleRemoveValueType(typeId)} />
               </Tag>
             ) : null;
           })}
-        </HStack>
+        </Stack>
       </Box>
       {error && (
-        <Text color="red.500" fontSize="sm">{error}</Text>
+        <Field.ErrorText>{error}</Field.ErrorText>
       )}
-    </FormControl>
+    </Field.Root>
   );
 } 

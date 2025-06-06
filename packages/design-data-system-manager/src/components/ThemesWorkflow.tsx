@@ -4,31 +4,20 @@ import {
   Text,
   Input,
   Button,
-  FormControl,
-  FormLabel,
+  Field,
   VStack,
   HStack,
   IconButton,
-  useToast,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
+  Dialog,
   Tag,
-  useColorMode
+  Stack,
+  Checkbox
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 import { StorageService } from '../services/storage';
-
-interface Theme {
-  id: string;
-  displayName: string;
-  description: string;
-  isDefault: boolean;
-}
+import { ValidationService } from '../services/validation';
+import { useToast } from '../hooks/useToast';
+import type { Theme, Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 
 interface ThemesWorkflowProps {
   themes: Theme[];
@@ -36,184 +25,175 @@ interface ThemesWorkflowProps {
 }
 
 export function ThemesWorkflow({ themes, setThemes }: ThemesWorkflowProps) {
-  const { colorMode } = useColorMode();
-  const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [form, setForm] = useState<Theme>({
-    id: '',
-    displayName: '',
-    description: '',
-    isDefault: false
-  });
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [isDefault, setIsDefault] = useState(false);
+  const [errors, setErrors] = useState({ name: '' });
   const toast = useToast();
 
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
     if (index !== null) {
-      setForm(themes[index]);
+      setName(themes[index].displayName);
+      setDescription(themes[index].description || '');
+      setIsDefault(themes[index].isDefault || false);
     } else {
-      setForm({
-        id: '',
-        displayName: '',
-        description: '',
-        isDefault: false
-      });
+      setName('');
+      setDescription('');
+      setIsDefault(false);
     }
-    setOpen(true);
+    setIsDialogOpen(true);
   };
 
   const handleClose = () => {
-    setOpen(false);
     setEditingIndex(null);
-  };
-
-  const handleFormChange = (field: keyof Theme, value: string | boolean) => {
-    setForm((prev: Theme) => ({ ...prev, [field]: value }));
+    setIsDialogOpen(false);
+    setName('');
+    setDescription('');
+    setIsDefault(false);
+    setErrors({ name: '' });
   };
 
   const handleSave = () => {
-    if (!form.displayName.trim()) {
-      toast({ title: 'Display name is required', status: 'error', duration: 2000 });
+    if (!name.trim()) {
+      setErrors({ name: 'Name is required' });
       return;
     }
 
-    const id = form.id || form.displayName.trim().replace(/\s+/g, '_').toLowerCase();
-    if (!form.id && themes.some(t => t.id === id)) {
-      toast({ title: 'A theme with this name already exists', status: 'error', duration: 2000 });
-      return;
-    }
-
-    const newThemes = [...themes];
-    const themeToSave: Theme = {
-      ...form,
-      id,
-      isDefault: form.isDefault,
-      description: form.description || ''
-    };
-
+    const updatedThemes = [...themes];
     if (editingIndex !== null) {
-      newThemes[editingIndex] = themeToSave;
+      updatedThemes[editingIndex] = {
+        ...updatedThemes[editingIndex],
+        displayName: name,
+        description: description || undefined,
+        isDefault
+      };
     } else {
-      newThemes.push(themeToSave);
-    }
-
-    // If this theme is set as default, unset any other default themes
-    if (themeToSave.isDefault) {
-      newThemes.forEach(t => {
-        if (t.id !== themeToSave.id) {
-          t.isDefault = false;
-        }
+      updatedThemes.push({
+        id: `theme-${Date.now()}`,
+        displayName: name,
+        description: description || undefined,
+        isDefault
       });
     }
 
-    setThemes(newThemes);
-    StorageService.setThemes(newThemes);
-    setOpen(false);
-    setEditingIndex(null);
-    toast({ title: 'Theme saved', status: 'success', duration: 2000 });
+    setThemes(updatedThemes);
+    handleClose();
+    toast({
+      title: editingIndex !== null ? 'Theme updated' : 'Theme created',
+      status: 'success'
+    });
   };
 
   const handleDelete = (index: number) => {
-    const newThemes = themes.filter((_, i) => i !== index);
-    setThemes(newThemes);
-    StorageService.setThemes(newThemes);
-    toast({ title: 'Theme deleted', status: 'info', duration: 2000 });
+    const updatedThemes = themes.filter((_, i) => i !== index);
+    setThemes(updatedThemes);
+    toast({
+      title: 'Theme deleted',
+      status: 'success'
+    });
   };
 
   return (
     <Box>
-      <Text fontSize="2xl" fontWeight="bold" mb={4}>Themes</Text>
-      <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+      <VStack gap={4} align="stretch">
+        {themes.map((theme, index) => (
+          <HStack key={theme.id} justify="space-between" p={4} borderWidth={1} borderRadius="md">
+            <VStack align="start" gap={1}>
+              <Text fontWeight="bold">{theme.displayName}</Text>
+              {theme.description && <Text color="gray.500">{theme.description}</Text>}
+              {theme.isDefault && (
+                <Box
+                  as="span"
+                  px={2}
+                  py={1}
+                  fontSize="sm"
+                  borderRadius="md"
+                  bg="green.100"
+                  color="green.800"
+                >
+                  Default
+                </Box>
+              )}
+            </VStack>
+            <HStack>
+              <IconButton
+                aria-label="Edit theme"
+                onClick={() => handleOpen(index)}
+                variant="ghost"
+              >
+                <LuPencil />
+              </IconButton>
+              <IconButton
+                aria-label="Delete theme"
+                onClick={() => handleDelete(index)}
+                variant="ghost"
+                colorPalette="red"
+              >
+                <LuTrash2 />
+              </IconButton>
+            </HStack>
+          </HStack>
+        ))}
+
+        <Button
+          onClick={() => handleOpen()}
+          variant="outline"
+          alignSelf="start"
+        >
+          <LuPlus style={{ marginRight: '8px' }} />
           Add Theme
         </Button>
-        <VStack align="stretch" spacing={2}>
-          {themes.map((theme, i) => (
-            <Box 
-              key={theme.id} 
-              p={3} 
-              borderWidth={1} 
-              borderRadius="md" 
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-            >
-              <HStack justify="space-between" align="center">
-                <Box>
-                  <Text fontSize="lg" fontWeight="medium">{theme.displayName}</Text>
-                  <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.400' : 'gray.600'}>
-                    {theme.description}
-                  </Text>
-                  {theme.isDefault && (
-                    <Tag colorScheme="green" size="sm" mt={1}>Default</Tag>
-                  )}
-                </Box>
-                <HStack>
-                  <IconButton 
-                    aria-label="Edit theme" 
-                    icon={<LuPencil />} 
-                    size="sm" 
-                    onClick={() => handleOpen(i)}
-                    colorScheme={colorMode === 'dark' ? 'blue' : 'gray'}
-                  />
-                  <IconButton 
-                    aria-label="Delete theme" 
-                    icon={<LuTrash2 />} 
-                    size="sm" 
-                    colorScheme="red" 
-                    onClick={() => handleDelete(i)}
-                  />
-                </HStack>
-              </HStack>
-            </Box>
-          ))}
-        </VStack>
-      </Box>
-      {/* Theme Editor Modal */}
-      <Modal isOpen={open} onClose={handleClose} size="lg">
-        <ModalOverlay />
-        <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-          <ModalHeader>{editingIndex !== null ? 'Edit Theme' : 'Add Theme'}</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack spacing={4} align="stretch">
-              <FormControl isRequired>
-                <FormLabel>Display Name</FormLabel>
+      </VStack>
+
+      <Dialog.Root open={isDialogOpen} onOpenChange={(details) => setIsDialogOpen(details.open)}>
+        <Dialog.Content>
+          <Dialog.Header>{editingIndex !== null ? 'Edit Theme' : 'Create Theme'}</Dialog.Header>
+          <Dialog.Body>
+            <VStack gap={4}>
+              <Field.Root invalid={!!errors.name}>
+                <Field.Label>Name</Field.Label>
                 <Input
-                  value={form.displayName}
-                  onChange={e => handleFormChange('displayName', e.target.value)}
-                  bg={colorMode === 'dark' ? 'gray.700' : 'white'}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter theme name"
                 />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Description</FormLabel>
+                {errors.name && <Field.ErrorText>{errors.name}</Field.ErrorText>}
+              </Field.Root>
+
+              <Field.Root>
+                <Field.Label>Description</Field.Label>
                 <Input
-                  value={form.description}
-                  onChange={e => handleFormChange('description', e.target.value)}
-                  bg={colorMode === 'dark' ? 'gray.700' : 'white'}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Enter theme description"
                 />
-              </FormControl>
-              <FormControl>
-                <FormLabel>Default Theme</FormLabel>
-                <Button
-                  colorScheme={form.isDefault ? 'green' : 'gray'}
-                  onClick={() => handleFormChange('isDefault', !form.isDefault)}
-                  size="sm"
+              </Field.Root>
+
+              <Field.Root>
+                <Field.Label>Is Default</Field.Label>
+                <Checkbox.Root
+                  checked={isDefault}
+                  onCheckedChange={(details) => setIsDefault(details.checked === true)}
                 >
-                  {form.isDefault ? 'Default Theme' : 'Set as Default'}
-                </Button>
-              </FormControl>
+                  <Checkbox.Control />
+                  <Checkbox.Label>Set as default theme</Checkbox.Label>
+                </Checkbox.Root>
+              </Field.Root>
             </VStack>
-          </ModalBody>
-          <ModalFooter>
+          </Dialog.Body>
+          <Dialog.Footer>
             <Button variant="ghost" mr={3} onClick={handleClose}>
               Cancel
             </Button>
             <Button colorScheme="blue" onClick={handleSave}>
               Save
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Root>
     </Box>
   );
 } 

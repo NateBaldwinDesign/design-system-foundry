@@ -3,7 +3,7 @@ import { useStorage } from './useStorage';
 import { exampleData } from '@token-model/data-model';
 import { StorageService } from '../services/storage';
 import { ValidationService } from '../services/validation';
-import { useToast } from '@chakra-ui/react';
+import { useToast } from './useToast';
 import type { TokenCollection, Dimension, Platform, Taxonomy, Theme, ResolvedValueType, FallbackStrategy } from '@token-model/data-model';
 
 export interface Schema {

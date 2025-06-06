@@ -1,129 +1,67 @@
 import React from 'react';
-import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode } from '@chakra-ui/react';
-import { getTokenStats, getPlatformOverrideStats, getThemeStats, getLatestRelease, getRecentActivity } from '../../utils/dashboardStats';
-import { StorageService } from '../../services/storage';
+import {
+  Box,
+  Heading,
+  SimpleGrid,
+  Stat,
+} from '@chakra-ui/react';
+import { useTheme } from 'next-themes';
 
-const tokens = StorageService.getTokens();
-const platforms = StorageService.getPlatforms();
-const themes = StorageService.getThemes();
+interface DashboardViewProps {
+  tokenStats: {
+    total: number;
+    privateCount: number;
+    privatePercent: number;
+    publicCount: number;
+    publicPercent: number;
+    themeableCount: number;
+    themeablePercent: number;
+    nonThemeableCount: number;
+    nonThemeablePercent: number;
+  };
+}
 
-const tokenStats = getTokenStats(tokens);
-const platformStats = getPlatformOverrideStats(tokens, platforms);
-const themeStats = getThemeStats(themes, tokens);
-const latestRelease = getLatestRelease();
-const recentActivity = getRecentActivity();
+export const DashboardView: React.FC<DashboardViewProps> = ({ tokenStats }) => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
-const DashboardView: React.FC = () => {
-  const { colorMode } = useColorMode();
   return (
-    <Box p={0} borderWidth={0} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
+    <Box p={0} borderWidth={0} borderRadius="md" bg={isDark ? 'gray.900' : 'gray.50'}>
       <Box p={8}>
         <Heading size="xl" mb={8}>Dashboard</Heading>
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mb={8}>
+        <SimpleGrid columns={{ base: 1, md: 2 }} gap={8} mb={8}>
           {/* Tokens Section */}
-          <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
+          <Box p={6} borderWidth={1} borderRadius="md" bg="bg">
             <Heading size="md" mb={4}>Tokens</Heading>
-            <SimpleGrid columns={2} spacing={4} mb={4}>
-              <Stat>
-                <StatLabel>Total</StatLabel>
-                <StatNumber>{tokenStats.total}</StatNumber>
-              </Stat>
-              <Stat>
-                <StatLabel>Private</StatLabel>
-                <StatNumber>{tokenStats.privateCount}</StatNumber>
-                <StatHelpText>{tokenStats.privatePercent.toFixed(1)}%</StatHelpText>
-              </Stat>
-              <Stat>
-                <StatLabel>Public</StatLabel>
-                <StatNumber>{tokenStats.publicCount}</StatNumber>
-                <StatHelpText>{tokenStats.publicPercent.toFixed(1)}%</StatHelpText>
-              </Stat>
-              <Stat>
-                <StatLabel>Themeable</StatLabel>
-                <StatNumber>{tokenStats.themeableCount}</StatNumber>
-                <StatHelpText>{tokenStats.themeablePercent.toFixed(1)}%</StatHelpText>
-              </Stat>
-              <Stat>
-                <StatLabel>Not Themeable</StatLabel>
-                <StatNumber>{tokenStats.nonThemeableCount}</StatNumber>
-                <StatHelpText>{tokenStats.nonThemeablePercent.toFixed(1)}%</StatHelpText>
-              </Stat>
+            <SimpleGrid columns={2} gap={4} mb={4}>
+              <Stat.Root>
+                <Stat.Label>Total</Stat.Label>
+                <Stat.Number>{tokenStats.total}</Stat.Number>
+              </Stat.Root>
+              <Stat.Root>
+                <Stat.Label>Private</Stat.Label>
+                <Stat.Number>{tokenStats.privateCount}</Stat.Number>
+                <Stat.HelpText>{tokenStats.privatePercent.toFixed(1)}%</Stat.HelpText>
+              </Stat.Root>
+              <Stat.Root>
+                <Stat.Label>Public</Stat.Label>
+                <Stat.Number>{tokenStats.publicCount}</Stat.Number>
+                <Stat.HelpText>{tokenStats.publicPercent.toFixed(1)}%</Stat.HelpText>
+              </Stat.Root>
+              <Stat.Root>
+                <Stat.Label>Themeable</Stat.Label>
+                <Stat.Number>{tokenStats.themeableCount}</Stat.Number>
+                <Stat.HelpText>{tokenStats.themeablePercent.toFixed(1)}%</Stat.HelpText>
+              </Stat.Root>
+              <Stat.Root>
+                <Stat.Label>Not Themeable</Stat.Label>
+                <Stat.Number>{tokenStats.nonThemeableCount}</Stat.Number>
+                <Stat.HelpText>{tokenStats.nonThemeablePercent.toFixed(1)}%</Stat.HelpText>
+              </Stat.Root>
             </SimpleGrid>
           </Box>
-          {/* Platforms Section */}
-          <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
-            <Heading size="md" mb={4}>Platforms</Heading>
-            <Table size="sm" variant="simple">
-              <Thead>
-                <Tr>
-                  <Th>Platform</Th>
-                  <Th isNumeric>Tokens w/ Overrides</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {platformStats.map(p => (
-                  <Tr key={p.platformId}>
-                    <Td>{p.platformName}</Td>
-                    <Td isNumeric>{p.count}</Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </Box>
         </SimpleGrid>
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mb={8}>
-          {/* Themes Section */}
-          <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
-            <Heading size="md" mb={4}>Themes</Heading>
-            <Stat>
-              <StatLabel>Total Themes</StatLabel>
-              <StatNumber>{themeStats.totalThemes}</StatNumber>
-            </Stat>
-            <Divider my={4} />
-            <Heading size="sm" mb={2}>Theme Overrides</Heading>
-            <Table size="sm" variant="simple">
-              <Thead>
-                <Tr>
-                  <Th>Theme</Th>
-                  <Th isNumeric>% Tokens w/ Override</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {themeStats.themeOverrides.map(t => (
-                  <Tr key={t.themeId}>
-                    <Td>{t.themeName}</Td>
-                    <Td isNumeric>{t.percentWithOverride}%</Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </Box>
-          {/* Releases Section */}
-          <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
-            <Heading size="md" mb={4}>Releases</Heading>
-            <VStack align="start" spacing={2}>
-              <Text><b>Latest Version:</b> {latestRelease.version}</Text>
-              <Text><b>Date:</b> {latestRelease.date}</Text>
-              <Tag colorScheme="gray">Placeholder</Tag>
-            </VStack>
-          </Box>
-        </SimpleGrid>
-        {/* Latest Activity Section */}
-        <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
-          <Heading size="md" mb={4}>Latest Activity</Heading>
-          <VStack align="start" spacing={2}>
-            {recentActivity.map(item => (
-              <HStack key={item.id} spacing={4}>
-                <Text>{item.description}</Text>
-                <Text color="gray.500" fontSize="sm">{item.date}</Text>
-              </HStack>
-            ))}
-            <Tag colorScheme="gray">Placeholder</Tag>
-          </VStack>
-        </Box>
       </Box>
     </Box>
   );
-};
-
-export default DashboardView; 
+}; 

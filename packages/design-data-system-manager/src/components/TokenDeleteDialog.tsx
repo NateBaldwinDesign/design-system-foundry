@@ -1,11 +1,6 @@
 import React, { useRef } from 'react';
 import {
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogContent,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogOverlay,
+  Dialog,
   Button
 } from '@chakra-ui/react';
 import type { Token } from '@token-model/data-model';
@@ -17,45 +12,25 @@ interface TokenDeleteDialogProps {
   onDelete: (tokenId: string) => void;
 }
 
-export function TokenDeleteDialog({
-  isOpen,
-  onClose,
-  token,
-  onDelete
-}: TokenDeleteDialogProps) {
+export function TokenDeleteDialog({ isOpen, onClose, token, onDelete }: TokenDeleteDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
-  const handleDelete = () => {
-    onDelete(token.id);
-    onClose();
-  };
-
   return (
-    <AlertDialog
-      isOpen={isOpen}
-      leastDestructiveRef={cancelRef}
-      onClose={onClose}
-    >
-      <AlertDialogOverlay>
-        <AlertDialogContent>
-          <AlertDialogHeader fontSize="lg" fontWeight="bold">
-            Delete Token
-          </AlertDialogHeader>
-
-          <AlertDialogBody>
-            Are you sure you want to delete the token &ldquo;{token.displayName}&rdquo;? This action cannot be undone.
-          </AlertDialogBody>
-
-          <AlertDialogFooter>
-            <Button ref={cancelRef} onClick={onClose}>
-              Cancel
-            </Button>
-            <Button colorScheme="red" onClick={handleDelete} ml={3}>
-              Delete
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialogOverlay>
-    </AlertDialog>
+    <Dialog.Root open={isOpen} onOpenChange={onClose}>
+      <Dialog.Content>
+        <Dialog.Header>Delete Token</Dialog.Header>
+        <Dialog.Body>
+          Are you sure you want to delete the token "{token.displayName}"? This action cannot be undone.
+        </Dialog.Body>
+        <Dialog.Footer>
+          <Button ref={cancelRef} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button colorPalette="red" onClick={() => onDelete(token.id)} ml={3}>
+            Delete
+          </Button>
+        </Dialog.Footer>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 } 

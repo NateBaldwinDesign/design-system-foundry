@@ -3,7 +3,6 @@ import {
   Box,
   Spinner,
   Text,
-  useColorMode,
 } from '@chakra-ui/react';
 import { JsonSyntaxHighlighter } from '../../components/JsonSyntaxHighlighter';
 import { exampleData as dataModelExamples } from '@token-model/data-model';
@@ -12,7 +11,6 @@ export const ThemeOverridesExampleTab: React.FC = () => {
   const [exampleData, setExampleData] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { colorMode } = useColorMode();
 
   useEffect(() => {
     const loadExampleData = async () => {

@@ -1,221 +1,133 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
+  Dialog,
   Button,
   Box,
   Text,
   Input,
-  FormControl,
-  FormLabel,
+  Field,
   Select,
-  VStack,
-  HStack,
+  Stack,
   useColorMode
 } from '@chakra-ui/react';
 import type { Platform } from '@token-model/data-model';
 import { CodeSyntaxService } from '../services/codeSyntax';
 
 type CapitalizationType = 'none' | 'uppercase' | 'lowercase' | 'capitalize';
-type DelimiterType = '' | '_' | '-' | '.' | '/';
 
 interface PlatformEditorDialogProps {
-  platform: Platform;
   open: boolean;
   onClose: () => void;
   onSave: (platform: Platform) => void;
+  platform?: Platform;
   isNew?: boolean;
 }
 
-export function PlatformEditorDialog({ platform, open, onClose, onSave, isNew = false }: PlatformEditorDialogProps) {
+export function PlatformEditorDialog({ open, onClose, onSave, platform, isNew = false }: PlatformEditorDialogProps) {
+  const { colorMode } = useColorMode();
   const [editedPlatform, setEditedPlatform] = useState<Platform>(() => ({
-    ...platform,
-    syntaxPatterns: {
-      prefix: platform.syntaxPatterns?.prefix ?? '',
-      suffix: platform.syntaxPatterns?.suffix ?? '',
-      delimiter: platform.syntaxPatterns?.delimiter ?? '_',
-      capitalization: platform.syntaxPatterns?.capitalization ?? 'none',
-      formatString: platform.syntaxPatterns?.formatString ?? ''
+    id: platform?.id || '',
+    displayName: platform?.displayName || '',
+    description: platform?.description || '',
+    codeSyntax: platform?.codeSyntax || {
+      prefix: '',
+      suffix: '',
+      separator: '_',
+      capitalization: 'none' as CapitalizationType
     }
   }));
 
-  const { colorMode } = useColorMode();
+  const handleChange = (field: keyof Platform, value: any) => {
+    setEditedPlatform(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
-  // Use CodeSyntaxService for preview
-  const preview = useMemo(() => {
-    // Mock token and schema for preview
-    const mockToken: any = {
-      taxonomies: [
-        { taxonomyId: 'mock1', termId: 'mock1' },
-        { taxonomyId: 'mock2', termId: 'mock2' },
-        { taxonomyId: 'mock3', termId: 'mock3' }
-      ]
-    };
-    const mockSchema: any = {
-      namingRules: { taxonomyOrder: ['mock1', 'mock2', 'mock3'] },
-      taxonomies: [
-        { id: 'mock1', terms: [{ id: 'mock1', name: 'primary' }] },
-        { id: 'mock2', terms: [{ id: 'mock2', name: 'color' }] },
-        { id: 'mock3', terms: [{ id: 'mock3', name: 'background' }] }
-      ],
-      platforms: [
-        { id: 'preview', syntaxPatterns: editedPlatform.syntaxPatterns }
-      ]
-    };
-    return CodeSyntaxService.generateCodeSyntax(mockToken, 'preview', mockSchema);
-  }, [editedPlatform.syntaxPatterns]);
+  const handleCodeSyntaxChange = (field: keyof Platform['codeSyntax'], value: string) => {
+    setEditedPlatform(prev => ({
+      ...prev,
+      codeSyntax: {
+        ...prev.codeSyntax,
+        [field]: value
+      }
+    }));
+  };
 
-  // Validation: required fields
-  const hasRequiredFieldError =
-    !editedPlatform.displayName ||
-    editedPlatform.syntaxPatterns?.delimiter === undefined ||
-    !editedPlatform.syntaxPatterns?.capitalization;
-
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = () => {
     onSave(editedPlatform);
-    onClose();
   };
 
   return (
-    <Modal isOpen={open} onClose={onClose} size="xl">
-      <ModalOverlay />
-      <ModalContent maxW="900px">
-        <ModalHeader>
-          {isNew ? 'Create Platform' : `Edit Platform: ${editedPlatform.displayName}`}
-          <Text fontSize="xs" color="gray.500" mt={1} fontFamily="mono" wordBreak="break-all">
-            {editedPlatform.id}
-          </Text>
-        </ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <VStack spacing={4} align="stretch">
-            {/* Basic Information */}
-            <Text fontSize="lg" fontWeight="bold" mb={2}>Basic Information</Text>
-            <Box
-              p={3}
-              borderWidth={1}
-              borderRadius="md"
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-            >
-              <VStack spacing={3} align="stretch">
-                <FormControl isRequired>
-                  <FormLabel>Display Name</FormLabel>
+    <Dialog.Root open={open} onOpenChange={onClose}>
+      <Dialog.Content bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+        <Dialog.Header>{isNew ? 'Create Platform' : 'Edit Platform'}</Dialog.Header>
+        <Dialog.CloseButton />
+        <Dialog.Body>
+          <Stack gap={4} align="stretch">
+            <Field.Root isRequired>
+              <Field.Label>Display Name</Field.Label>
+              <Input
+                value={editedPlatform.displayName}
+                onChange={e => handleChange('displayName', e.target.value)}
+              />
+            </Field.Root>
+            <Field.Root>
+              <Field.Label>Description</Field.Label>
+              <Input
+                value={editedPlatform.description || ''}
+                onChange={e => handleChange('description', e.target.value)}
+              />
+            </Field.Root>
+            <Field.Root>
+              <Field.Label>Code Syntax</Field.Label>
+              <Stack gap={4}>
+                <Field.Root>
+                  <Field.Label>Prefix</Field.Label>
                   <Input
-                    value={editedPlatform.displayName}
-                    onChange={(e) => setEditedPlatform((prev: Platform) => ({ ...prev, displayName: e.target.value }))}
+                    value={editedPlatform.codeSyntax.prefix}
+                    onChange={e => handleCodeSyntaxChange('prefix', e.target.value)}
                   />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Description</FormLabel>
+                </Field.Root>
+                <Field.Root>
+                  <Field.Label>Suffix</Field.Label>
                   <Input
-                    value={editedPlatform.description || ''}
-                    onChange={(e) => setEditedPlatform((prev: Platform) => ({ ...prev, description: e.target.value }))}
+                    value={editedPlatform.codeSyntax.suffix}
+                    onChange={e => handleCodeSyntaxChange('suffix', e.target.value)}
                   />
-                </FormControl>
-              </VStack>
-            </Box>
-
-            {/* Syntax Patterns */}
-            <Text fontSize="lg" fontWeight="bold" mb={2}>Syntax Patterns</Text>
-            <Box
-              p={3}
-              borderWidth={1}
-              borderRadius="md"
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-            >
-              <HStack spacing={4} align="flex-end">
-                <FormControl>
-                  <FormLabel>Prefix</FormLabel>
+                </Field.Root>
+                <Field.Root>
+                  <Field.Label>Separator</Field.Label>
                   <Input
-                    value={editedPlatform.syntaxPatterns?.prefix ?? ''}
-                    onChange={(e) => setEditedPlatform((prev: Platform) => ({
-                      ...prev,
-                      syntaxPatterns: { ...prev.syntaxPatterns, prefix: e.target.value }
-                    }))}
-                    placeholder="e.g., TKN_"
+                    value={editedPlatform.codeSyntax.separator}
+                    onChange={e => handleCodeSyntaxChange('separator', e.target.value)}
                   />
-                </FormControl>
-                <FormControl>
-                  <FormLabel>Suffix</FormLabel>
-                  <Input
-                    value={editedPlatform.syntaxPatterns?.suffix ?? ''}
-                    onChange={(e) => setEditedPlatform((prev: Platform) => ({
-                      ...prev,
-                      syntaxPatterns: { ...prev.syntaxPatterns, suffix: e.target.value }
-                    }))}
-                    placeholder="e.g., _SUF"
-                  />
-                </FormControl>
-                <FormControl isRequired>
-                  <FormLabel>Delimiter</FormLabel>
+                </Field.Root>
+                <Field.Root>
+                  <Field.Label>Capitalization</Field.Label>
                   <Select
-                    value={editedPlatform.syntaxPatterns?.delimiter ?? '_'}
-                    onChange={(e) => setEditedPlatform((prev: Platform) => ({
-                      ...prev,
-                      syntaxPatterns: { ...prev.syntaxPatterns, delimiter: e.target.value as DelimiterType }
-                    }))}
-                  >
-                    <option value="">None (no delimiter)</option>
-                    <option value="_">Underscore (_)</option>
-                    <option value="-">Hyphen (-)</option>
-                    <option value=".">Dot (.)</option>
-                    <option value="/">Forward slash (/)</option>
-                  </Select>
-                </FormControl>
-                <FormControl isRequired>
-                  <FormLabel>Capitalization</FormLabel>
-                  <Select
-                    value={editedPlatform.syntaxPatterns?.capitalization ?? 'none'}
-                    onChange={(e) => setEditedPlatform((prev: Platform) => ({
-                      ...prev,
-                      syntaxPatterns: { ...prev.syntaxPatterns, capitalization: e.target.value as CapitalizationType }
-                    }))}
+                    value={editedPlatform.codeSyntax.capitalization}
+                    onChange={e => handleCodeSyntaxChange('capitalization', e.target.value as CapitalizationType)}
                   >
                     <option value="none">None</option>
-                    <option value="uppercase">UPPERCASE</option>
-                    <option value="lowercase">lowercase</option>
+                    <option value="uppercase">Uppercase</option>
+                    <option value="lowercase">Lowercase</option>
                     <option value="capitalize">Capitalize</option>
                   </Select>
-                </FormControl>
-              </HStack>
-              <VStack spacing={3} align="stretch" mt={4}>
-                <FormControl>
-                  <FormLabel>Format String</FormLabel>
-                  <Input
-                    value={editedPlatform.syntaxPatterns?.formatString ?? ''}
-                    onChange={(e) => setEditedPlatform((prev: Platform) => ({
-                      ...prev,
-                      syntaxPatterns: { ...prev.syntaxPatterns, formatString: e.target.value }
-                    }))}
-                    placeholder="e.g., {prefix}{name}{suffix}"
-                    width="100%"
-                  />
-                </FormControl>
-                <Box mt={2} p={3} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.700' : 'gray.100'}>
-                  <Text fontSize="sm" color="gray.500" mb={1} fontWeight="bold">Preview</Text>
-                  <Text fontFamily="mono" fontSize="md" wordBreak="break-all">{preview}</Text>
-                </Box>
-              </VStack>
-            </Box>
-          </VStack>
-        </ModalBody>
-        <ModalFooter>
+                </Field.Root>
+              </Stack>
+            </Field.Root>
+          </Stack>
+        </Dialog.Body>
+        <Dialog.Footer>
           <Button variant="ghost" mr={3} onClick={onClose}>
             Cancel
           </Button>
-          <Button colorScheme="blue" onClick={handleSave} disabled={hasRequiredFieldError}>
-            {isNew ? 'Create Platform' : 'Save'}
+          <Button colorPalette="blue" onClick={handleSave}>
+            {isNew ? 'Create' : 'Save'}
           </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+        </Dialog.Footer>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 } 

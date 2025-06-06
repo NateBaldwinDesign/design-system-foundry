@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Flex, useColorMode } from '@chakra-ui/react';
+import { Box, Flex } from '@chakra-ui/react';
+import { useTheme } from 'next-themes';
 import { AppSidebar } from './AppSidebar';
 
 interface DataSourceOption {
@@ -25,7 +26,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onExportData,
   children,
 }: AppLayoutProps) => {
-  const { colorMode } = useColorMode();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
 
   return (
     <Flex h="100vh" overflow="hidden">
@@ -36,7 +38,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         onResetData={onResetData}
         onExportData={onExportData}
       />
-      <Box flex="1" overflow="auto" p={4} bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
+      <Box flex="1" overflow="auto" p={4} bg={isDark ? 'gray.900' : 'gray.50'}>
         {children}
       </Box>
     </Flex>

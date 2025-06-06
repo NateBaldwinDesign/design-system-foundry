@@ -6,16 +6,15 @@ import {
   IconButton,
   VStack,
   HStack,
-  useToast,
-  useColorMode,
   Tag,
-  TagLabel,
   Wrap
 } from '@chakra-ui/react';
+import { useTheme } from 'next-themes';
 import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
 import type { TokenCollection, Mode, ResolvedValueType } from '@token-model/data-model';
 import { CollectionEditorDialog } from '../../components/CollectionEditorDialog';
 import { StorageService } from '../../services/storage';
+import { useToast } from '../../hooks/useToast';
 
 interface CollectionsViewProps {
   collections: TokenCollection[];
@@ -24,7 +23,8 @@ interface CollectionsViewProps {
 }
 
 export function CollectionsView({ collections, modes, onUpdate }: CollectionsViewProps) {
-  const { colorMode } = useColorMode();
+  const { theme } = useTheme();
+  const colorMode = theme === 'dark' ? 'dark' : 'light';
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCollection, setEditingCollection] = useState<TokenCollection | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -95,10 +95,11 @@ export function CollectionsView({ collections, modes, onUpdate }: CollectionsVie
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Collections</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4} leftIcon={<LuPlus />}>
+        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4}>
+          <LuPlus />
           Create New Collection
         </Button>
-        <VStack align="stretch" spacing={2}>
+        <VStack align="stretch" gap={2}>
           {collections.map((collection) => (
             <Box 
               key={collection.id} 
@@ -113,28 +114,31 @@ export function CollectionsView({ collections, modes, onUpdate }: CollectionsVie
                   <Text fontSize="lg" fontWeight="medium">{collection.name}</Text>
                 </Box>
                 <HStack>
-                  <IconButton aria-label="Edit collection" icon={<LuPencil />} size="sm" onClick={() => handleOpenEdit(collection)} />
-                  <IconButton aria-label="Delete collection" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDeleteCollection(collection.id)} />
+                  <IconButton aria-label="Edit collection" size="sm" onClick={() => handleOpenEdit(collection)}>
+                    <LuPencil />
+                  </IconButton>
+                  <IconButton aria-label="Delete collection" size="sm" colorScheme="red" onClick={() => handleDeleteCollection(collection.id)}>
+                    <LuTrash2 />
+                  </IconButton>
                 </HStack>
               </HStack>
-              <VStack align="start" spacing={1} mt={2} ml={2}>
+              <VStack align="start" gap={1} mt={2} ml={2}>
                 <Text fontSize="sm" color="gray.600">
                   <b>Value Types:</b>
                 </Text>
-                <Wrap spacing={2}>
+                <Wrap gap={2}>
                   {Array.isArray(collection.resolvedValueTypeIds) && collection.resolvedValueTypeIds.map((typeId: string) => {
                     const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
                     return type ? (
-                      <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
-                        <TagLabel>{type.displayName}</TagLabel>
-                      </Tag>
+                      <Tag.Root key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
+                        <Tag.Label>{type.displayName}</Tag.Label>
+                      </Tag.Root>
                     ) : null;
                   })}
                 </Wrap>
                 {collection.private && (
                   <Text fontSize="sm" color="gray.500"><b>Private</b></Text>
                 )}
-                
               </VStack>
             </Box>
           ))}
