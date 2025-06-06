@@ -787,6 +787,22 @@ export function TokenEditorDialog({
                         </Text>
                       )}
                     </FormControl>
+                    <FormControl isRequired>
+                      <FormLabel>Token Tier</FormLabel>
+                      <Select
+                        value={editedToken.tokenTier}
+                        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                          setEditedToken((prev: ExtendedToken) => ({
+                            ...prev,
+                            tokenTier: e.target.value
+                          }));
+                        }}
+                      >
+                        <option value="PRIMITIVE">Primitive</option>
+                        <option value="SEMANTIC">Semantic</option>
+                        <option value="COMPONENT">Component</option>
+                      </Select>
+                    </FormControl>
                     <FormControl>
                       <FormLabel>Status</FormLabel>
                       <Select
