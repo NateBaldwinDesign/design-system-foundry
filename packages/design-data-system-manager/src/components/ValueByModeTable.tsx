@@ -1,15 +1,10 @@
 import React from 'react';
 import {
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Text,
   Box,
+  Text,
   IconButton,
-  Button
+  Button,
+  Table
 } from '@chakra-ui/react';
 import { Trash2 } from 'lucide-react';
 import type { Mode, Dimension, TokenValue, ResolvedValueType } from '@token-model/data-model';
@@ -150,46 +145,43 @@ function NestedModeTable({
     const secondaryRowDims = rowDimensions.slice(1);
     
     return (
-      <Table size="sm" variant="simple" width="100%">
-        <Thead>
-          <Tr>
-            <Th>{primaryRowDim.displayName}</Th>
+      <Table.Root size="sm" width="100%">
+        <Table.Header>
+          <Table.Row>
+            <Table.ColumnHeader>{primaryRowDim.displayName}</Table.ColumnHeader>
             {columnCombinations.map((combo, idx) => (
-              <Th key={idx} colSpan={1}>
+              <Table.ColumnHeader key={idx} colSpan={1}>
                 {combo.map(modeId => getModeName(modeId, modes)).join(' + ')}
-              </Th>
+              </Table.ColumnHeader>
             ))}
-          </Tr>
-        </Thead>
-        <Tbody>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body>
           {primaryRowDim.modes.map(primaryMode => (
             <React.Fragment key={primaryMode.id}>
               {getModeCombinations(secondaryRowDims).map((secondaryCombo, secondaryIdx) => (
-                <Tr key={`${primaryMode.id}-${secondaryIdx}`}>
+                <Table.Row key={`${primaryMode.id}-${secondaryIdx}`}>
                   {secondaryIdx === 0 && (
-                    <Td rowSpan={getModeCombinations(secondaryRowDims).length}>
+                    <Table.Cell rowSpan={getModeCombinations(secondaryRowDims).length}>
                       {getModeName(primaryMode.id, modes)}
-                    </Td>
+                    </Table.Cell>
                   )}
                   {columnCombinations.map((colCombo, colIdx) => {
                     const allModeIds = [primaryMode.id, ...secondaryCombo, ...colCombo].sort();
-                    const key = allModeIds.join(',');
-                    const value = valueMap.get(key);
                     return (
-                      <Td key={colIdx}>
-                        <Table size="sm" variant="simple">
-                          <Tbody>
+                      <Table.Cell key={colIdx}>
+                        <Table.Root size="sm">
+                          <Table.Body>
                             {secondaryCombo.map((modeId, modeIdx) => {
                               const allModeIds = [primaryMode.id, ...secondaryCombo, ...colCombo].sort();
                               const key = allModeIds.join(',');
-                              const value = valueMap.get(key);
                               return (
-                                <Tr key={modeIdx}>
-                                  <Td align="left">{getModeName(modeId, modes)}</Td>
-                                  <Td align="left">
+                                <Table.Row key={modeIdx}>
+                                  <Table.Cell align="left">{getModeName(modeId, modes)}</Table.Cell>
+                                  <Table.Cell align="left">
                                     <Box display="flex" alignItems="flex-start" gap={2}>
-                                      {value ? (
-                                        getValueEditor(value.value, allModeIds)
+                                      {valueMap.get(key) ? (
+                                        getValueEditor(valueMap.get(key)!.value, allModeIds)
                                       ) : (
                                         <Button
                                           size="sm"
@@ -199,32 +191,32 @@ function NestedModeTable({
                                           Add value
                                         </Button>
                                       )}
-                                      {value && (
+                                      {valueMap.get(key) && (
                                         <IconButton
-                                          aria-label="Remove value"
-                                          icon={<Trash2 size={16} />}
+                                          aria-label="Delete value"
                                           size="sm"
-                                          variant="ghost"
-                                          colorScheme="red"
+                                          colorPalette="red"
                                           onClick={() => onDeleteValue(allModeIds)}
-                                        />
+                                        >
+                                          <Trash2 width={16} height={16} />
+                                        </IconButton>
                                       )}
                                     </Box>
-                                  </Td>
-                                </Tr>
+                                  </Table.Cell>
+                                </Table.Row>
                               );
                             })}
-                          </Tbody>
-                        </Table>
-                      </Td>
+                          </Table.Body>
+                        </Table.Root>
+                      </Table.Cell>
                     );
                   })}
-                </Tr>
+                </Table.Row>
               ))}
             </React.Fragment>
           ))}
-        </Tbody>
-      </Table>
+        </Table.Body>
+      </Table.Root>
     );
   }
 
@@ -234,44 +226,43 @@ function NestedModeTable({
     const secondaryColDims = columnDimensions.slice(1);
     
     return (
-      <Table size="sm" variant="simple">
-        <Thead>
-          <Tr>
-            <Th>{rowDimensions[0]?.displayName}</Th>
+      <Table.Root size="sm" width="100%">
+        <Table.Header>
+          <Table.Row>
+            <Table.ColumnHeader>{rowDimensions[0]?.displayName}</Table.ColumnHeader>
             {primaryColDim.modes.map(primaryMode => (
-              <Th key={primaryMode.id} colSpan={1}>
+              <Table.ColumnHeader key={primaryMode.id} colSpan={1}>
                 {getModeName(primaryMode.id, modes)}
-              </Th>
+              </Table.ColumnHeader>
             ))}
-          </Tr>
-        </Thead>
-        <Tbody>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body>
           {rowCombinations.map((rowCombo, rowIdx) => (
-            <Tr key={rowIdx}>
-              <Td>{getModeName(rowCombo[0], modes)}</Td>
+            <Table.Row key={rowIdx}>
+              <Table.Cell>{getModeName(rowCombo[0], modes)}</Table.Cell>
               {primaryColDim.modes.map(primaryMode => (
-                <Td key={primaryMode.id}>
-                  <Table size="sm" variant="simple">
-                    <Thead>
-                      <Tr>
+                <Table.Cell key={primaryMode.id}>
+                  <Table.Root size="sm">
+                    <Table.Header>
+                      <Table.Row>
                         {getModeCombinations(secondaryColDims).map((combo, idx) => (
-                          <Th key={idx}>
+                          <Table.ColumnHeader key={idx}>
                             {combo.map(modeId => getModeName(modeId, modes)).join(' + ')}
-                          </Th>
+                          </Table.ColumnHeader>
                         ))}
-                      </Tr>
-                    </Thead>
-                    <Tbody>
-                      <Tr>
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      <Table.Row>
                         {getModeCombinations(secondaryColDims).map((combo, idx) => {
                           const allModeIds = [...rowCombo, primaryMode.id, ...combo].sort();
                           const key = allModeIds.join(',');
-                          const value = valueMap.get(key);
                           return (
-                            <Td key={idx}>
+                            <Table.Cell key={idx}>
                               <Box display="flex" alignItems="center" gap={2}>
-                                {value ? (
-                                  getValueEditor(value.value, allModeIds)
+                                {valueMap.get(key) ? (
+                                  getValueEditor(valueMap.get(key)!.value, allModeIds)
                                 ) : (
                                   <Button
                                     size="sm"
@@ -281,64 +272,63 @@ function NestedModeTable({
                                     Add value
                                   </Button>
                                 )}
-                                {value && (
+                                {valueMap.get(key) && (
                                   <IconButton
-                                    aria-label="Remove value"
-                                    icon={<Trash2 size={16} />}
+                                    aria-label="Delete value"
                                     size="sm"
-                                    variant="ghost"
-                                    colorScheme="red"
+                                    colorPalette="red"
                                     onClick={() => onDeleteValue(allModeIds)}
-                                  />
+                                  >
+                                    <Trash2 width={16} height={16} />
+                                  </IconButton>
                                 )}
                               </Box>
-                            </Td>
+                            </Table.Cell>
                           );
                         })}
-                      </Tr>
-                    </Tbody>
-                  </Table>
-                </Td>
+                      </Table.Row>
+                    </Table.Body>
+                  </Table.Root>
+                </Table.Cell>
               ))}
-            </Tr>
+            </Table.Row>
           ))}
-        </Tbody>
-      </Table>
+        </Table.Body>
+      </Table.Root>
     );
   }
 
   // Default case: simple table
   return (
-    <Table size="sm" variant="simple">
-      <Thead>
-        <Tr>
+    <Table.Root size="sm" width="100%">
+      <Table.Header>
+        <Table.Row>
           {rowDimensions.map(dim => (
-            <Th key={dim.id}>{dim.displayName}</Th>
+            <Table.ColumnHeader key={dim.id}>{dim.displayName}</Table.ColumnHeader>
           ))}
           {columnCombinations.map((combo, idx) => (
-            <Th key={idx}>
+            <Table.ColumnHeader key={idx}>
               {combo.map(modeId => getModeName(modeId, modes)).join(' + ')}
-            </Th>
+            </Table.ColumnHeader>
           ))}
-        </Tr>
-      </Thead>
-      <Tbody>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
         {rowCombinations.map((rowCombo, rowIdx) => (
-          <Tr key={rowIdx}>
+          <Table.Row key={rowIdx}>
             {rowCombo.map(modeId => (
-              <Td key={modeId}>
+              <Table.Cell key={modeId}>
                 <Text fontSize="sm">{getModeName(modeId, modes)}</Text>
-              </Td>
+              </Table.Cell>
             ))}
             {columnCombinations.map((colCombo, colIdx) => {
               const allModeIds = [...rowCombo, ...colCombo].sort();
               const key = allModeIds.join(',');
-              const value = valueMap.get(key);
               return (
-                <Td key={colIdx}>
+                <Table.Cell key={colIdx}>
                   <Box display="flex" alignItems="center" gap={2}>
-                    {value ? (
-                      getValueEditor(value.value, allModeIds)
+                    {valueMap.get(key) ? (
+                      getValueEditor(valueMap.get(key)!.value, allModeIds)
                     ) : (
                       <Button
                         size="sm"
@@ -348,24 +338,24 @@ function NestedModeTable({
                         Add value
                       </Button>
                     )}
-                    {value && (
+                    {valueMap.get(key) && (
                       <IconButton
-                        aria-label="Remove value"
-                        icon={<Trash2 size={16} />}
+                        aria-label="Delete value"
                         size="sm"
-                        variant="ghost"
-                        colorScheme="red"
+                        colorPalette="red"
                         onClick={() => onDeleteValue(allModeIds)}
-                      />
+                      >
+                        <Trash2 width={16} height={16} />
+                      </IconButton>
                     )}
                   </Box>
-                </Td>
+                </Table.Cell>
               );
             })}
-          </Tr>
+          </Table.Row>
         ))}
-      </Tbody>
-    </Table>
+      </Table.Body>
+    </Table.Root>
   );
 }
 

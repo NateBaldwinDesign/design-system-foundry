@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import {
   Box,
-  VStack,
+  Stack,
   IconButton,
   Text,
-  useColorMode,
-  Tooltip,
   Button,
   Select,
-  HStack,
+  Tooltip,
+  createListCollection,
 } from '@chakra-ui/react';
 import {
   Download,
@@ -23,13 +22,12 @@ import {
   Tag,
   SquareStack,
   ListOrdered,
-  PencilRuler,
-  Palette,
   MonitorSmartphone,
   CircleCheckBig,
   History,
   Users,
-  FileCode
+  FileCode,
+  LucideIcon
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
@@ -37,60 +35,98 @@ import Logo from './Logo';
 interface NavItem {
   id: string;
   label: string;
-  icon: React.ElementType;
-  route: string;
+  icon?: LucideIcon;
+  route?: string;
   children?: NavItem[];
 }
 
 interface AppSidebarProps {
   dataSource?: string;
   setDataSource?: (source: string) => void;
-  dataOptions?: { label: string; value: string; filePath: string }[];
+  dataOptions?: Array<{ filePath: string; label: string }>;
   onResetData?: () => void;
   onExportData?: () => void;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard' },
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    route: '/'
+  },
   {
     id: 'tokens',
     label: 'Tokens',
-    children: [
-      { id: 'tokens', label: 'Tokens', icon: Hexagon, route: '/tokens/tokens' },
-      { id: 'collections', label: 'Collections', icon: Folders, route: '/tokens/collections' },
-      { id: 'algorithms', label: 'Algorithms', icon: SquareFunction, route: '/tokens/algorithms' },
-    ],
+    icon: Hexagon,
+    route: '/tokens'
   },
   {
-    id: 'setup',
-    label: 'Setup',
-    children: [
-      { id: 'dimensions', label: 'Dimensions', icon: SquareStack, route: '/dimensions' },
-      { id: 'classification', label: 'Classification', icon: Tag, route: '/classification' },
-      { id: 'naming-rules', label: 'Naming Rules', icon: ListOrdered, route: '/naming-rules' },
-      { id: 'value-types', label: 'Value Types', icon: PencilRuler, route: '/value-types' },
-    ],
+    id: 'collections',
+    label: 'Collections',
+    icon: Folders,
+    route: '/collections'
   },
-  { id: 'themes', label: 'Themes', icon: Palette, route: '/themes' },
   {
-    id: 'publishing',
-    label: 'Publishing',
-    children: [
-      { id: 'platforms', label: 'Platforms', icon: MonitorSmartphone, route: '/platforms' },
-      { id: 'export-settings', label: 'Export Settings', icon: Settings, route: '/export-settings' },
-      { id: 'validation', label: 'Validation', icon: CircleCheckBig, route: '/validation' },
-      { id: 'version-history', label: 'Version History', icon: History, route: '/version-history' },
-    ],
+    id: 'value-types',
+    label: 'Value Types',
+    icon: SquareFunction,
+    route: '/value-types'
   },
-  { id: 'access', label: 'Access', icon: Users, route: '/access' },
   {
-    id: 'schemas',
-    label: 'Schemas',
-    children: [
-      { id: 'core-data', label: 'Core Data', icon: FileCode, route: '/schemas/core-data' },
-      { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode, route: '/schemas/theme-overrides' },
-    ],
+    id: 'taxonomies',
+    label: 'Taxonomies',
+    icon: Tag,
+    route: '/taxonomies'
   },
+  {
+    id: 'dimensions',
+    label: 'Dimensions',
+    icon: SquareStack,
+    route: '/dimensions'
+  },
+  {
+    id: 'naming-rules',
+    label: 'Naming Rules',
+    icon: ListOrdered,
+    route: '/naming-rules'
+  },
+  {
+    id: 'platforms',
+    label: 'Platforms',
+    icon: MonitorSmartphone,
+    route: '/platforms'
+  },
+  {
+    id: 'validation',
+    label: 'Validation',
+    icon: CircleCheckBig,
+    route: '/validation'
+  },
+  {
+    id: 'history',
+    label: 'History',
+    icon: History,
+    route: '/history'
+  },
+  {
+    id: 'users',
+    label: 'Users',
+    icon: Users,
+    route: '/users'
+  },
+  {
+    id: 'code',
+    label: 'Code',
+    icon: FileCode,
+    route: '/code'
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    icon: Settings,
+    route: '/settings'
+  }
 ];
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({
@@ -101,10 +137,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onExportData,
 }: AppSidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const { colorMode } = useColorMode();
   const location = useLocation();
-  const bgColor = colorMode === 'dark' ? 'gray.800' : 'white';
-  const borderColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
+  const bgColor = 'gray.800';
+  const borderColor = 'gray.700';
 
   const renderNavItem = (item: NavItem, isChild: boolean = false) => {
     const isActive = location.pathname === item.route;
@@ -134,39 +169,48 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
     // Render child items or items without children
     const content = (
-      <Box
+      <Link
         key={item.id}
-        as={Link}
-        to={item.route}
-        display="flex"
-        alignItems="center"
-        p={2}
-        borderRadius="md"
-        bg={isActive ? 'blue.500' : 'transparent'}
-        color={isActive ? 'white' : 'inherit'}
-        _hover={{
-          bg: isActive ? 'blue.600' : colorMode === 'dark' ? 'gray.700' : 'gray.100',
-        }}
-        cursor="pointer"
-        role="menuitem"
-        aria-current={isActive ? 'page' : undefined}
-        tabIndex={0}
-        textDecoration="none"
+        to={item.route || '#'}
+        style={{ textDecoration: 'none' }}
       >
-        <Icon size={20} />
-        {!isCollapsed && (
-          <Text ml={3} fontSize="sm">
-            {item.label}
-          </Text>
-        )}
-      </Box>
+        <Box
+          display="flex"
+          alignItems="center"
+          p={2}
+          borderRadius="md"
+          bg={isActive ? 'blue.500' : 'transparent'}
+          color={isActive ? 'white' : 'inherit'}
+          _hover={{
+            bg: isActive ? 'blue.600' : 'gray.700',
+          }}
+          cursor="pointer"
+          role="menuitem"
+          aria-current={isActive ? 'page' : undefined}
+          tabIndex={0}
+        >
+          {Icon && <Icon width={20} height={20} />}
+          {!isCollapsed && (
+            <Text ml={3} fontSize="sm">
+              {item.label}
+            </Text>
+          )}
+        </Box>
+      </Link>
     );
 
     if (isCollapsed) {
       return (
-        <Tooltip label={item.label} placement="right" key={item.id}>
-          {content}
-        </Tooltip>
+        <Tooltip.Root>
+          <Tooltip.Trigger asChild>
+            {content}
+          </Tooltip.Trigger>
+          <Tooltip.Positioner>
+            <Tooltip.Content>
+              {item.label}
+            </Tooltip.Content>
+          </Tooltip.Positioner>
+        </Tooltip.Root>
       );
     }
     return content;
@@ -185,10 +229,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       role="navigation"
       aria-label="Main navigation"
     >
-      <VStack spacing={0} align="stretch" h="full">
+      <Stack gap={0} align="stretch" h="full">
         {/* Logo */}
         <Box p={4} borderBottom="1px" borderColor={borderColor} display="flex" gap={2} justifyContent="center" alignItems="center">
-          <Logo size={34} color={colorMode === 'dark' ? 'white' : 'black'} />
+          <Logo size={34} color="white" />
           {/* Title */}
           {!isCollapsed && (
             <Text fontSize="md" lineHeight="1" fontWeight="bold">
@@ -201,73 +245,98 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         <Box p={2} borderBottom="1px" borderColor={borderColor}>
           <IconButton
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            icon={isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            onClick={() => setIsCollapsed(!isCollapsed)}
             variant="ghost"
             size="sm"
-            onClick={() => setIsCollapsed(!isCollapsed)}
             w="full"
-          />
+          >
+            {isCollapsed ? <ChevronRight width={16} height={16} /> : <ChevronLeft width={16} height={16} />}
+          </IconButton>
         </Box>
+
         {/* Navigation Items */}
-        <VStack spacing={1} align="stretch" p={4} flex={1}>
+        <Stack gap={1} align="stretch" p={4} flex={1}>
           {NAV_ITEMS.map((item) => {
             if (item.children) {
               return (
                 <Box key={item.id}>
                   {renderNavItem(item)}
-                  <VStack key={`${item.id}-children`} spacing={1} align="stretch" ml={0} mt={1}>
+                  <Stack key={`${item.id}-children`} gap={1} align="stretch" ml={0} mt={1}>
                     {item.children.map((child) => renderNavItem(child, true))}
-                  </VStack>
+                  </Stack>
                 </Box>
               );
             }
             return renderNavItem(item);
           })}
-        </VStack>
+        </Stack>
+
         {/* Data Source Controls (optional) */}
         {!isCollapsed && dataOptions && dataSource && setDataSource && onResetData && (
           <Box p={4} borderTop="1px" borderColor={borderColor}>
-            <VStack spacing={2} align="stretch">
-              <Select
-                size="sm"
-                value={dataSource}
-                onChange={(e) => setDataSource(e.target.value)}
+            <Stack gap={2} align="stretch">
+              <Select.Root
+                value={[dataSource]}
+                onValueChange={(details) => {
+                  const value = Array.isArray(details.value) ? details.value[0] : details.value;
+                  setDataSource(value);
+                }}
+                collection={createListCollection({
+                  items: dataOptions.map(opt => ({
+                    value: opt.filePath,
+                    label: opt.label
+                  }))
+                })}
               >
-                {dataOptions.map((option) => (
-                  <option key={option.filePath} value={option.filePath}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </VStack>
+                <Select.HiddenSelect />
+                <Select.Control>
+                  <Select.Trigger>
+                    <Select.ValueText placeholder="Select data source" />
+                  </Select.Trigger>
+                  <Select.IndicatorGroup>
+                    <Select.Indicator />
+                  </Select.IndicatorGroup>
+                </Select.Control>
+                <Select.Positioner>
+                  <Select.Content>
+                    {dataOptions.map((option) => (
+                      <Select.Item key={option.filePath} item={{ value: option.filePath, label: option.label }}>
+                        {option.label}
+                        <Select.ItemIndicator />
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Positioner>
+              </Select.Root>
+            </Stack>
           </Box>
         )}
-         {!isCollapsed && dataOptions && dataSource && setDataSource && onResetData && (
-            <HStack gap={2} p={2} borderTop="1px" borderColor={borderColor}>
-              {/* Export Button (optional) */}
-              {onExportData && (
-                  <Button
-                    size="sm"
-                    leftIcon={<Download size={16} />}
-                    onClick={onExportData}
-                    variant="outline"
-                    w="full"
-                  >
-                    {!isCollapsed && 'Export Data'}
-                  </Button>
-              )}
+
+        {!isCollapsed && dataOptions && dataSource && setDataSource && onResetData && (
+          <Stack direction="row" gap={2} p={2} borderTop="1px" borderColor={borderColor}>
+            {/* Export Button (optional) */}
+            {onExportData && (
               <Button
                 size="sm"
-                leftIcon={<RefreshCw size={16} />}
-                onClick={onResetData}
                 variant="outline"
-                w="full"
+                onClick={onExportData}
               >
-                Reset Data
+                <Download width={16} height={16} style={{ marginRight: '8px' }} />
+                Export
               </Button>
-            </HStack>
-         )}
-      </VStack>
+            )}
+            {/* Reset Button */}
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onResetData}
+            >
+              <RefreshCw width={16} height={16} style={{ marginRight: '8px' }} />
+              Reset
+            </Button>
+          </Stack>
+        )}
+      </Stack>
     </Box>
   );
 }; 

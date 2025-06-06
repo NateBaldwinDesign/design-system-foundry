@@ -16,13 +16,13 @@ interface DimensionsEditorProps {
   isNew?: boolean;
 }
 
-export const DimensionsEditor: React.FC<DimensionsEditorProps> = ({
+export function DimensionsEditor({
   open,
   onClose,
   onSave,
   dimension,
-  isNew
-}) => {
+  isNew = false
+}: DimensionsEditorProps) {
   const [displayName, setDisplayName] = React.useState(dimension?.displayName || '');
   const [description, setDescription] = React.useState(dimension?.description || '');
   const [defaultMode, setDefaultMode] = React.useState(dimension?.defaultMode || '');
@@ -38,8 +38,10 @@ export const DimensionsEditor: React.FC<DimensionsEditorProps> = ({
   }, [dimension]);
 
   const handleSave = () => {
+    if (!displayName) return;
+
     onSave({
-      id: dimension?.id || '',
+      id: dimension?.id || crypto.randomUUID(),
       displayName,
       description,
       modes: dimension?.modes || [],
@@ -55,15 +57,18 @@ export const DimensionsEditor: React.FC<DimensionsEditorProps> = ({
       <Dialog.Backdrop />
       <Dialog.Positioner>
         <Dialog.Content>
-          <Dialog.Header>{isNew ? 'New Dimension' : 'Edit Dimension'}</Dialog.Header>
+          <Dialog.Header>
+            {isNew ? 'New Dimension' : 'Edit Dimension'}
+          </Dialog.Header>
           <Dialog.Body>
             <Stack gap={4}>
               <Field.Root>
-                <Field.Label>Name</Field.Label>
+                <Field.Label>Display Name</Field.Label>
+                <Field.RequiredIndicator />
                 <Input
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Enter dimension name"
+                  placeholder="Enter display name"
                 />
               </Field.Root>
               <Field.Root>
@@ -71,7 +76,7 @@ export const DimensionsEditor: React.FC<DimensionsEditorProps> = ({
                 <Input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Enter dimension description"
+                  placeholder="Enter description"
                 />
               </Field.Root>
               <Field.Root>
@@ -85,18 +90,10 @@ export const DimensionsEditor: React.FC<DimensionsEditorProps> = ({
             </Stack>
           </Dialog.Body>
           <Dialog.Footer>
-            <Button
-              onClick={onClose}
-              variant="ghost"
-              colorPalette="gray"
-            >
+            <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button
-              onClick={handleSave}
-              colorPalette="blue"
-              ml={3}
-            >
+            <Button onClick={handleSave} disabled={!displayName}>
               Save
             </Button>
           </Dialog.Footer>
@@ -104,4 +101,4 @@ export const DimensionsEditor: React.FC<DimensionsEditorProps> = ({
       </Dialog.Positioner>
     </Dialog.Root>
   );
-}; 
+} 

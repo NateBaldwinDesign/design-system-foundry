@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, HStack, Text } from "@chakra-ui/react"
+import { Box, Stack, Text } from "@chakra-ui/react"
 import type { ResolvedValueType } from '@token-model/data-model';
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
 
@@ -9,6 +9,7 @@ interface TokenTagProps {
     resolvedValueTypes: ResolvedValueType[];
     value: string | number;
     onClick?: () => void;
+    isPill?: boolean;
 }
 
 const TokenTag: React.FC<TokenTagProps> = ({
@@ -37,8 +38,8 @@ const TokenTag: React.FC<TokenTagProps> = ({
             borderWidth={isPill ? '1px' : '0'}
             borderColor="gray.200"
         >
-            <HStack width="100%" justifyContent="space-between">
-                <HStack>
+            <Stack direction="row" width="100%" justifyContent="space-between">
+                <Stack direction="row">
                     {valueType.type === 'COLOR' && (
                         <div style={{ display: 'flex', flexGrow: 0, flexShrink: 0, width: '16px', height: '16px', borderRadius: '4px', backgroundColor: String(value) }}></div>
                     )}
@@ -48,9 +49,9 @@ const TokenTag: React.FC<TokenTagProps> = ({
                         </div>
                     )}
                     <Text className="kode-mono">{displayName}</Text>
-                </HStack>
+                </Stack>
                 <Text color="gray.500">{String(value)}</Text>
-            </HStack>
+            </Stack>
         </Box>
     )
 }

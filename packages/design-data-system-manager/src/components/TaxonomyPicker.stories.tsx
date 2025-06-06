@@ -1,8 +1,19 @@
 import React from 'react';
 import { TaxonomyPicker } from './TaxonomyPicker';
 import { ChakraProvider } from '@chakra-ui/react';
+import type { Taxonomy } from '@token-model/data-model';
+import { system } from '../theme';
 
-export default {
+interface TaxonomyPickerStoryProps {
+  taxonomies: Taxonomy[];
+  value: { taxonomyId: string; termId: string }[];
+  onChange: (value: { taxonomyId: string; termId: string }[]) => void;
+  isMulti: boolean;
+  placeholder: string;
+  disabled: boolean;
+}
+
+const meta = {
   title: 'Components/TaxonomyPicker',
   component: TaxonomyPicker,
   argTypes: {
@@ -11,21 +22,31 @@ export default {
     onChange: { action: 'onChange' },
     isMulti: { control: 'boolean' },
     placeholder: { control: 'text' },
-    isDisabled: { control: 'boolean' },
+    disabled: { control: 'boolean' },
   },
+  decorators: [
+    (Story: React.ComponentType) => (
+      <ChakraProvider value={system}>
+        <Story />
+      </ChakraProvider>
+    ),
+  ],
 };
 
-const Template = (args) => (
-  <ChakraProvider>
-    <TaxonomyPicker {...args} />
-  </ChakraProvider>
-);
+export default meta;
 
-export const Default = Template.bind({});
-Default.args = {
-  taxonomies: [],
-  value: null,
-  isMulti: false,
-  placeholder: 'Select taxonomy',
-  isDisabled: false,
+const Template = (args: TaxonomyPickerStoryProps) => <TaxonomyPicker {...args} />;
+
+export const Default = {
+  render: Template,
+  args: {
+    taxonomies: [],
+    value: [],
+    isMulti: false,
+    placeholder: 'Select taxonomy',
+    disabled: false,
+    onChange: (value: { taxonomyId: string; termId: string }[]) => {
+      console.log('onChange:', value);
+    },
+  },
 }; 
