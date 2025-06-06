@@ -338,8 +338,18 @@
         "description": "Design tokens with values that can vary by mode",
         "items": {
           "type": "object",
-          "required": ["id", "displayName", "tokenCollectionId", "resolvedValueTypeId", "valuesByMode"],
+          "required": ["id", "displayName", "tokenCollectionId", "resolvedValueTypeId", "valuesByMode", "tokenTier"],
           "properties": {
+            "tokenTier": {
+              "type": "string",
+              "description": "Classification of the token's level in the design system hierarchy",
+              "enum": ["PRIMITIVE", "SEMANTIC", "COMPONENT"],
+              "enumDescriptions": [
+                "Base-level design tokens that represent raw values",
+                "Tokens that reference primitives and provide semantic meaning",
+                "Tokens that represent component-level design decisions"
+              ]
+            },
             "id": {
               "type": "string",
               "description": "Unique identifier for the token",

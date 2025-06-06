@@ -162,6 +162,7 @@
       "resolvedValueTypeId": "color",
       "private": false,
       "status": "stable",
+      "tokenTier": "PRIMITIVE",
       "themeable": false,
       "taxonomies": [
         {
@@ -225,6 +226,7 @@
       "resolvedValueTypeId": "color",
       "private": false,
       "status": "stable",
+      "tokenTier": "PRIMITIVE",
       "themeable": false,
       "taxonomies": [
         {
@@ -293,6 +295,7 @@
       "resolvedValueTypeId": "color",
       "private": false,
       "status": "stable",
+      "tokenTier": "SEMANTIC",
       "themeable": true,
       "taxonomies": [
         {
@@ -439,7 +442,8 @@
       "propertyTypes": [],
       "private": false,
       "themeable": true,
-      "status": "experimental",
+      "status": "stable",
+      "tokenTier": "PRIMITIVE",
       "taxonomies": [
         {
           "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
@@ -513,6 +517,7 @@
       "private": false,
       "themeable": false,
       "status": "experimental",
+      "tokenTier": "SEMANTIC",
       "taxonomies": [
         {
           "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
@@ -560,6 +565,7 @@
       "private": false,
       "themeable": false,
       "status": "experimental",
+      "tokenTier": "SEMANTIC",
       "taxonomies": [
         {
           "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
@@ -607,6 +613,7 @@
       "private": false,
       "themeable": false,
       "status": "experimental",
+      "tokenTier": "SEMANTIC",
       "taxonomies": [
         {
           "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
@@ -654,6 +661,7 @@
       "private": false,
       "themeable": false,
       "status": "experimental",
+      "tokenTier": "SEMANTIC",
       "taxonomies": [
         {
           "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
@@ -701,6 +709,7 @@
       "private": false,
       "themeable": false,
       "status": "experimental",
+      "tokenTier": "SEMANTIC",
       "taxonomies": [
         {
           "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
@@ -748,6 +757,7 @@
       "private": false,
       "themeable": false,
       "status": "experimental",
+      "tokenTier": "SEMANTIC",
       "taxonomies": [
         {
           "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
@@ -795,6 +805,7 @@
       "private": false,
       "themeable": false,
       "status": "experimental",
+      "tokenTier": "SEMANTIC",
       "taxonomies": [
         {
           "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
@@ -842,6 +853,7 @@
       "private": false,
       "themeable": false,
       "status": "experimental",
+      "tokenTier": "SEMANTIC",
       "taxonomies": [
         {
           "taxonomyId": "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
