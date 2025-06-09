@@ -29,7 +29,8 @@ import {
   CircleCheckBig,
   History,
   Users,
-  FileCode
+  FileCode,
+  ChartNetwork
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
@@ -59,6 +60,7 @@ const NAV_ITEMS: NavItem[] = [
       { id: 'tokens', label: 'Tokens', icon: Hexagon, route: '/tokens/tokens' },
       { id: 'collections', label: 'Collections', icon: Folders, route: '/tokens/collections' },
       { id: 'algorithms', label: 'Algorithms', icon: SquareFunction, route: '/tokens/algorithms' },
+      { id: 'analysis', label: 'Analysis', icon: ChartNetwork, route: '/tokens/analysis' },
     ],
   },
   {

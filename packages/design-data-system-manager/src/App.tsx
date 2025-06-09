@@ -41,6 +41,7 @@ import { DimensionsView } from './views/setup/DimensionsView';
 import { ClassificationView } from './views/setup/ClassificationView';
 import { NamingRulesView } from './views/setup/NamingRulesView';
 import { ValueTypesView } from './views/setup/ValueTypesView';
+import { TokenAnalysis } from './views/tokens/TokenAnalysis';
 
 function getDataSourceOptions() {
   return Object.keys(exampleDataFiles).map((filePath) => {
@@ -350,6 +351,7 @@ const App = () => {
                 } />
                 <Route path="/tokens/collections" element={<CollectionsView collections={collections} modes={modes} onUpdate={setCollections} />} />
                 <Route path="/tokens/algorithms" element={<AlgorithmsTab />} />
+                <Route path="/tokens/analysis" element={<TokenAnalysis />} />
                 <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />
                 <Route path="/schemas/core-data" element={<CoreDataView />} />
                 <Route path="/schemas/theme-overrides" element={<ThemeOverridesView />} />
