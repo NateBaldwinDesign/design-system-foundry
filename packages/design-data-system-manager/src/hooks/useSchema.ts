@@ -4,25 +4,89 @@ import { exampleData } from '@token-model/data-model';
 import { StorageService } from '../services/storage';
 import { ValidationService } from '../services/validation';
 import { useToast } from '@chakra-ui/react';
-import type { TokenCollection, Dimension, Platform, Taxonomy, Theme, ResolvedValueType, FallbackStrategy } from '@token-model/data-model';
+import type { 
+  TokenCollection, 
+  Dimension, 
+  Platform, 
+  Taxonomy, 
+  Theme, 
+  ResolvedValueType, 
+  FallbackStrategy,
+  MigrationStrategy,
+  DimensionEvolution,
+  TokenGroup,
+  TokenVariant,
+  TokenStatus,
+  TokenTier,
+  TokenValue
+} from '@token-model/data-model';
 
 export interface Schema {
-  version: string;
+  version: string; // Must match semantic versioning pattern
   description?: string;
   systemName: string;
-  systemId: string;
+  systemId: string; // Must match pattern ^[a-zA-Z0-9-_]+$
   tokenCollections: TokenCollection[];
   dimensions: Dimension[];
   platforms: Platform[];
   taxonomies: Taxonomy[];
   themes: Theme[];
+  tokens: Array<{
+    id: string;
+    displayName: string;
+    description?: string;
+    tokenCollectionId: string;
+    resolvedValueTypeId: string;
+    private: boolean;
+    themeable: boolean;
+    status?: TokenStatus;
+    tokenTier: TokenTier;
+    taxonomies: Array<{
+      taxonomyId: string;
+      termId: string;
+    }>;
+    propertyTypes: string[];
+    codeSyntax: Array<{
+      platformId: string;
+      formattedName: string;
+    }>;
+    valuesByMode: Array<{
+      modeIds: string[];
+      value: TokenValue;
+      metadata?: Record<string, unknown>;
+      platformOverrides?: Array<{
+        platformId: string;
+        value: string;
+        metadata?: Record<string, unknown>;
+      }>;
+    }>;
+  }>;
   namingRules: { taxonomyOrder: string[] };
   resolvedValueTypes: ResolvedValueType[];
   versionHistory: Array<{
     version: string;
     dimensions: string[];
     date: string;
+    migrationStrategy?: MigrationStrategy;
   }>;
+  dimensionOrder?: string[]; // Optional array of dimension IDs
+  dimensionEvolution?: DimensionEvolution;
+  exportConfigurations?: {
+    [platformId: string]: {
+      prefix: string;
+      delimiter: '' | '_' | '-' | '.' | '/';
+      capitalization: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+    };
+  };
+  metadata?: {
+    description?: string;
+    lastUpdated?: string;
+    maintainers?: string[];
+  };
+  extensions?: {
+    tokenGroups?: TokenGroup[];
+    tokenVariants?: Record<string, TokenVariant>;
+  };
 }
 
 export const useSchema = () => {
@@ -73,12 +137,14 @@ export const useSchema = () => {
         try {
           const coreDataModule = await exampleData.core();
           const coreData = coreDataModule.default;
-          const namingRules = StorageService.getNamingRules();
           
           // Process the data to ensure proper typing
           const processedData = {
             ...coreData,
-            namingRules,
+            // Ensure taxonomies are loaded first
+            taxonomies: coreData.taxonomies || [],
+            // Preserve the naming rules from the source data
+            namingRules: coreData.namingRules,
             tokenCollections: coreData.tokenCollections.map(collection => ({
               ...collection,
               modeResolutionStrategy: collection.modeResolutionStrategy ? {
@@ -98,8 +164,16 @@ export const useSchema = () => {
               ...type,
               type: type.type as 'COLOR' | 'DIMENSION' | 'SPACING' | 'FONT_FAMILY' | 'FONT_WEIGHT' | 'FONT_SIZE' | 'LINE_HEIGHT' | 'LETTER_SPACING' | 'DURATION' | 'CUBIC_BEZIER' | 'BLUR' | 'SPREAD' | 'RADIUS' | undefined
             })),
-            // Ensure taxonomies are properly loaded from core data
-            taxonomies: coreData.taxonomies || []
+            // Ensure tokens are properly typed
+            tokens: coreData.tokens.map(token => ({
+              ...token,
+              status: token.status as TokenStatus | undefined,
+              tokenTier: token.tokenTier as TokenTier,
+              valuesByMode: token.valuesByMode.map(mode => ({
+                ...mode,
+                value: mode.value as TokenValue
+              }))
+            }))
           };
           
           // Debug log the processed data
@@ -111,6 +185,9 @@ export const useSchema = () => {
           // Validate processed data before setting
           const validationResult = ValidationService.validateData(processedData);
           if (validationResult.isValid) {
+            // Store taxonomies first to ensure they exist for naming rules
+            StorageService.setTaxonomies(processedData.taxonomies);
+            // Then store the complete schema
             setSchema(processedData);
           } else {
             throw new Error(`Invalid schema structure in default data: ${validationResult.errors?.join(', ')}`);
