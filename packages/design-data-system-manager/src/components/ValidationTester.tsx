@@ -2,34 +2,27 @@ import React, { useState } from 'react';
 import {
   Box,
   Text,
-  Input,
   Button,
   VStack,
   HStack,
-  IconButton,
   Dialog,
-  Field,
   Code,
   Heading
 } from '@chakra-ui/react';
-import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
-import { StorageService } from '../services/storage';
-import { ValidationService } from '../services/validation';
+import { ValidationService, ValidationResult } from '../services/validation';
 import { useToast as useCustomToast } from '../hooks/useToast';
-import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
-import type { ChangeEvent } from 'react';
+import type { Token, TokenCollection } from '@token-model/data-model';
 
 interface ValidationTesterProps {
   tokens: Token[];
   collections: TokenCollection[];
-  onValidate: (token: Token) => void;
 }
 
-export function ValidationTester({ tokens = [], collections = [], onValidate }: ValidationTesterProps) {
+export function ValidationTester({ tokens = [], collections = [] }: ValidationTesterProps) {
   const [isGlobalValidationOpen, setIsGlobalValidationOpen] = useState(false);
   const [isTokenValidationOpen, setIsTokenValidationOpen] = useState(false);
-  const [globalValidationResult, setGlobalValidationResult] = useState<any>(null);
-  const [tokenValidationResult, setTokenValidationResult] = useState<any>(null);
+  const [globalValidationResult, setGlobalValidationResult] = useState<ValidationResult | null>(null);
+  const [tokenValidationResult, setTokenValidationResult] = useState<ValidationResult | null>(null);
   const toast = useCustomToast();
 
   const handleGlobalValidation = async () => {
@@ -104,42 +97,46 @@ export function ValidationTester({ tokens = [], collections = [], onValidate }: 
 
       {/* Global Validation Dialog */}
       <Dialog.Root open={isGlobalValidationOpen} onOpenChange={(details) => setIsGlobalValidationOpen(details.open)}>
-        <Dialog.Content>
-          <Dialog.Header>Validation Failed</Dialog.Header>
-          <Dialog.Body>
-            <Text mb={4}>The following validation errors were found:</Text>
-            {globalValidationResult?.errors?.map((error: unknown, index: number) => (
-              <Code key={index} display="block" mb={2} p={2} whiteSpace="pre-wrap">
-                {JSON.stringify(error, null, 2)}
-              </Code>
-            ))}
-          </Dialog.Body>
-          <Dialog.Footer>
-            <Button onClick={() => setIsGlobalValidationOpen(false)}>
-              Close
-            </Button>
-          </Dialog.Footer>
-        </Dialog.Content>
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header>Validation Failed</Dialog.Header>
+            <Dialog.Body>
+              <Text mb={4}>The following validation errors were found:</Text>
+              {globalValidationResult?.errors?.map((error: unknown, index: number) => (
+                <Code key={index} display="block" mb={2} p={2} whiteSpace="pre-wrap">
+                  {JSON.stringify(error, null, 2)}
+                </Code>
+              ))}
+            </Dialog.Body>
+            <Dialog.Footer>
+              <Button onClick={() => setIsGlobalValidationOpen(false)}>
+                Close
+              </Button>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Dialog.Root>
 
       {/* Token Validation Dialog */}
       <Dialog.Root open={isTokenValidationOpen} onOpenChange={(details) => setIsTokenValidationOpen(details.open)}>
-        <Dialog.Content>
-          <Dialog.Header>Token Validation Failed</Dialog.Header>
-          <Dialog.Body>
-            <Text mb={4}>The following validation errors were found:</Text>
-            {tokenValidationResult?.errors?.map((error: unknown, index: number) => (
-              <Code key={index} display="block" mb={2} p={2} whiteSpace="pre-wrap">
-                {JSON.stringify(error, null, 2)}
-              </Code>
-            ))}
-          </Dialog.Body>
-          <Dialog.Footer>
-            <Button onClick={() => setIsTokenValidationOpen(false)}>
-              Close
-            </Button>
-          </Dialog.Footer>
-        </Dialog.Content>
+        <Dialog.Positioner>
+          <Dialog.Content>
+            <Dialog.Header>Token Validation Failed</Dialog.Header>
+            <Dialog.Body>
+              <Text mb={4}>The following validation errors were found:</Text>
+              {tokenValidationResult?.errors?.map((error: unknown, index: number) => (
+                <Code key={index} display="block" mb={2} p={2} whiteSpace="pre-wrap">
+                  {JSON.stringify(error, null, 2)}
+                </Code>
+              ))}
+            </Dialog.Body>
+            <Dialog.Footer>
+              <Button onClick={() => setIsTokenValidationOpen(false)}>
+                Close
+              </Button>
+            </Dialog.Footer>
+          </Dialog.Content>
+        </Dialog.Positioner>
       </Dialog.Root>
     </Box>
   );

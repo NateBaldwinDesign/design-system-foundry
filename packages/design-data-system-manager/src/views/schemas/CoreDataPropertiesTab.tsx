@@ -4,18 +4,14 @@ import {
   VStack,
   Heading,
   Text,
-  useColorMode,
-  UnorderedList,
-  ListItem,
+  List,
   Code,
 } from '@chakra-ui/react';
 import { JsonSyntaxHighlighter } from '../../components/JsonSyntaxHighlighter';
 
 export const CoreDataPropertiesTab: React.FC = () => {
-  const { colorMode } = useColorMode();
-
   return (
-    <VStack spacing={6} align="stretch">
+    <VStack gap={6} align="stretch">
       <Box>
         <Heading size="md" mb={4}>System Name & ID</Heading>
         <Text mb={2}>
@@ -107,12 +103,12 @@ export const CoreDataPropertiesTab: React.FC = () => {
           Each value type has a unique <Code colorScheme="purple">id</Code> (referenced by tokens, collections, dimensions, and taxonomies), a human-readable <Code colorScheme="purple">displayName</Code>, and an optional standard <Code colorScheme="purple">type</Code> (UPPER_CASE, for standards compliance).<br /><br />
           <b>Custom value types:</b> You may define your own custom value types by omitting the <Code colorScheme="purple">type</Code> field. Custom types must still have a unique <Code colorScheme="purple">id</Code> and <Code colorScheme="purple">displayName</Code>. These can be referenced by tokens, collections, dimensions, and taxonomies using their <Code colorScheme="purple">id</Code>.<br /><br />
           <b>Technical notes:</b>
-          <UnorderedList mt={1} mb={1}>
-            <ListItem>All references to value types elsewhere in the data model must use the <b>id</b> field from this array (never UPPER_CASE enums).</ListItem>
-            <ListItem>Additional fields like <Code colorScheme="purple">description</Code> and <Code colorScheme="purple">validation</Code> may be present for documentation and validation purposes.</ListItem>
-            <ListItem>Custom value types allow for extensibility beyond the standard set (see example below).</ListItem>
-            <ListItem>See <Code colorScheme="purple">schema.json</Code> and <Code colorScheme="purple">technical-decisions.md</Code> for full structure and rationale.</ListItem>
-          </UnorderedList>
+          <List.Root mt={1} mb={1}>
+            <List.Item>All references to value types elsewhere in the data model must use the <b>id</b> field from this array (never UPPER_CASE enums).</List.Item>
+            <List.Item>Additional fields like <Code colorScheme="purple">description</Code> and <Code colorScheme="purple">validation</Code> may be present for documentation and validation purposes.</List.Item>
+            <List.Item>Custom value types allow for extensibility beyond the standard set (see example below).</List.Item>
+            <List.Item>See <Code colorScheme="purple">schema.json</Code> and <Code colorScheme="purple">technical-decisions.md</Code> for full structure and rationale.</List.Item>
+          </List.Root>
         </Text>
         <JsonSyntaxHighlighter code={JSON.stringify({
           resolvedValueTypes: [
@@ -134,7 +130,6 @@ export const CoreDataPropertiesTab: React.FC = () => {
               type: "DIMENSION",
               description: "A numeric value with a unit, e.g. 16px or 1.5rem."
             },
-            // Example of a custom value type (no 'type' field)
             {
               id: "icon",
               displayName: "Icon",
@@ -146,7 +141,7 @@ export const CoreDataPropertiesTab: React.FC = () => {
           ]
         }, null, 2)} />
         <Text fontSize="sm" color="gray.500" mt={2}>
-          <b>Custom value type example:</b> The <Code colorScheme="purple">icon</Code> value type above is a custom type (no <Code colorScheme="purple">type</Code> field). It can be referenced by tokens, collections, dimensions, and taxonomies using <Code colorScheme="purple">resolvedValueTypeId: "icon"</Code> or <Code colorScheme="purple">resolvedValueTypeIds: ["icon"]</Code>. Custom types are validated and referenced exactly like standard types.
+          <b>Custom value type example:</b> The <Code colorScheme="purple">icon</Code> value type above is a custom type (no <Code colorScheme="purple">type</Code> field present). It can be referenced by tokens, collections, dimensions, and taxonomies using <Code colorScheme="purple">resolvedValueTypeId: &quot;icon&quot;</Code> or <Code colorScheme="purple">resolvedValueTypeIds: [&quot;icon&quot;]</Code>. Custom types are validated and referenced exactly like standard types.
         </Text>
       </Box>
 
@@ -155,7 +150,7 @@ export const CoreDataPropertiesTab: React.FC = () => {
         <Text mb={2}>
           <b>tokens</b> (required): Design tokens with values that can vary by mode.<br />
           Each token references its collection and value type by ID (<Code colorScheme="purple">tokenCollectionId</Code>, <Code colorScheme="purple">resolvedValueTypeId</Code>).<br />
-          <b>valuesByMode</b>: Each entry must use <Code colorScheme="purple">modeIds</Code> (array of string IDs). Value type is determined by the token's <Code colorScheme="purple">resolvedValueTypeId</Code>.<br />
+          <b>valuesByMode</b>: Each entry must use <Code colorScheme="purple">modeIds</Code> (array of string IDs). Value type is determined by the token&apos;s <Code colorScheme="purple">resolvedValueTypeId</Code>.<br />
           <b>Technical note:</b> Never use UPPER_CASE enums for value types; always reference by string ID. Do not add <Code colorScheme="purple">resolvedValueTypeId</Code> to individual values.
         </Text>
         <JsonSyntaxHighlighter code={JSON.stringify({
@@ -197,9 +192,7 @@ export const CoreDataPropertiesTab: React.FC = () => {
               id: "platform-web",
               displayName: "Web",
               syntaxPatterns: {
-                prefix: "--",
-                delimiter: "-",
-                capitalization: "lowercase"
+                prefix: "--"
               }
             }
           ]

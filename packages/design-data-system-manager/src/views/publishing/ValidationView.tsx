@@ -1,184 +1,158 @@
-import React, { useState } from "react";
-import {
-  Box,
-  Text,
-  Button,
-  Field,
-  Select,
-  VStack,
-  Heading,
-  Code,
-  Dialog,
-  createListCollection,
-} from '@chakra-ui/react';
-import { useTheme } from 'next-themes';
-import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
+import React, { useState } from 'react';
+import { Box, Button, Text, Stack } from '@chakra-ui/react';
+import { 
+  Token, 
+  TokenCollection, 
+  Dimension, 
+  Platform, 
+  Taxonomy, 
+  Theme 
+} from '@token-model/data-model';
 import { ValidationService } from '../../services/validation';
 import { createSchemaJsonFromLocalStorage } from '../../services/createJson';
-import { useToast } from '../../hooks/useToast';
+import type { ValidationResult } from '../../services/validation';
 
-interface ValidationViewProps {
+export interface ValidationViewProps {
   tokens: Token[];
   collections: TokenCollection[];
   dimensions: Dimension[];
   platforms: Platform[];
   taxonomies: Taxonomy[];
-  version: string;
-  versionHistory: unknown[];
-  onValidate: (token: Token) => void;
+  themes: Theme[];
+  onValidate: () => void;
 }
 
-interface ResolvedValueType {
-  id: string;
-  displayName: string;
-  type?: string;
-  description?: string;
-  validation?: {
-    pattern?: string;
-    minimum?: number;
-    maximum?: number;
-    allowedValues?: string[];
-  };
+interface ValidationState {
+  isRunning: boolean;
+  progress: number;
+  status: string;
+  error: string | null;
+  success: boolean;
+  results?: ValidationResult;
 }
 
-interface TokenSystemData {
-  systemName: string;
-  systemId: string;
-  description: string;
-  tokenCollections: TokenCollection[];
-  dimensions: Dimension[];
-  tokens: Token[];
-  platforms: Platform[];
-  taxonomies: Taxonomy[];
-  version: string;
-  versionHistory: Array<{
-    version: string;
-    dimensions: string[];
-    date: string;
-  }>;
-  resolvedValueTypes: ResolvedValueType[];
-  themes?: any[];
-  themeOverrides?: Record<string, any>;
-  extensions?: {
-    tokenGroups: any[];
-    tokenVariants: Record<string, any>;
-  };
-  tokenGroups?: any[]; // Optional
-  tokenVariants?: any[]; // Optional
-}
-
-export default function ValidationView({
+export const ValidationView: React.FC<ValidationViewProps> = ({ 
   tokens,
   collections,
   dimensions,
   platforms,
   taxonomies,
-  version,
-  versionHistory,
-  onValidate,
-}: ValidationViewProps) {
-  const [selectedToken, setSelectedToken] = useState<Token | null>(null);
-  const [validationResults, setValidationResults] = useState<any>(null);
-  const [isValidating, setIsValidating] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { theme } = useTheme();
-  const toast = useToast();
+  themes,
+  onValidate
+}) => {
+  const [validationState, setValidationState] = useState<ValidationState>({
+    isRunning: false,
+    progress: 0,
+    status: '',
+    error: null,
+    success: false,
+  });
 
   const handleValidate = async () => {
-    if (!selectedToken) return;
-
-    setIsValidating(true);
     try {
+      setValidationState(prev => ({
+        ...prev,
+        isRunning: true,
+        progress: 0,
+        status: 'Starting validation...',
+        error: null,
+        success: false,
+      }));
+
       const schema = await createSchemaJsonFromLocalStorage();
-      const results = await ValidationService.validateData(schema);
-      setValidationResults(results);
-      setIsDialogOpen(true);
+      
+      // Validate schema completeness
+      const missingTokens = tokens.filter(token => !schema.tokens.some((t: Token) => t.id === token.id));
+      const missingCollections = collections.filter(collection => !schema.tokenCollections.some((c: TokenCollection) => c.id === collection.id));
+      const missingDimensions = dimensions.filter(dimension => !schema.dimensions.some((d: Dimension) => d.id === dimension.id));
+      const missingPlatforms = platforms.filter(platform => !schema.platforms.some((p: Platform) => p.id === platform.id));
+      const missingTaxonomies = taxonomies.filter(taxonomy => !schema.taxonomies.some((t: Taxonomy) => t.id === taxonomy.id));
+      const missingThemes = themes.filter(theme => !schema.themes.some((th: Theme) => th.id === theme.id));
+
+      const missingItems = [
+        ...missingTokens.map(t => `Token: ${t.displayName}`),
+        ...missingCollections.map(c => `Collection: ${c.name}`),
+        ...missingDimensions.map(d => `Dimension: ${d.displayName}`),
+        ...missingPlatforms.map(p => `Platform: ${p.displayName}`),
+        ...missingTaxonomies.map(t => `Taxonomy: ${t.name}`),
+        ...missingThemes.map(th => `Theme: ${th.displayName}`)
+      ];
+
+      if (missingItems.length > 0) {
+        throw new Error(`Missing items in schema: ${missingItems.join(', ')}`);
+      }
+
+      const result = await ValidationService.validateData(schema);
+      
+      setValidationState(prev => ({
+        ...prev,
+        results: result,
+        success: result.isValid,
+        status: result.isValid ? 'Validation completed successfully' : 'Validation failed',
+        progress: 100,
+        isRunning: false,
+      }));
+
+      onValidate();
     } catch (error) {
-      toast({
-        title: 'Validation Error',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setIsValidating(false);
+      setValidationState(prev => ({
+        ...prev,
+        error: error instanceof Error ? error.message : 'An unknown error occurred',
+        status: 'Validation failed',
+        isRunning: false,
+        progress: 100,
+      }));
     }
   };
 
   return (
-    <Box p={4}>
-      <Heading size="lg" mb={4}>Token Validation</Heading>
-      <VStack gap={4} align="stretch">
-        <Field.Root>
-          <Field.Label>Select Token</Field.Label>
-          <Select.Root
-            value={selectedToken ? [selectedToken.id] : []}
-            onValueChange={(details) => {
-              const value = Array.isArray(details.value) ? details.value[0] : details.value;
-              const token = tokens.find(t => t.id === value);
-              setSelectedToken(token || null);
-            }}
-            collection={createListCollection({
-              items: [
-                { value: '', label: 'Select a token' },
-                ...tokens.map(token => ({
-                  value: token.id,
-                  label: token.displayName
-                }))
-              ]
-            })}
+    <Stack gap={4} align="stretch">
+      <Button
+        onClick={handleValidate}
+        loading={validationState.isRunning}
+        colorPalette="blue"
+      >
+        Validate Tokens
+      </Button>
+      
+      {validationState.isRunning && (
+        <Box width="100%">
+          <Box 
+            width="100%" 
+            height="4px" 
+            bg="gray.200" 
+            borderRadius="full"
+            overflow="hidden"
           >
-            <Select.HiddenSelect />
-            <Select.Control>
-              <Select.Trigger>
-                <Select.ValueText placeholder="Select a token" />
-              </Select.Trigger>
-              <Select.IndicatorGroup>
-                <Select.Indicator />
-              </Select.IndicatorGroup>
-            </Select.Control>
-            <Select.Positioner>
-              <Select.Content>
-                <Select.Item item={{ value: '', label: 'Select a token' }}>
-                  Select a token
-                  <Select.ItemIndicator />
-                </Select.Item>
-                {tokens.map((token) => (
-                  <Select.Item key={token.id} item={{ value: token.id, label: token.displayName }}>
-                    {token.displayName}
-                    <Select.ItemIndicator />
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Positioner>
-          </Select.Root>
-        </Field.Root>
+            <Box
+              width={`${validationState.progress}%`}
+              height="100%"
+              bg="blue.500"
+              transition="width 0.3s ease-in-out"
+            />
+          </Box>
+          <Text mt={2} fontSize="sm" color="gray.600">
+            {validationState.status}
+          </Text>
+        </Box>
+      )}
 
-        <Button
-          colorPalette="blue"
-          onClick={handleValidate}
-          disabled={!selectedToken || isValidating}
-        >
-          {isValidating ? 'Validating...' : 'Validate Token'}
-        </Button>
+      {validationState.error && (
+        <Text color="red.500">{validationState.error}</Text>
+      )}
 
-        <Dialog.Root open={isDialogOpen} onOpenChange={(details) => setIsDialogOpen(details.open)}>
-          <Dialog.Content>
-            <Dialog.Header>Validation Results</Dialog.Header>
-            <Dialog.Body>
-              {validationResults && (
-                <VStack gap={4} align="stretch">
-                  <Text>Validation completed for token: {selectedToken?.displayName}</Text>
-                  <Code p={4} borderRadius="md" bg={theme === 'dark' ? 'gray.800' : 'gray.100'}>
-                    {JSON.stringify(validationResults, null, 2)}
-                  </Code>
-                </VStack>
-              )}
-            </Dialog.Body>
-          </Dialog.Content>
-        </Dialog.Root>
-      </VStack>
-    </Box>
+      {validationState.results && !validationState.isRunning && (
+        <Box>
+          <Text fontWeight="bold" mb={2}>
+            Validation Results:
+          </Text>
+          {validationState.results.errors?.map((error, index) => (
+            <Text key={index} color="red.500">
+              {error}
+            </Text>
+          ))}
+        </Box>
+      )}
+    </Stack>
   );
-} 
+}; 

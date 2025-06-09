@@ -20,7 +20,6 @@ const TokenTag: React.FC<TokenTagProps> = ({
     isPill = false,
     onClick
 }) => {
-
     const valueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
     if (!valueType) {
         throw new Error(`Unknown value type: ${resolvedValueTypeId}`);
@@ -31,7 +30,7 @@ const TokenTag: React.FC<TokenTagProps> = ({
             onClick={onClick}
             width="100%"
             textAlign="left"
-            borderRadius={isPill ? 'md' : 'md'}
+            borderRadius="md"
             py={1}
             px={2}
             bg={isPill ? 'gray.100' : 'transparent'}
@@ -41,14 +40,24 @@ const TokenTag: React.FC<TokenTagProps> = ({
             <Stack direction="row" width="100%" justifyContent="space-between">
                 <Stack direction="row">
                     {valueType.type === 'COLOR' && (
-                        <div style={{ display: 'flex', flexGrow: 0, flexShrink: 0, width: '16px', height: '16px', borderRadius: '4px', backgroundColor: String(value) }}></div>
+                        <Box 
+                            width="16px" 
+                            height="16px" 
+                            borderRadius="md" 
+                            bg={String(value)}
+                            flexShrink={0}
+                        />
                     )}
                     {valueType.type !== 'COLOR' && (
-                        <div style={{ display: 'flex', flexGrow: 0, flexShrink: 0, width: '16px', height: '16px' }}>
+                        <Box 
+                            width="16px" 
+                            height="16px" 
+                            flexShrink={0}
+                        >
                             {getValueTypeIcon(valueType.type, 16)}
-                        </div>
+                        </Box>
                     )}
-                    <Text className="kode-mono">{displayName}</Text>
+                    <Text fontFamily="kode-mono">{displayName}</Text>
                 </Stack>
                 <Text color="gray.500">{String(value)}</Text>
             </Stack>

@@ -1,28 +1,64 @@
 import React from 'react';
+import { Meta, StoryObj } from '@storybook/react';
 import { DimensionsEditor } from './DimensionsEditor';
 import { ChakraProvider } from '@chakra-ui/react';
+import { system } from '../theme';
+import type { Dimension } from '@token-model/data-model';
 
-export default {
+const meta: Meta<typeof DimensionsEditor> = {
   title: 'Components/DimensionsEditor',
   component: DimensionsEditor,
-  argTypes: {
-    dimensions: { control: 'object' },
-    onChange: { action: 'onChange' },
-    onEdit: { action: 'onEdit' },
-    onDelete: { action: 'onDelete' },
-    onAdd: { action: 'onAdd' },
-    isReadOnly: { control: 'boolean' },
+  parameters: {
+    layout: 'centered',
   },
+  decorators: [
+    (Story) => (
+      <ChakraProvider value={system}>
+        <Story />
+      </ChakraProvider>
+    ),
+  ],
+  tags: ['autodocs'],
 };
 
-const Template = (args) => (
-  <ChakraProvider>
-    <DimensionsEditor {...args} />
-  </ChakraProvider>
-);
+export default meta;
+type Story = StoryObj<typeof DimensionsEditor>;
 
-export const Default = Template.bind({});
-Default.args = {
-  dimensions: [],
-  isReadOnly: false,
+const mockDimension: Dimension = {
+  id: 'theme',
+  displayName: 'Theme',
+  required: true,
+  modes: [
+    { id: 'light', name: 'Light', dimensionId: 'theme' },
+    { id: 'dark', name: 'Dark', dimensionId: 'theme' }
+  ],
+  defaultMode: 'light'
+};
+
+export const Default: Story = {
+  args: {
+    open: true,
+    onClose: () => {},
+    onSave: () => {},
+    isNew: false
+  }
+};
+
+export const NewDimension: Story = {
+  args: {
+    open: true,
+    onClose: () => {},
+    onSave: () => {},
+    isNew: true
+  }
+};
+
+export const EditDimension: Story = {
+  args: {
+    open: true,
+    onClose: () => {},
+    onSave: () => {},
+    dimension: mockDimension,
+    isNew: false
+  }
 }; 

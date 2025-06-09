@@ -1,66 +1,38 @@
 import React from 'react';
-import {
-  Box,
-  Tabs,
-  Flex,
-} from '@chakra-ui/react';
-import { useTheme } from 'next-themes';
+import { Box, VStack } from '@chakra-ui/react';
 
-export interface TabItem {
-  id: string;
-  label: string;
-  content: React.ReactNode;
-}
-
-interface VerticalTabsLayoutProps {
-  tabs: TabItem[];
-  defaultTab?: string;
+export interface VerticalTabsLayoutProps {
+  tabs: {
+    id: string;
+    label: string;
+    content: React.ReactNode;
+  }[];
+  activeTab: number;
   onChange?: (tabId: string) => void;
 }
 
 export const VerticalTabsLayout: React.FC<VerticalTabsLayoutProps> = ({
   tabs,
-  defaultTab,
+  activeTab,
   onChange,
 }) => {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
-
   return (
-    <Flex>
-      <Box
-        borderRightWidth={1}
-        borderColor={isDark ? 'gray.700' : 'gray.200'}
-        w="200px"
-      >
-        <Tabs.Root
-          orientation="vertical"
-          variant="enclosed"
-          defaultValue={defaultTab || tabs[0].id}
-          onValueChange={(details) => onChange?.(details.value)}
-        >
-          <Tabs.List>
-            {tabs.map((tab) => (
-              <Tabs.Trigger
-                key={tab.id}
-                value={tab.id}
-                bg={isDark ? 'gray.700' : 'gray.100'}
-                borderColor={isDark ? 'gray.600' : 'gray.200'}
-                justifyContent="flex-start"
-              >
-                {tab.label}
-              </Tabs.Trigger>
-            ))}
-          </Tabs.List>
-        </Tabs.Root>
-      </Box>
-      <Box flex={1} p={4}>
+    <Box>
+      <VStack align="stretch" gap={4}>
         {tabs.map((tab) => (
-          <Tabs.Content key={tab.id} value={tab.id}>
-            {tab.content}
-          </Tabs.Content>
+          <Box
+            key={tab.id}
+            onClick={() => onChange?.(tab.id)}
+            cursor="pointer"
+            p={4}
+            bg={activeTab === parseInt(tab.id, 10) ? 'blue.500' : 'transparent'}
+            color={activeTab === parseInt(tab.id, 10) ? 'white' : 'inherit'}
+          >
+            {tab.label}
+          </Box>
         ))}
-      </Box>
-    </Flex>
+      </VStack>
+      <Box mt={4}>{tabs[activeTab]?.content}</Box>
+    </Box>
   );
 }; 

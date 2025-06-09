@@ -1,155 +1,76 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Text,
-  Button,
-  IconButton,
-  VStack,
-  HStack,
-  Tag,
-  Wrap
-} from '@chakra-ui/react';
-import { useTheme } from 'next-themes';
-import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
-import type { TokenCollection, Mode, ResolvedValueType } from '@token-model/data-model';
+import { Box, Button, Stack, Text } from '@chakra-ui/react';
+import type { TokenCollection, ResolvedValueType } from '@token-model/data-model';
 import { CollectionEditorDialog } from '../../components/CollectionEditorDialog';
-import { StorageService } from '../../services/storage';
-import { useToast } from '../../hooks/useToast';
 
 interface CollectionsViewProps {
   collections: TokenCollection[];
-  modes: Mode[];
   onUpdate: (collections: TokenCollection[]) => void;
+  resolvedValueTypes: ResolvedValueType[];
 }
 
-export function CollectionsView({ collections, modes, onUpdate }: CollectionsViewProps) {
-  const { theme } = useTheme();
-  const colorMode = theme === 'dark' ? 'dark' : 'light';
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingCollection, setEditingCollection] = useState<TokenCollection | null>(null);
-  const [isNew, setIsNew] = useState(false);
-  const toast = useToast();
+export function CollectionsView({ 
+  collections, 
+  onUpdate,
+  resolvedValueTypes 
+}: CollectionsViewProps) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingCollection, setEditingCollection] = useState<TokenCollection | undefined>(undefined);
 
-  // Get resolvedValueTypes from storage
-  const resolvedValueTypes = StorageService.getValueTypes() || [];
-
-  // Open dialog for creating a new collection
-  const handleOpenCreate = () => {
-    setEditingCollection(null);
-    setIsNew(true);
-    setDialogOpen(true);
+  const handleCreate = () => {
+    setEditingCollection(undefined);
+    setIsDialogOpen(true);
   };
 
-  // Open dialog for editing an existing collection
-  const handleOpenEdit = (collection: TokenCollection) => {
+  const handleEdit = (collection: TokenCollection) => {
     setEditingCollection(collection);
-    setIsNew(false);
-    setDialogOpen(true);
+    setIsDialogOpen(true);
   };
 
-  // Save handler for dialog
-  const handleDialogSave = (collection: TokenCollection) => {
-    let newCollections: TokenCollection[];
-    if (isNew) {
-      newCollections = [...collections, collection];
-    } else {
-      newCollections = collections.map(c => c.id === collection.id ? collection : c);
-    }
-    
-    // Save to local storage
-    StorageService.setCollections(newCollections);
-    
-    // Update state
-    onUpdate(newCollections);
-    
-    toast({ 
-      title: isNew ? 'Collection created' : 'Collection updated', 
-      status: 'success', 
-      duration: 2000 
-    });
-    setDialogOpen(false);
-  };
-
-  // Close dialog
-  const handleDialogClose = () => {
-    setDialogOpen(false);
-  };
-
-  const handleDeleteCollection = (id: string) => {
-    const newCollections = collections.filter(c => c.id !== id);
-    
-    // Save to local storage
-    StorageService.setCollections(newCollections);
-    
-    // Update state
-    onUpdate(newCollections);
-    
-    toast({ 
-      title: 'Collection deleted', 
-      status: 'info', 
-      duration: 2000 
-    });
+  const handleSave = (collection: TokenCollection) => {
+    const updatedCollections = editingCollection
+      ? collections.map(c => c.id === collection.id ? collection : c)
+      : [...collections, collection];
+    onUpdate(updatedCollections);
+    setIsDialogOpen(false);
   };
 
   return (
     <Box>
-      <Text fontSize="2xl" fontWeight="bold" mb={4}>Collections</Text>
-      <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4}>
-          <LuPlus />
-          Create New Collection
-        </Button>
-        <VStack align="stretch" gap={2}>
-          {collections.map((collection) => (
-            <Box 
-              key={collection.id} 
-              p={3} 
-              borderWidth={1} 
-              borderRadius="md" 
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-            >
-              <HStack justify="space-between" align="center">
-                <Box>
-                  <Text fontSize="lg" fontWeight="medium">{collection.name}</Text>
-                </Box>
-                <HStack>
-                  <IconButton aria-label="Edit collection" size="sm" onClick={() => handleOpenEdit(collection)}>
-                    <LuPencil />
-                  </IconButton>
-                  <IconButton aria-label="Delete collection" size="sm" colorScheme="red" onClick={() => handleDeleteCollection(collection.id)}>
-                    <LuTrash2 />
-                  </IconButton>
-                </HStack>
-              </HStack>
-              <VStack align="start" gap={1} mt={2} ml={2}>
-                <Text fontSize="sm" color="gray.600">
-                  <b>Value Types:</b>
-                </Text>
-                <Wrap gap={2}>
-                  {Array.isArray(collection.resolvedValueTypeIds) && collection.resolvedValueTypeIds.map((typeId: string) => {
-                    const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
-                    return type ? (
-                      <Tag.Root key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
-                        <Tag.Label>{type.displayName}</Tag.Label>
-                      </Tag.Root>
-                    ) : null;
-                  })}
-                </Wrap>
-                {collection.private && (
-                  <Text fontSize="sm" color="gray.500"><b>Private</b></Text>
-                )}
-              </VStack>
+      <Stack direction="row" justify="space-between" align="center" mb={4}>
+        <Text fontSize="xl" fontWeight="bold">Collections</Text>
+        <Button onClick={handleCreate}>Create Collection</Button>
+      </Stack>
+
+      <Stack gap={4}>
+        {collections.map(collection => (
+          <Box
+            key={collection.id}
+            p={4}
+            borderWidth={1}
+            borderRadius="md"
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+          >
+            <Box>
+              <Text fontWeight="bold">{collection.name}</Text>
+              {collection.description && (
+                <Text color="gray.600" mt={1}>{collection.description}</Text>
+              )}
             </Box>
-          ))}
-        </VStack>
-      </Box>
+            <Button onClick={() => handleEdit(collection)}>Edit</Button>
+          </Box>
+        ))}
+      </Stack>
+
       <CollectionEditorDialog
-        open={dialogOpen}
-        onClose={handleDialogClose}
-        onSave={handleDialogSave}
+        open={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        onSave={handleSave}
         collection={editingCollection}
-        isNew={isNew}
+        isNew={!editingCollection}
+        resolvedValueTypes={resolvedValueTypes}
       />
     </Box>
   );

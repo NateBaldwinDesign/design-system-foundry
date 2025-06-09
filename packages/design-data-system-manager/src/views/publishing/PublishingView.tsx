@@ -3,69 +3,59 @@ import { Box } from '@chakra-ui/react';
 import { VerticalTabsLayout } from '../../components/VerticalTabsLayout';
 import { PlatformsView } from './PlatformsView';
 import { ValidationView } from './ValidationView';
-import { TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
-import { ExtendedToken } from '../../components/TokenEditorDialog';
+import type { Token, Platform, Taxonomy, TokenCollection, Dimension } from '@token-model/data-model';
 
 interface PublishingViewProps {
-  tokens: ExtendedToken[];
-  setTokens: (tokens: ExtendedToken[]) => void;
-  collections: TokenCollection[];
-  dimensions: Dimension[];
   platforms: Platform[];
   setPlatforms: (platforms: Platform[]) => void;
+  tokens: Token[];
+  setTokens: (tokens: Token[]) => void;
   taxonomies: Taxonomy[];
+  collections: TokenCollection[];
+  dimensions: Dimension[];
 }
 
-const PublishingView: React.FC<PublishingViewProps> = (props: PublishingViewProps) => {
-  const { tokens, setTokens, collections, dimensions, platforms, setPlatforms, taxonomies } = props;
+const PublishingView: React.FC<PublishingViewProps> = (props) => {
+  const { platforms, setPlatforms, tokens, setTokens, taxonomies, collections, dimensions } = props;
   const [activeTab, setActiveTab] = useState(0);
 
+  const tabs = [
+    {
+      id: '0',
+      label: 'Platforms',
+      content: (
+        <PlatformsView
+          platforms={platforms}
+          setPlatforms={setPlatforms}
+          tokens={tokens}
+          setTokens={setTokens}
+          taxonomies={taxonomies}
+        />
+      ),
+    },
+    {
+      id: '1',
+      label: 'Validation',
+      content: (
+        <ValidationView
+          tokens={tokens}
+          collections={collections}
+          dimensions={dimensions}
+          platforms={platforms}
+          taxonomies={taxonomies}
+        />
+      ),
+    },
+  ];
+
   return (
-    <VerticalTabsLayout
-      tabs={[
-        {
-          id: 'platforms',
-          label: 'Platforms',
-          content: (
-            <PlatformsView
-              platforms={platforms}
-              setPlatforms={setPlatforms}
-              tokens={tokens}
-              setTokens={setTokens}
-              taxonomies={taxonomies}
-            />
-          )
-        },
-        {
-          id: 'export-settings',
-          label: 'Export Settings',
-          content: <Box p={4}>Export settings content coming soon...</Box>
-        },
-        {
-          id: 'validation',
-          label: 'Validation',
-          content: (
-            <ValidationView
-              tokens={tokens}
-              collections={collections}
-              dimensions={dimensions}
-              platforms={platforms}
-              taxonomies={taxonomies}
-              version="1.0.0"
-              versionHistory={[]}
-              onValidate={() => {}}
-            />
-          )
-        },
-        {
-          id: 'version-history',
-          label: 'Version History',
-          content: <Box p={4}>Version history content coming soon...</Box>
-        }
-      ]}
-      activeTab={activeTab}
-      onChange={setActiveTab}
-    />
+    <Box>
+      <VerticalTabsLayout
+        tabs={tabs}
+        activeTab={activeTab}
+        onChange={(tabId: string) => setActiveTab(parseInt(tabId, 10))}
+      />
+    </Box>
   );
 };
 

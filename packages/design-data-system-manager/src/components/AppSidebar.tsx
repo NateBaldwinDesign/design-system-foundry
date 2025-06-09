@@ -189,7 +189,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           aria-current={isActive ? 'page' : undefined}
           tabIndex={0}
         >
-          {Icon && <Icon width={20} height={20} />}
+          {Icon && <Icon size={20} />}
           {!isCollapsed && (
             <Text ml={3} fontSize="sm">
               {item.label}
@@ -199,7 +199,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       </Link>
     );
 
-    if (isCollapsed) {
+    // Wrap in tooltip if collapsed
+    if (isCollapsed && Icon) {
       return (
         <Tooltip.Root>
           <Tooltip.Trigger asChild>
@@ -207,74 +208,45 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           </Tooltip.Trigger>
           <Tooltip.Positioner>
             <Tooltip.Content>
+              <Tooltip.Arrow />
               {item.label}
             </Tooltip.Content>
           </Tooltip.Positioner>
         </Tooltip.Root>
       );
     }
+
     return content;
   };
 
   return (
     <Box
       as="nav"
-      position="relative"
-      w={isCollapsed ? '64px' : '260px'}
-      h="100vh"
+      position="fixed"
+      left={0}
+      top={0}
+      bottom={0}
+      width={isCollapsed ? '60px' : '240px'}
       bg={bgColor}
       borderRight="1px"
       borderColor={borderColor}
       transition="width 0.2s"
-      role="navigation"
-      aria-label="Main navigation"
+      zIndex={10}
     >
-      <Stack gap={0} align="stretch" h="full">
-        {/* Logo */}
-        <Box p={4} borderBottom="1px" borderColor={borderColor} display="flex" gap={2} justifyContent="center" alignItems="center">
-          <Logo size={34} color="white" />
-          {/* Title */}
-          {!isCollapsed && (
-            <Text fontSize="md" lineHeight="1" fontWeight="bold">
-              Design System<br/>Foundry
-            </Text>
-          )}
+      <Stack h="full" gap={0}>
+        <Box p={4} borderBottom="1px" borderColor={borderColor}>
+          <Logo />
         </Box>
 
-        {/* Collapse Toggle Button */}
-        <Box p={2} borderBottom="1px" borderColor={borderColor}>
-          <IconButton
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            variant="ghost"
-            size="sm"
-            w="full"
-          >
-            {isCollapsed ? <ChevronRight width={16} height={16} /> : <ChevronLeft width={16} height={16} />}
-          </IconButton>
+        <Box flex="1" overflowY="auto" py={4}>
+          <Stack gap={1}>
+            {NAV_ITEMS.map(item => renderNavItem(item))}
+          </Stack>
         </Box>
 
-        {/* Navigation Items */}
-        <Stack gap={1} align="stretch" p={4} flex={1}>
-          {NAV_ITEMS.map((item) => {
-            if (item.children) {
-              return (
-                <Box key={item.id}>
-                  {renderNavItem(item)}
-                  <Stack key={`${item.id}-children`} gap={1} align="stretch" ml={0} mt={1}>
-                    {item.children.map((child) => renderNavItem(child, true))}
-                  </Stack>
-                </Box>
-              );
-            }
-            return renderNavItem(item);
-          })}
-        </Stack>
-
-        {/* Data Source Controls (optional) */}
-        {!isCollapsed && dataOptions && dataSource && setDataSource && onResetData && (
+        {dataSource && setDataSource && dataOptions && (
           <Box p={4} borderTop="1px" borderColor={borderColor}>
-            <Stack gap={2} align="stretch">
+            <Stack gap={4}>
               <Select.Root
                 value={[dataSource]}
                 onValueChange={(details) => {
@@ -288,54 +260,52 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   }))
                 })}
               >
-                <Select.HiddenSelect />
-                <Select.Control>
-                  <Select.Trigger>
-                    <Select.ValueText placeholder="Select data source" />
-                  </Select.Trigger>
-                  <Select.IndicatorGroup>
-                    <Select.Indicator />
-                  </Select.IndicatorGroup>
-                </Select.Control>
+                <Select.Trigger>
+                  <Select.ValueText placeholder="Select data source" />
+                </Select.Trigger>
                 <Select.Positioner>
                   <Select.Content>
-                    {dataOptions.map((option) => (
+                    {dataOptions.map(option => (
                       <Select.Item key={option.filePath} item={{ value: option.filePath, label: option.label }}>
                         {option.label}
-                        <Select.ItemIndicator />
                       </Select.Item>
                     ))}
                   </Select.Content>
                 </Select.Positioner>
               </Select.Root>
+
+              <Stack direction="row" gap={2}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onResetData}
+                >
+                  <RefreshCw size={16} style={{ marginRight: '8px' }} />
+                  Reset
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onExportData}
+                >
+                  <Download size={16} style={{ marginRight: '8px' }} />
+                  Export
+                </Button>
+              </Stack>
             </Stack>
           </Box>
         )}
 
-        {!isCollapsed && dataOptions && dataSource && setDataSource && onResetData && (
-          <Stack direction="row" gap={2} p={2} borderTop="1px" borderColor={borderColor}>
-            {/* Export Button (optional) */}
-            {onExportData && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onExportData}
-              >
-                <Download width={16} height={16} style={{ marginRight: '8px' }} />
-                Export
-              </Button>
-            )}
-            {/* Reset Button */}
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={onResetData}
-            >
-              <RefreshCw width={16} height={16} style={{ marginRight: '8px' }} />
-              Reset
-            </Button>
-          </Stack>
-        )}
+        <Box p={2} borderTop="1px" borderColor={borderColor}>
+          <IconButton
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            variant="ghost"
+            size="sm"
+          >
+            {isCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+          </IconButton>
+        </Box>
       </Stack>
     </Box>
   );

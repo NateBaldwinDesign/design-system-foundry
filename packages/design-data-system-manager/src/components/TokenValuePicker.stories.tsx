@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { TokenValuePicker } from './TokenValuePicker';
 import type { Token, ResolvedValueType } from '@token-model/data-model';
 import { ChakraProvider } from '@chakra-ui/react';
+import { system } from '../theme';
 
 const meta: Meta<typeof TokenValuePicker> = {
   title: 'Components/TokenValuePicker',
@@ -12,7 +13,7 @@ const meta: Meta<typeof TokenValuePicker> = {
   },
   decorators: [
     (Story) => (
-      <ChakraProvider>
+      <ChakraProvider value={system}>
         <Story />
       </ChakraProvider>
     ),
@@ -168,83 +169,83 @@ const Template = (args: React.ComponentProps<typeof TokenValuePicker>) => {
 };
 
 export const Color: Story = {
-  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'color',
-    value: { value: '#FF0000' }
+    value: { value: '#FF0000' },
+    onChange: () => {}
   }
 };
 
 export const Spacing: Story = {
-  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'spacing',
-    value: { value: 16 }
+    value: { value: 16 },
+    onChange: () => {}
   }
 };
 
 export const FontFamily: Story = {
-  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'font-family',
-    value: { value: 'Inter' }
+    value: { value: 'Inter' },
+    onChange: () => {}
   }
 };
 
 export const FontWeight: Story = {
-  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'font-weight',
-    value: { value: 400 }
+    value: { value: 400 },
+    onChange: () => {}
   }
 };
 
 export const FontSize: Story = {
-  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'font-size',
-    value: { value: 16 }
+    value: { value: 16 },
+    onChange: () => {}
   }
 };
 
 export const LineHeight: Story = {
-  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'line-height',
-    value: { value: 1.5 }
+    value: { value: 1.5 },
+    onChange: () => {}
   }
 };
 
 export const LetterSpacing: Story = {
-  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'letter-spacing',
-    value: { value: 0 }
+    value: { value: 0 },
+    onChange: () => {}
   }
 };
 
 export const Duration: Story = {
-  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'duration',
-    value: { value: 300 }
+    value: { value: 300 },
+    onChange: () => {}
   }
 };
 
 export const CubicBezier: Story = {
-  render: Template,
   args: {
     ...baseProps,
     resolvedValueTypeId: 'cubic-bezier',
-    value: { value: 'cubic-bezier(0.4, 0, 0.2, 1)' }
+    value: { value: 'cubic-bezier(0.4, 0, 0.2, 1)' },
+    onChange: () => {}
   }
 };
 

@@ -49,7 +49,7 @@ export function NamingRulesView({
         title: 'Taxonomy already in order',
         status: 'warning',
         duration: 3000,
-        isClosable: true,
+        closable: true,
       });
       return;
     }

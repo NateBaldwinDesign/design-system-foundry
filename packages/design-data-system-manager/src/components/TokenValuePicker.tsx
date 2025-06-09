@@ -5,8 +5,7 @@ import {
   Popover,
   Button,
   useDisclosure,
-  Box,
-  InputGroup
+  Box
 } from '@chakra-ui/react';
 import { Search } from 'lucide-react';
 import type { Token, ResolvedValueType } from '@token-model/data-model';
@@ -48,7 +47,7 @@ export function TokenValuePicker({
 
   return (
     <Popover.Root open={open} onOpenChange={onClose}>
-      <Popover.Trigger>
+      <Popover.Trigger asChild>
         <Box>
           {value.tokenId ? (
             <TokenTag
@@ -70,9 +69,7 @@ export function TokenValuePicker({
       </Popover.Trigger>
       <Popover.Positioner>
         <Popover.Content>
-          <Popover.Arrow>
-            <Popover.ArrowTip />
-          </Popover.Arrow>
+          <Popover.Arrow />
           <Button
             position="absolute"
             top={2}
@@ -85,13 +82,17 @@ export function TokenValuePicker({
           </Button>
           <Popover.Body>
             <Stack gap={2}>
-              <InputGroup flex="1" startElement={<Search size={16} />}>
+              <Box position="relative">
                 <Input
                   placeholder="Search tokens..."
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
+                  pl={8}
                 />
-              </InputGroup>
+                <Box position="absolute" left={2} top="50%" transform="translateY(-50%)" pointerEvents="none">
+                  <Search size={16} />
+                </Box>
+              </Box>
               <Box as="ul" listStyleType="none" p={0}>
                 {filteredTokens.map(token => (
                   <Box as="li" key={token.id}>

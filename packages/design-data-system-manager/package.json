@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@chakra-ui/react": "^3.20.0",
-    "@emotion/react": "^11.14.0",
+    "@emotion/cache": "^11.11.0",
+    "@emotion/react": "^11.11.3",
     "@emotion/styled": "^11.11.0",
     "@hello-pangea/dnd": "^18.0.1",
     "@token-model/data-model": "workspace:*",

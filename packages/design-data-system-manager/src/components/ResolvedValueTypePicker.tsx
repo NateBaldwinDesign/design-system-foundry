@@ -1,93 +1,102 @@
 import React from 'react';
-import { Field, Select, Box, Stack, Tag, TagLabel, CloseButton } from '@chakra-ui/react';
+import { Box, Stack, CloseButton } from '@chakra-ui/react';
 import type { ResolvedValueType } from '@token-model/data-model';
-import { StorageService } from '../services/storage';
 
 interface ResolvedValueTypePickerProps {
   value: string[];
   onChange: (value: string[]) => void;
+  resolvedValueTypes: ResolvedValueType[];
   label?: string;
-  required?: boolean;
   disabled?: boolean;
   error?: string;
-  // For backward compatibility
   isRequired?: boolean;
 }
 
-export function ResolvedValueTypePicker({
+export const ResolvedValueTypePicker: React.FC<ResolvedValueTypePickerProps> = ({
   value,
   onChange,
+  resolvedValueTypes,
   label,
-  required,
   disabled,
   error,
   isRequired
-}: ResolvedValueTypePickerProps) {
-  const resolvedValueTypes = StorageService.getValueTypes() || [];
-
+}) => {
   const handleRemove = (typeId: string) => {
     onChange(value.filter(id => id !== typeId));
   };
 
+  const handleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedValue = event.target.value;
+    if (selectedValue && !value.includes(selectedValue)) {
+      onChange([...value, selectedValue]);
+    }
+  };
+
   return (
-    <Field.Root>
+    <Box>
       {label && (
-        <>
-          <Field.Label>{label}</Field.Label>
-          {(required || isRequired) && <Field.RequiredIndicator />}
-        </>
+        <Box as="label" display="block" mb={2}>
+          {label}
+          {isRequired && <Box as="span" color="red.500" ml={1}>*</Box>}
+        </Box>
       )}
       <Box>
-        <Select.Root
-          value={[]}
-          collection={resolvedValueTypes.filter((type: ResolvedValueType) => !value.includes(type.id))}
-          onValueChange={(details) => {
-            const selectedValue = Array.isArray(details.value) ? details.value[0] : details.value;
-            if (selectedValue && !value.includes(selectedValue)) {
-              onChange([...value, selectedValue]);
-            }
+        <select
+          value=""
+          onChange={handleChange}
+          disabled={disabled}
+          style={{
+            width: '100%',
+            height: '40px',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            border: '1px solid var(--chakra-colors-gray-200)',
+            backgroundColor: 'white',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            opacity: disabled ? 0.4 : 1
           }}
         >
-          <Select.HiddenSelect />
-          <Select.Control>
-            <Select.Trigger disabled={disabled}>
-              <Select.ValueText placeholder="Select value type" />
-            </Select.Trigger>
-            <Select.IndicatorGroup>
-              <Select.Indicator />
-            </Select.IndicatorGroup>
-          </Select.Control>
-          <Select.Positioner>
-            <Select.Content>
-              {resolvedValueTypes
-                .filter((type: ResolvedValueType) => !value.includes(type.id))
-                .map((type: ResolvedValueType) => (
-                  <Select.Item key={type.id}>
-                    {type.displayName}
-                    <Select.ItemIndicator />
-                  </Select.Item>
-                ))}
-            </Select.Content>
-          </Select.Positioner>
-        </Select.Root>
-        {error && <Field.ErrorText>{error}</Field.ErrorText>}
+          <option value="">Select value type</option>
+          {resolvedValueTypes
+            .filter((type: ResolvedValueType) => !value.includes(type.id))
+            .map((type: ResolvedValueType) => (
+              <option key={type.id} value={type.id}>
+                {type.displayName}
+              </option>
+            ))}
+        </select>
+        {error && (
+          <Box color="red.500" fontSize="sm" mt={1}>
+            {error}
+          </Box>
+        )}
         <Stack direction="row" wrap="wrap" gap={2} mt={2}>
-          {value.map(typeId => {
-            const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
-            if (!type) return null;
+          {value.map((typeId) => {
+            const type = resolvedValueTypes.find((t) => t.id === typeId);
             return (
-              <Tag.Root key={typeId} size="sm">
-                <TagLabel>{type.displayName}</TagLabel>
+              <Box
+                key={typeId}
+                display="inline-flex"
+                alignItems="center"
+                bg="blue.500"
+                color="white"
+                px={3}
+                py={1}
+                borderRadius="full"
+                fontSize="sm"
+              >
+                <Box mr={2}>{type?.displayName}</Box>
                 <CloseButton
                   size="sm"
                   onClick={() => handleRemove(typeId)}
                   disabled={disabled}
+                  color="white"
                 />
-              </Tag.Root>
+              </Box>
             );
           })}
         </Stack>
       </Box>
-    </Field.Root>
+    </Box>
   );
-} 
+}; 

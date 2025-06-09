@@ -9,6 +9,8 @@ alwaysApply: true
 
 **BEFORE ANY CODE CHANGES:** Always check `@schema.json` first. All code must derive from this schema.
 
+**BEFORE ANY UI CODE CHANGES**: ALWAYS use Chakra-UI v3 components, properties, and API. NEVER use a downgraded version.
+
 ### Schema Compliance Rules
 - `@schema.json` is the ONLY source of truth for data models, validation, and application logic
 - `@index.ts` MUST mirror `@schema.json` exactly (except TypeScript-specific syntax)
@@ -64,6 +66,8 @@ When making any change, explicitly state:
 - **REFERENCE**: https://chakra-ui.com/llms-components.txt and https://chakra-ui.com/llms-styling.txt
 - **UI CONTROLS**: Always use Chakra UI `Select` component for dropdowns/filters - never custom or native HTML selects
 - **UI MAPPING**: Assign mapping logic to constants above return statement, not inline in JSX (unless performance requires memoization)
+- **PRESERVE DESIGN**: For updates to existing components, preserve existing design. ONLY change what is necessary or explicitly described in prompt.
+- **PRESERVE FUNCTIONALITY**: DO NOT break existing funcitonality of components when creating or editing other components.
 
 ### Data Handling Rules
 - **CONSISTENT PROPS**: Use identical property names and types across component chains

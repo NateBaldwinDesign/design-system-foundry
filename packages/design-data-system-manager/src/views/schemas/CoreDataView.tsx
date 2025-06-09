@@ -1,12 +1,12 @@
 import React from 'react';
-import { Box, Tabs, TabList, TabPanels, Tab, TabPanel, Heading, Text, VStack, Container } from '@chakra-ui/react';
+import { Tabs, Heading, Text, VStack, Container } from '@chakra-ui/react';
 import { CoreDataPropertiesTab } from './CoreDataPropertiesTab';
 import { CoreDataExampleTab } from './CoreDataExampleTab';
 
 const CoreDataView: React.FC = () => {
   return (
     <Container maxW="1000px" p={0}>
-      <VStack spacing={4} align="stretch" mb={6}>
+      <VStack gap={4} align="stretch" mb={6}>
         <Heading size="lg">Core Data Schema</Heading>
         <Text>
           The core data schema defines the canonical structure for the Token Model system, including tokens, collections, dimensions, and platforms. 
@@ -15,21 +15,19 @@ const CoreDataView: React.FC = () => {
         </Text>
       </VStack>
 
-      <Tabs>
-        <TabList>
-          <Tab>Properties</Tab>
-          <Tab>Example</Tab>
-        </TabList>
+      <Tabs.Root defaultValue="properties">
+        <Tabs.List>
+          <Tabs.Trigger value="properties">Properties</Tabs.Trigger>
+          <Tabs.Trigger value="example">Example</Tabs.Trigger>
+        </Tabs.List>
 
-        <TabPanels>
-          <TabPanel>
-            <CoreDataPropertiesTab />
-          </TabPanel>
-          <TabPanel>
-            <CoreDataExampleTab />
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
+        <Tabs.Content value="properties">
+          <CoreDataPropertiesTab />
+        </Tabs.Content>
+        <Tabs.Content value="example">
+          <CoreDataExampleTab />
+        </Tabs.Content>
+      </Tabs.Root>
     </Container>
   );
 };

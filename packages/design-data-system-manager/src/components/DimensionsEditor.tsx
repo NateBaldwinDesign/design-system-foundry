@@ -58,11 +58,14 @@ export function DimensionsEditor({
       <Dialog.Positioner>
         <Dialog.Content>
           <Dialog.Header>
-            {isNew ? 'New Dimension' : 'Edit Dimension'}
+            <Dialog.Title>
+              {isNew ? 'New Dimension' : 'Edit Dimension'}
+            </Dialog.Title>
+            <Dialog.CloseTrigger />
           </Dialog.Header>
           <Dialog.Body>
             <Stack gap={4}>
-              <Field.Root>
+              <Field.Root required>
                 <Field.Label>Display Name</Field.Label>
                 <Field.RequiredIndicator />
                 <Input
@@ -90,10 +93,10 @@ export function DimensionsEditor({
             </Stack>
           </Dialog.Body>
           <Dialog.Footer>
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="ghost" mr={3} onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!displayName}>
+            <Button colorPalette="blue" onClick={handleSave} disabled={!displayName}>
               Save
             </Button>
           </Dialog.Footer>

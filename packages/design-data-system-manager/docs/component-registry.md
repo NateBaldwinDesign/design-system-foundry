@@ -229,32 +229,6 @@ interface SettingsWorkflowProps {
 
 ---
 
-### Dimensions Workflow
-
-**Purpose:** Manage dimensions and their associated modes, including creation, editing, and deletion.
-
-**Location:** `/src/components/DimensionsWorkflow.tsx`
-
-**Props:**
-```typescript
-interface DimensionsWorkflowProps {
-  dimensions: Dimension[];
-  setDimensions: (dims: Dimension[]) => void;
-  modes: Mode[];
-  setModes: (modes: Mode[]) => void;
-}
-```
-
-**Design Constraints:**
-- Supports adding/removing dimensions and modes
-- Maintains referential integrity between dimensions and modes
-- Uses dialogs for editing operations
-- Validates required fields and relationships
-
-**Dependencies:**
-- MUI Dialog, TextField, Select components
-
----
 
 ### Collections Workflow
 
@@ -307,31 +281,6 @@ interface ModesWorkflowProps {
 **Dependencies:**
 - MUI List components
 - Mode type from data model
-
----
-
-### Value Types Workflow
-
-**Purpose:** Manage supported value types for tokens.
-
-**Location:** `/src/components/ValueTypesWorkflow.tsx`
-
-**Props:**
-```typescript
-interface ValueTypesWorkflowProps {
-  valueTypes: string[];
-  onUpdate: (valueTypes: string[]) => void;
-}
-```
-
-**Design Constraints:**
-- Supports predefined value type categories
-- Validates value type properties
-- Uses form-based editing interface
-- Maintains type safety
-
-**Dependencies:**
-- MUI Form components
 
 ---
 

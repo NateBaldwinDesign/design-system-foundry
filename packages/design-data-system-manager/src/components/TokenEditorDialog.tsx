@@ -15,20 +15,17 @@ import type {
   Token,
   TokenStatus,
   TokenTaxonomyRef,
-  TokenCollection
+  TokenCollection,
+  ResolvedValueType,
+  TokenValue
 } from '@token-model/data-model';
 
-interface ExtendedToken extends Omit<Token, 'valuesByMode' | 'private'> {
-  valuesByMode: Array<{
+export interface ExtendedToken extends Omit<Token, 'valuesByMode' | 'private'> {
+  valuesByMode: {
     modeIds: string[];
-    value: { value?: unknown; tokenId?: string };
-    metadata?: Record<string, unknown>;
-    platformOverrides?: Array<{ platformId: string; value: string }>;
-  }>;
-  themeable: boolean;
+    value: TokenValue;
+  }[];
   private: boolean;
-  tokenCollectionId: string;
-  taxonomies: TokenTaxonomyRef[];
 }
 
 interface ExtendedSchema {

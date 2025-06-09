@@ -1,12 +1,12 @@
 import React from 'react';
-import { Box, Tabs, TabList, TabPanels, Tab, TabPanel, Heading, Text, VStack, Container } from '@chakra-ui/react';
+import { Tabs, Heading, Text, VStack, Container } from '@chakra-ui/react';
 import { ThemeOverridesPropertiesTab } from './ThemeOverridesPropertiesTab';
 import { ThemeOverridesExampleTab } from './ThemeOverridesExampleTab';
 
 const ThemeOverridesView: React.FC = () => {
   return (
     <Container maxW="1000px" p={0}>
-      <VStack spacing={4} align="stretch" mb={6}>
+      <VStack gap={4} align="stretch" mb={6}>
         <Heading size="lg">Theme Overrides Schema</Heading>
         <Text>
           Theme overrides provide a safe, schema-driven way to extend or customize tokens that are explicitly marked as themeable in the core data.
@@ -15,21 +15,19 @@ const ThemeOverridesView: React.FC = () => {
         </Text>
       </VStack>
 
-      <Tabs>
-        <TabList>
-          <Tab>Properties</Tab>
-          <Tab>Example</Tab>
-        </TabList>
+      <Tabs.Root defaultValue="properties">
+        <Tabs.List>
+          <Tabs.Trigger value="properties">Properties</Tabs.Trigger>
+          <Tabs.Trigger value="example">Example</Tabs.Trigger>
+        </Tabs.List>
 
-        <TabPanels>
-          <TabPanel>
-            <ThemeOverridesPropertiesTab />
-          </TabPanel>
-          <TabPanel>
-            <ThemeOverridesExampleTab />
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
+        <Tabs.Content value="properties">
+          <ThemeOverridesPropertiesTab />
+        </Tabs.Content>
+        <Tabs.Content value="example">
+          <ThemeOverridesExampleTab />
+        </Tabs.Content>
+      </Tabs.Root>
     </Container>
   );
 };

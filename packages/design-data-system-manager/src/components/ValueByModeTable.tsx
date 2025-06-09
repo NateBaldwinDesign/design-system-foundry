@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Box,
-  Text,
   IconButton,
   Button,
   Table
@@ -137,7 +136,6 @@ function NestedModeTable({
   onAddValue: (modeIds: string[], value: TokenValue) => void;
 }) {
   const columnCombinations = getModeCombinations(columnDimensions);
-  const rowCombinations = getModeCombinations(rowDimensions);
 
   // If we have more than one row dimension, create nested tables
   if (rowDimensions.length > 1) {
@@ -173,7 +171,6 @@ function NestedModeTable({
                         <Table.Root size="sm">
                           <Table.Body>
                             {secondaryCombo.map((modeId, modeIdx) => {
-                              const allModeIds = [primaryMode.id, ...secondaryCombo, ...colCombo].sort();
                               const key = allModeIds.join(',');
                               return (
                                 <Table.Row key={modeIdx}>
@@ -198,7 +195,7 @@ function NestedModeTable({
                                           colorPalette="red"
                                           onClick={() => onDeleteValue(allModeIds)}
                                         >
-                                          <Trash2 width={16} height={16} />
+                                          <Trash2 size={16} />
                                         </IconButton>
                                       )}
                                     </Box>
@@ -220,113 +217,30 @@ function NestedModeTable({
     );
   }
 
-  // If we have more than one column dimension, create nested tables
-  if (columnDimensions.length > 1) {
-    const primaryColDim = columnDimensions[0];
-    const secondaryColDims = columnDimensions.slice(1);
-    
-    return (
-      <Table.Root size="sm" width="100%">
-        <Table.Header>
-          <Table.Row>
-            <Table.ColumnHeader>{rowDimensions[0]?.displayName}</Table.ColumnHeader>
-            {primaryColDim.modes.map(primaryMode => (
-              <Table.ColumnHeader key={primaryMode.id} colSpan={1}>
-                {getModeName(primaryMode.id, modes)}
-              </Table.ColumnHeader>
-            ))}
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {rowCombinations.map((rowCombo, rowIdx) => (
-            <Table.Row key={rowIdx}>
-              <Table.Cell>{getModeName(rowCombo[0], modes)}</Table.Cell>
-              {primaryColDim.modes.map(primaryMode => (
-                <Table.Cell key={primaryMode.id}>
-                  <Table.Root size="sm">
-                    <Table.Header>
-                      <Table.Row>
-                        {getModeCombinations(secondaryColDims).map((combo, idx) => (
-                          <Table.ColumnHeader key={idx}>
-                            {combo.map(modeId => getModeName(modeId, modes)).join(' + ')}
-                          </Table.ColumnHeader>
-                        ))}
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      <Table.Row>
-                        {getModeCombinations(secondaryColDims).map((combo, idx) => {
-                          const allModeIds = [...rowCombo, primaryMode.id, ...combo].sort();
-                          const key = allModeIds.join(',');
-                          return (
-                            <Table.Cell key={idx}>
-                              <Box display="flex" alignItems="center" gap={2}>
-                                {valueMap.get(key) ? (
-                                  getValueEditor(valueMap.get(key)!.value, allModeIds)
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => onAddValue(allModeIds, getDefaultTokenValue(resolvedValueTypeId, resolvedValueTypes))}
-                                  >
-                                    Add value
-                                  </Button>
-                                )}
-                                {valueMap.get(key) && (
-                                  <IconButton
-                                    aria-label="Delete value"
-                                    size="sm"
-                                    colorPalette="red"
-                                    onClick={() => onDeleteValue(allModeIds)}
-                                  >
-                                    <Trash2 width={16} height={16} />
-                                  </IconButton>
-                                )}
-                              </Box>
-                            </Table.Cell>
-                          );
-                        })}
-                      </Table.Row>
-                    </Table.Body>
-                  </Table.Root>
-                </Table.Cell>
-              ))}
-            </Table.Row>
-          ))}
-        </Table.Body>
-      </Table.Root>
-    );
-  }
-
-  // Default case: simple table
+  // If we have only one row dimension, create a simple table
+  const rowDim = rowDimensions[0];
   return (
     <Table.Root size="sm" width="100%">
       <Table.Header>
         <Table.Row>
-          {rowDimensions.map(dim => (
-            <Table.ColumnHeader key={dim.id}>{dim.displayName}</Table.ColumnHeader>
-          ))}
+          <Table.ColumnHeader>{rowDim.displayName}</Table.ColumnHeader>
           {columnCombinations.map((combo, idx) => (
-            <Table.ColumnHeader key={idx}>
+            <Table.ColumnHeader key={idx} colSpan={1}>
               {combo.map(modeId => getModeName(modeId, modes)).join(' + ')}
             </Table.ColumnHeader>
           ))}
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {rowCombinations.map((rowCombo, rowIdx) => (
-          <Table.Row key={rowIdx}>
-            {rowCombo.map(modeId => (
-              <Table.Cell key={modeId}>
-                <Text fontSize="sm">{getModeName(modeId, modes)}</Text>
-              </Table.Cell>
-            ))}
+        {rowDim.modes.map(rowMode => (
+          <Table.Row key={rowMode.id}>
+            <Table.Cell>{getModeName(rowMode.id, modes)}</Table.Cell>
             {columnCombinations.map((colCombo, colIdx) => {
-              const allModeIds = [...rowCombo, ...colCombo].sort();
+              const allModeIds = [rowMode.id, ...colCombo].sort();
               const key = allModeIds.join(',');
               return (
                 <Table.Cell key={colIdx}>
-                  <Box display="flex" alignItems="center" gap={2}>
+                  <Box display="flex" alignItems="flex-start" gap={2}>
                     {valueMap.get(key) ? (
                       getValueEditor(valueMap.get(key)!.value, allModeIds)
                     ) : (
@@ -345,7 +259,7 @@ function NestedModeTable({
                         colorPalette="red"
                         onClick={() => onDeleteValue(allModeIds)}
                       >
-                        <Trash2 width={16} height={16} />
+                        <Trash2 size={16} />
                       </IconButton>
                     )}
                   </Box>
@@ -369,27 +283,27 @@ export function ValueByModeTable({
   resolvedValueTypes,
   onAddValue 
 }: ValueByModeTableProps) {
+  // Create a map of mode combinations to values for easy lookup
+  const valueMap = new Map<string, ValueByMode>();
+  valuesByMode.forEach(value => {
+    const key = value.modeIds.sort().join(',');
+    valueMap.set(key, value);
+  });
+
   // Categorize dimensions into columns and rows
   const { columnDimensions, rowDimensions } = categorizeDimensions(dimensions);
 
-  // Create a map of mode combinations to values for quick lookup
-  const valueMap = new Map(
-    valuesByMode.map(vbm => [vbm.modeIds.slice().sort().join(','), vbm])
-  );
-
   return (
-    <Box overflowX="auto">
-      <NestedModeTable
-        columnDimensions={columnDimensions}
-        rowDimensions={rowDimensions}
-        modes={modes}
-        valueMap={valueMap}
-        getValueEditor={getValueEditor}
-        onDeleteValue={onDeleteValue}
-        resolvedValueTypeId={resolvedValueTypeId}
-        resolvedValueTypes={resolvedValueTypes}
-        onAddValue={onAddValue}
-      />
-    </Box>
+    <NestedModeTable
+      columnDimensions={columnDimensions}
+      rowDimensions={rowDimensions}
+      modes={modes}
+      valueMap={valueMap}
+      getValueEditor={getValueEditor}
+      onDeleteValue={onDeleteValue}
+      resolvedValueTypeId={resolvedValueTypeId}
+      resolvedValueTypes={resolvedValueTypes}
+      onAddValue={onAddValue}
+    />
   );
 } 

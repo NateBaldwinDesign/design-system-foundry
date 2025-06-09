@@ -1,28 +1,58 @@
 import React from 'react';
+import { Meta, StoryObj } from '@storybook/react';
 import { PlatformEditorDialog } from './PlatformEditorDialog';
 import { ChakraProvider } from '@chakra-ui/react';
+import { system } from '../theme';
+import type { Platform } from '@token-model/data-model';
 
-export default {
+const meta: Meta<typeof PlatformEditorDialog> = {
   title: 'Components/PlatformEditorDialog',
   component: PlatformEditorDialog,
-  argTypes: {
-    open: { control: 'boolean' },
-    onClose: { action: 'onClose' },
-    onSave: { action: 'onSave' },
-    platform: { control: 'object' },
-    isNew: { control: 'boolean' },
+  parameters: {
+    layout: 'centered',
   },
+  decorators: [
+    (Story) => (
+      <ChakraProvider value={system}>
+        <Story />
+      </ChakraProvider>
+    ),
+  ],
+  tags: ['autodocs'],
 };
 
-const Template = (args) => (
-  <ChakraProvider>
-    <PlatformEditorDialog {...args} />
-  </ChakraProvider>
-);
+export default meta;
+type Story = StoryObj<typeof PlatformEditorDialog>;
 
-export const Default = Template.bind({});
-Default.args = {
-  open: true,
-  platform: {},
-  isNew: true,
+const mockPlatform: Platform = {
+  id: 'web',
+  displayName: 'Web'
+};
+
+export const Default: Story = {
+  args: {
+    open: true,
+    onClose: () => {},
+    onSave: () => {},
+    isNew: false
+  }
+};
+
+export const NewPlatform: Story = {
+  args: {
+    open: true,
+    onClose: () => {},
+    onSave: () => {},
+    isNew: true
+  }
+};
+
+export const EditPlatform: Story = {
+  args: {
+    open: true,
+    onClose: () => {},
+    onSave: () => {},
+    platform: mockPlatform,
+    isNew: false
+  }
 }; 

@@ -36,26 +36,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ tokenStats }) => {
             <SimpleGrid columns={2} gap={4} mb={4}>
               <Stat.Root>
                 <Stat.Label>Total</Stat.Label>
-                <Stat.Number>{tokenStats.total}</Stat.Number>
+                <Stat.ValueText>{tokenStats.total}</Stat.ValueText>
               </Stat.Root>
               <Stat.Root>
                 <Stat.Label>Private</Stat.Label>
-                <Stat.Number>{tokenStats.privateCount}</Stat.Number>
+                <Stat.ValueText>{tokenStats.privateCount}</Stat.ValueText>
                 <Stat.HelpText>{tokenStats.privatePercent.toFixed(1)}%</Stat.HelpText>
               </Stat.Root>
               <Stat.Root>
                 <Stat.Label>Public</Stat.Label>
-                <Stat.Number>{tokenStats.publicCount}</Stat.Number>
+                <Stat.ValueText>{tokenStats.publicCount}</Stat.ValueText>
                 <Stat.HelpText>{tokenStats.publicPercent.toFixed(1)}%</Stat.HelpText>
               </Stat.Root>
               <Stat.Root>
                 <Stat.Label>Themeable</Stat.Label>
-                <Stat.Number>{tokenStats.themeableCount}</Stat.Number>
+                <Stat.ValueText>{tokenStats.themeableCount}</Stat.ValueText>
                 <Stat.HelpText>{tokenStats.themeablePercent.toFixed(1)}%</Stat.HelpText>
               </Stat.Root>
               <Stat.Root>
                 <Stat.Label>Not Themeable</Stat.Label>
-                <Stat.Number>{tokenStats.nonThemeableCount}</Stat.Number>
+                <Stat.ValueText>{tokenStats.nonThemeableCount}</Stat.ValueText>
                 <Stat.HelpText>{tokenStats.nonThemeablePercent.toFixed(1)}%</Stat.HelpText>
               </Stat.Root>
             </SimpleGrid>

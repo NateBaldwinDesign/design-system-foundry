@@ -48,7 +48,7 @@ export const useSchema = () => {
             description: 'Invalid schema found in storage',
             status: 'error',
             duration: 5000,
-            isClosable: true,
+            closable: true,
           });
           return null;
         }
@@ -59,7 +59,7 @@ export const useSchema = () => {
           description: 'Failed to parse stored schema',
           status: 'error',
           duration: 5000,
-          isClosable: true,
+          closable: true,
         });
         return null;
       }
@@ -122,7 +122,7 @@ export const useSchema = () => {
             description: 'Failed to load default schema',
             status: 'error',
             duration: 5000,
-            isClosable: true,
+            closable: true,
           });
         }
       }
@@ -137,6 +137,13 @@ export const useSchema = () => {
         const validationResult = ValidationService.validateData(schema);
         if (validationResult.isValid) {
           setItem('schema', JSON.stringify(schema));
+          toast({
+            title: 'Schema Saved',
+            description: 'Successfully saved schema to storage.',
+            status: 'success',
+            duration: 3000,
+            closable: true,
+          });
         } else {
           throw new Error(`Invalid schema structure: ${validationResult.errors?.join(', ')}`);
         }
@@ -147,7 +154,7 @@ export const useSchema = () => {
           description: 'Failed to save schema',
           status: 'error',
           duration: 5000,
-          isClosable: true,
+          closable: true,
         });
       }
     }
@@ -174,7 +181,7 @@ export const useSchema = () => {
         description: 'Failed to update schema',
         status: 'error',
         duration: 5000,
-        isClosable: true,
+        closable: true,
       });
     }
   };

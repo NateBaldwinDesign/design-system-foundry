@@ -1,52 +1,85 @@
 import React from 'react';
+import { Meta, StoryObj } from '@storybook/react';
 import { TaxonomyPicker } from './TaxonomyPicker';
 import { ChakraProvider } from '@chakra-ui/react';
 import type { Taxonomy } from '@token-model/data-model';
 import { system } from '../theme';
 
-interface TaxonomyPickerStoryProps {
-  taxonomies: Taxonomy[];
-  value: { taxonomyId: string; termId: string }[];
-  onChange: (value: { taxonomyId: string; termId: string }[]) => void;
-  isMulti: boolean;
-  placeholder: string;
-  disabled: boolean;
-}
-
-const meta = {
+const meta: Meta<typeof TaxonomyPicker> = {
   title: 'Components/TaxonomyPicker',
   component: TaxonomyPicker,
-  argTypes: {
-    taxonomies: { control: 'object' },
-    value: { control: 'object' },
-    onChange: { action: 'onChange' },
-    isMulti: { control: 'boolean' },
-    placeholder: { control: 'text' },
-    disabled: { control: 'boolean' },
+  parameters: {
+    layout: 'centered',
   },
   decorators: [
-    (Story: React.ComponentType) => (
+    (Story) => (
       <ChakraProvider value={system}>
         <Story />
       </ChakraProvider>
     ),
   ],
+  tags: ['autodocs'],
 };
 
 export default meta;
+type Story = StoryObj<typeof TaxonomyPicker>;
 
-const Template = (args: TaxonomyPickerStoryProps) => <TaxonomyPicker {...args} />;
+const mockTaxonomies: Taxonomy[] = [
+  {
+    id: 'color-usage',
+    name: 'Color Usage',
+    description: 'How this color is used in the system',
+    terms: [
+      { id: 'background', name: 'Background', description: 'Used for background surfaces' },
+      { id: 'text', name: 'Text', description: 'Used for text content' }
+    ]
+  },
+  {
+    id: 'spacing-usage',
+    name: 'Spacing Usage',
+    description: 'How this spacing is used in the system',
+    terms: [
+      { id: 'padding', name: 'Padding', description: 'Used for padding' },
+      { id: 'margin', name: 'Margin', description: 'Used for margins' }
+    ]
+  }
+];
 
-export const Default = {
-  render: Template,
+export const Default: Story = {
   args: {
     taxonomies: [],
     value: [],
-    isMulti: false,
-    placeholder: 'Select taxonomy',
-    disabled: false,
-    onChange: (value: { taxonomyId: string; termId: string }[]) => {
-      console.log('onChange:', value);
-    },
-  },
+    onChange: () => {},
+    disabled: false
+  }
+};
+
+export const WithTaxonomies: Story = {
+  args: {
+    taxonomies: mockTaxonomies,
+    value: [],
+    onChange: () => {},
+    disabled: false
+  }
+};
+
+export const WithSelectedValues: Story = {
+  args: {
+    taxonomies: mockTaxonomies,
+    value: [
+      { taxonomyId: 'color-usage', termId: 'background' },
+      { taxonomyId: 'spacing-usage', termId: 'padding' }
+    ],
+    onChange: () => {},
+    disabled: false
+  }
+};
+
+export const Disabled: Story = {
+  args: {
+    taxonomies: mockTaxonomies,
+    value: [],
+    onChange: () => {},
+    disabled: true
+  }
 }; 

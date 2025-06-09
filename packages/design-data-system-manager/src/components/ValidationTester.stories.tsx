@@ -2,9 +2,28 @@ import React from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import { ValidationTester } from './ValidationTester';
 import { ChakraProvider } from '@chakra-ui/react';
+import { system } from '../theme';
 import type { Token, TokenCollection } from '@token-model/data-model';
 
-// Mock data for the stories
+const meta: Meta<typeof ValidationTester> = {
+  title: 'Components/ValidationTester',
+  component: ValidationTester,
+  parameters: {
+    layout: 'centered',
+  },
+  decorators: [
+    (Story) => (
+      <ChakraProvider value={system}>
+        <Story />
+      </ChakraProvider>
+    ),
+  ],
+  tags: ['autodocs'],
+};
+
+export default meta;
+type Story = StoryObj<typeof ValidationTester>;
+
 const mockTokens: Token[] = [
   {
     id: 'token1',
@@ -48,7 +67,7 @@ const mockTokens: Token[] = [
     valuesByMode: [
       {
         modeIds: ['mode1'],
-        value: {  value: 8 },
+        value: { value: 8 },
       },
     ],
   },
@@ -71,90 +90,41 @@ const mockCollections: TokenCollection[] = [
   },
 ];
 
-// Mock the ValidationService
-const mockValidationService = {
-  validateData: () => ({
-    isValid: true,
-    errors: [],
-  }),
-};
-
-// Create a wrapper component that provides the mock data and handlers
-const ValidationTesterWrapper: React.FC = () => {
-  // Mock the ValidationService
-  React.useEffect(() => {
-    // @ts-expect-error - Mocking the service
-    window.ValidationService = mockValidationService;
-  }, []);
-
-  const handleValidate = (token: Token) => {
-    console.log('Validating token:', token);
-  };
-
-  return (
-    <ValidationTester
-      tokens={mockTokens}
-      collections={mockCollections}
-      onValidate={handleValidate}
-    />
-  );
-};
-
-const meta: Meta<typeof ValidationTesterWrapper> = {
-  title: 'Components/ValidationTester',
-  component: ValidationTesterWrapper,
-  parameters: {
-    layout: 'centered',
-  },
-  tags: ['autodocs'],
-  decorators: [
-    (Story) => (
-      <ChakraProvider>
-        <Story />
-      </ChakraProvider>
-    ),
-  ],
-};
-
-export default meta;
-type Story = StoryObj<typeof ValidationTesterWrapper>;
-
-// Base story with default mock data
 export const Default: Story = {
-  args: {},
+  args: {
+    tokens: mockTokens,
+    collections: mockCollections,
+    onValidate: (token: Token) => console.log('Validating token:', token)
+  }
 };
 
-// Story with empty data
 export const EmptyData: Story = {
-  args: {},
-  parameters: {
-    mockData: {
-      tokens: [],
-      collections: [],
-    },
-  },
+  args: {
+    tokens: [],
+    collections: [],
+    onValidate: (token: Token) => console.log('Validating token:', token)
+  }
 };
 
-// Story with validation errors
 export const WithValidationErrors: Story = {
-  args: {},
-  parameters: {
-    mockData: {
-      validationService: {
-        validateData: () => ({
-          isValid: false,
-          errors: [
-            {
-              path: ['tokens', 0],
-              message: 'Invalid token value type',
-            },
-            {
-              path: ['collections', 1],
-              message: 'Missing required field: name',
-            },
-          ],
-        }),
-      },
-    },
-  },
+  args: {
+    tokens: [
+      {
+        ...mockTokens[0],
+        valuesByMode: [
+          {
+            modeIds: ['mode1'],
+            value: { value: 'invalid-color' },
+          },
+        ],
+      }
+    ],
+    collections: [
+      {
+        ...mockCollections[0],
+        name: '',
+      }
+    ],
+    onValidate: (token: Token) => console.log('Validating token:', token)
+  }
 }; 

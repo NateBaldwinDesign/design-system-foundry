@@ -1,25 +1,25 @@
-import React from 'react';
+import type { Meta, StoryObj } from '@storybook/react';
 import { AppSidebar } from './AppSidebar';
-import { ChakraProvider } from '@chakra-ui/react';
-import { MemoryRouter } from 'react-router-dom';
 
-export default {
+const meta: Meta<typeof AppSidebar> = {
   title: 'Components/AppSidebar',
   component: AppSidebar,
+  parameters: {
+    layout: 'fullscreen',
+  },
 };
 
-export const EmptyPlaceholder = () => (
-  <ChakraProvider>
-    <MemoryRouter>
-      <AppSidebar
-        dataSource="core-data.json"
-        setDataSource={() => {}}
-        dataOptions={[
-          { label: 'Core Data', value: 'core-data.json', filePath: 'core-data.json' },
-        ]}
-        onResetData={() => {}}
-        onExportData={() => {}}
-      />
-    </MemoryRouter>
-  </ChakraProvider>
-); 
+export default meta;
+type Story = StoryObj<typeof AppSidebar>;
+
+export const Default: Story = {
+  args: {
+    dataSource: 'core-data.json',
+    setDataSource: (source: string) => console.log('Setting data source:', source),
+    dataOptions: [
+      { label: 'Core Data', filePath: 'core-data.json' },
+    ],
+    onResetData: () => console.log('Resetting data'),
+    onExportData: () => console.log('Exporting data')
+  }
+}; 

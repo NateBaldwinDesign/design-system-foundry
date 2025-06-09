@@ -131,7 +131,7 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
           description: `Schema Validation Failed: ${Array.isArray(result.errors) ? result.errors.join(', ') : 'See console for details.'}`,
           status: "error",
           duration: 5000,
-          isClosable: true,
+          closable: true,
         });
         return;
       }
@@ -145,7 +145,7 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
         description: 'An error occurred while validating the data',
         status: 'error',
         duration: 5000,
-        isClosable: true,
+        closable: true,
       });
     }
   };

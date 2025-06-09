@@ -1,85 +1,90 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
   Text,
+  Button,
   VStack,
   HStack,
   IconButton,
-  Tooltip,
-  Button,
-  useColorModeValue,
-  useColorMode,
-  useToast
+  Dialog,
+  Field,
+  Input
 } from '@chakra-ui/react';
-import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
-import { PlatformEditorDialog } from '../../components/PlatformEditorDialog';
-import { createUniqueId } from '../../utils/id';
-import { CodeSyntaxService } from '../../services/codeSyntax';
-import { Platform, Taxonomy } from '@token-model/data-model';
+import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
+import { useTheme } from 'next-themes';
+import type { Platform, Token, Taxonomy } from '@token-model/data-model';
 import { ValidationService } from '../../services/validation';
-import { ExtendedToken } from '../../components/TokenEditorDialog';
-import { StorageService } from '../../services/storage';
-import { useToast as useCustomToast } from '../../hooks/useToast';
+import { useToast } from '../../hooks/useToast';
 
-interface PlatformsViewProps {
+export interface PlatformsViewProps {
   platforms: Platform[];
   setPlatforms: (platforms: Platform[]) => void;
-  tokens: ExtendedToken[];
-  setTokens: (tokens: ExtendedToken[]) => void;
+  tokens: Token[];
+  setTokens: (tokens: Token[]) => void;
   taxonomies: Taxonomy[];
 }
 
-export const PlatformsView: React.FC<PlatformsViewProps> = ({ 
-  platforms: initialPlatforms, 
+export const PlatformsView: React.FC<PlatformsViewProps> = ({
+  platforms,
   setPlatforms,
   tokens,
   setTokens,
-  taxonomies
-}: PlatformsViewProps) => {
-  const { colorMode } = useColorMode();
-  const [editingPlatform, setEditingPlatform] = useState<Platform | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isNew, setIsNew] = useState(false);
-  const cardBg = useColorModeValue('gray.50', 'gray.800');
-  const cardBorder = useColorModeValue('gray.200', 'gray.600');
-  const toast = useCustomToast();
+  taxonomies,
+}) => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+  const [open, setOpen] = React.useState(false);
+  const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
+  const [form, setForm] = React.useState<Platform>({
+    id: '',
+    displayName: '',
+    description: '',
+    syntaxPatterns: {
+      capitalization: 'none'
+    }
+  });
+  const toast = useToast();
+
+  const handleOpen = (index: number | null = null) => {
+    setEditingIndex(index);
+    if (index !== null) {
+      setForm(platforms[index]);
+    } else {
+      setForm({
+        id: '',
+        displayName: '',
+        description: '',
+        syntaxPatterns: {
+          capitalization: 'none'
+        }
+      });
+    }
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    setEditingIndex(null);
+  };
+
+  const handleFormChange = (field: keyof Platform, value: string | { platformId: string; formattedName: string }[]) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
 
   const validateAndSetPlatforms = (updatedPlatforms: Platform[]) => {
-    // Get all required data from storage
-    const tokenCollections = StorageService.getCollections();
-    const dimensions = StorageService.getDimensions();
-    const tokens = StorageService.getTokens();
-    const taxonomies = StorageService.getTaxonomies();
-    const resolvedValueTypes = StorageService.getValueTypes();
-    // Optionally, get systemName/systemId/version from root or a config
-    const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
-    const {
-      systemName = 'Design System',
-      systemId = 'design-system',
-      version = '1.0.0',
-      versionHistory = []
-    } = root;
-
     const data = {
-      systemName,
-      systemId,
-      tokenCollections,
-      dimensions,
-      tokens,
       platforms: updatedPlatforms,
-      taxonomies,
-      resolvedValueTypes,
-      version,
-      versionHistory
+      version: '1.0.0',
+      versionHistory: []
     };
     const result = ValidationService.validateData(data);
     if (!result.isValid) {
       toast({
         title: 'Schema Validation Failed',
-        description: result.errors?.map(e => e.message).join('\n') || 'Your change would make the data invalid. See the Validation tab for details.',
+        description: 'Your change would make the data invalid. See the Validation tab for details.',
         status: 'error',
-        duration: 5000,
-        isClosable: true,
+        duration: 4000,
+        closable: true
       });
       return false;
     }
@@ -87,152 +92,154 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
     return true;
   };
 
-  const handleDeletePlatform = (platformId: string) => {
-    const platformToDelete = initialPlatforms.find((p: Platform) => p.id === platformId);
-    const updated = initialPlatforms.filter((p: Platform) => p.id !== platformId);
-    if (!validateAndSetPlatforms(updated)) return;
-    toast({ 
-      title: 'Platform Deleted', 
-      description: `Successfully deleted platform "${platformToDelete?.displayName}"`,
-      status: 'info', 
-      duration: 3000,
-      isClosable: true 
-    });
-  };
-
-  const handleEditPlatform = (platform: Platform) => {
-    setEditingPlatform(platform);
-    setIsDialogOpen(true);
-    setIsNew(false);
-  };
-
-  const handleAddPlatform = () => {
-    setEditingPlatform({
-      id: createUniqueId('platform'),
-      displayName: '',
-      description: '',
-      syntaxPatterns: {
-        prefix: '',
-        suffix: '',
-        delimiter: '_',
-        capitalization: 'none',
-        formatString: ''
-      }
-    });
-    setIsDialogOpen(true);
-    setIsNew(true);
-  };
-
-  const handleDialogSave = (updatedPlatform: Platform) => {
-    let updatedPlatforms;
-    if (isNew) {
-      const newId = updatedPlatform.displayName.trim().replace(/\s+/g, '_').toLowerCase() || `platform_${Date.now()}`;
-      updatedPlatforms = [
-        ...initialPlatforms,
-        {
-          ...updatedPlatform,
-          id: newId
-        }
-      ];
-    } else {
-      updatedPlatforms = initialPlatforms.map((p: Platform) =>
-        p.id === updatedPlatform.id ? updatedPlatform : p
-      );
-    }
-    if (!validateAndSetPlatforms(updatedPlatforms)) {
+  const handleSave = () => {
+    if (!form.displayName.trim()) {
+      toast({
+        title: 'Required Field Missing',
+        description: 'Display name is required for platforms.',
+        status: 'error',
+        duration: 4000,
+        closable: true
+      });
       return;
     }
-    const schema = { platforms: updatedPlatforms, taxonomies };
-    const updatedTokens = tokens.map((token: ExtendedToken) => {
-      const codeSyntax = updatedPlatforms.map((platform: Platform) => ({
-        platformId: platform.id,
-        formattedName: CodeSyntaxService.generateCodeSyntax(token, platform.id, schema)
-      }));
-      return {
-        ...token,
-        codeSyntax
-      };
+    const id = form.id || form.displayName.trim().replace(/\s+/g, '_').toLowerCase();
+    if (!form.id && platforms.some(p => p.id === id)) {
+      toast({
+        title: 'Duplicate Platform',
+        description: 'A platform with this name already exists. Please choose a different name.',
+        status: 'error',
+        duration: 4000,
+        closable: true
+      });
+      return;
+    }
+    const newPlatforms = [...platforms];
+    const platformToSave = {
+      ...form,
+      id
+    };
+    if (editingIndex !== null) {
+      newPlatforms[editingIndex] = platformToSave;
+    } else {
+      newPlatforms.push(platformToSave);
+    }
+    if (!validateAndSetPlatforms(newPlatforms)) {
+      return;
+    }
+    setOpen(false);
+    setEditingIndex(null);
+    toast({
+      title: 'Platform Saved',
+      description: `Successfully ${editingIndex !== null ? 'updated' : 'created'} platform "${form.displayName}"`,
+      status: 'success',
+      duration: 3000,
+      closable: true
     });
-    setTokens(updatedTokens);
-    setIsDialogOpen(false);
-    setEditingPlatform(null);
-    setIsNew(false);
+  };
+
+  const handleDelete = (index: number) => {
+    const platformToDelete = platforms[index];
+    const newPlatforms = platforms.filter((_, i) => i !== index);
+    if (!validateAndSetPlatforms(newPlatforms)) {
+      return;
+    }
+    toast({
+      title: 'Platform Deleted',
+      description: `Successfully deleted platform "${platformToDelete.displayName}"`,
+      status: 'info',
+      duration: 3000,
+      closable: true
+    });
   };
 
   return (
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Platforms</Text>
-      <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" leftIcon={<LuPlus />} onClick={handleAddPlatform} colorScheme="blue" mb={4}>
+      <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={isDark ? 'gray.900' : 'white'}>
+        <Button
+          size="sm"
+          onClick={() => handleOpen(null)}
+          colorPalette="blue"
+          mb={4}
+        >
+          <LuPlus style={{ marginRight: '0.5rem' }} />
           Add Platform
         </Button>
-        <VStack align="stretch" spacing={3}>
-          {initialPlatforms.map((platform: Platform) => {
-            const syntax = platform.syntaxPatterns || {};
-            return (
-              <Box
-                key={platform.id}
-                p={3}
-                borderWidth={1}
-                borderRadius="md"
-                bg={cardBg}
-                borderColor={cardBorder}
-              >
-                <HStack justify="space-between" align="flex-start">
-                  <Box flex={1} minW={0}>
-                    <Text fontSize="lg" fontWeight="medium">{platform.displayName}</Text>
-                    {platform.description && (
-                      <Text fontSize="sm" color="gray.500">{platform.description}</Text>
-                    )}
-                    <Box mt={2}>
-                      <Text fontWeight="bold" fontSize="sm" mb={1}>Syntax Patterns</Text>
-                      <HStack spacing={4} wrap="wrap">
-                        <Text fontSize="sm"><b>Prefix:</b> {syntax.prefix || <span style={{ color: '#888' }}>none</span>}</Text>
-                        <Text fontSize="sm"><b>Suffix:</b> {syntax.suffix || <span style={{ color: '#888' }}>none</span>}</Text>
-                        <Text fontSize="sm"><b>Delimiter:</b> {syntax.delimiter || <span style={{ color: '#888' }}>none</span>}</Text>
-                        <Text fontSize="sm"><b>Capitalization:</b> {syntax.capitalization || <span style={{ color: '#888' }}>none</span>}</Text>
-                        <Text fontSize="sm"><b>Format String:</b> {syntax.formatString || <span style={{ color: '#888' }}>none</span>}</Text>
-                      </HStack>
-                    </Box>
-                  </Box>
-                  <HStack spacing={2} align="flex-start">
-                    <Tooltip label="Edit Platform">
-                      <IconButton
-                        aria-label="Edit platform"
-                        icon={<LuPencil />}
-                        size="sm"
-                        onClick={() => handleEditPlatform(platform)}
-                      />
-                    </Tooltip>
-                    <Tooltip label="Delete Platform">
-                      <IconButton
-                        aria-label="Delete platform"
-                        colorScheme="red"
-                        size="sm"
-                        icon={<LuTrash2 />}
-                        onClick={() => handleDeletePlatform(platform.id)}
-                      />
-                    </Tooltip>
-                  </HStack>
+        <VStack gap={2} align="stretch">
+          {platforms.map((platform, i) => (
+            <Box
+              key={platform.id}
+              p={3}
+              borderWidth={1}
+              borderRadius="md"
+              bg={isDark ? 'gray.800' : 'gray.50'}
+              borderColor={isDark ? 'gray.600' : 'gray.200'}
+            >
+              <HStack justify="space-between" align="center">
+                <Box>
+                  <Text fontWeight="bold">{platform.displayName}</Text>
+                  {platform.description && (
+                    <Text fontSize="sm" color={isDark ? 'gray.400' : 'gray.600'}>
+                      {platform.description}
+                    </Text>
+                  )}
+                </Box>
+                <HStack>
+                  <IconButton
+                    aria-label="Edit platform"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleOpen(i)}
+                  >
+                    <LuPencil />
+                  </IconButton>
+                  <IconButton
+                    aria-label="Delete platform"
+                    size="sm"
+                    variant="ghost"
+                    colorPalette="red"
+                    onClick={() => handleDelete(i)}
+                  >
+                    <LuTrash2 />
+                  </IconButton>
                 </HStack>
-              </Box>
-            );
-          })}
+              </HStack>
+            </Box>
+          ))}
         </VStack>
       </Box>
-      {editingPlatform && (
-        <PlatformEditorDialog
-          platform={editingPlatform}
-          open={isDialogOpen}
-          onClose={() => {
-            setIsDialogOpen(false);
-            setEditingPlatform(null);
-            setIsNew(false);
-          }}
-          onSave={handleDialogSave}
-          isNew={isNew}
-        />
-      )}
+
+      <Dialog.Root open={open} onOpenChange={handleClose}>
+        <Dialog.Content bg={isDark ? 'gray.900' : 'white'}>
+          <Dialog.Header>{editingIndex !== null ? 'Edit Platform' : 'Add Platform'}</Dialog.Header>
+          <Dialog.CloseTrigger />
+          <Dialog.Body>
+            <VStack gap={4} align="stretch">
+              <Field.Root required>
+                <Field.Label>Display Name</Field.Label>
+                <Input
+                  value={form.displayName}
+                  onChange={e => handleFormChange('displayName', e.target.value)}
+                  bg={isDark ? 'gray.700' : 'white'}
+                />
+              </Field.Root>
+              <Field.Root>
+                <Field.Label>Description</Field.Label>
+                <Input
+                  value={form.description || ''}
+                  onChange={e => handleFormChange('description', e.target.value)}
+                  bg={isDark ? 'gray.700' : 'white'}
+                />
+              </Field.Root>
+            </VStack>
+          </Dialog.Body>
+          <Dialog.Footer>
+            <Button variant="ghost" mr={3} onClick={handleClose}>Cancel</Button>
+            <Button colorPalette="blue" onClick={handleSave}>Save</Button>
+          </Dialog.Footer>
+        </Dialog.Content>
+      </Dialog.Root>
     </Box>
   );
 }; 
