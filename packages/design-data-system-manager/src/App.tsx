@@ -32,6 +32,8 @@ import CoreDataView from './views/schemas/CoreDataView';
 import ThemeOverridesView from './views/schemas/ThemeOverridesView';
 import { Plus } from 'lucide-react';
 import { TokenEditorDialog, ExtendedToken } from './components/TokenEditorDialog';
+import { useSchema } from './hooks/useSchema';
+import { TokenAnalysis } from './views/tokens/TokenAnalysis';
 
 // TypeScript declaration for import.meta.glob
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -41,7 +43,6 @@ import { DimensionsView } from './views/setup/DimensionsView';
 import { ClassificationView } from './views/setup/ClassificationView';
 import { NamingRulesView } from './views/setup/NamingRulesView';
 import { ValueTypesView } from './views/setup/ValueTypesView';
-import { TokenAnalysis } from './views/tokens/TokenAnalysis';
 
 function getDataSourceOptions() {
   return Object.keys(exampleDataFiles).map((filePath) => {
@@ -54,6 +55,7 @@ function getDataSourceOptions() {
 }
 
 const App = () => {
+  const { schema } = useSchema();
   const [dataSource, setDataSource] = useState<string>('../../data-model/examples/unthemed/example-minimal-data.json');
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
@@ -351,7 +353,7 @@ const App = () => {
                 } />
                 <Route path="/tokens/collections" element={<CollectionsView collections={collections} modes={modes} onUpdate={setCollections} />} />
                 <Route path="/tokens/algorithms" element={<AlgorithmsTab />} />
-                <Route path="/tokens/analysis" element={<TokenAnalysis />} />
+                <Route path="/tokens/analysis" element={schema ? <TokenAnalysis schema={schema} /> : null} />
                 <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />
                 <Route path="/schemas/core-data" element={<CoreDataView />} />
                 <Route path="/schemas/theme-overrides" element={<ThemeOverridesView />} />

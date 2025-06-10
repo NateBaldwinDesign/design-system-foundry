@@ -11,7 +11,6 @@ import type {
   Taxonomy, 
   Theme, 
   ResolvedValueType, 
-  FallbackStrategy,
   MigrationStrategy,
   DimensionEvolution,
   TokenGroup,
@@ -22,10 +21,10 @@ import type {
 } from '@token-model/data-model';
 
 export interface Schema {
-  version: string; // Must match semantic versioning pattern
+  version: string;
   description?: string;
   systemName: string;
-  systemId: string; // Must match pattern ^[a-zA-Z0-9-_]+$
+  systemId: string;
   tokenCollections: TokenCollection[];
   dimensions: Dimension[];
   platforms: Platform[];
@@ -69,7 +68,7 @@ export interface Schema {
     date: string;
     migrationStrategy?: MigrationStrategy;
   }>;
-  dimensionOrder?: string[]; // Optional array of dimension IDs
+  dimensionOrder?: string[];
   dimensionEvolution?: DimensionEvolution;
   exportConfigurations?: {
     [platformId: string]: {
@@ -93,6 +92,7 @@ export const useSchema = () => {
   const { getItem, setItem } = useStorage();
   const toast = useToast();
   const [schema, setSchema] = useState<Schema | null>(() => {
+    // Try to load from local storage first
     const stored = getItem('schema');
     if (stored) {
       try {
@@ -128,6 +128,69 @@ export const useSchema = () => {
         return null;
       }
     }
+
+    // If no schema in storage, try to load from StorageService
+    try {
+      const tokenCollections = StorageService.getCollections();
+      const tokens = StorageService.getTokens();
+      const dimensions = StorageService.getDimensions();
+      const platforms = StorageService.getPlatforms();
+      const themes = StorageService.getThemes();
+      const taxonomies = StorageService.getTaxonomies();
+      const resolvedValueTypes = StorageService.getValueTypes();
+      const namingRules = StorageService.getNamingRules();
+      const dimensionOrder = StorageService.getDimensionOrder();
+
+      // Only create schema if we have some data
+      if (tokenCollections.length > 0 || tokens.length > 0) {
+        const schemaFromStorage = {
+          version: '1.0.0',
+          systemName: 'Design System',
+          systemId: 'design-system',
+          description: 'A comprehensive design system with tokens, dimensions, and themes',
+          tokenCollections,
+          tokens,
+          dimensions,
+          platforms,
+          themes,
+          taxonomies,
+          resolvedValueTypes,
+          namingRules,
+          dimensionOrder,
+          versionHistory: [{
+            version: '1.0.0',
+            dimensions: dimensions.map(d => d.id),
+            date: new Date().toISOString().slice(0, 10)
+          }]
+        };
+
+        // Validate schema before setting
+        const validationResult = ValidationService.validateData(schemaFromStorage);
+        if (validationResult.isValid) {
+          return schemaFromStorage;
+        } else {
+          console.error('Invalid schema from storage:', validationResult.errors);
+          toast({
+            title: 'Schema Error',
+            description: 'Invalid schema found in storage',
+            status: 'error',
+            duration: 5000,
+            isClosable: true,
+          });
+          return null;
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load schema from storage:', err);
+      toast({
+        title: 'Schema Error',
+        description: 'Failed to load schema from storage',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+
     return null; // We'll load the default data asynchronously
   });
 
@@ -135,7 +198,7 @@ export const useSchema = () => {
     const loadDefaultSchema = async () => {
       if (!schema) {
         try {
-          const coreDataModule = await exampleData.core();
+          const coreDataModule = await exampleData.minimal();
           const coreData = coreDataModule.default;
           
           // Process the data to ensure proper typing
@@ -145,13 +208,7 @@ export const useSchema = () => {
             taxonomies: coreData.taxonomies || [],
             // Preserve the naming rules from the source data
             namingRules: coreData.namingRules,
-            tokenCollections: coreData.tokenCollections.map(collection => ({
-              ...collection,
-              modeResolutionStrategy: collection.modeResolutionStrategy ? {
-                ...collection.modeResolutionStrategy,
-                fallbackStrategy: collection.modeResolutionStrategy.fallbackStrategy as FallbackStrategy
-              } : undefined
-            })),
+            tokenCollections: coreData.tokenCollections,
             platforms: coreData.platforms.map(platform => ({
               ...platform,
               syntaxPatterns: platform.syntaxPatterns ? {

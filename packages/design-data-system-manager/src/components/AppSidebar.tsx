@@ -200,15 +200,19 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         </Box>
 
         {/* Collapse Toggle Button */}
-        <Box p={2} borderBottom="1px" borderColor={borderColor}>
-          <IconButton
+        <Box px={4} py={2} borderBottom="1px" borderColor={borderColor}>
+          <Button
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            icon={isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            variant="ghost"
             size="sm"
+            leftIcon={isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
             onClick={() => setIsCollapsed(!isCollapsed)}
+            variant="ghost"
             w="full"
-          />
+            gap={1}
+            justifyContent="flex-start"
+          >
+            Collapse
+          </Button>
         </Box>
         {/* Navigation Items */}
         <VStack spacing={1} align="stretch" p={4} flex={1}>
