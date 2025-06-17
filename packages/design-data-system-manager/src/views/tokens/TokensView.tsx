@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Box, Text, HStack, Flex, FormControl, FormLabel, Select, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button } from '@chakra-ui/react';
-import { Edit, Trash2 } from 'lucide-react';
+import { Box, Text, HStack, Flex, FormControl, FormLabel, Select, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Heading, Divider } from '@chakra-ui/react';
+import { Edit, Trash2, Columns, Filter } from 'lucide-react';
 import type { TokenCollection, ResolvedValueType, Taxonomy } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
 import TokenTag from '../../components/TokenTag';
@@ -27,18 +27,34 @@ export function TokensView({
   onDeleteToken 
 }: TokensViewProps) {
   // Filter state
-  const [collectionFilter, setCollectionFilter] = useState<string>('');
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [tokenTierFilter, setTokenTierFilter] = useState<string>('');
+  const [tokenTierFilters, setTokenTierFilters] = useState<string[]>([]);
+  const [collectionFilters, setCollectionFilters] = useState<string[]>([]);
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [privateFilters, setPrivateFilters] = useState<boolean[]>([]);
+  const [themeableFilters, setThemeableFilters] = useState<boolean[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState({
+    tokenTier: false,
+    propertyTypes: false,
+    codeSyntax: false,
+    taxonomies: true,
+    private: true,
+    themeable: true,
+    status: true,
+    collection: true
+  });
 
   // Handler for clearing all filters
   const handleClearFilters = () => {
-    setCollectionFilter('');
-    setTypeFilter('');
-    setStatusFilter('');
-    setTokenTierFilter('');
+    setTokenTierFilters([]);
+    setCollectionFilters([]);
+    setTypeFilters([]);
+    setStatusFilters([]);
+    setPrivateFilters([]);
+    setThemeableFilters([]);
     setSearchTerm('');
   };
 
@@ -50,12 +66,14 @@ export function TokensView({
     const matchesSearch = token.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       token.description?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesCollection = !collectionFilter || token.tokenCollectionId === collectionFilter;
-    const matchesType = !typeFilter || token.resolvedValueTypeId === typeFilter;
-    const matchesStatus = !statusFilter || token.status === statusFilter;
-    const matchesTokenTier = !tokenTierFilter || token.tokenTier === tokenTierFilter;
+    const matchesTokenTier = tokenTierFilters.length === 0 || tokenTierFilters.includes(token.tokenTier);
+    const matchesCollection = collectionFilters.length === 0 || collectionFilters.includes(token.tokenCollectionId);
+    const matchesType = typeFilters.length === 0 || typeFilters.includes(token.resolvedValueTypeId);
+    const matchesStatus = statusFilters.length === 0 || statusFilters.includes(token.status || 'experimental');
+    const matchesPrivate = privateFilters.length === 0 || privateFilters.includes(token.private);
+    const matchesThemeable = themeableFilters.length === 0 || themeableFilters.includes(token.themeable);
 
-    return matchesSearch && matchesCollection && matchesType && matchesStatus && matchesTokenTier;
+    return matchesSearch && matchesTokenTier && matchesCollection && matchesType && matchesStatus && matchesPrivate && matchesThemeable;
   });
 
   // Get display name for a value type
@@ -218,6 +236,14 @@ export function TokensView({
     if (onDeleteToken) onDeleteToken(tokenId);
   };
 
+  // Handler for toggling column visibility
+  const handleColumnToggle = (column: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => ({
+      ...prev,
+      [column]: !prev[column]
+    }));
+  };
+
   return (
     <Box>
       <Flex justify="space-between" align="center" mb={4}>
@@ -231,57 +257,273 @@ export function TokensView({
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
           maxW="320px"
         />
-      </Flex>
-      {/* Filter Controls */}
-      <HStack spacing={4} wrap="nowrap" align="flex-start" mb={4}>
-        <FormControl maxW="240px" flex="none">
-          <FormLabel>Token Tier</FormLabel>
-          <Select size="sm" value={tokenTierFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTokenTierFilter(e.target.value)}>
-            <option key="tier-all" value="">All</option>
-            <option key="tier-primitive" value="PRIMITIVE">Primitive</option>
-            <option key="tier-semantic" value="SEMANTIC">Semantic</option>
-            <option key="tier-component" value="COMPONENT">Component</option>
-          </Select>
-        </FormControl>
-        <FormControl maxW="240px" flex="none">
-          <FormLabel>Collection</FormLabel>
-          <Select size="sm" value={collectionFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setCollectionFilter(e.target.value)}>
-            <option key="collection-all" value="">All</option>
-            {collections.map(c => (
-              <option key={`collection-${c.id}`} value={c.id}>{c.name}</option>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl maxW="240px" flex="none">
-          <FormLabel>Type</FormLabel>
-          <Select size="sm" value={typeFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTypeFilter(e.target.value)}>
-            <option key="type-all" value="">All</option>
-            {resolvedValueTypes.map(typeObj => (
-              <option key={`type-${typeObj.id}`} value={typeObj.id}>{typeObj.displayName}</option>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl maxW="240px" flex="none">
-          <FormLabel>Status</FormLabel>
-          <Select size="sm" value={statusFilter} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}>
-            <option key="status-all" value="">All</option>
-            {statusOptions.map(status => (
-              <option key={`status-${status}`} value={status}>{status}</option>
-            ))}
-          </Select>
-        </FormControl>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={handleClearFilters}
-          alignSelf="flex-end"
-          mb={1}
-        >
-          Clear filters
-        </Button>
-      </HStack>
+        <HStack spacing={2}>
+          <Popover placement="bottom-end">
+            <PopoverTrigger>
+              <Button leftIcon={<Filter size={16} />} size="sm" variant="outline">
+                Filters
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent width="300px">
+              <PopoverBody>
+                <VStack align="start" spacing={4}>
+                  {/* Token Tier Filters */}
+                  <Box width="100%">
+                    <Heading size="sm" mb={2}>Token Tier</Heading>
+                    <VStack align="start" spacing={2}>
+                      <Checkbox
+                        isChecked={tokenTierFilters.includes('PRIMITIVE')}
+                        onChange={(e) => {
+                          setTokenTierFilters(prev => 
+                            e.target.checked 
+                              ? [...prev, 'PRIMITIVE']
+                              : prev.filter(t => t !== 'PRIMITIVE')
+                          );
+                        }}
+                      >
+                        Primitive
+                      </Checkbox>
+                      <Checkbox
+                        isChecked={tokenTierFilters.includes('SEMANTIC')}
+                        onChange={(e) => {
+                          setTokenTierFilters(prev => 
+                            e.target.checked 
+                              ? [...prev, 'SEMANTIC']
+                              : prev.filter(t => t !== 'SEMANTIC')
+                          );
+                        }}
+                      >
+                        Semantic
+                      </Checkbox>
+                      <Checkbox
+                        isChecked={tokenTierFilters.includes('COMPONENT')}
+                        onChange={(e) => {
+                          setTokenTierFilters(prev => 
+                            e.target.checked 
+                              ? [...prev, 'COMPONENT']
+                              : prev.filter(t => t !== 'COMPONENT')
+                          );
+                        }}
+                      >
+                        Component
+                      </Checkbox>
+                    </VStack>
+                  </Box>
 
-      
+                  <Divider />
+
+                  {/* Collection Filters */}
+                  <Box width="100%">
+                    <Heading size="sm" mb={2}>Collection</Heading>
+                    <VStack align="start" spacing={2}>
+                      {collections.map(c => (
+                        <Checkbox
+                          key={c.id}
+                          isChecked={collectionFilters.includes(c.id)}
+                          onChange={(e) => {
+                            setCollectionFilters(prev => 
+                              e.target.checked 
+                                ? [...prev, c.id]
+                                : prev.filter(id => id !== c.id)
+                            );
+                          }}
+                        >
+                          {c.name}
+                        </Checkbox>
+                      ))}
+                    </VStack>
+                  </Box>
+
+                  <Divider />
+
+                  {/* Type Filters */}
+                  <Box width="100%">
+                    <Heading size="sm" mb={2}>Type</Heading>
+                    <VStack align="start" spacing={2}>
+                      {resolvedValueTypes.map(type => (
+                        <Checkbox
+                          key={type.id}
+                          isChecked={typeFilters.includes(type.id)}
+                          onChange={(e) => {
+                            setTypeFilters(prev => 
+                              e.target.checked 
+                                ? [...prev, type.id]
+                                : prev.filter(id => id !== type.id)
+                            );
+                          }}
+                        >
+                          {type.displayName}
+                        </Checkbox>
+                      ))}
+                    </VStack>
+                  </Box>
+
+                  <Divider />
+
+                  {/* Status Filters */}
+                  <Box width="100%">
+                    <Heading size="sm" mb={2}>Status</Heading>
+                    <VStack align="start" spacing={2}>
+                      {statusOptions.map(status => (
+                        <Checkbox
+                          key={status}
+                          isChecked={statusFilters.includes(status)}
+                          onChange={(e) => {
+                            setStatusFilters(prev => 
+                              e.target.checked 
+                                ? [...prev, status]
+                                : prev.filter(s => s !== status)
+                            );
+                          }}
+                        >
+                          {status}
+                        </Checkbox>
+                      ))}
+                    </VStack>
+                  </Box>
+
+                  <Divider />
+
+                  {/* Private Filter */}
+                  <Box width="100%">
+                    <Heading size="sm" mb={2}>Private</Heading>
+                    <VStack align="start" spacing={2}>
+                      <Checkbox
+                        isChecked={privateFilters.includes(true)}
+                        onChange={(e) => {
+                          setPrivateFilters(prev => 
+                            e.target.checked 
+                              ? [...prev, true]
+                              : prev.filter(v => v !== true)
+                          );
+                        }}
+                      >
+                        Yes
+                      </Checkbox>
+                      <Checkbox
+                        isChecked={privateFilters.includes(false)}
+                        onChange={(e) => {
+                          setPrivateFilters(prev => 
+                            e.target.checked 
+                              ? [...prev, false]
+                              : prev.filter(v => v !== false)
+                          );
+                        }}
+                      >
+                        No
+                      </Checkbox>
+                    </VStack>
+                  </Box>
+
+                  <Divider />
+
+                  {/* Themeable Filter */}
+                  <Box width="100%">
+                    <Heading size="sm" mb={2}>Themeable</Heading>
+                    <VStack align="start" spacing={2}>
+                      <Checkbox
+                        isChecked={themeableFilters.includes(true)}
+                        onChange={(e) => {
+                          setThemeableFilters(prev => 
+                            e.target.checked 
+                              ? [...prev, true]
+                              : prev.filter(v => v !== true)
+                          );
+                        }}
+                      >
+                        Yes
+                      </Checkbox>
+                      <Checkbox
+                        isChecked={themeableFilters.includes(false)}
+                        onChange={(e) => {
+                          setThemeableFilters(prev => 
+                            e.target.checked 
+                              ? [...prev, false]
+                              : prev.filter(v => v !== false)
+                          );
+                        }}
+                      >
+                        No
+                      </Checkbox>
+                    </VStack>
+                  </Box>
+
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleClearFilters}
+                    width="100%"
+                  >
+                    Clear filters
+                  </Button>
+                </VStack>
+              </PopoverBody>
+            </PopoverContent>
+          </Popover>
+
+          <Popover placement="bottom-end">
+            <PopoverTrigger>
+              <Button leftIcon={<Columns size={16} />} size="sm" variant="outline">
+                Columns
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent width="200px">
+              <PopoverBody>
+                <VStack align="start" spacing={2}>
+                  <Checkbox
+                    isChecked={visibleColumns.collection}
+                    onChange={() => handleColumnToggle('collection')}
+                  >
+                    Collection
+                  </Checkbox>
+                  <Checkbox
+                    isChecked={visibleColumns.status}
+                    onChange={() => handleColumnToggle('status')}
+                  >
+                    Status
+                  </Checkbox>
+                  <Checkbox
+                    isChecked={visibleColumns.themeable}
+                    onChange={() => handleColumnToggle('themeable')}
+                  >
+                    Themeable
+                  </Checkbox>
+                  <Checkbox
+                    isChecked={visibleColumns.private}
+                    onChange={() => handleColumnToggle('private')}
+                  >
+                    Private
+                  </Checkbox>
+                  <Checkbox
+                    isChecked={visibleColumns.taxonomies}
+                    onChange={() => handleColumnToggle('taxonomies')}
+                  >
+                    Taxonomies
+                  </Checkbox>
+                  <Checkbox
+                    isChecked={visibleColumns.tokenTier}
+                    onChange={() => handleColumnToggle('tokenTier')}
+                  >
+                    Token Tier
+                  </Checkbox>
+                  <Checkbox
+                    isChecked={visibleColumns.propertyTypes}
+                    onChange={() => handleColumnToggle('propertyTypes')}
+                  >
+                    Property Types
+                  </Checkbox>
+                  <Checkbox
+                    isChecked={visibleColumns.codeSyntax}
+                    onChange={() => handleColumnToggle('codeSyntax')}
+                  >
+                    Code Syntax
+                  </Checkbox>
+                </VStack>
+              </PopoverBody>
+            </PopoverContent>
+          </Popover>
+        </HStack>
+      </Flex>
 
       {/* Token Table */}
       <Table variant="simple">
@@ -289,12 +531,15 @@ export function TokensView({
           <Tr>
             <Th>Type</Th>
             <Th>Name</Th>
-            <Th>Collection</Th>
+            {visibleColumns.collection && <Th>Collection</Th>}
             <Th>Value</Th>
-            <Th>Status</Th>
-            <Th>Themeable</Th>
-            <Th>Private</Th>
-            <Th>Taxonomies</Th>
+            {visibleColumns.status && <Th>Status</Th>}
+            {visibleColumns.themeable && <Th>Themeable</Th>}
+            {visibleColumns.private && <Th>Private</Th>}
+            {visibleColumns.taxonomies && <Th>Taxonomies</Th>}
+            {visibleColumns.tokenTier && <Th>Token Tier</Th>}
+            {visibleColumns.propertyTypes && <Th>Property Types</Th>}
+            {visibleColumns.codeSyntax && <Th>Code Syntax</Th>}
             <Th>Actions</Th>
           </Tr>
         </Thead>
@@ -314,26 +559,57 @@ export function TokensView({
                   </Text>
                 )}
               </Td>
-              <Td>{collections.find(c => c.id === token.tokenCollectionId)?.name || token.tokenCollectionId}</Td>
+              {visibleColumns.collection && (
+                <Td>{collections.find(c => c.id === token.tokenCollectionId)?.name || token.tokenCollectionId}</Td>
+              )}
               <Td>{getValueDisplay(token)}</Td>
-              <Td>
-                <Badge
-                  colorScheme={
-                    token.status === 'stable' ? 'green' :
-                    token.status === 'deprecated' ? 'red' :
-                    'yellow'
-                  }
-                >
-                  {token.status || 'experimental'}
-                </Badge>
-              </Td>
-              <Td>{token.themeable ? 'Yes' : 'No'}</Td>
-              <Td>{token.private ? 'Yes' : 'No'}</Td>
-              <Td>
-                {getTaxonomyNames(token).split('\n').map((line, idx) => (
-                  <Text key={idx} fontSize="sm">{line}</Text>
-                ))}
-              </Td>
+              {visibleColumns.status && (
+                <Td>
+                  <Badge
+                    colorScheme={
+                      token.status === 'stable' ? 'green' :
+                      token.status === 'deprecated' ? 'red' :
+                      'yellow'
+                    }
+                  >
+                    {token.status || 'experimental'}
+                  </Badge>
+                </Td>
+              )}
+              {visibleColumns.themeable && (
+                <Td>{token.themeable ? 'Yes' : 'No'}</Td>
+              )}
+              {visibleColumns.private && (
+                <Td>{token.private ? 'Yes' : 'No'}</Td>
+              )}
+              {visibleColumns.taxonomies && (
+                <Td>
+                  {getTaxonomyNames(token).split('\n').map((line, idx) => (
+                    <Text key={idx} fontSize="sm">{line}</Text>
+                  ))}
+                </Td>
+              )}
+              {visibleColumns.tokenTier && (
+                <Td>
+                  <Badge colorScheme="blue">{token.tokenTier}</Badge>
+                </Td>
+              )}
+              {visibleColumns.propertyTypes && (
+                <Td>
+                  {token.propertyTypes?.map((type, idx) => (
+                    <Badge key={idx} mr={1} mb={1} colorScheme="purple">{type}</Badge>
+                  ))}
+                </Td>
+              )}
+              {visibleColumns.codeSyntax && (
+                <Td>
+                  {token.codeSyntax?.map((syntax, idx) => (
+                    <Text key={idx} fontSize="sm">
+                      {syntax.platformId}: {syntax.formattedName}
+                    </Text>
+                  ))}
+                </Td>
+              )}
               <Td>
                 <HStack spacing={2}>
                   {onEditToken && (
@@ -345,16 +621,6 @@ export function TokensView({
                       onClick={() => handleEditToken(token)}
                     />
                   )}
-                  {/* {onDeleteToken && (
-                    <IconButton
-                      aria-label="Delete token"
-                      icon={<Trash2 size={16} />}
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="red"
-                      onClick={() => handleDeleteToken(token.id)}
-                    />
-                  )} */}
                 </HStack>
               </Td>
             </Tr>
