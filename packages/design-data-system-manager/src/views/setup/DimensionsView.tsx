@@ -273,7 +273,7 @@ export function DimensionsView({
                                   {dim.resolvedValueTypeIds.map((typeId: string) => {
                                     const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
                                     return type ? (
-                                      <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
+                                      <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">
                                         <TagLabel>{type.displayName}</TagLabel>
                                       </Tag>
                                     ) : null;

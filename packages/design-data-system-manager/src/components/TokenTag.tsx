@@ -8,6 +8,7 @@ interface TokenTagProps {
     resolvedValueTypeId: string;
     resolvedValueTypes: ResolvedValueType[];
     value: string | number;
+    isPill?: boolean;
     onClick?: () => void;
 }
 

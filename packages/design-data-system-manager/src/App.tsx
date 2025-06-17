@@ -233,11 +233,21 @@ const App = () => {
   };
 
   const handleAddToken = () => {
+    if (!collections.length) {
+      toast({
+        title: "No collections available",
+        description: "Please create a collection first before adding tokens.",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
     setSelectedToken({
       id: '',
       displayName: '',
       description: '',
-      tokenCollectionId: collections[0]?.id || '',
+      tokenCollectionId: collections[0].id,
       resolvedValueTypeId: 'color',
       propertyTypes: [],
       private: false,
@@ -245,7 +255,6 @@ const App = () => {
       status: 'experimental',
       taxonomies: [],
       codeSyntax: [],
-      constraints: [],
       valuesByMode: []
     });
     setIsEditorOpen(true);
@@ -347,11 +356,13 @@ const App = () => {
                         isNew={!selectedToken.id}
                         onViewClassifications={() => {}}
                         onDeleteToken={handleDeleteToken}
+                        collections={collections}
+                        schema={schema}
                       />
                     )}
                   </>
                 } />
-                <Route path="/tokens/collections" element={<CollectionsView collections={collections} modes={modes} onUpdate={setCollections} />} />
+                <Route path="/tokens/collections" element={<CollectionsView collections={collections} modes={modes} onUpdate={setCollections} tokens={tokens} resolvedValueTypes={resolvedValueTypes} />} />
                 <Route path="/tokens/algorithms" element={<AlgorithmsTab />} />
                 <Route path="/tokens/analysis" element={schema ? <TokenAnalysis schema={schema} /> : null} />
                 <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />

@@ -34,7 +34,7 @@ export interface Schema {
     id: string;
     displayName: string;
     description?: string;
-    tokenCollectionId: string;
+    tokenCollectionId?: string;
     resolvedValueTypeId: string;
     private: boolean;
     themeable: boolean;
@@ -201,15 +201,41 @@ export const useSchema = () => {
           const coreDataModule = await exampleData.minimal();
           const coreData = coreDataModule.default;
           
+          // Debug log the raw data
+          console.debug('[useSchema] Raw core data:', {
+            version: coreData.version,
+            systemName: coreData.systemName,
+            systemId: coreData.systemId,
+            hasTokenCollections: !!coreData.tokenCollections,
+            tokenCollectionsCount: coreData.tokenCollections?.length,
+            hasTokens: !!coreData.tokens,
+            tokensCount: coreData.tokens?.length,
+            hasDimensions: !!coreData.dimensions,
+            dimensionsCount: coreData.dimensions?.length,
+            hasPlatforms: !!coreData.platforms,
+            platformsCount: coreData.platforms?.length,
+            hasTaxonomies: !!coreData.taxonomies,
+            taxonomiesCount: coreData.taxonomies?.length,
+            hasThemes: !!coreData.themes,
+            themesCount: coreData.themes?.length,
+            hasResolvedValueTypes: !!coreData.resolvedValueTypes,
+            resolvedValueTypesCount: coreData.resolvedValueTypes?.length,
+            hasNamingRules: !!coreData.namingRules,
+            hasVersionHistory: !!coreData.versionHistory,
+            versionHistoryCount: coreData.versionHistory?.length
+          });
+          
           // Process the data to ensure proper typing
           const processedData = {
             ...coreData,
-            // Ensure taxonomies are loaded first
+            // Ensure required fields are present
+            version: coreData.version || '1.0.0',
+            systemName: coreData.systemName || 'Design System',
+            systemId: coreData.systemId || 'design-system',
+            // Ensure arrays are initialized
             taxonomies: coreData.taxonomies || [],
-            // Preserve the naming rules from the source data
-            namingRules: coreData.namingRules,
-            tokenCollections: coreData.tokenCollections,
-            platforms: coreData.platforms.map(platform => ({
+            tokenCollections: coreData.tokenCollections || [],
+            platforms: (coreData.platforms || []).map(platform => ({
               ...platform,
               syntaxPatterns: platform.syntaxPatterns ? {
                 ...platform.syntaxPatterns,
@@ -217,12 +243,12 @@ export const useSchema = () => {
                 capitalization: platform.syntaxPatterns.capitalization as 'none' | 'uppercase' | 'lowercase' | 'capitalize'
               } : undefined
             })),
-            resolvedValueTypes: coreData.resolvedValueTypes.map(type => ({
+            resolvedValueTypes: (coreData.resolvedValueTypes || []).map(type => ({
               ...type,
               type: type.type as 'COLOR' | 'DIMENSION' | 'SPACING' | 'FONT_FAMILY' | 'FONT_WEIGHT' | 'FONT_SIZE' | 'LINE_HEIGHT' | 'LETTER_SPACING' | 'DURATION' | 'CUBIC_BEZIER' | 'BLUR' | 'SPREAD' | 'RADIUS' | undefined
             })),
             // Ensure tokens are properly typed
-            tokens: coreData.tokens.map(token => ({
+            tokens: (coreData.tokens || []).map(token => ({
               ...token,
               status: token.status as TokenStatus | undefined,
               tokenTier: token.tokenTier as TokenTier,
@@ -230,13 +256,55 @@ export const useSchema = () => {
                 ...mode,
                 value: mode.value as TokenValue
               }))
-            }))
+            })),
+            // Ensure naming rules are present
+            namingRules: coreData.namingRules || { taxonomyOrder: [] },
+            // Ensure version history is present
+            versionHistory: coreData.versionHistory || [{
+              version: coreData.version || '1.0.0',
+              dimensions: (coreData.dimensions || []).map(d => d.id),
+              date: new Date().toISOString().slice(0, 10)
+            }]
           };
           
-          // Debug log the processed data
-          console.debug('[useSchema] Processed data:', {
-            taxonomies: processedData.taxonomies,
-            namingRules: processedData.namingRules
+          // Debug log the processed data structure
+          console.debug('[useSchema] Processed data structure:', {
+            version: processedData.version,
+            systemName: processedData.systemName,
+            systemId: processedData.systemId,
+            tokenCollections: {
+              count: processedData.tokenCollections.length,
+              sample: processedData.tokenCollections[0]
+            },
+            tokens: {
+              count: processedData.tokens.length,
+              sample: processedData.tokens[0]
+            },
+            dimensions: {
+              count: processedData.dimensions.length,
+              sample: processedData.dimensions[0]
+            },
+            platforms: {
+              count: processedData.platforms.length,
+              sample: processedData.platforms[0]
+            },
+            taxonomies: {
+              count: processedData.taxonomies.length,
+              sample: processedData.taxonomies[0]
+            },
+            themes: {
+              count: processedData.themes.length,
+              sample: processedData.themes[0]
+            },
+            resolvedValueTypes: {
+              count: processedData.resolvedValueTypes.length,
+              sample: processedData.resolvedValueTypes[0]
+            },
+            namingRules: processedData.namingRules,
+            versionHistory: {
+              count: processedData.versionHistory.length,
+              sample: processedData.versionHistory[0]
+            }
           });
           
           // Validate processed data before setting
@@ -247,6 +315,22 @@ export const useSchema = () => {
             // Then store the complete schema
             setSchema(processedData);
           } else {
+            // Enhanced error reporting
+            console.error('[useSchema] Schema validation failed:', {
+              errors: validationResult.errors,
+              dataSummary: {
+                version: processedData.version,
+                systemName: processedData.systemName,
+                systemId: processedData.systemId,
+                tokenCollectionsCount: processedData.tokenCollections.length,
+                tokensCount: processedData.tokens.length,
+                dimensionsCount: processedData.dimensions.length,
+                platformsCount: processedData.platforms.length,
+                taxonomiesCount: processedData.taxonomies.length,
+                themesCount: processedData.themes.length,
+                resolvedValueTypesCount: processedData.resolvedValueTypes.length
+              }
+            });
             throw new Error(`Invalid schema structure in default data: ${validationResult.errors?.join(', ')}`);
           }
         } catch (err) {

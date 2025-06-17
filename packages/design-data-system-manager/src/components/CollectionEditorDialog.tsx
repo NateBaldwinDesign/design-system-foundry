@@ -16,7 +16,7 @@ import {
   VStack,
   useToast
 } from '@chakra-ui/react';
-import type { TokenCollection } from '@token-model/data-model';
+import type { TokenCollection, ResolvedValueType } from '@token-model/data-model';
 import { ResolvedValueTypePicker } from './ResolvedValueTypePicker';
 
 export interface CollectionEditorDialogProps {
@@ -25,6 +25,7 @@ export interface CollectionEditorDialogProps {
   onSave: (collection: TokenCollection) => void;
   collection?: TokenCollection | null;
   isNew?: boolean;
+  resolvedValueTypes: ResolvedValueType[];
 }
 
 // Local form state type for the dialog
@@ -40,7 +41,7 @@ interface ExtendedTokenCollection extends TokenCollection {
   resolvedValueTypeIds: string[];
 }
 
-export function CollectionEditorDialog({ open, onClose, onSave, collection, isNew = false }: CollectionEditorDialogProps) {
+export function CollectionEditorDialog({ open, onClose, onSave, collection, isNew = false, resolvedValueTypes }: CollectionEditorDialogProps) {
   const [editedCollection, setEditedCollection] = useState<CollectionEditorFormState>({
     name: '',
     description: '',

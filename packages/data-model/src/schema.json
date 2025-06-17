@@ -338,7 +338,7 @@
         "description": "Design tokens with values that can vary by mode",
         "items": {
           "type": "object",
-          "required": ["id", "displayName", "tokenCollectionId", "resolvedValueTypeId", "valuesByMode", "tokenTier"],
+          "required": ["id", "displayName", "resolvedValueTypeId", "valuesByMode", "tokenTier"],
           "properties": {
             "tokenTier": {
               "type": "string",
@@ -365,8 +365,9 @@
             },
             "tokenCollectionId": {
               "type": "string",
-              "description": "Reference to the parent token collection",
-              "pattern": "^[a-zA-Z0-9-_]+$"
+              "description": "ID of the collection this token belongs to",
+              "pattern": "^[a-zA-Z0-9-_]+$",
+              "nullable": true
             },
             "resolvedValueTypeId": {
               "type": "string",
