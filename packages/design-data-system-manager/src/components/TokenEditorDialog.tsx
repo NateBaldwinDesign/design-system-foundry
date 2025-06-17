@@ -63,13 +63,13 @@ import {
 import { ValueByModeTable } from './ValueByModeTable';
 import { TokenValuePicker } from './TokenValuePicker';
 import { TaxonomyPicker } from './TaxonomyPicker';
-import { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef, ResolvedValueType, TokenValue, validateToken } from '@token-model/data-model';
+import { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef, ResolvedValueType, TokenValue, validateToken, TokenCollection } from '@token-model/data-model';
 import { createUniqueId } from '../utils/id';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
 import { getDefaultValueForType, getValueTypeFromId } from '../utils/valueTypeUtils';
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
-import type { Schema } from '../hooks/useSchema';
+import type { Schema as SchemaType } from '../hooks/useSchema';
 
 // ExtendedToken type to include platformOverrides
 export interface ValueByMode {
@@ -82,12 +82,17 @@ export interface ValueByMode {
   metadata?: Record<string, unknown>;
 }
 
+// Update ExtendedToken type to include tokenTier
 export type ExtendedToken = Omit<Token, 'valuesByMode'> & {
   valuesByMode: ValueByMode[];
+  tokenTier?: 'PRIMITIVE' | 'SEMANTIC' | 'COMPONENT';
 };
 
 // Helper function to get a default token value based on schema
-function getDefaultTokenValue(resolvedValueTypeId: string, schema: { resolvedValueTypes: ResolvedValueType[] }): TokenValue {
+function getDefaultTokenValue(resolvedValueTypeId: string, schema: { resolvedValueTypes: ResolvedValueType[] } | null): TokenValue {
+  if (!schema) {
+    return { value: '' };
+  }
   const defaultValue = getDefaultValueForType(resolvedValueTypeId, schema.resolvedValueTypes);
   return { value: defaultValue };
 }
@@ -113,8 +118,9 @@ export interface TokenEditorDialogProps {
   resolvedValueTypes: ResolvedValueType[];
   isNew?: boolean;
   onViewClassifications?: () => void;
-  schema: Schema | null;
+  schema: SchemaType | null;
   onDeleteToken: (tokenId: string) => void;
+  collections: TokenCollection[];
 }
 
 // Helper function to filter taxonomies by value type
@@ -218,6 +224,73 @@ type PreservedValue = {
 // Add type for the preserved values ref
 type PreservedValuesRef = Record<string, Record<string, PreservedValue>>;
 
+// Add validation functions since they're not exported from data-model
+function validateTokenCollectionCompatibility(
+  token: Token,
+  collections: TokenCollection[],
+  resolvedValueTypes: ResolvedValueType[]
+): string[] {
+  const errors: string[] = [];
+  if (!token.tokenCollectionId) return errors;
+  const collection = (collections ?? []).find(c => c.id === token.tokenCollectionId);
+  if (!collection) {
+    errors.push(`Token '${token.displayName}' references non-existent collection id '${token.tokenCollectionId}'`);
+    return errors;
+  }
+  if (!collection.resolvedValueTypeIds.includes(token.resolvedValueTypeId)) {
+    errors.push(
+      `Token '${token.displayName}' has type '${resolvedValueTypes.find(t => t.id === token.resolvedValueTypeId)?.displayName || token.resolvedValueTypeId}' which is not supported by collection '${collection.name}'`
+    );
+  }
+  return errors;
+}
+
+function findCompatibleCollection(
+  token: Token,
+  collections: TokenCollection[]
+): TokenCollection | undefined {
+  return collections.find(c => c.resolvedValueTypeIds.includes(token.resolvedValueTypeId));
+}
+
+// Update schema types
+interface TokenGroup {
+  id: string;
+  name: string;
+  description?: string;
+  tokenCollectionId: string;
+  tokens: Token[];
+}
+
+interface TokenVariant {
+  id: string;
+  name: string;
+  description?: string;
+  tokenCollectionId: string;
+  tokens: Token[];
+}
+
+interface Theme {
+  id: string;
+  name: string;
+  description?: string;
+  overrides?: {
+    tokenOverrides?: Array<{
+      tokenId: string;
+      value: string;
+    }>;
+  };
+}
+
+// Update Schema type to include namingRules
+interface Schema extends SchemaType {
+  extensions?: {
+    tokenGroups?: TokenGroup[];
+    tokenVariants?: Record<string, TokenVariant>;
+  };
+  themes?: Theme[];
+  namingRules?: Record<string, unknown>;
+}
+
 export function TokenEditorDialog({ 
     token, 
     tokens, 
@@ -232,7 +305,8 @@ export function TokenEditorDialog({
     isNew = false, 
     onViewClassifications,
     schema,
-    onDeleteToken
+    onDeleteToken,
+    collections
   }: TokenEditorDialogProps) {
   console.debug('[TokenEditorDialog] Received resolvedValueTypes:', resolvedValueTypes);
 
@@ -589,10 +663,57 @@ export function TokenEditorDialog({
     );
   };
 
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [collectionErrors, setCollectionErrors] = useState<string[]>([]);
+
+  // Add effect to validate collection compatibility when tokenCollectionId or resolvedValueTypeId changes
+  useEffect(() => {
+    if (editedToken.tokenCollectionId) {
+      const errors = validateTokenCollectionCompatibility(editedToken, collections, resolvedValueTypes);
+      setCollectionErrors(errors);
+    } else {
+      setCollectionErrors([]);
+    }
+  }, [editedToken.tokenCollectionId, editedToken.resolvedValueTypeId, collections, resolvedValueTypes]);
+
+  // Add function to find compatible collections
+  const getCompatibleCollections = () => {
+    console.debug('[TokenEditorDialog] Collections:', collections);
+    console.debug('[TokenEditorDialog] Current resolvedValueTypeId:', editedToken.resolvedValueTypeId);
+    
+    if (!collections || !editedToken.resolvedValueTypeId) {
+      return [];
+    }
+
+    const compatibleCollections = collections.filter(c => {
+      const isCompatible = c.resolvedValueTypeIds.includes(editedToken.resolvedValueTypeId);
+      console.debug(`[TokenEditorDialog] Collection ${c.name} (${c.id}) compatible:`, isCompatible);
+      return isCompatible;
+    });
+
+    console.debug('[TokenEditorDialog] Compatible collections:', compatibleCollections);
+    return compatibleCollections;
+  };
+
   // Update handleSave to use schema validation
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setFormErrors({});
+
+    // Validate collection compatibility only if a collection is selected
+    if (editedToken.tokenCollectionId) {
+      const collectionErrors = validateTokenCollectionCompatibility(editedToken, collections, resolvedValueTypes);
+      if (collectionErrors.length > 0) {
+        setCollectionErrors(collectionErrors);
+        return;
+      }
+    }
+
+    // Ensure tokenTier is one of the allowed values
+    if (editedToken.tokenTier && !['PRIMITIVE', 'SEMANTIC', 'COMPONENT'].includes(editedToken.tokenTier)) {
+      editedToken.tokenTier = 'PRIMITIVE';
+    }
+
     // Compose schema for codeSyntax generation
     const codeSyntaxSchema = { 
       platforms, 
@@ -600,11 +721,19 @@ export function TokenEditorDialog({
       namingRules: schema?.namingRules || { taxonomyOrder: [] } 
     };
     
+    // Create the final token object, omitting tokenCollectionId if it's not set
+    const finalToken = editedToken.tokenCollectionId 
+      ? editedToken 
+      : (() => {
+          const { tokenCollectionId, ...rest } = editedToken;
+          return rest;
+        })();
+
     const updatedToken = {
-      ...editedToken,
+      ...finalToken,
       taxonomies: taxonomyEdits,
       codeSyntax: CodeSyntaxService.generateAllCodeSyntaxes(
-        editedToken,
+        finalToken,
         codeSyntaxSchema
       )
     };
@@ -675,7 +804,7 @@ export function TokenEditorDialog({
       themeOverrides: [] as string[]
     };
 
-    // Check for aliases in other tokens
+    // Check for references in other tokens
     tokens.forEach(t => {
       t.valuesByMode.forEach(vbm => {
         if ('tokenId' in vbm.value && vbm.value.tokenId === token.id) {
@@ -687,7 +816,7 @@ export function TokenEditorDialog({
     // Check for references in token groups
     if (schema?.extensions?.tokenGroups) {
       schema.extensions.tokenGroups.forEach(group => {
-        if (group.tokenIds.includes(token.id)) {
+        if (group.tokens.some(t => t.id === token.id)) {
           references.groups.push(group.id);
         }
       });
@@ -696,7 +825,7 @@ export function TokenEditorDialog({
     // Check for references in token variants
     if (schema?.extensions?.tokenVariants) {
       Object.entries(schema.extensions.tokenVariants).forEach(([variantId, variant]) => {
-        if (Object.values(variant).some(v => v.tokenId === token.id)) {
+        if (variant.tokens.some(t => t.id === token.id)) {
           references.variants.push(variantId);
         }
       });
@@ -790,11 +919,11 @@ export function TokenEditorDialog({
                     <FormControl isRequired>
                       <FormLabel>Token Tier</FormLabel>
                       <Select
-                        value={editedToken.tokenTier}
+                        value={editedToken.tokenTier || 'PRIMITIVE'}
                         onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                           setEditedToken((prev: ExtendedToken) => ({
                             ...prev,
-                            tokenTier: e.target.value
+                            tokenTier: e.target.value as 'PRIMITIVE' | 'SEMANTIC' | 'COMPONENT'
                           }));
                         }}
                       >
@@ -814,6 +943,46 @@ export function TokenEditorDialog({
                         <option value="stable">Stable</option>
                         <option value="deprecated">Deprecated</option>
                       </Select>
+                    </FormControl>
+                    {/* Update collection selection to be optional */}
+                    <FormControl>
+                      <FormLabel>Collection</FormLabel>
+                      <Select
+                        value={editedToken.tokenCollectionId || ''}
+                        onChange={e => {
+                          const newValue = e.target.value;
+                          setEditedToken(prev => {
+                            if (!newValue) {
+                              const { tokenCollectionId, ...rest } = prev;
+                              return rest as ExtendedToken;
+                            }
+                            return {
+                              ...prev,
+                              tokenCollectionId: newValue
+                            };
+                          });
+                        }}
+                      >
+                        <option value="">Select a collection</option>
+                        {getCompatibleCollections().map(collection => (
+                          <option key={collection.id} value={collection.id}>
+                            {collection.name}
+                          </option>
+                        ))}
+                      </Select>
+                      {collectionErrors.length > 0 && (
+                        <Alert status="error" mt={2}>
+                          <AlertIcon />
+                          <VStack align="start" spacing={1}>
+                            {collectionErrors.map((error, index) => (
+                              <Text key={index} fontSize="sm">{error}</Text>
+                            ))}
+                          </VStack>
+                        </Alert>
+                      )}
+                      <Text fontSize="sm" color="gray.500" mt={1}>
+                        If no collection is selected, a compatible collection will be automatically assigned.
+                      </Text>
                     </FormControl>
                     <VStack mt={2} spacing={3} align="stretch" flex={1}>
                       <Checkbox
@@ -1156,27 +1325,19 @@ export function TokenEditorDialog({
                   </Collapse>
                 </VStack>
               </Box>
+
+              
             </VStack>
           </ModalBody>
-          <ModalFooter justify="space-between" width="100%">
-            <Button 
-              variant="outline" 
-              mr={3} 
-              leftIcon={<Trash2 />} 
-              colorScheme="red"
-              onClick={handleDeleteClick}
-            >
-              Delete token
-            </Button>
-
-            <HStack justify="flex-end" width="100%">
+          <ModalFooter>
+            <Flex width="100%" justify="space-between">
               <Button variant="ghost" mr={3} onClick={onClose}>
                 Cancel
               </Button>
-              <Button colorScheme="blue" onClick={handleSave} disabled={hasError}>
-                {isNew ? 'Create token' : 'Save'}
+              <Button colorScheme="blue" onClick={handleSave}>
+                {isNew ? 'Create' : 'Save'}
               </Button>
-            </HStack>
+            </Flex>
           </ModalFooter>
         </ModalContent>
       </Modal>

@@ -3,7 +3,7 @@ import { validateTokenSystem, Token, TokenValue } from '@token-model/data-model'
 // Define types based on schema
 interface TokenSystem {
   resolvedValueTypes: Array<{ id: string; displayName: string; type?: string }>;
-  tokens: Token[];
+  tokens: Array<Token>;
   dimensions: Array<{
     id: string;
     displayName: string;
@@ -87,6 +87,22 @@ export class ValidationService {
               }
             }
             // Value validation is handled by the schema validation
+          }
+          // Validate tokenCollectionId if present
+          if (token.tokenCollectionId) {
+            const collection = tokenSystem.tokenCollections.find(c => c.id === token.tokenCollectionId);
+            if (!collection) {
+              return {
+                isValid: false,
+                errors: [`Token ${token.id} references non-existent collection ${token.tokenCollectionId}`]
+              };
+            }
+            if (!collection.resolvedValueTypeIds.includes(token.resolvedValueTypeId)) {
+              return {
+                isValid: false,
+                errors: [`Token ${token.id} has type ${token.resolvedValueTypeId} which is not supported by collection ${collection.id}`]
+              };
+            }
           }
         }
         // Validate dimensions

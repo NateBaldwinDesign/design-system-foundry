@@ -116,6 +116,38 @@ ajv.addKeyword({
   }
 });
 
+// Add custom validation for collection-type compatibility
+ajv.addKeyword({
+  keyword: 'validateCollectionType',
+  validate: function validateCollectionType(schema, data, parentSchema, dataPath, parentData, propertyName, rootData) {
+    if (!data.tokenCollectionId) return true; // Optional field
+    
+    const collection = rootData.tokenCollections.find(c => c.id === data.tokenCollectionId);
+    if (!collection) {
+      validateCollectionType.errors = [{
+        keyword: 'validateCollectionType',
+        message: `Token references non-existent collection: ${data.tokenCollectionId}`,
+        params: { tokenCollectionId: data.tokenCollectionId }
+      }];
+      return false;
+    }
+    
+    if (!collection.resolvedValueTypeIds.includes(data.resolvedValueTypeId)) {
+      validateCollectionType.errors = [{
+        keyword: 'validateCollectionType',
+        message: `Token type ${data.resolvedValueTypeId} is not supported by collection ${collection.id}`,
+        params: { 
+          tokenType: data.resolvedValueTypeId,
+          collectionId: collection.id
+        }
+      }];
+      return false;
+    }
+    
+    return true;
+  }
+});
+
 // Helper function to validate value against type
 function validateValueAgainstType(value, resolvedValueType) {
   // Add type-specific validation logic here

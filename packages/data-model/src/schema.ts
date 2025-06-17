@@ -201,7 +201,7 @@ export const Token = z.object({
   id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
   displayName: z.string(),
   description: z.string().optional(),
-  tokenCollectionId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  tokenCollectionId: z.string().regex(/^[a-zA-Z0-9-_]+$/).optional(),
   resolvedValueTypeId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
   private: z.boolean().default(false),
   themeable: z.boolean().default(false),
@@ -457,6 +457,38 @@ export function validateTokenTaxonomiesReferentialIntegrity(
     }
   }
   return errors;
+}
+
+// Add new validation function for collection-type compatibility
+export function validateTokenCollectionCompatibility(
+  token: Token,
+  collections: TokenCollection[]
+): string[] {
+  const errors: string[] = [];
+  
+  if (!token.tokenCollectionId) return errors;
+  
+  const collection = collections.find(c => c.id === token.tokenCollectionId);
+  if (!collection) {
+    errors.push(`Token '${token.id}' references non-existent collection '${token.tokenCollectionId}'`);
+    return errors;
+  }
+  
+  if (!collection.resolvedValueTypeIds.includes(token.resolvedValueTypeId)) {
+    errors.push(
+      `Token '${token.id}' has type '${token.resolvedValueTypeId}' which is not supported by collection '${collection.id}'`
+    );
+  }
+  
+  return errors;
+}
+
+// Add function to find compatible collection
+export function findCompatibleCollection(
+  token: Token,
+  collections: TokenCollection[]
+): TokenCollection | undefined {
+  return collections.find(c => c.resolvedValueTypeIds.includes(token.resolvedValueTypeId));
 }
 
 // Add new type exports

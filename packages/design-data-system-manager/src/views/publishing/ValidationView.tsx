@@ -212,7 +212,7 @@ export function ValidationView({ tokens = [], collections = [], dimensions = [],
                     Name: {selectedToken.displayName}
                   </Text>
                   <Text fontSize="sm">
-                    Collection: {collections?.find(c => c.id === selectedToken.tokenCollectionId)?.name}
+                    Collection: {selectedToken.tokenCollectionId ? collections?.find(c => c.id === selectedToken.tokenCollectionId)?.name : 'None'}
                   </Text>
                   <Text fontSize="sm">
                     Value Type: {selectedToken.resolvedValueTypeId}

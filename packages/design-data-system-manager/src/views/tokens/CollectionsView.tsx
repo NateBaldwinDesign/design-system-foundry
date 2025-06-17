@@ -10,28 +10,55 @@ import {
   useColorMode,
   Tag,
   TagLabel,
-  Wrap
+  Wrap,
+  Alert,
+  AlertIcon,
+  Tooltip
 } from '@chakra-ui/react';
 import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
-import type { TokenCollection, Mode, ResolvedValueType } from '@token-model/data-model';
+import type { TokenCollection, ResolvedValueType, Token } from '@token-model/data-model';
 import { CollectionEditorDialog } from '../../components/CollectionEditorDialog';
 import { StorageService } from '../../services/storage';
 
 interface CollectionsViewProps {
   collections: TokenCollection[];
-  modes: Mode[];
   onUpdate: (collections: TokenCollection[]) => void;
+  tokens: Token[];
+  resolvedValueTypes: ResolvedValueType[];
 }
 
-export function CollectionsView({ collections, modes, onUpdate }: CollectionsViewProps) {
+export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTypes }: CollectionsViewProps) {
   const { colorMode } = useColorMode();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCollection, setEditingCollection] = useState<TokenCollection | null>(null);
   const [isNew, setIsNew] = useState(false);
   const toast = useToast();
 
-  // Get resolvedValueTypes from storage
-  const resolvedValueTypes = StorageService.getValueTypes() || [];
+  // Get resolvedValueTypes from storage (for legacy display only)
+  const resolvedValueTypesFromStorage = StorageService.getValueTypes() || [];
+
+  // Helper: Get count of tokens with unsupported value types
+  function getMismatchedTokenCount(collection: TokenCollection) {
+    return tokens.filter(t => 
+      t.tokenCollectionId === collection.id && 
+      !collection.resolvedValueTypeIds.includes(t.resolvedValueTypeId)
+    ).length;
+  }
+
+  // Helper: Get mismatched token details
+  function getMismatchedTokenDetails(collection: TokenCollection) {
+    return tokens.filter(t => 
+      t.tokenCollectionId === collection.id && 
+      !collection.resolvedValueTypeIds.includes(t.resolvedValueTypeId)
+    ).map(t => {
+      const type = resolvedValueTypes.find(rt => rt.id === t.resolvedValueTypeId) || 
+                  resolvedValueTypesFromStorage.find(rt => rt.id === t.resolvedValueTypeId);
+      return {
+        name: t.displayName,
+        type: type?.displayName || t.resolvedValueTypeId
+      };
+    });
+  }
 
   // Open dialog for creating a new collection
   const handleOpenCreate = () => {
@@ -99,45 +126,65 @@ export function CollectionsView({ collections, modes, onUpdate }: CollectionsVie
           Create New Collection
         </Button>
         <VStack align="stretch" spacing={2}>
-          {collections.map((collection) => (
-            <Box 
-              key={collection.id} 
-              p={3} 
-              borderWidth={1} 
-              borderRadius="md" 
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-            >
-              <HStack justify="space-between" align="center">
-                <Box>
-                  <Text fontSize="lg" fontWeight="medium">{collection.name}</Text>
-                </Box>
-                <HStack>
-                  <IconButton aria-label="Edit collection" icon={<LuPencil />} size="sm" onClick={() => handleOpenEdit(collection)} />
-                  <IconButton aria-label="Delete collection" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDeleteCollection(collection.id)} />
+          {collections.map((collection) => {
+            const isTypeBased = collection.resolvedValueTypeIds.length === 1;
+            return (
+              <Box 
+                key={collection.id} 
+                p={3} 
+                borderWidth={1} 
+                borderRadius="md" 
+                bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+              >
+                <HStack justify="space-between" align="center">
+                  <Box>
+                    <HStack>
+                      <Text fontSize="lg" fontWeight="medium">{collection.name}</Text>
+                      {isTypeBased && (
+                        <Tooltip label="Type-based collections support only one resolved value type" placement="top">
+                          <Tag size="sm" colorScheme="blackAlpha" ml={2}>Type-based</Tag>
+                        </Tooltip>
+                      )}
+                    </HStack>
+                  </Box>
+                  <HStack>
+                    <IconButton aria-label="Edit collection" icon={<LuPencil />} size="sm" onClick={() => handleOpenEdit(collection)} />
+                    <IconButton aria-label="Delete collection" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDeleteCollection(collection.id)} />
+                  </HStack>
                 </HStack>
-              </HStack>
-              <VStack align="start" spacing={1} mt={2} ml={2}>
-                <Text fontSize="sm" color="gray.600">
-                  <b>Value Types:</b>
-                </Text>
-                <Wrap spacing={2}>
-                  {Array.isArray(collection.resolvedValueTypeIds) && collection.resolvedValueTypeIds.map((typeId: string) => {
-                    const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
-                    return type ? (
-                      <Tag key={typeId} size="md" borderRadius="full" variant="solid" colorScheme="blue">
-                        <TagLabel>{type.displayName}</TagLabel>
-                      </Tag>
-                    ) : null;
-                  })}
-                </Wrap>
-                {collection.private && (
-                  <Text fontSize="sm" color="gray.500"><b>Private</b></Text>
-                )}
-                
-              </VStack>
-            </Box>
-          ))}
+                <VStack align="start" spacing={1} mt={2} ml={2}>
+                  <Text fontSize="sm" color="gray.600">
+                    <b>Value Types:</b>
+                  </Text>
+                  <Wrap spacing={2}>
+                    {Array.isArray(collection.resolvedValueTypeIds) && collection.resolvedValueTypeIds.map((typeId: string) => {
+                      const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId) || resolvedValueTypesFromStorage.find((t: ResolvedValueType) => t.id === typeId);
+                      const count = tokens.filter(t => t.tokenCollectionId === collection.id && t.resolvedValueTypeId === typeId).length;
+                      return type ? (
+                        <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">
+                          <TagLabel>{type.displayName} ({count})</TagLabel>
+                        </Tag>
+                      ) : null;
+                    })}
+                  </Wrap>
+                  {getMismatchedTokenCount(collection) > 0 && (
+                    <Alert status="warning" size="sm" mt={2} borderRadius="md">
+                      <AlertIcon />
+                      {getMismatchedTokenDetails(collection).map((token, index) => (
+                        <Text key={index} fontSize="sm">
+                          Token &apos;{token.name}&apos; has type &apos;{token.type}&apos; which is not supported by collection &apos;{collection.name}&apos;
+                        </Text>
+                      ))}
+                    </Alert>
+                  )}
+                  {collection.private && (
+                    <Text fontSize="sm" color="gray.500"><b>Private</b></Text>
+                  )}
+                </VStack>
+              </Box>
+            );
+          })}
         </VStack>
       </Box>
       <CollectionEditorDialog
@@ -146,6 +193,7 @@ export function CollectionsView({ collections, modes, onUpdate }: CollectionsVie
         onSave={handleDialogSave}
         collection={editingCollection}
         isNew={isNew}
+        resolvedValueTypes={resolvedValueTypes}
       />
     </Box>
   );

@@ -158,7 +158,6 @@
       "id": "token-7777-7777-7777",
       "displayName": "Black",
       "description": "Pure black",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueTypeId": "color",
       "private": false,
       "status": "stable",
@@ -175,20 +174,20 @@
       ],
       "codeSyntax": [
         {
-          "platformId": "Figma",
+          "platformId": "platform-000000",
           "formattedName": "Black"
         },
         {
-          "platformId": "WEB",
-          "formattedName": "--spectrum-black"
+          "platformId": "platform-111111",
+          "formattedName": "--spblack"
         },
         {
-          "platformId": "iOS",
+          "platformId": "platform-222222",
           "formattedName": "SpBlack"
         },
         {
-          "platformId": "ANDROID",
-          "formattedName": "BLACK"
+          "platformId": "platform-333333",
+          "formattedName": "SPBLACK"
         }
       ],
       "valuesByMode": [
@@ -222,7 +221,6 @@
       "id": "token-8888-88888-88888",
       "displayName": "Blue 500",
       "description": "Midtone blue",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueTypeId": "color",
       "private": false,
       "status": "stable",
@@ -243,20 +241,20 @@
       ],
       "codeSyntax": [
         {
-          "platformId": "Figma",
+          "platformId": "platform-000000",
           "formattedName": "Blue/500"
         },
         {
-          "platformId": "WEB",
-          "formattedName": "--spectrum-blue-500"
+          "platformId": "platform-111111",
+          "formattedName": "--spblue-500"
         },
         {
-          "platformId": "iOS",
-          "formattedName": "SpBlue500"
+          "platformId": "platform-222222",
+          "formattedName": "SpBlue_500"
         },
         {
-          "platformId": "ANDROID",
-          "formattedName": "BLUE_500"
+          "platformId": "platform-333333",
+          "formattedName": "SPBLUE_500"
         }
       ],
       "valuesByMode": [
@@ -283,7 +281,8 @@
           ],
           "value": {
             "value": "#6995FE"
-          }
+          },
+          "platformOverrides": []
         }
       ]
     },
@@ -291,7 +290,6 @@
       "id": "token-9999-9999-9999",
       "displayName": "Accent text color",
       "description": "Color of text using a shade of the accent color hue",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueTypeId": "color",
       "private": false,
       "status": "stable",
@@ -312,20 +310,20 @@
       ],
       "codeSyntax": [
         {
-          "platformId": "Figma",
-          "formattedName": "Text/accent"
+          "platformId": "platform-000000",
+          "formattedName": "Text/Accent"
         },
         {
-          "platformId": "WEB",
-          "formattedName": "--text-accent"
+          "platformId": "platform-111111",
+          "formattedName": "--sptext-accent"
         },
         {
-          "platformId": "iOS",
-          "formattedName": "SpTextAccent"
+          "platformId": "platform-222222",
+          "formattedName": "SpText_Accent"
         },
         {
-          "platformId": "ANDROID",
-          "formattedName": "TEXT_ACCENT"
+          "platformId": "platform-333333",
+          "formattedName": "SPTEXT_ACCENT"
         }
       ],
       "valuesByMode": [
@@ -437,7 +435,6 @@
       "id": "token-1748981426585",
       "displayName": "Font primary",
       "description": "",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueTypeId": "font_family",
       "propertyTypes": [],
       "private": false,
@@ -479,7 +476,8 @@
           ],
           "value": {
             "value": "Inter"
-          }
+          },
+          "platformOverrides": []
         },
         {
           "modeIds": [
@@ -487,7 +485,8 @@
           ],
           "value": {
             "value": "Inter Han"
-          }
+          },
+          "platformOverrides": []
         },
         {
           "modeIds": [
@@ -495,7 +494,8 @@
           ],
           "value": {
             "value": "Inter Arabic"
-          }
+          },
+          "platformOverrides": []
         },
         {
           "modeIds": [
@@ -503,7 +503,8 @@
           ],
           "value": {
             "value": "Inter Hebrew"
-          }
+          },
+          "platformOverrides": []
         }
       ]
     },
@@ -511,7 +512,6 @@
       "id": "token-1748982912147",
       "displayName": "Line height primary",
       "description": "",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueTypeId": "line_height",
       "propertyTypes": [],
       "private": false,
@@ -551,7 +551,8 @@
           "modeIds": [],
           "value": {
             "value": "1.5"
-          }
+          },
+          "platformOverrides": []
         }
       ]
     },
@@ -559,7 +560,6 @@
       "id": "token-1748982933911",
       "displayName": "Font weight primary",
       "description": "",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueTypeId": "font_weight",
       "propertyTypes": [],
       "private": false,
@@ -599,7 +599,8 @@
           "modeIds": [],
           "value": {
             "value": "#000000"
-          }
+          },
+          "platformOverrides": []
         }
       ]
     },
@@ -607,7 +608,6 @@
       "id": "token-1748982963918",
       "displayName": "Spacing 100",
       "description": "",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueTypeId": "spacing",
       "propertyTypes": [],
       "private": false,
@@ -647,7 +647,8 @@
           "modeIds": [],
           "value": {
             "value": 16
-          }
+          },
+          "platformOverrides": []
         }
       ]
     },
@@ -655,7 +656,6 @@
       "id": "token-1748982995585",
       "displayName": "Radius 100",
       "description": "",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueTypeId": "radius",
       "propertyTypes": [],
       "private": false,
@@ -695,7 +695,8 @@
           "modeIds": [],
           "value": {
             "value": 4
-          }
+          },
+          "platformOverrides": []
         }
       ]
     },
@@ -703,7 +704,6 @@
       "id": "token-1749055918672",
       "displayName": "Spacing 200",
       "description": "",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueTypeId": "spacing",
       "propertyTypes": [],
       "private": false,
@@ -743,7 +743,8 @@
           "modeIds": [],
           "value": {
             "value": 32
-          }
+          },
+          "platformOverrides": []
         }
       ]
     },
@@ -751,7 +752,6 @@
       "id": "token-1749055952697",
       "displayName": "Font secondary",
       "description": "",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueTypeId": "font_family",
       "propertyTypes": [],
       "private": false,
@@ -791,7 +791,8 @@
           "modeIds": [],
           "value": {
             "value": "SF Pro"
-          }
+          },
+          "platformOverrides": []
         }
       ]
     },
@@ -799,7 +800,6 @@
       "id": "token-1749055982042",
       "displayName": "Line height 200",
       "description": "",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueTypeId": "line_height",
       "propertyTypes": [],
       "private": false,
@@ -838,8 +838,9 @@
         {
           "modeIds": [],
           "value": {
-            "value": 1
-          }
+            "value": 200
+          },
+          "platformOverrides": []
         }
       ]
     },
@@ -847,7 +848,6 @@
       "id": "token-1749056010580",
       "displayName": "Font weight 200",
       "description": "",
-      "tokenCollectionId": "tokenCollection-AAAA-AAAA-AAAA",
       "resolvedValueTypeId": "font_weight",
       "propertyTypes": [],
       "private": false,
@@ -887,7 +887,8 @@
           "modeIds": [],
           "value": {
             "value": 200
-          }
+          },
+          "platformOverrides": []
         }
       ]
     }
@@ -1022,7 +1023,8 @@
         "spacing",
         "shadow",
         "radius",
-        "font_family"
+        "font_family",
+        "line_height"
       ]
     },
     {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Box, Text, HStack, Flex, FormControl, FormLabel, Select, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Heading, Divider } from '@chakra-ui/react';
-import { Edit, Trash2, Columns, Filter } from 'lucide-react';
-import type { TokenCollection, ResolvedValueType, Taxonomy } from '@token-model/data-model';
+import { Box, Text, HStack, Flex, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Heading } from '@chakra-ui/react';
+import { Edit, Columns, Filter } from 'lucide-react';
+import type { TokenCollection, ResolvedValueType, Taxonomy, Mode } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
 import TokenTag from '../../components/TokenTag';
 import { formatValueForDisplay } from '../../utils/valueTypeUtils';
@@ -12,9 +12,9 @@ interface TokensViewProps {
   collections: TokenCollection[];
   resolvedValueTypes: ResolvedValueType[];
   taxonomies: Taxonomy[];
+  modes: Mode[];
   renderAddTokenButton?: React.ReactNode;
   onEditToken?: (token: ExtendedToken) => void;
-  onDeleteToken?: (tokenId: string) => void;
 }
 
 export function TokensView({ 
@@ -23,8 +23,7 @@ export function TokensView({
   resolvedValueTypes, 
   taxonomies,
   renderAddTokenButton,
-  onEditToken,
-  onDeleteToken 
+  onEditToken
 }: TokensViewProps) {
   // Filter state
   const [tokenTierFilters, setTokenTierFilters] = useState<string[]>([]);
@@ -59,29 +58,22 @@ export function TokensView({
   };
 
   // Unique values for filters
-  const statusOptions = Array.from(new Set(tokens.map(t => t.status).filter(Boolean))).sort();
+  const statusOptions = Array.from(new Set(tokens.map(t => t.status || 'experimental'))).sort();
 
   // Filter tokens based on search term and filters
   const filteredTokens = tokens.filter(token => {
     const matchesSearch = token.displayName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       token.description?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesTokenTier = tokenTierFilters.length === 0 || tokenTierFilters.includes(token.tokenTier);
-    const matchesCollection = collectionFilters.length === 0 || collectionFilters.includes(token.tokenCollectionId);
-    const matchesType = typeFilters.length === 0 || typeFilters.includes(token.resolvedValueTypeId);
+    const matchesTokenTier = tokenTierFilters.length === 0 || tokenTierFilters.includes(token.tokenTier ?? '');
+    const matchesCollection = collectionFilters.length === 0 || collectionFilters.includes(token.tokenCollectionId ?? '');
+    const matchesType = typeFilters.length === 0 || typeFilters.includes(token.resolvedValueTypeId ?? '');
     const matchesStatus = statusFilters.length === 0 || statusFilters.includes(token.status || 'experimental');
     const matchesPrivate = privateFilters.length === 0 || privateFilters.includes(token.private);
     const matchesThemeable = themeableFilters.length === 0 || themeableFilters.includes(token.themeable);
 
     return matchesSearch && matchesTokenTier && matchesCollection && matchesType && matchesStatus && matchesPrivate && matchesThemeable;
   });
-
-  // Get display name for a value type
-  const getTypeDisplay = (typeId: string) => {
-    const typeObj = resolvedValueTypes.find(vt => vt.id === typeId);
-    if (!typeObj) return typeId;
-    return typeObj.displayName;
-  };
 
   // Get type from resolved value type id
   const getTypeFromId = (typeId: string) => {
@@ -202,41 +194,36 @@ export function TokensView({
           default:
             displayValue = formattedValue;
         }
+      } else {
+        displayValue = String(value);
       }
 
-      return displayValue;
+      return (
+        <Box key={modeValue.modeIds.join(',')}>
+          {displayValue}
+        </Box>
+      );
     });
   };
 
-  // Helper to get taxonomy term names for a token
+  // Get taxonomy names for a token
   const getTaxonomyNames = (token: ExtendedToken): string => {
-    if (!token.taxonomies || !Array.isArray(token.taxonomies) || token.taxonomies.length === 0) return '';
+    if (!token.taxonomies?.length) return '-';
     return token.taxonomies.map(ref => {
       const taxonomy = taxonomies.find(t => t.id === ref.taxonomyId);
-      if (!taxonomy) {
-        console.warn('Taxonomy not found for id:', ref.taxonomyId, 'in', taxonomies);
-        return ref.taxonomyId;
-      }
-      const term = taxonomy.terms?.find(term => term.id === ref.termId);
-      if (!term) {
-        console.warn('Term not found for id:', ref.termId, 'in taxonomy', taxonomy);
-        return `${taxonomy.name}: ${ref.termId}`;
-      }
-      return `${taxonomy.name}: ${term.name}`;
+      const term = taxonomy?.terms.find(t => t.id === ref.termId);
+      return `${taxonomy?.name || ref.taxonomyId}: ${term?.name || ref.termId}`;
     }).join('\n');
   };
 
-  // Handler for editing a token
+  // Handle edit token
   const handleEditToken = (token: ExtendedToken) => {
-    if (onEditToken) onEditToken(token);
+    if (onEditToken) {
+      onEditToken(token);
+    }
   };
 
-  // Handler for deleting a token
-  const handleDeleteToken = (tokenId: string) => {
-    if (onDeleteToken) onDeleteToken(tokenId);
-  };
-
-  // Handler for toggling column visibility
+  // Handle column toggle
   const handleColumnToggle = (column: keyof typeof visibleColumns) => {
     setVisibleColumns(prev => ({
       ...prev,
@@ -245,284 +232,268 @@ export function TokensView({
   };
 
   return (
-    <Box>
+    <Box p={4}>
       <Flex justify="space-between" align="center" mb={4}>
-        <Text fontSize="2xl" fontWeight="bold">Tokens</Text>
+        <Heading size="md">Tokens</Heading>
         {renderAddTokenButton}
       </Flex>
-      <Flex justify="space-between" align="center" mb={4}>
+
+      <Flex gap={2} mb={4}>
         <Input
           placeholder="Search tokens..."
           value={searchTerm}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-          maxW="320px"
+          onChange={(e) => setSearchTerm(e.target.value)}
+          width="300px"
         />
-        <HStack spacing={2}>
-          <Popover placement="bottom-end">
-            <PopoverTrigger>
-              <Button leftIcon={<Filter size={16} />} size="sm" variant="outline">
-                Filters
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent width="300px">
-              <PopoverBody>
-                <VStack align="start" spacing={4}>
-                  {/* Token Tier Filters */}
-                  <Box width="100%">
-                    <Heading size="sm" mb={2}>Token Tier</Heading>
-                    <VStack align="start" spacing={2}>
+
+        <Popover placement="bottom-start">
+          <PopoverTrigger>
+            <Button leftIcon={<Filter size={16} />} size="sm" variant="outline">
+              Filters
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent width="300px">
+            <PopoverBody>
+              <VStack align="start" spacing={4}>
+                <Box>
+                  <Text fontWeight="medium" mb={2}>Token Tier</Text>
+                  <VStack align="start" spacing={1}>
+                    <Checkbox
+                      isChecked={tokenTierFilters.includes('PRIMITIVE')}
+                      onChange={(e) => {
+                        setTokenTierFilters(prev => 
+                          e.target.checked 
+                            ? [...prev, 'PRIMITIVE']
+                            : prev.filter(v => v !== 'PRIMITIVE')
+                        );
+                      }}
+                    >
+                      Primitive
+                    </Checkbox>
+                    <Checkbox
+                      isChecked={tokenTierFilters.includes('SEMANTIC')}
+                      onChange={(e) => {
+                        setTokenTierFilters(prev => 
+                          e.target.checked 
+                            ? [...prev, 'SEMANTIC']
+                            : prev.filter(v => v !== 'SEMANTIC')
+                        );
+                      }}
+                    >
+                      Semantic
+                    </Checkbox>
+                    <Checkbox
+                      isChecked={tokenTierFilters.includes('COMPONENT')}
+                      onChange={(e) => {
+                        setTokenTierFilters(prev => 
+                          e.target.checked 
+                            ? [...prev, 'COMPONENT']
+                            : prev.filter(v => v !== 'COMPONENT')
+                        );
+                      }}
+                    >
+                      Component
+                    </Checkbox>
+                  </VStack>
+                </Box>
+
+                <Box>
+                  <Text fontWeight="medium" mb={2}>Collection</Text>
+                  <VStack align="start" spacing={1}>
+                    {collections.map(collection => (
                       <Checkbox
-                        isChecked={tokenTierFilters.includes('PRIMITIVE')}
+                        key={collection.id}
+                        isChecked={collectionFilters.includes(collection.id)}
                         onChange={(e) => {
-                          setTokenTierFilters(prev => 
+                          setCollectionFilters(prev => 
                             e.target.checked 
-                              ? [...prev, 'PRIMITIVE']
-                              : prev.filter(t => t !== 'PRIMITIVE')
+                              ? [...prev, collection.id]
+                              : prev.filter(v => v !== collection.id)
                           );
                         }}
                       >
-                        Primitive
+                        {collection.name}
                       </Checkbox>
+                    ))}
+                  </VStack>
+                </Box>
+
+                <Box>
+                  <Text fontWeight="medium" mb={2}>Type</Text>
+                  <VStack align="start" spacing={1}>
+                    {resolvedValueTypes.map(type => (
                       <Checkbox
-                        isChecked={tokenTierFilters.includes('SEMANTIC')}
+                        key={type.id}
+                        isChecked={typeFilters.includes(type.id)}
                         onChange={(e) => {
-                          setTokenTierFilters(prev => 
+                          setTypeFilters(prev => 
                             e.target.checked 
-                              ? [...prev, 'SEMANTIC']
-                              : prev.filter(t => t !== 'SEMANTIC')
+                              ? [...prev, type.id]
+                              : prev.filter(v => v !== type.id)
                           );
                         }}
                       >
-                        Semantic
+                        {type.displayName}
                       </Checkbox>
+                    ))}
+                  </VStack>
+                </Box>
+
+                <Box>
+                  <Text fontWeight="medium" mb={2}>Status</Text>
+                  <VStack align="start" spacing={1}>
+                    {statusOptions.map(status => (
                       <Checkbox
-                        isChecked={tokenTierFilters.includes('COMPONENT')}
+                        key={status}
+                        isChecked={statusFilters.includes(status)}
                         onChange={(e) => {
-                          setTokenTierFilters(prev => 
+                          setStatusFilters(prev => 
                             e.target.checked 
-                              ? [...prev, 'COMPONENT']
-                              : prev.filter(t => t !== 'COMPONENT')
+                              ? [...prev, status]
+                              : prev.filter(v => v !== status)
                           );
                         }}
                       >
-                        Component
+                        {status}
                       </Checkbox>
-                    </VStack>
-                  </Box>
+                    ))}
+                  </VStack>
+                </Box>
 
-                  <Divider />
+                <Box>
+                  <Text fontWeight="medium" mb={2}>Private</Text>
+                  <VStack align="start" spacing={1}>
+                    <Checkbox
+                      isChecked={privateFilters.includes(true)}
+                      onChange={(e) => {
+                        setPrivateFilters(prev => 
+                          e.target.checked 
+                            ? [...prev, true]
+                            : prev.filter(v => v !== true)
+                        );
+                      }}
+                    >
+                      Yes
+                    </Checkbox>
+                    <Checkbox
+                      isChecked={privateFilters.includes(false)}
+                      onChange={(e) => {
+                        setPrivateFilters(prev => 
+                          e.target.checked 
+                            ? [...prev, false]
+                            : prev.filter(v => v !== false)
+                        );
+                      }}
+                    >
+                      No
+                    </Checkbox>
+                  </VStack>
+                </Box>
 
-                  {/* Collection Filters */}
-                  <Box width="100%">
-                    <Heading size="sm" mb={2}>Collection</Heading>
-                    <VStack align="start" spacing={2}>
-                      {collections.map(c => (
-                        <Checkbox
-                          key={c.id}
-                          isChecked={collectionFilters.includes(c.id)}
-                          onChange={(e) => {
-                            setCollectionFilters(prev => 
-                              e.target.checked 
-                                ? [...prev, c.id]
-                                : prev.filter(id => id !== c.id)
-                            );
-                          }}
-                        >
-                          {c.name}
-                        </Checkbox>
-                      ))}
-                    </VStack>
-                  </Box>
+                <Box>
+                  <Text fontWeight="medium" mb={2}>Themeable</Text>
+                  <VStack align="start" spacing={1}>
+                    <Checkbox
+                      isChecked={themeableFilters.includes(true)}
+                      onChange={(e) => {
+                        setThemeableFilters(prev => 
+                          e.target.checked 
+                            ? [...prev, true]
+                            : prev.filter(v => v !== true)
+                        );
+                      }}
+                    >
+                      Yes
+                    </Checkbox>
+                    <Checkbox
+                      isChecked={themeableFilters.includes(false)}
+                      onChange={(e) => {
+                        setThemeableFilters(prev => 
+                          e.target.checked 
+                            ? [...prev, false]
+                            : prev.filter(v => v !== false)
+                        );
+                      }}
+                    >
+                      No
+                    </Checkbox>
+                  </VStack>
+                </Box>
 
-                  <Divider />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleClearFilters}
+                  width="100%"
+                >
+                  Clear filters
+                </Button>
+              </VStack>
+            </PopoverBody>
+          </PopoverContent>
+        </Popover>
 
-                  {/* Type Filters */}
-                  <Box width="100%">
-                    <Heading size="sm" mb={2}>Type</Heading>
-                    <VStack align="start" spacing={2}>
-                      {resolvedValueTypes.map(type => (
-                        <Checkbox
-                          key={type.id}
-                          isChecked={typeFilters.includes(type.id)}
-                          onChange={(e) => {
-                            setTypeFilters(prev => 
-                              e.target.checked 
-                                ? [...prev, type.id]
-                                : prev.filter(id => id !== type.id)
-                            );
-                          }}
-                        >
-                          {type.displayName}
-                        </Checkbox>
-                      ))}
-                    </VStack>
-                  </Box>
-
-                  <Divider />
-
-                  {/* Status Filters */}
-                  <Box width="100%">
-                    <Heading size="sm" mb={2}>Status</Heading>
-                    <VStack align="start" spacing={2}>
-                      {statusOptions.map(status => (
-                        <Checkbox
-                          key={status}
-                          isChecked={statusFilters.includes(status)}
-                          onChange={(e) => {
-                            setStatusFilters(prev => 
-                              e.target.checked 
-                                ? [...prev, status]
-                                : prev.filter(s => s !== status)
-                            );
-                          }}
-                        >
-                          {status}
-                        </Checkbox>
-                      ))}
-                    </VStack>
-                  </Box>
-
-                  <Divider />
-
-                  {/* Private Filter */}
-                  <Box width="100%">
-                    <Heading size="sm" mb={2}>Private</Heading>
-                    <VStack align="start" spacing={2}>
-                      <Checkbox
-                        isChecked={privateFilters.includes(true)}
-                        onChange={(e) => {
-                          setPrivateFilters(prev => 
-                            e.target.checked 
-                              ? [...prev, true]
-                              : prev.filter(v => v !== true)
-                          );
-                        }}
-                      >
-                        Yes
-                      </Checkbox>
-                      <Checkbox
-                        isChecked={privateFilters.includes(false)}
-                        onChange={(e) => {
-                          setPrivateFilters(prev => 
-                            e.target.checked 
-                              ? [...prev, false]
-                              : prev.filter(v => v !== false)
-                          );
-                        }}
-                      >
-                        No
-                      </Checkbox>
-                    </VStack>
-                  </Box>
-
-                  <Divider />
-
-                  {/* Themeable Filter */}
-                  <Box width="100%">
-                    <Heading size="sm" mb={2}>Themeable</Heading>
-                    <VStack align="start" spacing={2}>
-                      <Checkbox
-                        isChecked={themeableFilters.includes(true)}
-                        onChange={(e) => {
-                          setThemeableFilters(prev => 
-                            e.target.checked 
-                              ? [...prev, true]
-                              : prev.filter(v => v !== true)
-                          );
-                        }}
-                      >
-                        Yes
-                      </Checkbox>
-                      <Checkbox
-                        isChecked={themeableFilters.includes(false)}
-                        onChange={(e) => {
-                          setThemeableFilters(prev => 
-                            e.target.checked 
-                              ? [...prev, false]
-                              : prev.filter(v => v !== false)
-                          );
-                        }}
-                      >
-                        No
-                      </Checkbox>
-                    </VStack>
-                  </Box>
-
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleClearFilters}
-                    width="100%"
-                  >
-                    Clear filters
-                  </Button>
-                </VStack>
-              </PopoverBody>
-            </PopoverContent>
-          </Popover>
-
-          <Popover placement="bottom-end">
-            <PopoverTrigger>
-              <Button leftIcon={<Columns size={16} />} size="sm" variant="outline">
-                Columns
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent width="200px">
-              <PopoverBody>
-                <VStack align="start" spacing={2}>
-                  <Checkbox
-                    isChecked={visibleColumns.collection}
-                    onChange={() => handleColumnToggle('collection')}
-                  >
-                    Collection
-                  </Checkbox>
-                  <Checkbox
-                    isChecked={visibleColumns.status}
-                    onChange={() => handleColumnToggle('status')}
-                  >
-                    Status
-                  </Checkbox>
-                  <Checkbox
-                    isChecked={visibleColumns.themeable}
-                    onChange={() => handleColumnToggle('themeable')}
-                  >
-                    Themeable
-                  </Checkbox>
-                  <Checkbox
-                    isChecked={visibleColumns.private}
-                    onChange={() => handleColumnToggle('private')}
-                  >
-                    Private
-                  </Checkbox>
-                  <Checkbox
-                    isChecked={visibleColumns.taxonomies}
-                    onChange={() => handleColumnToggle('taxonomies')}
-                  >
-                    Taxonomies
-                  </Checkbox>
-                  <Checkbox
-                    isChecked={visibleColumns.tokenTier}
-                    onChange={() => handleColumnToggle('tokenTier')}
-                  >
-                    Token Tier
-                  </Checkbox>
-                  <Checkbox
-                    isChecked={visibleColumns.propertyTypes}
-                    onChange={() => handleColumnToggle('propertyTypes')}
-                  >
-                    Property Types
-                  </Checkbox>
-                  <Checkbox
-                    isChecked={visibleColumns.codeSyntax}
-                    onChange={() => handleColumnToggle('codeSyntax')}
-                  >
-                    Code Syntax
-                  </Checkbox>
-                </VStack>
-              </PopoverBody>
-            </PopoverContent>
-          </Popover>
-        </HStack>
+        <Popover placement="bottom-end">
+          <PopoverTrigger>
+            <Button leftIcon={<Columns size={16} />} size="sm" variant="outline">
+              Columns
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent width="200px">
+            <PopoverBody>
+              <VStack align="start" spacing={2}>
+                <Checkbox
+                  isChecked={visibleColumns.collection}
+                  onChange={() => handleColumnToggle('collection')}
+                >
+                  Collection
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.status}
+                  onChange={() => handleColumnToggle('status')}
+                >
+                  Status
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.themeable}
+                  onChange={() => handleColumnToggle('themeable')}
+                >
+                  Themeable
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.private}
+                  onChange={() => handleColumnToggle('private')}
+                >
+                  Private
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.taxonomies}
+                  onChange={() => handleColumnToggle('taxonomies')}
+                >
+                  Taxonomies
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.tokenTier}
+                  onChange={() => handleColumnToggle('tokenTier')}
+                >
+                  Token Tier
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.propertyTypes}
+                  onChange={() => handleColumnToggle('propertyTypes')}
+                >
+                  Property Types
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.codeSyntax}
+                  onChange={() => handleColumnToggle('codeSyntax')}
+                >
+                  Code Syntax
+                </Checkbox>
+              </VStack>
+            </PopoverBody>
+          </PopoverContent>
+        </Popover>
       </Flex>
 
       {/* Token Table */}
