@@ -66,7 +66,21 @@ export function TokensView({
       token.description?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesTokenTier = tokenTierFilters.length === 0 || tokenTierFilters.includes(token.tokenTier ?? '');
-    const matchesCollection = collectionFilters.length === 0 || collectionFilters.includes(token.tokenCollectionId ?? '');
+    
+    // Updated collection filter logic
+    const matchesCollection = collectionFilters.length === 0 || collectionFilters.some(collectionId => {
+      const collection = collections.find(c => c.id === collectionId);
+      if (!collection) return false;
+      
+      // Match if token is explicitly assigned to this collection
+      if (token.tokenCollectionId === collectionId) return true;
+      
+      // Match if token has no collection and matches collection's value types
+      if (!token.tokenCollectionId && collection.resolvedValueTypeIds.includes(token.resolvedValueTypeId)) return true;
+      
+      return false;
+    });
+    
     const matchesType = typeFilters.length === 0 || typeFilters.includes(token.resolvedValueTypeId ?? '');
     const matchesStatus = statusFilters.length === 0 || statusFilters.includes(token.status || 'experimental');
     const matchesPrivate = privateFilters.length === 0 || privateFilters.includes(token.private);

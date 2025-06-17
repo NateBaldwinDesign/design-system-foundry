@@ -160,11 +160,30 @@ export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTy
                   <Wrap spacing={2}>
                     {Array.isArray(collection.resolvedValueTypeIds) && collection.resolvedValueTypeIds.map((typeId: string) => {
                       const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId) || resolvedValueTypesFromStorage.find((t: ResolvedValueType) => t.id === typeId);
-                      const count = tokens.filter(t => t.tokenCollectionId === collection.id && t.resolvedValueTypeId === typeId).length;
+                      // Count tokens that are either:
+                      // 1. Explicitly assigned to this collection
+                      // 2. Have a matching resolvedValueTypeId but no collection assignment
+                      const explicitCount = tokens.filter(t => t.tokenCollectionId === collection.id && t.resolvedValueTypeId === typeId).length;
+                      const implicitCount = tokens.filter(t => !t.tokenCollectionId && t.resolvedValueTypeId === typeId).length;
+                      const totalCount = explicitCount + implicitCount;
+
+                      // Create human-friendly tooltip text
+                      const tooltipText = [
+                        explicitCount > 0 ? `${explicitCount} ${explicitCount === 1 ? 'token is' : 'tokens are'} assigned to this collection` : null,
+                        implicitCount > 0 ? `${implicitCount} ${implicitCount === 1 ? 'token is' : 'tokens are'} compatible but not assigned` : null
+                      ].filter(Boolean).join('\n');
+
                       return type ? (
-                        <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">
-                          <TagLabel>{type.displayName} ({count})</TagLabel>
-                        </Tag>
+                        <Tooltip 
+                          key={typeId}
+                          label={tooltipText}
+                          placement="top"
+                          hasArrow
+                        >
+                          <Tag size="md" borderRadius="full" variant="subtle" colorScheme="blue">
+                            <TagLabel>{type.displayName} ({totalCount})</TagLabel>
+                          </Tag>
+                        </Tooltip>
                       ) : null;
                     })}
                   </Wrap>
