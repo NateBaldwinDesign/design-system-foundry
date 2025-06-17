@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Box, Text, HStack, Flex, FormControl, FormLabel, Select, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button } from '@chakra-ui/react';
-import { Edit, Trash2 } from 'lucide-react';
+import { Box, Text, HStack, Flex, FormControl, FormLabel, Select, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack } from '@chakra-ui/react';
+import { Edit, Trash2, Columns } from 'lucide-react';
 import type { TokenCollection, ResolvedValueType, Taxonomy } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
 import TokenTag from '../../components/TokenTag';
@@ -32,6 +32,18 @@ export function TokensView({
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [tokenTierFilter, setTokenTierFilter] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Column visibility state
+  const [visibleColumns, setVisibleColumns] = useState({
+    tokenTier: false,
+    propertyTypes: false,
+    codeSyntax: false,
+    taxonomies: true,
+    private: true,
+    themeable: true,
+    status: true,
+    collection: true
+  });
 
   // Handler for clearing all filters
   const handleClearFilters = () => {
@@ -218,6 +230,14 @@ export function TokensView({
     if (onDeleteToken) onDeleteToken(tokenId);
   };
 
+  // Handler for toggling column visibility
+  const handleColumnToggle = (column: keyof typeof visibleColumns) => {
+    setVisibleColumns(prev => ({
+      ...prev,
+      [column]: !prev[column]
+    }));
+  };
+
   return (
     <Box>
       <Flex justify="space-between" align="center" mb={4}>
@@ -231,6 +251,67 @@ export function TokensView({
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
           maxW="320px"
         />
+        <Popover placement="bottom-end">
+          <PopoverTrigger>
+            <Button leftIcon={<Columns size={16} />} size="sm" variant="outline">
+              Columns
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent width="200px">
+            <PopoverBody>
+              <VStack align="start" spacing={2}>
+                <Checkbox
+                  isChecked={visibleColumns.collection}
+                  onChange={() => handleColumnToggle('collection')}
+                >
+                  Collection
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.status}
+                  onChange={() => handleColumnToggle('status')}
+                >
+                  Status
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.themeable}
+                  onChange={() => handleColumnToggle('themeable')}
+                >
+                  Themeable
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.private}
+                  onChange={() => handleColumnToggle('private')}
+                >
+                  Private
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.taxonomies}
+                  onChange={() => handleColumnToggle('taxonomies')}
+                >
+                  Taxonomies
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.tokenTier}
+                  onChange={() => handleColumnToggle('tokenTier')}
+                >
+                  Token Tier
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.propertyTypes}
+                  onChange={() => handleColumnToggle('propertyTypes')}
+                >
+                  Property Types
+                </Checkbox>
+                <Checkbox
+                  isChecked={visibleColumns.codeSyntax}
+                  onChange={() => handleColumnToggle('codeSyntax')}
+                >
+                  Code Syntax
+                </Checkbox>
+              </VStack>
+            </PopoverBody>
+          </PopoverContent>
+        </Popover>
       </Flex>
       {/* Filter Controls */}
       <HStack spacing={4} wrap="nowrap" align="flex-start" mb={4}>
@@ -289,12 +370,15 @@ export function TokensView({
           <Tr>
             <Th>Type</Th>
             <Th>Name</Th>
-            <Th>Collection</Th>
+            {visibleColumns.collection && <Th>Collection</Th>}
             <Th>Value</Th>
-            <Th>Status</Th>
-            <Th>Themeable</Th>
-            <Th>Private</Th>
-            <Th>Taxonomies</Th>
+            {visibleColumns.status && <Th>Status</Th>}
+            {visibleColumns.themeable && <Th>Themeable</Th>}
+            {visibleColumns.private && <Th>Private</Th>}
+            {visibleColumns.taxonomies && <Th>Taxonomies</Th>}
+            {visibleColumns.tokenTier && <Th>Token Tier</Th>}
+            {visibleColumns.propertyTypes && <Th>Property Types</Th>}
+            {visibleColumns.codeSyntax && <Th>Code Syntax</Th>}
             <Th>Actions</Th>
           </Tr>
         </Thead>
@@ -314,26 +398,57 @@ export function TokensView({
                   </Text>
                 )}
               </Td>
-              <Td>{collections.find(c => c.id === token.tokenCollectionId)?.name || token.tokenCollectionId}</Td>
+              {visibleColumns.collection && (
+                <Td>{collections.find(c => c.id === token.tokenCollectionId)?.name || token.tokenCollectionId}</Td>
+              )}
               <Td>{getValueDisplay(token)}</Td>
-              <Td>
-                <Badge
-                  colorScheme={
-                    token.status === 'stable' ? 'green' :
-                    token.status === 'deprecated' ? 'red' :
-                    'yellow'
-                  }
-                >
-                  {token.status || 'experimental'}
-                </Badge>
-              </Td>
-              <Td>{token.themeable ? 'Yes' : 'No'}</Td>
-              <Td>{token.private ? 'Yes' : 'No'}</Td>
-              <Td>
-                {getTaxonomyNames(token).split('\n').map((line, idx) => (
-                  <Text key={idx} fontSize="sm">{line}</Text>
-                ))}
-              </Td>
+              {visibleColumns.status && (
+                <Td>
+                  <Badge
+                    colorScheme={
+                      token.status === 'stable' ? 'green' :
+                      token.status === 'deprecated' ? 'red' :
+                      'yellow'
+                    }
+                  >
+                    {token.status || 'experimental'}
+                  </Badge>
+                </Td>
+              )}
+              {visibleColumns.themeable && (
+                <Td>{token.themeable ? 'Yes' : 'No'}</Td>
+              )}
+              {visibleColumns.private && (
+                <Td>{token.private ? 'Yes' : 'No'}</Td>
+              )}
+              {visibleColumns.taxonomies && (
+                <Td>
+                  {getTaxonomyNames(token).split('\n').map((line, idx) => (
+                    <Text key={idx} fontSize="sm">{line}</Text>
+                  ))}
+                </Td>
+              )}
+              {visibleColumns.tokenTier && (
+                <Td>
+                  <Badge colorScheme="blue">{token.tokenTier}</Badge>
+                </Td>
+              )}
+              {visibleColumns.propertyTypes && (
+                <Td>
+                  {token.propertyTypes?.map((type, idx) => (
+                    <Badge key={idx} mr={1} mb={1} colorScheme="purple">{type}</Badge>
+                  ))}
+                </Td>
+              )}
+              {visibleColumns.codeSyntax && (
+                <Td>
+                  {token.codeSyntax?.map((syntax, idx) => (
+                    <Text key={idx} fontSize="sm">
+                      {syntax.platformId}: {syntax.formattedName}
+                    </Text>
+                  ))}
+                </Td>
+              )}
               <Td>
                 <HStack spacing={2}>
                   {onEditToken && (
@@ -345,16 +460,6 @@ export function TokensView({
                       onClick={() => handleEditToken(token)}
                     />
                   )}
-                  {/* {onDeleteToken && (
-                    <IconButton
-                      aria-label="Delete token"
-                      icon={<Trash2 size={16} />}
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="red"
-                      onClick={() => handleDeleteToken(token.id)}
-                    />
-                  )} */}
                 </HStack>
               </Td>
             </Tr>
