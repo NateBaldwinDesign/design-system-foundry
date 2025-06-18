@@ -1,5 +1,6 @@
 import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy, Theme, ResolvedValueType } from '@token-model/data-model';
 import { generateDefaultValueTypes } from '../utils/defaultValueTypes';
+import { Algorithm } from '../types/algorithm';
 
 type ValueType = ResolvedValueType;
 
@@ -115,6 +116,15 @@ export class StorageService {
 
   static setNamingRules(rules: { taxonomyOrder: string[] }): void {
     this.setItem(STORAGE_KEYS.NAMING_RULES, rules);
+  }
+
+  static getAlgorithms(): Algorithm[] {
+    const stored = localStorage.getItem('token-model:algorithms');
+    return stored ? JSON.parse(stored) : [];
+  }
+
+  static setAlgorithms(algorithms: Algorithm[]): void {
+    localStorage.setItem('token-model:algorithms', JSON.stringify(algorithms));
   }
 
   static clearAll(): void {

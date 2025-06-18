@@ -1,0 +1,130 @@
+{
+  "schemaVersion": "4.0.0",
+  "profile": "basic",
+  "metadata": {
+    "name": "Progressive Text Size Algorithms Collection",
+    "description": "A set of algorithms demonstrating progressive token generation by chaining variable generators.",
+    "author": "Design System Team",
+    "version": "1.0.0"
+  },
+  "config": {
+    "baseUnit": 16,
+    "scaleFactor": 1.25,
+    "precision": 2
+  },
+  "algorithms": [
+    {
+      "id": "user-text-size-offset",
+      "name": "User Text Size Offset",
+      "description": "Calculates the offset for user-defined text size based on product default size.",
+      "inputs": {
+        "userDefinedTextSize": {
+          "type": "number",
+          "description": "User-defined text size adjustment",
+          "default": 0,
+          "required": true,
+          "validation": {
+            "min": -10,
+            "max": 10
+          }
+        },
+        "productDefaultSize": {
+          "type": "number",
+          "description": "Product default text size",
+          "default": 14,
+          "required": true,
+          "validation": {
+            "min": 8,
+            "max": 100
+          }
+        }
+      },
+      "formula": {
+        "operation": "add",
+        "parameters": {
+          "a": "productDefaultSize",
+          "b": "userDefinedTextSize"
+        }
+      }
+    },
+    {
+      "id": "base-text-size-generator",
+      "name": "Base Text Size Generator",
+      "description": "Generates the base text size using the global base unit and scale factor raised to the power of the text offset.",
+      "dependencies": [
+        "user-text-size-offset"
+      ],
+      "inputs": {
+        "userTextOffset": {
+          "type": "number",
+          "description": "Text size offset computed from user-text-size-offset algorithm",
+          "required": true
+        }
+      },
+      "formula": {
+        "operation": "custom",
+        "parameters": {
+          "base": "config.baseUnit",
+          "ratio": "config.scaleFactor",
+          "exponent": "userTextOffset"
+        },
+        "expression": "base * Math.pow(ratio, exponent)"
+      }
+    },
+    {
+      "id": "dynamic-text-size-token-generator",
+      "name": "Dynamic Text Size Token Generator",
+      "description": "Generates dynamic text size tokens based on the computed base text size.",
+      "dependencies": [
+        "base-text-size-generator"
+      ],
+      "inputs": {
+        "baseTextSize": {
+          "type": "number",
+          "description": "Computed base text size from base-text-size-generator",
+          "required": true
+        }
+      },
+      "formula": {
+        "operation": "custom",
+        "parameters": {
+          "baseTextSize": "baseTextSize",
+          "factor": "factor"
+        },
+        "expression": "baseTextSize * factor"
+      },
+      "outputs": {
+        "tokens": [
+          {
+            "name": "text-size-{index}",
+            "type": "dimension",
+            "description": "Dynamic text size token {index}",
+            "tier": "semantic",
+            "private": false
+          }
+        ],
+        "count": 5,
+        "range": {
+          "min": 0.8,
+          "max": 1.2,
+          "steps": 5
+        }
+      }
+    }
+  ],
+  "execution": {
+    "order": [
+      "user-text-size-offset",
+      "base-text-size-generator",
+      "dynamic-text-size-token-generator"
+    ],
+    "parallel": false,
+    "onError": "stop"
+  },
+  "integration": {
+    "targetSchema": "https://designsystem.org/schemas/tokens/v1.0.0",
+    "outputFormat": "design-tokens",
+    "mergeStrategy": "merge",
+    "validation": true
+  }
+}

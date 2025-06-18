@@ -104,6 +104,7 @@ When making any change, explicitly state:
 - Add inline comments for human comprehension
 - Prioritize clarity and reusability
 - Check `@technical-decisions.md` before making architectural decisions
+- Use pnpm for package and workspace management
 
 ## AI Response Format
 

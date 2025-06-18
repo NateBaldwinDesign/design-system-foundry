@@ -1,0 +1,259 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://designsystem.org/schemas/algorithms/v5.0.0",
+    "title": "Simplified Algorithm Schema for Design Token Generation",
+    "description": "A streamlined and modular schema for algorithmic design token generation. Every algorithm is reusable, enabling a composable system for both basic and advanced usage.",
+    "type": "object",
+    "properties": {
+      "schemaVersion": {
+        "type": "string",
+        "description": "Schema version",
+        "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-.*)?(?:\\+.*)?"
+      },
+      "profile": {
+        "type": "string",
+        "enum": ["basic", "standard", "advanced"],
+        "default": "basic",
+        "description": "Complexity profile determining available features and validation strictness"
+      },
+      "metadata": {
+        "type": "object",
+        "description": "Metadata for the algorithm collection",
+        "properties": {
+          "name": { "type": "string", "description": "Collection name" },
+          "description": { "type": "string", "description": "Collection description" },
+          "author": { "type": "string", "description": "Author name" },
+          "version": { "type": "string", "description": "Collection version" }
+        },
+        "required": ["name", "version"]
+      },
+      "config": {
+        "type": "object",
+        "description": "Global configuration values used across algorithms. Use this space to define system-level parameters as needed. These values are not strictly enforced by the schema and can include any global constant or variable.",
+        "additionalProperties": {
+            "oneOf": [
+            { "type": "string" },
+            { "type": "number" },
+            { "type": "boolean" }
+            ]
+        }
+      },
+      "algorithms": {
+        "type": "array",
+        "description": "Algorithm definitions. Every algorithm is self-contained and can be reused as a template.",
+        "items": {
+          "type": "object",
+          "required": ["id", "name", "formula"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9-_]+$",
+              "description": "Unique algorithm ID"
+            },
+            "name": {
+              "type": "string",
+              "description": "Human-readable algorithm name"
+            },
+            "description": {
+              "type": "string",
+              "description": "Description of the algorithm's purpose and behavior"
+            },
+            "dependencies": {
+              "type": "array",
+              "description": "IDs of algorithms this one depends on (allowing composition of algorithms)",
+              "items": { "type": "string" }
+            },
+            "inputs": {
+              "type": "object",
+              "description": "Required inputs",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["number", "string", "color", "token-reference"],
+                    "description": "Input data type"
+                  },
+                  "description": { "type": "string" },
+                  "default": {},
+                  "required": { "type": "boolean", "default": true },
+                  "constraints": {
+                    "type": "object",
+                    "description": "Validation rules for the input",
+                    "properties": {
+                      "min": { "type": "number" },
+                      "max": { "type": "number" },
+                      "step": { "type": "number" },
+                      "pattern": { "type": "string" }
+                    }
+                  }
+                }
+              }
+            },
+            "formula": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "A simple mathematical or logical expression using input names and config values"
+                },
+                {
+                  "type": "object",
+                  "description": "Structured formula definition",
+                  "required": ["operation"],
+                  "properties": {
+                    "operation": {
+                      "type": "string",
+                      "enum": ["add", "multiply", "linear-scale", "round", "custom"],
+                      "description": "Operation type"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "description": "Parameter mappings (key-value pairs)",
+                      "additionalProperties": true
+                    },
+                    "expression": {
+                      "type": "string",
+                      "description": "Custom expression for 'custom' operations"
+                    }
+                  }
+                }
+              ]
+            },
+            "outputs": {
+              "type": "object",
+              "description": "Definition of outputs produced by the algorithm",
+              "properties": {
+                "tokens": {
+                  "type": "array",
+                  "description": "Configuration for generated tokens (if applicable)",
+                  "items": {
+                    "type": "object",
+                    "required": ["name", "type"],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Token naming pattern (supports {index}, {value} placeholders)"
+                      },
+                      "type": {
+                        "type": "string",
+                        "description": "Token type (e.g., color, dimension)"
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Token description pattern"
+                      },
+                      "tier": {
+                        "type": "string",
+                        "enum": ["primitive", "semantic", "component"],
+                        "default": "primitive"
+                      },
+                      "private": {
+                        "type": "boolean",
+                        "default": false
+                      }
+                    }
+                  }
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Number of tokens to generate (for scale algorithms)"
+                },
+                "range": {
+                  "type": "object",
+                  "description": "Value range parameters for token generation",
+                  "properties": {
+                    "min": { "type": "number" },
+                    "max": { "type": "number" },
+                    "steps": { "type": "integer", "minimum": 1 }
+                  }
+                }
+              }
+            },
+            "conditions": {
+              "type": "array",
+              "description": "Conditional execution rules (advanced usage)",
+              "items": {
+                "type": "object",
+                "required": ["when", "then"],
+                "properties": {
+                  "when": { "type": "string", "description": "Condition expression" },
+                  "then": { "type": "object", "description": "Configuration adjustments when the condition is met" }
+                }
+              }
+            },
+            "tags": {
+              "type": "array",
+              "description": "Tags for organization and filtering",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      },
+      "execution": {
+        "type": "object",
+        "description": "Execution configuration",
+        "properties": {
+          "order": {
+            "type": "array",
+            "description": "Execution order for algorithms (optional if auto-detected)",
+            "items": { "type": "string" }
+          },
+          "parallel": {
+            "type": "boolean",
+            "default": false,
+            "description": "Enables parallel execution if supported"
+          },
+          "onError": {
+            "type": "string",
+            "enum": ["stop", "skip", "warn"],
+            "default": "stop",
+            "description": "Error handling strategy"
+          }
+        }
+      },
+      "integration": {
+        "type": "object",
+        "description": "Integration settings with the main token schema",
+        "properties": {
+          "targetSchema": { "type": "string", "description": "URI or path to the target token schema" },
+          "outputFormat": {
+            "type": "string",
+            "enum": ["design-tokens", "custom"],
+            "default": "design-tokens",
+            "description": "Format for generated tokens"
+          },
+          "mergeStrategy": {
+            "type": "string",
+            "enum": ["replace", "merge", "append"],
+            "default": "merge",
+            "description": "Strategy for handling existing tokens"
+          },
+          "validation": {
+            "type": "boolean",
+            "default": true,
+            "description": "Whether to validate generated tokens against the target schema"
+          }
+        }
+      },
+      "examples": {
+        "type": "array",
+        "description": "Use case examples for testing and validation",
+        "items": {
+          "type": "object",
+          "required": ["name", "description", "config", "algorithms"],
+          "properties": {
+            "name": { "type": "string" },
+            "description": { "type": "string" },
+            "useCase": { "type": "string" },
+            "config": { "type": "object", "description": "Complete working configuration" },
+            "algorithms": { "type": "array", "description": "List of algorithms", "items": { "type": "object" } },
+            "expectedOutput": { "type": "object", "description": "Example output tokens" }
+          }
+        }
+      }
+    },
+    "required": ["schemaVersion", "algorithms"],
+    "additionalProperties": false
+  }
+  
