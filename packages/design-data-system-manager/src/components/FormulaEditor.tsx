@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   VStack,
@@ -7,7 +7,6 @@ import {
   IconButton,
   useColorMode,
   Input,
-  Tooltip,
   Badge,
   useDisclosure,
   Modal,
@@ -16,14 +15,12 @@ import {
   ModalHeader,
   ModalBody,
   ModalCloseButton,
-  Wrap,
-  WrapItem,
   Menu,
   MenuButton,
   MenuList,
   MenuItem
 } from '@chakra-ui/react';
-import { Plus, Trash2, GripVertical, Parentheses, X, Check, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Parentheses, Check, ChevronDown, SquareFunction, VariableIcon, TextCursorInputIcon, SplitIcon } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Variable } from '../types/algorithm';
 
@@ -39,15 +36,20 @@ interface FormulaEditorProps {
   variables: Variable[];
   value: string;
   onChange: (value: string, latexExpression: string) => void;
+  mode?: 'formula' | 'condition';
 }
 
-const OPERATORS = [
+const MATH_OPERATORS = [
   { id: '+', label: 'Add (+)', symbol: '+', latex: '+' },
   { id: '-', label: 'Subtract (-)', symbol: '-', latex: '-' },
-  { id: '*', label: 'Multiply (×)', symbol: '*', latex: '\\times' },
+  { id: '×', label: 'Multiply (×)', symbol: '*', latex: '\\times' },
   { id: '/', label: 'Divide (÷)', symbol: '/', latex: '\\div' },
   { id: '^', label: 'Power (^)', symbol: '^', latex: '^' },
   { id: '%', label: 'Modulo (%)', symbol: '%', latex: '\\bmod' },
+  { id: '=', label: 'Equals (=)', symbol: '=', latex: '=' }
+];
+
+const CONDITIONAL_OPERATORS = [
   { id: '=', label: 'Equals (=)', symbol: '=', latex: '=' },
   { id: '>', label: 'Greater Than (>)', symbol: '>', latex: '>' },
   { id: '<', label: 'Less Than (<)', symbol: '<', latex: '<' },
@@ -159,7 +161,12 @@ const FormulaBlockComponent: React.FC<{
   );
 };
 
-export const FormulaEditor: React.FC<FormulaEditorProps> = ({ variables, value, onChange }) => {
+export const FormulaEditor: React.FC<FormulaEditorProps> = ({ 
+  variables, 
+  value, 
+  onChange,
+  mode = 'formula'
+}) => {
   const { colorMode } = useColorMode();
   const [blocks, setBlocks] = useState<FormulaBlock[]>(() => {
     if (!value) return [];
@@ -191,7 +198,6 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({ variables, value, 
     }
 
     setBlocks(newBlocks);
-    updateFormula(newBlocks);
   };
 
   const findBlockById = (blocks: FormulaBlock[], id: string): FormulaBlock | null => {
@@ -212,15 +218,12 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({ variables, value, 
       content: variable.name
     };
 
-    setBlocks(prev => {
-      const newBlocks = [...prev, newBlock];
-      updateFormula(newBlocks);
-      return newBlocks;
-    });
+    setBlocks(prev => [...prev, newBlock]);
   };
 
   const handleAddOperator = (operatorId: string) => {
-    const operator = OPERATORS.find(op => op.id === operatorId);
+    const operators = mode === 'formula' ? MATH_OPERATORS : CONDITIONAL_OPERATORS;
+    const operator = operators.find(op => op.id === operatorId);
     if (!operator) return;
 
     const newBlock: FormulaBlock = {
@@ -229,11 +232,7 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({ variables, value, 
       content: operator.symbol
     };
 
-    setBlocks(prev => {
-      const newBlocks = [...prev, newBlock];
-      updateFormula(newBlocks);
-      return newBlocks;
-    });
+    setBlocks(prev => [...prev, newBlock]);
   };
 
   const handleAddGroup = () => {
@@ -244,11 +243,7 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({ variables, value, 
       children: []
     };
 
-    setBlocks(prev => {
-      const newBlocks = [...prev, newBlock];
-      updateFormula(newBlocks);
-      return newBlocks;
-    });
+    setBlocks(prev => [...prev, newBlock]);
   };
 
   const handleAddValue = () => {
@@ -270,11 +265,7 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({ variables, value, 
       value
     };
 
-    setBlocks(prev => {
-      const newBlocks = [...prev, newBlock];
-      updateFormula(newBlocks);
-      return newBlocks;
-    });
+    setBlocks(prev => [...prev, newBlock]);
     onClose();
   };
 
@@ -289,93 +280,11 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({ variables, value, 
       });
     };
 
-    setBlocks(prev => {
-      const newBlocks = deleteFromBlocks(prev);
-      updateFormula(newBlocks);
-      return newBlocks;
-    });
+    setBlocks(prev => deleteFromBlocks(prev));
   };
 
-  const buildLatexFormula = (blocks: FormulaBlock[]): string => {
-    let latex = '';
-    let i = 0;
-
-    while (i < blocks.length) {
-      const block = blocks[i];
-      const nextBlock = blocks[i + 1];
-      const prevBlock = blocks[i - 1];
-      let operator;
-      let groupContent;
-
-      switch (block.type) {
-        case 'variable':
-          latex += `{${block.content}}`;
-          break;
-
-        case 'operator':
-          operator = OPERATORS.find(op => op.symbol === block.content);
-          if (!operator) {
-            latex += block.content;
-            break;
-          }
-
-          // Special handling for division
-          if (operator.id === '/') {
-            if (prevBlock && nextBlock) {
-              // Only slice if prevBlock is a variable or value
-              if (prevBlock.type === 'variable' || prevBlock.type === 'value') {
-                latex = latex.slice(0, -(`{${prevBlock.content}}`.length));
-              }
-              latex += `\\frac{{${prevBlock.content}}}{{${nextBlock.content}}}`;
-              i++; // Skip the next block as it's now part of the fraction
-            } else {
-              latex += ` ${operator.latex} `;
-            }
-          }
-          // Special handling for power
-          else if (operator.id === '^') {
-            if (prevBlock && nextBlock) {
-              // Only slice if prevBlock is a variable or value
-              if (prevBlock.type === 'variable' || prevBlock.type === 'value') {
-                latex = latex.slice(0, -(`{${prevBlock.content}}`.length));
-              }
-              latex += `{${prevBlock.content}}^{${nextBlock.content}}`;
-              i++; // Skip the next block as it's now part of the power
-            } else {
-              latex += ` ${operator.latex} `;
-            }
-          }
-          // Special handling for multiplication
-          else if (operator.id === '*') {
-            latex += ` ${operator.latex} `;
-          }
-          // All other operators
-          else {
-            latex += ` ${operator.latex} `;
-          }
-          break;
-
-        case 'group': {
-          groupContent = block.children ? buildLatexFormula(block.children) : '';
-          latex += `\\left(${groupContent}\\right)`;
-          break;
-        }
-
-        case 'value':
-          if (!isNaN(Number(block.content))) {
-            latex += block.content;
-          } else {
-            latex += `{${block.content}}`;
-          }
-          break;
-      }
-      i++;
-    }
-
-    return latex;
-  };
-
-  const updateFormula = (blocks: FormulaBlock[]) => {
+  // Add useEffect to handle formula updates
+  useEffect(() => {
     const buildFormula = (blocks: FormulaBlock[]): string => {
       return blocks.map(block => {
         switch (block.type) {
@@ -396,11 +305,159 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({ variables, value, 
     const formula = buildFormula(blocks);
     const latexExpression = buildLatexFormula(blocks);
     onChange(formula, latexExpression);
+  }, [blocks, onChange]);
+
+  const buildLatexFormula = (blocks: FormulaBlock[]): string => {
+    let latex = '';
+    let i = 0;
+
+    while (i < blocks.length) {
+      const block = blocks[i];
+      let groupContent = '';
+      
+      switch (block.type) {
+        case 'variable':
+          // Use \mathit for multi-character variable names
+          latex += block.content.length > 1 ? `\\mathit{${block.content}}` : block.content;
+          break;
+
+        case 'operator':
+          if (block.content === '^') {
+            // Power operator with proper LaTeX syntax
+            i++;
+            if (i < blocks.length) {
+              const exponent = blocks[i];
+              latex += '^{' + buildLatexFormula([exponent]) + '}';
+            }
+          } else {
+            // Map operators to their proper LaTeX symbols
+            const operator = MATH_OPERATORS.find(op => op.symbol === block.content) || 
+                           CONDITIONAL_OPERATORS.find(op => op.symbol === block.content);
+            if (operator) {
+              switch (operator.id) {
+                case '+':
+                  latex += ' + ';
+                  break;
+                case '-':
+                  latex += ' - ';
+                  break;
+                case '*':
+                  latex += ' \\times ';
+                  break;
+                case '/':
+                  latex += ' \\div ';
+                  break;
+                case '%':
+                  latex += ' \\bmod ';
+                  break;
+                case '=':
+                  latex += ' = ';
+                  break;
+                case '>':
+                  latex += ' > ';
+                  break;
+                case '<':
+                  latex += ' < ';
+                  break;
+                case '>=':
+                  latex += ' \\geq ';
+                  break;
+                case '<=':
+                  latex += ' \\leq ';
+                  break;
+                case '!=':
+                  latex += ' \\neq ';
+                  break;
+                default:
+                  latex += ' ' + operator.latex + ' ';
+              }
+            }
+          }
+          break;
+
+        case 'group':
+          groupContent = block.children ? buildLatexFormula(block.children) : '';
+          latex += `\\left(${groupContent}\\right)`;
+          break;
+
+        case 'value':
+          // Numbers should be in math mode
+          latex += block.content;
+          break;
+      }
+      i++;
+    }
+
+    return latex;
   };
 
   return (
     <Box>
       <VStack spacing={4} align="stretch">
+        {/* Toolbar */}
+        <HStack spacing={2} wrap="wrap">
+          <Menu>
+            <MenuButton 
+              as={Button} 
+              size="sm"
+              rightIcon={<ChevronDown size={16} />}
+              leftIcon={<VariableIcon size={16} />}
+            >
+              Variable
+            </MenuButton>
+            <MenuList>
+              {variables.map(variable => (
+                <MenuItem
+                  key={variable.id}
+                  onClick={() => handleAddVariable(variable)}
+                  icon={<Plus size={16} />}
+                >
+                  {variable.name}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Menu>
+
+          <Menu>
+            <MenuButton
+              as={Button}
+              rightIcon={<ChevronDown size={16} />}
+              leftIcon={mode === 'formula' ? <SquareFunction size={16} /> : <SplitIcon size={16} />}
+              size="sm"
+            >
+              {mode === 'formula' ? 'Math Operator' : 'Condition'}
+            </MenuButton>
+            <MenuList>
+              {(mode === 'formula' ? MATH_OPERATORS : CONDITIONAL_OPERATORS).map(op => (
+                <MenuItem
+                  key={op.id}
+                  onClick={() => handleAddOperator(op.id)}
+                >
+                  {op.label}
+                </MenuItem>
+              ))}
+            </MenuList>
+          </Menu>
+
+            <Button
+              aria-label="Add parentheses group"
+              leftIcon={<Parentheses size={16} />}
+              size="sm"
+              onClick={handleAddGroup}
+            >
+                Parentheses
+            </Button>
+
+            <Button
+              aria-label="Add value"
+              leftIcon={<TextCursorInputIcon size={16} />}
+              size="sm"
+              onClick={handleAddValue}
+            >
+                Value
+            </Button>
+        </HStack>
+        
         {/* Formula Blocks */}
         <Box
           p={4}
@@ -433,63 +490,6 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({ variables, value, 
           </DragDropContext>
         </Box>
 
-        {/* Toolbar */}
-        <HStack spacing={2} wrap="wrap">
-          <Wrap spacing={2}>
-            {variables.map(variable => (
-              <WrapItem key={variable.id}>
-                <Tooltip label={`Add ${variable.name}`}>
-                  <Button
-                    size="sm"
-                    leftIcon={<Plus size={16} />}
-                    onClick={() => handleAddVariable(variable)}
-                  >
-                    {variable.name}
-                  </Button>
-                </Tooltip>
-              </WrapItem>
-            ))}
-          </Wrap>
-
-          <Menu>
-            <MenuButton
-              as={Button}
-              rightIcon={<ChevronDown size={16} />}
-              size="sm"
-              width="200px"
-            >
-              Operations
-            </MenuButton>
-            <MenuList>
-              {OPERATORS.map(op => (
-                <MenuItem
-                  key={op.id}
-                  onClick={() => handleAddOperator(op.id)}
-                >
-                  {op.label}
-                </MenuItem>
-              ))}
-            </MenuList>
-          </Menu>
-
-          <Tooltip label="Add Group">
-            <IconButton
-              aria-label="Add group"
-              icon={<Parentheses size={16} />}
-              size="sm"
-              onClick={handleAddGroup}
-            />
-          </Tooltip>
-
-          <Tooltip label="Add Value">
-            <IconButton
-              aria-label="Add value"
-              icon={<X size={16} />}
-              size="sm"
-              onClick={handleAddValue}
-            />
-          </Tooltip>
-        </HStack>
       </VStack>
 
       {/* Value Input Modal */}

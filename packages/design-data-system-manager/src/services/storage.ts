@@ -18,8 +18,131 @@ const STORAGE_KEYS = {
   PLATFORMS: 'token-model:platforms',
   THEMES: 'token-model:themes',
   TAXONOMIES: 'token-model:taxonomies',
-  NAMING_RULES: 'token-model:naming-rules'
+  NAMING_RULES: 'token-model:naming-rules',
+  ALGORITHMS: 'token-model:algorithms'
 } as const;
+
+// TEMPORARY: Test data for algorithm debugging
+const TEMP_TEST_ALGORITHMS: Algorithm[] = [
+  {
+    id: 'test-algo-1',
+    name: 'Test Algorithm 1',
+    variables: [
+      { id: 'var1', name: 'x', type: 'number', defaultValue: '0' },
+      { id: 'var2', name: 'y', type: 'number', defaultValue: '0' }
+    ],
+    formulas: [
+      {
+        id: 'formula1',
+        name: 'Sum',
+        expression: 'x + y',
+        latexExpression: '{x} + {y}',
+        description: 'Adds two numbers',
+        variableIds: ['var1', 'var2']
+      },
+      {
+        id: 'formula2',
+        name: 'Product',
+        expression: 'x * y',
+        latexExpression: '{x} \\times {y}',
+        description: 'Multiplies two numbers',
+        variableIds: ['var1', 'var2']
+      }
+    ],
+    conditions: [
+      {
+        id: 'cond1',
+        name: 'Is Positive',
+        expression: 'x > 0',
+        variableIds: ['var1']
+      }
+    ],
+    steps: [
+      { type: 'formula', id: 'formula1', name: 'Sum' },
+      { type: 'condition', id: 'cond1', name: 'Is Positive' },
+      { type: 'formula', id: 'formula2', name: 'Product' }
+    ]
+  },
+  {
+    "id": "new-algorithm",
+    "name": "New Algorithm",
+    "variables": [
+      {
+        "id": "var_1750285023050",
+        "name": "Base",
+        "type": "number",
+        "defaultValue": "14"
+      },
+      {
+        "id": "var_1750285027835",
+        "name": "Ratio",
+        "type": "number",
+        "defaultValue": "1.125"
+      },
+      {
+        "id": "var_1750285031421",
+        "name": "Increment",
+        "type": "number",
+        "defaultValue": ""
+      },
+      {
+        "id": "var_1750285142309",
+        "name": "TextSize",
+        "type": "number",
+        "defaultValue": ""
+      },
+      {
+        "id": "var_1750285199085",
+        "name": "RatioMin",
+        "type": "number",
+        "defaultValue": "1.075"
+      },
+      {
+        "id": "var_1750285226254",
+        "name": "Ratio max",
+        "type": "number",
+        "defaultValue": "1.015"
+      },
+      {
+        "id": "var_1750285274964",
+        "name": "Percent",
+        "type": "number",
+        "defaultValue": "1"
+      }
+    ],
+    "formulas": [
+      {
+        "id": "formula-1750285032878",
+        "name": "Typescale",
+        "expression": "TextSize = Base * Ratio ^ Increment",
+        "latexExpression": "\\mathit{TextSize} = \\mathit{Base} \\times \\mathit{Ratio}^{\\mathit{Increment}}",
+        "description": "",
+        "variableIds": []
+      },
+      {
+        "id": "formula-1750285160745",
+        "name": "Ratio scale",
+        "expression": "Ratio = RatioMin * (1 - Percent) + Ratiomax * Percent",
+        "latexExpression": "\\mathit{Ratio} = \\mathit {RatioMin} \\times {(1} - \\mathit{Percent)} + \\mathit{Ratio}{max} \\times \\mathit{Percent}",
+        "description": "",
+        "variableIds": []
+      }
+    ],
+    "conditions": [],
+    "steps": [
+      {
+        "type": "formula",
+        "id": "formula-1750285160745",
+        "name": "Ratio scale"
+      },
+      {
+        "type": "formula",
+        "id": "formula-1750285032878",
+        "name": "Typescale"
+      }
+    ]
+  }
+];
 
 export class StorageService {
   private static getItem<T>(key: string, defaultValue: T): T {
@@ -119,12 +242,16 @@ export class StorageService {
   }
 
   static getAlgorithms(): Algorithm[] {
-    const stored = localStorage.getItem('token-model:algorithms');
-    return stored ? JSON.parse(stored) : [];
+    // TEMPORARY: Return test data for debugging
+    return TEMP_TEST_ALGORITHMS;
+    
+    // Original implementation (commented out for now)
+    // const stored = localStorage.getItem(STORAGE_KEYS.ALGORITHMS);
+    // return stored ? JSON.parse(stored) : [];
   }
 
   static setAlgorithms(algorithms: Algorithm[]): void {
-    localStorage.setItem('token-model:algorithms', JSON.stringify(algorithms));
+    this.setItem(STORAGE_KEYS.ALGORITHMS, algorithms);
   }
 
   static clearAll(): void {

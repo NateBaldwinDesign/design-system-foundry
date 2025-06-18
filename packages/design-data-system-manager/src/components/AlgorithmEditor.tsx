@@ -1,5 +1,5 @@
 import 'katex/dist/katex.min.css';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   VStack,
@@ -14,30 +14,24 @@ import {
   Badge,
   Select,
   Divider,
-  Tooltip,
-  useDisclosure,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalCloseButton,
-  Wrap,
-  WrapItem,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel
 } from '@chakra-ui/react';
-import { Plus, Trash2, GripVertical, Save, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Save, Edit } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Algorithm, Variable, Formula, Condition, AlgorithmStep } from '../types/algorithm';
 import { FormulaEditor } from './FormulaEditor';
 import { BlockMath } from 'react-katex';
 
+// Add type declaration for react-katex
+declare module 'react-katex';
+
 interface AlgorithmEditorProps {
   algorithm?: Algorithm;
-  onChange?: (algorithm: Algorithm) => void;
+  onSave?: (algorithm: Algorithm) => void;
 }
 
 const defaultAlgorithm: Algorithm = {
@@ -51,7 +45,7 @@ const defaultAlgorithm: Algorithm = {
 
 export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({ 
   algorithm = defaultAlgorithm, 
-  onChange = () => {} 
+  onSave = () => {} 
 }) => {
   const { colorMode } = useColorMode();
   const toast = useToast();
@@ -61,6 +55,11 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
     }
     return defaultAlgorithm;
   });
+
+  // Sync currentAlgorithm with algorithm prop
+  useEffect(() => {
+    setCurrentAlgorithm(algorithm ? { ...algorithm } : defaultAlgorithm);
+  }, [algorithm]);
 
   const [newVariable, setNewVariable] = React.useState<Partial<Variable>>({
     name: '',
@@ -86,6 +85,9 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
     id: '',
     name: ''
   });
+
+  const [editingVariableId, setEditingVariableId] = useState<string | null>(null);
+  const [editingVariable, setEditingVariable] = useState<Partial<Variable>>({});
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -145,7 +147,6 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       formulas: [...(currentAlgorithm.formulas || []), newFormula]
     };
     setCurrentAlgorithm(updatedAlgorithm);
-    onChange(updatedAlgorithm);
   };
 
   const handleAddCondition = () => {
@@ -251,7 +252,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       return;
     }
 
-    onChange(currentAlgorithm);
+    onSave(currentAlgorithm);
   };
 
   const handleVariableTypeChange = (type: Variable['type']) => {
@@ -268,6 +269,49 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
     }));
   };
 
+  const handleEditVariable = (variable: Variable) => {
+    setEditingVariableId(variable.id);
+    setEditingVariable({
+      name: variable.name,
+      type: variable.type,
+      defaultValue: variable.defaultValue
+    });
+  };
+
+  const handleSaveEditVariable = () => {
+    if (!editingVariableId || !editingVariable.name || !editingVariable.type) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields',
+        status: 'error',
+        duration: 3000,
+        isClosable: true
+      });
+      return;
+    }
+
+    setCurrentAlgorithm(prev => ({
+      ...prev,
+      variables: prev.variables.map(v => 
+        v.id === editingVariableId 
+          ? { 
+              ...v, 
+              name: editingVariable.name!, 
+              type: editingVariable.type!, 
+              defaultValue: editingVariable.defaultValue 
+            }
+          : v
+      )
+    }));
+
+    setEditingVariableId(null);
+    setEditingVariable({});
+  };
+
+  const handleCancelEdit = () => {
+    setEditingVariableId(null);
+    setEditingVariable({});
+  };
 
   return (
     <Box>
@@ -289,303 +333,396 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
 
         <Divider />
 
-        {/* Variables */}
-        <VStack spacing={4} align="stretch">
-          <Text fontSize="lg" fontWeight="bold">Variables</Text>
-          <HStack spacing={4}>
-            <Input
-              placeholder="Variable Name"
-              value={newVariable.name}
-              onChange={e => setNewVariable(prev => ({ ...prev, name: e.target.value }))}
-            />
-            <Select
-              value={newVariable.type}
-              onChange={e => handleVariableTypeChange(e.target.value as Variable['type'])}
-            >
-              <option value="number">Number</option>
-              <option value="string">String</option>
-              <option value="boolean">Boolean</option>
-            </Select>
-            <Input
-              placeholder="Default Value (optional)"
-              value={newVariable.defaultValue?.toString() || ''}
-              onChange={e => handleVariableDefaultValueChange(e.target.value)}
-            />
-            <Button leftIcon={<Plus size={16} />} onClick={handleAddVariable}>
-              Add Variable
-            </Button>
-          </HStack>
-          <VStack spacing={2} align="stretch">
-            {currentAlgorithm.variables.map(variable => (
-              <HStack key={variable.id} justify="space-between">
-                <HStack>
-                  <Badge colorScheme="blue">{variable.name}</Badge>
-                  <Text fontSize="sm" color="gray.500">({variable.type})</Text>
-                  {variable.defaultValue && (
-                    <Text fontSize="sm" color="gray.500">= {variable.defaultValue}</Text>
-                  )}
-                </HStack>
-                <IconButton
-                  aria-label="Delete variable"
-                  icon={<Trash2 size={16} />}
-                  size="sm"
-                  colorScheme="red"
-                  onClick={() => handleDeleteVariable(variable.id)}
-                />
-              </HStack>
-            ))}
-          </VStack>
-        </VStack>
+        {/* Tabs Section */}
+        <Tabs>
+          <TabList>
+            <Tab>Variables</Tab>
+            <Tab>Formulas</Tab>
+            <Tab>Conditions</Tab>
+            <Tab>Algorithm Steps</Tab>
+            <Tab>Preview</Tab>
+          </TabList>
 
-        <Divider />
-
-        {/* Formulas */}
-        <Box>
-          <HStack justify="space-between" mb={2}>
-            <Button
-              size="sm"
-              leftIcon={<Plus size={16} />}
-              onClick={handleAddFormula}
-            >
-              Add Formula
-            </Button>
-          </HStack>
-
-          <VStack spacing={4} align="stretch">
-            {(currentAlgorithm.formulas || []).map((formula, index) => (
-              <Box
-                key={formula.id}
-                p={4}
-                borderWidth={1}
-                borderRadius="md"
-                position="relative"
-              >
-                <HStack spacing={4} align="start">
-                  <Box flex={1}>
-                    <Input
-                      placeholder="Formula Name"
-                      value={formula.name}
-                      onChange={(e) => {
-                        const newFormulas = [...(currentAlgorithm.formulas || [])];
-                        newFormulas[index] = {
-                          ...formula,
-                          name: e.target.value
-                        };
-                        const updatedAlgorithm = {
-                          ...currentAlgorithm,
-                          formulas: newFormulas
-                        };
-                        setCurrentAlgorithm(updatedAlgorithm);
-                        onChange(updatedAlgorithm);
-                      }}
-                      mb={2}
-                    />
-                    <Input
-                      placeholder="Description"
-                      value={formula.description}
-                      onChange={(e) => {
-                        const newFormulas = [...(currentAlgorithm.formulas || [])];
-                        newFormulas[index] = {
-                          ...formula,
-                          description: e.target.value
-                        };
-                        const updatedAlgorithm = {
-                          ...currentAlgorithm,
-                          formulas: newFormulas
-                        };
-                        setCurrentAlgorithm(updatedAlgorithm);
-                        onChange(updatedAlgorithm);
-                      }}
-                      mb={2}
-                    />
-                    {formula.latexExpression && (
-                      <Box
-                        p={2}
-                        bg={colorMode === 'light' ? 'gray.50' : 'gray.700'}
-                        borderRadius="md"
-                        mb={2}
-                        fontSize="sm"
-                      >
-                        <BlockMath math={formula.latexExpression.replace(/^\$|\$$/g, '')} />
-                      </Box>
-                    )}
-                    <FormulaEditor
-                      variables={currentAlgorithm.variables || []}
-                      value={formula.expression}
-                      onChange={(value, latexExpression) => {
-                        const newFormulas = [...(currentAlgorithm.formulas || [])];
-                        newFormulas[index] = {
-                          ...formula,
-                          expression: value,
-                          latexExpression
-                        };
-                        const updatedAlgorithm = {
-                          ...currentAlgorithm,
-                          formulas: newFormulas
-                        };
-                        setCurrentAlgorithm(updatedAlgorithm);
-                        onChange(updatedAlgorithm);
-                      }}
-                    />
-                  </Box>
-                  <IconButton
-                    aria-label="Delete formula"
-                    icon={<Trash2 size={16} />}
-                    size="sm"
-                    variant="ghost"
-                    colorScheme="red"
-                    onClick={() => {
-                      const newFormulas = (currentAlgorithm.formulas || []).filter(f => f.id !== formula.id);
-                      const updatedAlgorithm = {
-                        ...currentAlgorithm,
-                        formulas: newFormulas
-                      };
-                      setCurrentAlgorithm(updatedAlgorithm);
-                      onChange(updatedAlgorithm);
-                    }}
+          <TabPanels>
+            {/* Variables Tab */}
+            <TabPanel>
+              <VStack spacing={4} align="stretch">
+                <HStack spacing={4} justify="start">
+                  <Input
+                    flex="1"
+                    maxW="200px"
+                    placeholder="Variable Name"
+                    value={newVariable.name}
+                    onChange={e => setNewVariable(prev => ({ ...prev, name: e.target.value }))}
                   />
-                </HStack>
-              </Box>
-            ))}
-          </VStack>
-        </Box>
-
-        <Divider />
-
-        {/* Conditions */}
-        <VStack spacing={4} align="stretch">
-          <Text fontSize="lg" fontWeight="bold">Conditions</Text>
-          <VStack spacing={4} align="stretch">
-            <Input
-              placeholder="Condition Name"
-              value={newCondition.name}
-              onChange={e => setNewCondition(prev => ({ ...prev, name: e.target.value }))}
-            />
-            <FormulaEditor
-              variables={currentAlgorithm.variables || []}
-              value={newCondition.expression || ''}
-              onChange={expression => setNewCondition(prev => ({ ...prev, expression }))}
-            />
-            <Button leftIcon={<Plus size={16} />} onClick={handleAddCondition}>
-              Add Condition
-            </Button>
-          </VStack>
-          <VStack spacing={2} align="stretch">
-            {currentAlgorithm.conditions.map(condition => (
-              <HStack key={condition.id} justify="space-between">
-                <VStack align="start" spacing={1}>
-                  <Badge colorScheme="green">{condition.name}</Badge>
-                  <Text fontSize="sm" color="gray.500">{condition.expression}</Text>
-                </VStack>
-                <IconButton
-                  aria-label="Delete condition"
-                  icon={<Trash2 size={16} />}
-                  size="sm"
-                  colorScheme="red"
-                  onClick={() => handleDeleteCondition(condition.id)}
-                />
-              </HStack>
-            ))}
-          </VStack>
-        </VStack>
-
-        <Divider />
-
-        {/* Algorithm Steps */}
-        <VStack spacing={4} align="stretch">
-          <Text fontSize="lg" fontWeight="bold">Algorithm Steps</Text>
-          <HStack spacing={4}>
-            <Select
-              value={newStep.type}
-              onChange={e => setNewStep(prev => ({ ...prev, type: e.target.value as 'formula' | 'condition' }))}
-            >
-              <option value="formula">Formula</option>
-              <option value="condition">Condition</option>
-            </Select>
-            <Select
-              value={newStep.id}
-              onChange={e => {
-                const items = newStep.type === 'formula' ? currentAlgorithm.formulas : currentAlgorithm.conditions;
-                const item = items.find(i => i.id === e.target.value);
-                setNewStep(prev => ({
-                  ...prev,
-                  id: e.target.value,
-                  name: item?.name || ''
-                }));
-              }}
-            >
-              <option value="">Select {newStep.type === 'formula' ? 'Formula' : 'Condition'}</option>
-              {(newStep.type === 'formula' ? currentAlgorithm.formulas : currentAlgorithm.conditions).map(item => (
-                <option key={item.id} value={item.id}>{item.name}</option>
-              ))}
-            </Select>
-            <Button leftIcon={<Plus size={16} />} onClick={handleAddStep}>
-              Add Step
-            </Button>
-          </HStack>
-
-          <Box
-            p={4}
-            bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-            borderRadius="md"
-          >
-            <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="algorithm-steps">
-                {(provided) => (
-                  <VStack
-                    {...provided.droppableProps}
-                    ref={provided.innerRef}
-                    spacing={2}
-                    align="stretch"
+                  <Select
+                    flex="1"
+                    maxW="140px"
+                    value={newVariable.type}
+                    onChange={e => handleVariableTypeChange(e.target.value as Variable['type'])}
                   >
-                    {currentAlgorithm.steps.map((step, index) => {
-                      const item = step.type === 'formula'
-                        ? currentAlgorithm.formulas.find(f => f.id === step.id)
-                        : currentAlgorithm.conditions.find(c => c.id === step.id);
+                    <option value="number">Number</option>
+                    <option value="string">String</option>
+                    <option value="boolean">Boolean</option>
+                  </Select>
+                  <Input
+                    flex="1"
+                    maxW="180px"
+                    placeholder="Default Value (optional)"
+                    value={newVariable.defaultValue?.toString() || ''}
+                    onChange={e => handleVariableDefaultValueChange(e.target.value)}
+                  />
+                  <Button
+                    leftIcon={<Plus size={16} />}
+                    flexShrink={0}
+                    onClick={handleAddVariable}
+                  >
+                    Add Variable
+                  </Button>
+                </HStack>
+                <VStack spacing={2} align="stretch">
+                  {currentAlgorithm.variables.map(variable => (
+                    <HStack key={variable.id} justify="space-between">
+                      {editingVariableId === variable.id ? (
+                        <HStack spacing={4} flex={1}>
+                          <Input
+                            flex="1"
+                            maxW="200px"
+                            placeholder="Variable Name"
+                            value={editingVariable.name}
+                            onChange={e => setEditingVariable(prev => ({ ...prev, name: e.target.value }))}
+                          />
+                          <Select
+                            flex="1"
+                            maxW="140px"
+                            value={editingVariable.type}
+                            onChange={e => setEditingVariable(prev => ({ ...prev, type: e.target.value as Variable['type'] }))}
+                          >
+                            <option value="number">Number</option>
+                            <option value="string">String</option>
+                            <option value="boolean">Boolean</option>
+                          </Select>
+                          <Input
+                            flex="1"
+                            maxW="180px"
+                            placeholder="Default Value (optional)"
+                            value={editingVariable.defaultValue?.toString() || ''}
+                            onChange={e => setEditingVariable(prev => ({ ...prev, defaultValue: e.target.value }))}
+                          />
+                          <Button
+                            size="sm"
+                            colorScheme="blue"
+                            onClick={handleSaveEditVariable}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleCancelEdit}
+                          >
+                            Cancel
+                          </Button>
+                        </HStack>
+                      ) : (
+                        <>
+                          <HStack>
+                            <Badge colorScheme="blue">{variable.name}</Badge>
+                            <Text fontSize="sm" color="gray.500">({variable.type})</Text>
+                            {variable.defaultValue && (
+                              <Text fontSize="sm" color="gray.500">= {variable.defaultValue}</Text>
+                            )}
+                          </HStack>
+                          <HStack>
+                            <IconButton
+                              aria-label="Edit variable"
+                              icon={<Edit size={16} />}
+                              size="sm"
+                              onClick={() => handleEditVariable(variable)}
+                            />
+                            <IconButton
+                              aria-label="Delete variable"
+                              icon={<Trash2 size={16} />}
+                              size="sm"
+                              colorScheme="red"
+                              onClick={() => handleDeleteVariable(variable.id)}
+                            />
+                          </HStack>
+                        </>
+                      )}
+                    </HStack>
+                  ))}
+                </VStack>
+              </VStack>
+            </TabPanel>
 
-                      return (
-                        <Draggable key={`${step.type}_${step.id}_${index}`} draggableId={`${step.type}_${step.id}_${index}`} index={index}>
-                          {(provided, snapshot) => (
-                            <HStack
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
+            {/* Formulas Tab */}
+            <TabPanel>
+              <VStack spacing={4} align="stretch">
+                <HStack justify="space-between">
+                  <Button
+                    size="sm"
+                    leftIcon={<Plus size={16} />}
+                    onClick={handleAddFormula}
+                  >
+                    Add Formula
+                  </Button>
+                </HStack>
+
+                <VStack spacing={4} align="stretch">
+                  {(currentAlgorithm.formulas || []).map((formula, index) => (
+                    <Box
+                      key={formula.id}
+                      p={4}
+                      borderWidth={1}
+                      borderRadius="md"
+                      position="relative"
+                    >
+                      <HStack spacing={4} align="start">
+                        <Box flex={1}>
+                          <HStack spacing={4} align="start">
+                            <Input
+                              placeholder="Formula Name"
+                              value={formula.name}
+                              onChange={(e) => {
+                                const newFormulas = [...(currentAlgorithm.formulas || [])];
+                                newFormulas[index] = {
+                                  ...formula,
+                                  name: e.target.value
+                                };
+                                const updatedAlgorithm = {
+                                  ...currentAlgorithm,
+                                  formulas: newFormulas
+                                };
+                                setCurrentAlgorithm(updatedAlgorithm);
+                              }}
+                              mb={2}
+                            />
+                            <Input
+                              placeholder="Description"
+                              value={formula.description}
+                              onChange={(e) => {
+                                const newFormulas = [...(currentAlgorithm.formulas || [])];
+                                newFormulas[index] = {
+                                  ...formula,
+                                  description: e.target.value
+                                };
+                                const updatedAlgorithm = {
+                                  ...currentAlgorithm,
+                                  formulas: newFormulas
+                                };
+                                setCurrentAlgorithm(updatedAlgorithm);
+                              }}
+                              mb={2}
+                            />
+
+                          </HStack>
+                          {formula.latexExpression && (
+                            <Box
                               p={2}
-                              bg={colorMode === 'dark' ? 'gray.700' : 'white'}
+                              bg={colorMode === 'light' ? 'gray.50' : 'gray.700'}
                               borderRadius="md"
-                              boxShadow={snapshot.isDragging ? "md" : "sm"}
-                              borderWidth={1}
-                              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-                              justify="space-between"
+                              mb={2}
+                              fontSize="sm"
                             >
-                              <HStack>
-                                <Box cursor="grab">
-                                  <GripVertical size={16} />
-                                </Box>
-                                <Badge colorScheme={step.type === 'formula' ? 'purple' : 'green'}>
-                                  {step.type === 'formula' ? 'Formula' : 'Condition'}
-                                </Badge>
-                                <Text>{item?.name}</Text>
-                              </HStack>
-                              <IconButton
-                                aria-label="Delete step"
-                                icon={<Trash2 size={16} />}
-                                size="sm"
-                                colorScheme="red"
-                                onClick={() => handleDeleteStep(index)}
-                              />
-                            </HStack>
+                              <Text mb={-2} fontSize="sm" color="gray.500">LaTeX preview:</Text>
+                              <BlockMath math={formula.latexExpression} />
+                            </Box>
                           )}
-                        </Draggable>
-                      );
-                    })}
-                    {provided.placeholder}
-                  </VStack>
-                )}
-              </Droppable>
-            </DragDropContext>
-          </Box>
-        </VStack>
+                          <FormulaEditor
+                            variables={currentAlgorithm.variables || []}
+                            value={formula.expression}
+                            mode="formula"
+                            onChange={(value, latexExpression) => {
+                              const newFormulas = [...(currentAlgorithm.formulas || [])];
+                              newFormulas[index] = {
+                                ...formula,
+                                expression: value,
+                                latexExpression
+                              };
+                              const updatedAlgorithm = {
+                                ...currentAlgorithm,
+                                formulas: newFormulas
+                              };
+                              setCurrentAlgorithm(updatedAlgorithm);
+                            }}
+                          />
+                        </Box>
+                        <IconButton
+                          aria-label="Delete formula"
+                          icon={<Trash2 size={16} />}
+                          size="sm"
+                          variant="ghost"
+                          colorScheme="red"
+                          onClick={() => {
+                            const newFormulas = (currentAlgorithm.formulas || []).filter(f => f.id !== formula.id);
+                            const updatedAlgorithm = {
+                              ...currentAlgorithm,
+                              formulas: newFormulas
+                            };
+                            setCurrentAlgorithm(updatedAlgorithm);
+                          }}
+                        />
+                      </HStack>
+                    </Box>
+                  ))}
+                </VStack>
+              </VStack>
+            </TabPanel>
+
+            {/* Conditions Tab */}
+            <TabPanel>
+              <VStack spacing={4} align="stretch">
+                <VStack spacing={4} align="stretch">
+                  <Input
+                    placeholder="Condition Name"
+                    value={newCondition.name}
+                    onChange={e => setNewCondition(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                  <FormulaEditor
+                    variables={currentAlgorithm.variables || []}
+                    value={newCondition.expression || ''}
+                    mode="condition"
+                    onChange={expression => setNewCondition(prev => ({ ...prev, expression }))}
+                  />
+                  <Button leftIcon={<Plus size={16} />} onClick={handleAddCondition}>
+                    Add Condition
+                  </Button>
+                </VStack>
+                <VStack spacing={2} align="stretch">
+                  {currentAlgorithm.conditions.map(condition => (
+                    <HStack key={condition.id} justify="space-between">
+                      <VStack align="start" spacing={1}>
+                        <Badge colorScheme="green">{condition.name}</Badge>
+                        <Text fontSize="sm" color="gray.500">{condition.expression}</Text>
+                      </VStack>
+                      <IconButton
+                        aria-label="Delete condition"
+                        icon={<Trash2 size={16} />}
+                        size="sm"
+                        colorScheme="red"
+                        onClick={() => handleDeleteCondition(condition.id)}
+                      />
+                    </HStack>
+                  ))}
+                </VStack>
+              </VStack>
+            </TabPanel>
+
+            {/* Algorithm Steps Tab */}
+            <TabPanel>
+              <VStack spacing={4} align="stretch">
+                <HStack spacing={4}>
+                  <Select
+                    value={newStep.type}
+                    onChange={e => setNewStep(prev => ({ ...prev, type: e.target.value as 'formula' | 'condition' }))}
+                  >
+                    <option value="formula">Formula</option>
+                    <option value="condition">Condition</option>
+                  </Select>
+                  <Select
+                    value={newStep.id}
+                    onChange={e => {
+                      const items = newStep.type === 'formula' ? currentAlgorithm.formulas : currentAlgorithm.conditions;
+                      const item = items.find(i => i.id === e.target.value);
+                      setNewStep(prev => ({
+                        ...prev,
+                        id: e.target.value,
+                        name: item?.name || ''
+                      }));
+                    }}
+                  >
+                    <option value="">Select {newStep.type === 'formula' ? 'Formula' : 'Condition'}</option>
+                    {(newStep.type === 'formula' ? currentAlgorithm.formulas : currentAlgorithm.conditions).map(item => (
+                      <option key={item.id} value={item.id}>{item.name}</option>
+                    ))}
+                  </Select>
+                  <Button leftIcon={<Plus size={16} />} onClick={handleAddStep}>
+                    Add Step
+                  </Button>
+                </HStack>
+
+                <Box
+                  p={4}
+                  bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                  borderRadius="md"
+                >
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable droppableId="algorithm-steps">
+                      {(provided) => (
+                        <VStack
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
+                          spacing={2}
+                          align="stretch"
+                        >
+                          {currentAlgorithm.steps.map((step, index) => {
+                            const item = step.type === 'formula'
+                              ? currentAlgorithm.formulas.find(f => f.id === step.id)
+                              : currentAlgorithm.conditions.find(c => c.id === step.id);
+
+                            return (
+                              <Draggable key={`${step.type}_${step.id}_${index}`} draggableId={`${step.type}_${step.id}_${index}`} index={index}>
+                                {(provided, snapshot) => (
+                                  <HStack
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    p={2}
+                                    bg={colorMode === 'dark' ? 'gray.700' : 'white'}
+                                    borderRadius="md"
+                                    boxShadow={snapshot.isDragging ? "md" : "sm"}
+                                    borderWidth={1}
+                                    borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                                    justify="space-between"
+                                  >
+                                    <HStack>
+                                      <Box cursor="grab">
+                                        <GripVertical size={16} />
+                                      </Box>
+                                      <Badge colorScheme={step.type === 'formula' ? 'purple' : 'green'}>
+                                        {step.type === 'formula' ? 'Formula' : 'Condition'}
+                                      </Badge>
+                                      <Text>{item?.name}</Text>
+                                    </HStack>
+                                    <IconButton
+                                      aria-label="Delete step"
+                                      icon={<Trash2 size={16} />}
+                                      size="sm"
+                                      colorScheme="red"
+                                      onClick={() => handleDeleteStep(index)}
+                                    />
+                                  </HStack>
+                                )}
+                              </Draggable>
+                            );
+                          })}
+                          {provided.placeholder}
+                        </VStack>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+                </Box>
+              </VStack>
+            </TabPanel>
+
+            {/* Preview Tab */}
+            <TabPanel>
+              <Box
+                p={4}
+                bg={colorMode === 'light' ? 'gray.50' : 'gray.800'}
+                borderRadius="md"
+                fontSize="sm"
+                fontFamily="mono"
+                overflowX="auto"
+              >
+                <Text fontWeight="bold" mb={2}>JSON Preview</Text>
+                <pre style={{ margin: 0 }}>
+                  {JSON.stringify(currentAlgorithm, null, 2)}
+                </pre>
+              </Box>
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
 
         {/* Save Button */}
         <Button
@@ -596,22 +733,6 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
         >
           Save Algorithm
         </Button>
-
-        {/* JSON Preview */}
-        <Box
-          mt={8}
-          p={4}
-          bg={colorMode === 'light' ? 'gray.50' : 'gray.800'}
-          borderRadius="md"
-          fontSize="sm"
-          fontFamily="mono"
-          overflowX="auto"
-        >
-          <Text fontWeight="bold" mb={2}>JSON Preview</Text>
-          <pre style={{ margin: 0 }}>
-            {JSON.stringify(currentAlgorithm, null, 2)}
-          </pre>
-        </Box>
       </VStack>
     </Box>
   );
