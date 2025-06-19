@@ -94,12 +94,6 @@ export const TEMP_TEST_ALGORITHMS: Algorithm[] = [
         name: 'Ratio',
         type: 'number',
         defaultValue: '1.125'
-      },
-      {
-        id: 'var_increment',
-        name: 'Increment',
-        type: 'number',
-        defaultValue: '1'
       }
     ],
     formulas: [
@@ -107,16 +101,16 @@ export const TEMP_TEST_ALGORITHMS: Algorithm[] = [
         id: 'formula-typescale',
         name: 'Type Scale',
         expressions: {
-          latex: { value: '\\mathit{Base} \\times \\mathit{Ratio}^{\\mathit{Increment}}' },
+          latex: { value: "\\mathit{Base} \\times \\mathit{Ratio}^{n}" },
           javascript: { 
-            value: 'Base * Math.pow(Ratio, Increment)',
+            value: 'Base * Math.pow(Ratio, n)',
             metadata: {
               allowedOperations: ['math']
             }
           }
         },
         description: 'Calculates font size based on modular scale',
-        variableIds: ['var_base', 'var_ratio', 'var_increment']
+        variableIds: ['var_base', 'var_ratio']
       }
     ],
     conditions: [],

@@ -505,6 +505,38 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
     // Save the algorithm
     onSave(currentAlgorithm);
     
+    // Debug log: Log algorithm data in schema format
+    const algorithmDataForStorage = {
+      schemaVersion: "5.0.0",
+      profile: "basic",
+      metadata: {
+        name: "Algorithm Collection",
+        description: "Collection of algorithms for design token generation",
+        version: "1.0.0"
+      },
+      config: {},
+      algorithms: [currentAlgorithm],
+      execution: {
+        order: [],
+        parallel: false,
+        onError: "stop"
+      },
+      integration: {
+        targetSchema: "https://designsystem.org/schemas/tokens/v1.0.0",
+        outputFormat: "design-tokens",
+        mergeStrategy: "merge",
+        validation: true
+      },
+      examples: []
+    };
+    
+    console.log('AlgorithmEditor: Saving algorithm in schema format:', {
+      algorithmId: currentAlgorithm.id,
+      algorithmName: currentAlgorithm.name,
+      schemaData: algorithmDataForStorage,
+      rawAlgorithm: currentAlgorithm
+    });
+    
     // Update last saved state
     setLastSavedState({ ...currentAlgorithm });
     setHasUnsavedChanges(false);

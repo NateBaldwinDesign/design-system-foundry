@@ -61,6 +61,128 @@ const CONDITIONAL_OPERATORS = [
   { id: '!=', label: 'Not Equal (≠)', symbol: '!=', latex: '\\neq' }
 ];
 
+// JavaScript to LaTeX lookup table for common patterns
+const JAVASCRIPT_TO_LATEX_LOOKUP: Record<string, string> = {
+  // Math functions
+  'Math.pow': '^{',
+  'Math.sqrt': '\\sqrt{',
+  'Math.abs': '|',
+  'Math.floor': '\\lfloor ',
+  'Math.ceil': '\\lceil ',
+  'Math.round': '\\text{round}(',
+  'Math.min': '\\min(',
+  'Math.max': '\\max(',
+  'Math.sin': '\\sin(',
+  'Math.cos': '\\cos(',
+  'Math.tan': '\\tan(',
+  'Math.log': '\\ln(',
+  'Math.log10': '\\log_{10}(',
+  'Math.exp': 'e^{',
+  
+  // Common variable patterns
+  'Base': '\\mathit{Base}',
+  'Ratio': '\\mathit{Ratio}',
+  'Increment': '\\mathit{Increment}',
+  'BaseSpacing': '\\mathit{BaseSpacing}',
+  'Multiplier': '\\mathit{Multiplier}',
+  'n': 'n',
+  
+  // Common expressions
+  'Base * Math.pow(Ratio, Increment)': '\\mathit{Base} \\times \\mathit{Ratio}^{\\mathit{Increment}}',
+  'BaseSpacing * Math.pow(Multiplier, n)': '\\mathit{BaseSpacing} \\times \\mathit{Multiplier}^{n}',
+  'x + y': 'x + y',
+  'x * y': 'x \\times y',
+  
+  // Fallback patterns
+  'Math.': '\\text{Math.}',
+  'function': '\\text{function}',
+  '=>': '\\Rightarrow'
+};
+
+// Function to convert JavaScript expression to LaTeX using lookup table
+function convertJavaScriptToLatex(javascriptExpression: string): string {
+  // First check for exact matches
+  if (JAVASCRIPT_TO_LATEX_LOOKUP[javascriptExpression]) {
+    return JAVASCRIPT_TO_LATEX_LOOKUP[javascriptExpression];
+  }
+  
+  // Try to convert common patterns
+  let latex = javascriptExpression;
+  
+  // Replace Math.pow(a, b) with a^{b}
+  latex = latex.replace(/Math\.pow\(([^,]+),\s*([^)]+)\)/g, '$1^{$2}');
+  
+  // Replace Math.sqrt(a) with \sqrt{a}
+  latex = latex.replace(/Math\.sqrt\(([^)]+)\)/g, '\\sqrt{$1}');
+  
+  // Replace Math.abs(a) with |a|
+  latex = latex.replace(/Math\.abs\(([^)]+)\)/g, '|$1|');
+  
+  // Replace Math.floor(a) with \lfloor a \rfloor
+  latex = latex.replace(/Math\.floor\(([^)]+)\)/g, '\\lfloor $1 \\rfloor');
+  
+  // Replace Math.ceil(a) with \lceil a \rceil
+  latex = latex.replace(/Math\.ceil\(([^)]+)\)/g, '\\lceil $1 \\rceil');
+  
+  // Replace Math.round(a) with \text{round}(a)
+  latex = latex.replace(/Math\.round\(([^)]+)\)/g, '\\text{round}($1)');
+  
+  // Replace Math.min(a, b) with \min(a, b)
+  latex = latex.replace(/Math\.min\(([^)]+)\)/g, '\\min($1)');
+  
+  // Replace Math.max(a, b) with \max(a, b)
+  latex = latex.replace(/Math\.max\(([^)]+)\)/g, '\\max($1)');
+  
+  // Replace Math.sin(a) with \sin(a)
+  latex = latex.replace(/Math\.sin\(([^)]+)\)/g, '\\sin($1)');
+  
+  // Replace Math.cos(a) with \cos(a)
+  latex = latex.replace(/Math\.cos\(([^)]+)\)/g, '\\cos($1)');
+  
+  // Replace Math.tan(a) with \tan(a)
+  latex = latex.replace(/Math\.tan\(([^)]+)\)/g, '\\tan($1)');
+  
+  // Replace Math.log(a) with \ln(a)
+  latex = latex.replace(/Math\.log\(([^)]+)\)/g, '\\ln($1)');
+  
+  // Replace Math.log10(a) with \log_{10}(a)
+  latex = latex.replace(/Math\.log10\(([^)]+)\)/g, '\\log_{10}($1)');
+  
+  // Replace Math.exp(a) with e^{a}
+  latex = latex.replace(/Math\.exp\(([^)]+)\)/g, 'e^{$1}');
+  
+  // Replace * with \times
+  latex = latex.replace(/\*/g, ' \\times ');
+  
+  // Replace / with \div
+  latex = latex.replace(/\//g, ' \\div ');
+  
+  // Replace % with \bmod
+  latex = latex.replace(/%/g, ' \\bmod ');
+  
+  // Replace >= with \geq
+  latex = latex.replace(/>=/g, ' \\geq ');
+  
+  // Replace <= with \leq
+  latex = latex.replace(/<=/g, ' \\leq ');
+  
+  // Replace != with \neq
+  latex = latex.replace(/!=/g, ' \\neq ');
+  
+  // Replace => with \Rightarrow
+  latex = latex.replace(/=>/g, ' \\Rightarrow ');
+  
+  // Wrap multi-character variable names in \mathit{}
+  latex = latex.replace(/\b([a-zA-Z][a-zA-Z0-9]*)\b/g, (match, varName) => {
+    if (varName.length > 1 && !['sin', 'cos', 'tan', 'log', 'ln', 'min', 'max', 'round'].includes(varName)) {
+      return `\\mathit{${varName}}`;
+    }
+    return varName;
+  });
+  
+  return latex.trim();
+}
+
 const FormulaBlockComponent: React.FC<{
   block: FormulaBlock;
   index: number;
@@ -173,7 +295,10 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
   const { colorMode } = useColorMode();
   const [blocks, setBlocks] = useState<FormulaBlock[]>(() => {
     if (!value) return [];
-    return parseFormulaToBlocks(value);
+    // Parse all expressions into blocks - the lookup table will handle conversion
+    const parsedBlocks = parseFormulaToBlocks(value);
+    console.log('FormulaEditor: Parsed blocks for expression:', value, parsedBlocks);
+    return parsedBlocks;
   });
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedBlock, setSelectedBlock] = useState<FormulaBlock | null>(null);
@@ -348,83 +473,76 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
   // Add useEffect to handle formula updates with progressive validation
   useEffect(() => {
     const buildFormula = (blocks: FormulaBlock[]): string => {
-      return blocks.map(block => {
+      let formula = '';
+      let i = 0;
+
+      while (i < blocks.length) {
+        const block = blocks[i];
+        
         switch (block.type) {
           case 'variable':
-            return block.content;
+            formula += block.content;
+            break;
           case 'operator':
-            return ` ${block.content} `;
+            if (block.content === '^') {
+              // Handle power operator - convert to Math.pow if there are variables
+              const base = formula.trim();
+              i++;
+              if (i < blocks.length) {
+                const exponent = buildFormula([blocks[i]]);
+                // Check if base and exponent are variables (not numbers)
+                const baseIsVar = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(base);
+                const exponentIsVar = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(exponent);
+                
+                if (baseIsVar || exponentIsVar) {
+                  // Use Math.pow for variables
+                  formula = `Math.pow(${base}, ${exponent})`;
+                } else {
+                  // Use ^ for simple expressions
+                  formula += ` ^ ${exponent}`;
+                }
+              }
+            } else {
+              formula += ` ${block.content} `;
+            }
+            break;
           case 'group':
-            return `(${block.children ? buildFormula(block.children) : ''})`;
+            formula += `(${block.children ? buildFormula(block.children) : ''})`;
+            break;
           case 'value':
-            return block.content;
+            formula += block.content;
+            break;
           default:
-            return '';
+            formula += '';
         }
-      }).join('').trim();
+        i++;
+      }
+
+      return formula.trim();
     };
 
+    // If blocks are empty, use the lookup table to convert JavaScript to LaTeX
+    if (blocks.length === 0) {
+      const latexExpression = convertJavaScriptToLatex(value);
+      console.log('FormulaEditor: Converting JavaScript to LaTeX for empty blocks:', {
+        javascript: value,
+        latex: latexExpression
+      });
+      onChange(value, latexExpression);
+      setValidationMessage('');
+      return;
+    }
+
     const formula = buildFormula(blocks);
-    const latexExpression = buildLatexFormula(blocks);
+    const latexExpression = convertJavaScriptToLatex(formula);
     
     // Progressive validation for inline feedback
     const validationMsg = validateFormulaStructure(blocks);
     setValidationMessage(validationMsg);
     
+    // Always call onChange to ensure real-time LaTeX preview updates
     onChange(formula, latexExpression);
-  }, [blocks, onChange, variables, mode]);
-
-  const buildLatexFormula = (blocks: FormulaBlock[]): string => {
-    let latex = '';
-    let i = 0;
-
-    while (i < blocks.length) {
-      const block = blocks[i];
-      let groupContent = '';
-      
-      switch (block.type) {
-        case 'variable':
-          // Use \mathit for multi-character variable names
-          latex += block.content.length > 1 ? `\\mathit{${block.content}}` : block.content;
-          break;
-
-        case 'operator':
-          if (block.content === '^') {
-            // Power operator with proper LaTeX syntax
-            i++;
-            if (i < blocks.length) {
-              const exponent = blocks[i];
-              latex += '^{' + buildLatexFormula([exponent]) + '}';
-            }
-          } else {
-            // Map operators to their proper LaTeX symbols using the operator arrays
-            const operator = MATH_OPERATORS.find(op => op.symbol === block.content) || 
-                           CONDITIONAL_OPERATORS.find(op => op.symbol === block.content);
-            if (operator) {
-              // Use the latex property from the operator definition
-              latex += ' ' + operator.latex + ' ';
-            } else {
-              // Fallback for unknown operators
-              latex += ' ' + block.content + ' ';
-            }
-          }
-          break;
-
-        case 'group':
-          groupContent = block.children ? buildLatexFormula(block.children) : '';
-          latex += `\\left(${groupContent}\\right)`;
-          break;
-
-        case 'value':
-          // Numbers should be in math mode
-          latex += block.content;
-          break;
-      }
-      i++;
-    }
-
-    return latex;
-  };
+  }, [blocks, onChange, variables, mode, value]);
 
   return (
     <Box>
@@ -558,6 +676,36 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
 
 // Helper function to parse formula string into blocks
 function parseFormulaToBlocks(formula: string): FormulaBlock[] {
+  // Handle Math.pow(a, b) expressions by converting them to a^b structure
+  if (formula.includes('Math.pow(')) {
+    const match = formula.match(/Math\.pow\(([^,]+),\s*([^)]+)\)/);
+    if (match) {
+      const base = match[1].trim();
+      const exponent = match[2].trim();
+      
+      // Parse the base and exponent separately
+      const baseBlocks = parseSimpleExpression(base);
+      const exponentBlocks = parseSimpleExpression(exponent);
+      
+      // Combine: base ^ exponent
+      return [
+        ...baseBlocks,
+        {
+          id: `op_${Date.now()}_${Math.random()}`,
+          type: 'operator',
+          content: '^'
+        },
+        ...exponentBlocks
+      ];
+    }
+  }
+  
+  // For other expressions, use the simple parser
+  return parseSimpleExpression(formula);
+}
+
+// Helper function to parse simple expressions (no Math.pow)
+function parseSimpleExpression(formula: string): FormulaBlock[] {
   const tokens = formula.split(/\s+/);
   return tokens.map(token => {
     if (token.match(/^[+\-*/=><]$/)) {
@@ -571,7 +719,7 @@ function parseFormulaToBlocks(formula: string): FormulaBlock[] {
         id: `group_${Date.now()}_${Math.random()}`,
         type: 'group',
         content: '()',
-        children: parseFormulaToBlocks(token.slice(1, -1))
+        children: parseSimpleExpression(token.slice(1, -1))
       };
     } else if (token.match(/^\d+(\.\d+)?$/)) {
       return {
@@ -588,4 +736,4 @@ function parseFormulaToBlocks(formula: string): FormulaBlock[] {
       };
     }
   });
-} 
+}
