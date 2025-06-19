@@ -23,8 +23,9 @@ import {
 } from '@chakra-ui/react';
 import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
 import { ValidationService } from '../../services/validation';
-import type { Token, TokenCollection, Dimension, Platform, Taxonomy, Theme, ResolvedValueType, StandardValueType } from '@token-model/data-model/src/schema';
+import type { ResolvedValueType, StandardValueType } from '@token-model/data-model/src/schema';
 import { StandardValueType as StandardValueTypeSchema } from '@token-model/data-model/src/schema';
+import { StorageService } from '../../services/storage';
 
 interface ValueTypesViewProps {
   valueTypes: ResolvedValueType[];
@@ -39,13 +40,13 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
   const [type, setType] = useState<StandardValueType | 'CUSTOM'>('CUSTOM');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const toast = useToast();
-  // Assume tokens, collections, dimensions, platforms, taxonomies, and themes are available via props or context (for this edit, use empty arrays as placeholders)
-  const tokens: Token[] = [];
-  const collections: TokenCollection[] = [];
-  const dimensions: Dimension[] = [];
-  const platforms: Platform[] = [];
-  const taxonomies: Taxonomy[] = [];
-  const themes: Theme[] = [];
+  // Get actual data from storage for validation
+  const currentTokens = StorageService.getTokens();
+  const currentCollections = StorageService.getCollections();
+  const currentDimensions = StorageService.getDimensions();
+  const currentPlatforms = StorageService.getPlatforms();
+  const currentTaxonomies = StorageService.getTaxonomies();
+  const currentThemes = StorageService.getThemes();
 
   // Compute available standard types (exclude those already used, except for the one being edited)
   const usedTypes = valueTypes
@@ -71,19 +72,31 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
   };
 
   const validateAndSetValueTypes = (updatedValueTypes: ResolvedValueType[]) => {
+    // Get systemName and systemId from storage or fallback
+    const storedData = JSON.parse(localStorage.getItem('token-model:data') || '{}');
+    const systemName = storedData.systemName || 'Design Token System';
+    const systemId = storedData.systemId || 'default-system-id';
+
     const data = {
-      tokenCollections: collections,
-      dimensions,
-      tokens,
-      platforms,
-      taxonomies,
-      themes,
+      tokenCollections: currentCollections,
+      dimensions: currentDimensions,
+      tokens: currentTokens,
+      platforms: currentPlatforms,
+      taxonomies: currentTaxonomies,
+      themes: currentThemes,
       resolvedValueTypes: updatedValueTypes,
       version: '1.0.0',
-      versionHistory: []
+      versionHistory: [],
+      systemName,
+      systemId
     };
     const result = ValidationService.validateData(data);
     if (!result.isValid) {
+      // Debugging: log the validation errors and the data being validated
+      console.error('[ValueTypesView] Schema validation failed:', {
+        errors: result.errors,
+        data
+      });
       toast({
         title: 'Schema Validation Failed',
         description: 'Your change would make the data invalid. See the Validation tab for details.',

@@ -310,31 +310,6 @@ interface ModesWorkflowProps {
 
 ---
 
-### Value Types Workflow
-
-**Purpose:** Manage supported value types for tokens.
-
-**Location:** `/src/components/ValueTypesWorkflow.tsx`
-
-**Props:**
-```typescript
-interface ValueTypesWorkflowProps {
-  valueTypes: string[];
-  onUpdate: (valueTypes: string[]) => void;
-}
-```
-
-**Design Constraints:**
-- Supports predefined value type categories
-- Validates value type properties
-- Uses form-based editing interface
-- Maintains type safety
-
-**Dependencies:**
-- MUI Form components
-
----
-
 ## Views
 
 ### Settings Collections Tab
