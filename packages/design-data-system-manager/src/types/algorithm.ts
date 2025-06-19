@@ -43,6 +43,26 @@ export interface AlgorithmStep {
   name: string;
 }
 
+export interface TokenGeneration {
+  enabled: boolean;
+  iterationRange: {
+    start: number;
+    end: number;
+    step: number;
+  };
+  bulkAssignments: {
+    resolvedValueTypeId: string;
+    taxonomyIds: string[];
+    collectionId?: string;
+    tokenTier: 'PRIMITIVE' | 'SEMANTIC' | 'COMPONENT';
+  };
+  logicalMapping: {
+    scaleType: 'numeric' | 'tshirt';
+    zeroIndex: number;
+    incrementDirection: 'ascending' | 'descending';
+  };
+}
+
 export interface Algorithm {
   id: string;
   name: string;
@@ -52,4 +72,5 @@ export interface Algorithm {
   formulas: Formula[];
   conditions: Condition[];
   steps: AlgorithmStep[];
+  tokenGeneration?: TokenGeneration;
 } 

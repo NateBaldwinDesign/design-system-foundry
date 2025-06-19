@@ -1,0 +1,317 @@
+import type { Token, TokenCollection, Taxonomy } from '@token-model/data-model';
+import type { Algorithm, TokenGeneration, Formula, Variable } from '../types/algorithm';
+
+export interface GeneratedToken {
+  id: string;
+  displayName: string;
+  value: number;
+  iterationIndex: number;
+  logicalTerm?: string;
+}
+
+export class TokenGenerationService {
+  /**
+   * Generate tokens from an algorithm with token generation configuration
+   */
+  static generateTokens(
+    algorithm: Algorithm,
+    existingTokens: Token[],
+    collections: TokenCollection[],
+    taxonomies: Taxonomy[]
+  ): { tokens: Token[]; errors: string[] } {
+    if (!algorithm.tokenGeneration?.enabled) {
+      return { tokens: [], errors: [] };
+    }
+
+    const errors: string[] = [];
+    const generatedTokens: Token[] = [];
+
+    try {
+      // Validate algorithm has required components
+      if (algorithm.formulas.length === 0) {
+        errors.push('Algorithm must have at least one formula for token generation');
+        return { tokens: [], errors };
+      }
+
+      // Get the first formula (primary formula for generation)
+      const primaryFormula = algorithm.formulas[0];
+      
+      // Generate iteration values
+      const iterationValues = this.generateIterationValues(algorithm.tokenGeneration.iterationRange);
+      
+      // Generate tokens for each iteration
+      for (let i = 0; i < iterationValues.length; i++) {
+        const n = iterationValues[i];
+        
+        try {
+          // Evaluate formula with current iteration value
+          const result = this.evaluateFormula(primaryFormula, algorithm.variables, n);
+          
+          // Generate token ID
+          const tokenId = this.generateTokenId(n, i);
+          
+          // Check for duplicate ID
+          if (existingTokens.some(t => t.id === tokenId)) {
+            errors.push(`Token ID "${tokenId}" already exists`);
+            continue;
+          }
+          
+          // Create token object
+          const token = this.createToken(
+            tokenId,
+            algorithm,
+            result,
+            n,
+            collections,
+            taxonomies
+          );
+          
+          generatedTokens.push(token);
+        } catch (error) {
+          errors.push(`Error generating token for iteration ${n}: ${error}`);
+        }
+      }
+    } catch (error) {
+      errors.push(`Token generation failed: ${error}`);
+    }
+
+    return { tokens: generatedTokens, errors };
+  }
+
+  /**
+   * Generate array of iteration values based on range configuration
+   */
+  private static generateIterationValues(range: TokenGeneration['iterationRange']): number[] {
+    const values: number[] = [];
+    const { start, end, step } = range;
+    
+    for (let i = start; i <= end; i += step) {
+      values.push(i);
+    }
+    
+    return values;
+  }
+
+  /**
+   * Evaluate formula with given variable values
+   */
+  private static evaluateFormula(formula: Formula, variables: Variable[], n: number): number {
+    // Create variable context with iteration variable 'n'
+    const context: Record<string, number> = { n };
+    
+    // Add algorithm variables with their default values
+    variables.forEach(variable => {
+      context[variable.name] = variable.defaultValue ? parseFloat(variable.defaultValue) : 0;
+    });
+    
+    // Evaluate the JavaScript expression
+    const expression = formula.expressions.javascript.value;
+    
+    try {
+      // Create a safe evaluation function
+      const evalFunction = new Function(...Object.keys(context), `return ${expression}`);
+      const result = evalFunction(...Object.values(context));
+      
+      if (typeof result !== 'number' || isNaN(result)) {
+        throw new Error('Formula must evaluate to a valid number');
+      }
+      
+      return result;
+    } catch (error) {
+      throw new Error(`Formula evaluation failed: ${error}`);
+    }
+  }
+
+  /**
+   * Generate unique token ID based on naming pattern
+   */
+  private static generateTokenId(n: number, i: number): string {
+    return `${n}-${i}`;
+  }
+
+  /**
+   * Create token object with all required properties
+   */
+  private static createToken(
+    id: string,
+    algorithm: Algorithm,
+    value: number,
+    n: number,
+    collections: TokenCollection[],
+    taxonomies: Taxonomy[]
+  ): Token {
+    const { tokenGeneration } = algorithm;
+    const { bulkAssignments, logicalMapping } = tokenGeneration!;
+
+    // Create taxonomies array
+    const taxonomiesArray = this.createTaxonomiesArray(
+      bulkAssignments.taxonomyIds,
+      n,
+      logicalMapping,
+      taxonomies
+    );
+
+    // Generate display name from taxonomy terms
+    const displayName = this.generateDisplayNameFromTaxonomies(taxonomiesArray, taxonomies, n, logicalMapping);
+
+    // Create token object
+    const token: Token = {
+      id,
+      displayName,
+      resolvedValueTypeId: bulkAssignments.resolvedValueTypeId,
+      tokenCollectionId: bulkAssignments.collectionId || undefined,
+      description: `Generated by algorithm "${algorithm.name}" with n=${n}`,
+      private: false,
+      status: 'stable',
+      themeable: false,
+      taxonomies: taxonomiesArray,
+      propertyTypes: [],
+      codeSyntax: [],
+      valuesByMode: [
+        {
+          modeIds: [],
+          value: {
+            value: `${value}px` // Assuming dimension type, adjust as needed
+          }
+        }
+      ]
+    };
+
+    return token;
+  }
+
+  /**
+   * Generate display name from taxonomy terms
+   */
+  private static generateDisplayNameFromTaxonomies(
+    taxonomiesArray: Array<{ taxonomyId: string; termId: string }>,
+    availableTaxonomies: Taxonomy[],
+    n: number,
+    logicalMapping: TokenGeneration['logicalMapping']
+  ): string {
+    const termNames: string[] = [];
+    
+    for (const taxonomyRef of taxonomiesArray) {
+      const taxonomy = availableTaxonomies.find(t => t.id === taxonomyRef.taxonomyId);
+      if (taxonomy) {
+        const term = taxonomy.terms.find(term => term.id === taxonomyRef.termId);
+        if (term) {
+          termNames.push(term.name);
+        }
+      }
+    }
+    
+    // If no taxonomy terms found, generate a fallback name
+    if (termNames.length === 0) {
+      return this.generateFallbackDisplayName(n, logicalMapping);
+    }
+    
+    // Combine taxonomy terms with spaces
+    return termNames.join(' ');
+  }
+
+  /**
+   * Generate fallback display name when no taxonomy terms are available
+   */
+  private static generateFallbackDisplayName(
+    n: number,
+    logicalMapping: TokenGeneration['logicalMapping']
+  ): string {
+    const { scaleType, zeroIndex } = logicalMapping;
+    
+    if (scaleType === 'tshirt') {
+      return this.generateTshirtSizeName(n, zeroIndex);
+    } else {
+      return this.generateNumericSizeName(n, zeroIndex);
+    }
+  }
+
+  /**
+   * Generate t-shirt size name (x-small, small, medium, large, x-large, etc.)
+   */
+  private static generateTshirtSizeName(n: number, zeroIndex: number): string {
+    const relativeIndex = n - zeroIndex;
+    
+    if (relativeIndex === 0) return 'Medium';
+    if (relativeIndex === 1) return 'Large';
+    if (relativeIndex === -1) return 'Small';
+    if (relativeIndex === 2) return 'X-Large';
+    if (relativeIndex === -2) return 'X-Small';
+    
+    // Handle larger ranges
+    if (relativeIndex > 2) {
+      const xCount = relativeIndex - 2;
+      return `${'X'.repeat(xCount)}-Large`;
+    }
+    if (relativeIndex < -2) {
+      const xCount = Math.abs(relativeIndex) - 2;
+      return `${'X'.repeat(xCount)}-Small`;
+    }
+    
+    return `Size ${n}`;
+  }
+
+  /**
+   * Generate numeric size name
+   */
+  private static generateNumericSizeName(n: number, zeroIndex: number): string {
+    const relativeIndex = n - zeroIndex;
+    
+    if (relativeIndex === 0) return 'Base';
+    if (relativeIndex > 0) return `+${relativeIndex}`;
+    return `${relativeIndex}`;
+  }
+
+  /**
+   * Create taxonomies array with logical mapping
+   */
+  private static createTaxonomiesArray(
+    taxonomyIds: string[],
+    n: number,
+    logicalMapping: TokenGeneration['logicalMapping'],
+    availableTaxonomies: Taxonomy[]
+  ): Array<{ taxonomyId: string; termId: string }> {
+    const taxonomies: Array<{ taxonomyId: string; termId: string }> = [];
+    
+    for (const taxonomyId of taxonomyIds) {
+      const taxonomy = availableTaxonomies.find(t => t.id === taxonomyId);
+      if (!taxonomy) continue;
+      
+      // Find appropriate term based on logical mapping
+      const term = this.findLogicalTerm(taxonomy, n, logicalMapping);
+      if (term) {
+        taxonomies.push({
+          taxonomyId,
+          termId: term.id
+        });
+      }
+    }
+    
+    return taxonomies;
+  }
+
+  /**
+   * Find logical term based on iteration value and mapping rules
+   */
+  private static findLogicalTerm(
+    taxonomy: Taxonomy,
+    n: number,
+    logicalMapping: TokenGeneration['logicalMapping']
+  ): { id: string; name: string } | null {
+    const { scaleType, zeroIndex } = logicalMapping;
+    
+    if (scaleType === 'tshirt') {
+      const sizeName = this.generateTshirtSizeName(n, zeroIndex);
+      return taxonomy.terms.find(term => 
+        term.name.toLowerCase() === sizeName.toLowerCase()
+      ) || null;
+    } else {
+      // For numeric scale, try to find a term that matches the number
+      const relativeIndex = n - zeroIndex;
+      return taxonomy.terms.find(term => 
+        term.name === relativeIndex.toString() ||
+        term.name === n.toString()
+      ) || null;
+    }
+  }
+} 

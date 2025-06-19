@@ -27,6 +27,16 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { Algorithm, Variable, Formula, Condition, AlgorithmStep } from '../types/algorithm';
 import { FormulaEditor } from './FormulaEditor';
 import { BlockMath } from 'react-katex';
+import { TokenGenerationService } from '../services/tokenGenerationService';
+import { StorageService } from '../services/storage';
+import type { Token } from '@token-model/data-model';
+import type { Taxonomy } from '@token-model/data-model';
+import { TaxonomyPicker } from './TaxonomyPicker';
+
+// Custom Taxonomy interface similar to TokenEditorDialog
+interface ExtendedTaxonomy extends Taxonomy {
+  resolvedValueTypeIds?: string[];
+}
 
 interface AlgorithmEditorProps {
   algorithm?: Algorithm;
@@ -75,6 +85,58 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
 
   const [editingVariableId, setEditingVariableId] = useState<string | null>(null);
   const [editingVariable, setEditingVariable] = useState<Partial<Variable>>({});
+  const [generatedTokens, setGeneratedTokens] = useState<Token[]>([]);
+  const [generationErrors, setGenerationErrors] = useState<string[]>([]);
+
+  // Helper function to filter taxonomies by value type (similar to TokenEditorDialog)
+  const filterTaxonomiesByValueType = (taxonomies: ExtendedTaxonomy[], resolvedValueTypeId: string): ExtendedTaxonomy[] => {
+    return taxonomies.filter(taxonomy => 
+      Array.isArray(taxonomy.resolvedValueTypeIds) && 
+      taxonomy.resolvedValueTypeIds.includes(resolvedValueTypeId)
+    );
+  };
+
+  // State for filtered taxonomies
+  const [filteredTaxonomies, setFilteredTaxonomies] = useState<ExtendedTaxonomy[]>([]);
+  const [selectedTaxonomies, setSelectedTaxonomies] = useState<Array<{ taxonomyId: string; termId: string }>>([]);
+
+  // Load and filter taxonomies when algorithm changes
+  useEffect(() => {
+    const loadTaxonomies = () => {
+      const allTaxonomies = StorageService.getTaxonomies() as ExtendedTaxonomy[];
+      const currentValueTypeId = currentAlgorithm.tokenGeneration?.bulkAssignments?.resolvedValueTypeId;
+      
+      if (currentValueTypeId) {
+        const filtered = filterTaxonomiesByValueType(allTaxonomies, currentValueTypeId);
+        setFilteredTaxonomies(filtered);
+      } else {
+        setFilteredTaxonomies([]);
+      }
+    };
+
+    loadTaxonomies();
+  }, [currentAlgorithm.tokenGeneration?.bulkAssignments?.resolvedValueTypeId]);
+
+  // Update selected taxonomies when algorithm changes
+  useEffect(() => {
+    const currentTaxonomies = currentAlgorithm.tokenGeneration?.bulkAssignments?.taxonomyIds || [];
+    setSelectedTaxonomies(currentTaxonomies.map(id => ({ taxonomyId: id, termId: '' })));
+  }, [currentAlgorithm.tokenGeneration?.bulkAssignments?.taxonomyIds]);
+
+  // Handler for taxonomy changes
+  const handleTaxonomyChange = (newTaxonomies: Array<{ taxonomyId: string; termId: string }>) => {
+    setSelectedTaxonomies(newTaxonomies);
+    setCurrentAlgorithm(prev => ({
+      ...prev,
+      tokenGeneration: {
+        ...prev.tokenGeneration!,
+        bulkAssignments: {
+          ...prev.tokenGeneration!.bulkAssignments,
+          taxonomyIds: newTaxonomies.map(t => t.taxonomyId)
+        }
+      }
+    }));
+  };
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -254,7 +316,64 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       }
     }
 
+    // Save the algorithm
     onSave(currentAlgorithm);
+
+    // Generate tokens if token generation is enabled
+    if (currentAlgorithm.tokenGeneration?.enabled) {
+      try {
+        const existingTokens = StorageService.getTokens();
+        const collections = StorageService.getCollections();
+        const taxonomies = StorageService.getTaxonomies();
+
+        const { tokens, errors } = TokenGenerationService.generateTokens(
+          currentAlgorithm,
+          existingTokens,
+          collections,
+          taxonomies
+        );
+
+        if (errors.length > 0) {
+          toast({
+            title: 'Token Generation Errors',
+            description: `Generated ${tokens.length} tokens with ${errors.length} errors. Check the preview for details.`,
+            status: 'warning',
+            duration: 5000,
+            isClosable: true
+          });
+        }
+
+        if (tokens.length > 0) {
+          // Merge generated tokens with existing tokens
+          const updatedTokens = [...existingTokens, ...tokens];
+          StorageService.setTokens(updatedTokens);
+
+          toast({
+            title: 'Success',
+            description: `Algorithm saved and ${tokens.length} tokens generated successfully!`,
+            status: 'success',
+            duration: 3000,
+            isClosable: true
+          });
+        }
+      } catch (error) {
+        toast({
+          title: 'Token Generation Failed',
+          description: `Algorithm saved but token generation failed: ${error}`,
+          status: 'error',
+          duration: 5000,
+          isClosable: true
+        });
+      }
+    } else {
+      toast({
+        title: 'Success',
+        description: 'Algorithm saved successfully!',
+        status: 'success',
+        duration: 3000,
+        isClosable: true
+      });
+    }
   };
 
   const handleVariableTypeChange = (type: Variable['type']) => {
@@ -337,6 +456,38 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
     setEditingVariable({});
   };
 
+  const generatePreviewTokens = () => {
+    if (!currentAlgorithm.tokenGeneration?.enabled) {
+      setGeneratedTokens([]);
+      setGenerationErrors([]);
+      return;
+    }
+
+    try {
+      const existingTokens = StorageService.getTokens();
+      const collections = StorageService.getCollections();
+      const taxonomies = StorageService.getTaxonomies();
+
+      const { tokens, errors } = TokenGenerationService.generateTokens(
+        currentAlgorithm,
+        existingTokens,
+        collections,
+        taxonomies
+      );
+
+      setGeneratedTokens(tokens);
+      setGenerationErrors(errors);
+    } catch (error) {
+      setGenerationErrors([`Preview generation failed: ${error}`]);
+      setGeneratedTokens([]);
+    }
+  };
+
+  // Generate preview tokens when algorithm changes
+  useEffect(() => {
+    generatePreviewTokens();
+  }, [currentAlgorithm]);
+
   const handleAddFormula = () => {
     const newFormula: Formula = {
       id: `formula-${Date.now()}`,
@@ -392,6 +543,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
             <Tab>Variables</Tab>
             <Tab>Formulas</Tab>
             <Tab>Conditions</Tab>
+            <Tab>Token Generation</Tab>
             <Tab>Algorithm Steps</Tab>
             <Tab>Preview</Tab>
           </TabList>
@@ -726,6 +878,229 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
               </VStack>
             </TabPanel>
 
+            {/* Token Generation Tab */}
+            <TabPanel>
+              <VStack spacing={4} align="stretch">
+                <HStack justify="space-between">
+                  <Text fontSize="lg" fontWeight="bold">Token Generation Settings</Text>
+                  <Button
+                    size="sm"
+                    colorScheme={currentAlgorithm.tokenGeneration?.enabled ? "green" : "gray"}
+                    onClick={() => {
+                      const enabled = !currentAlgorithm.tokenGeneration?.enabled;
+                      setCurrentAlgorithm(prev => ({
+                        ...prev,
+                        tokenGeneration: enabled ? {
+                          enabled: true,
+                          iterationRange: { start: -2, end: 8, step: 1 },
+                          bulkAssignments: {
+                            resolvedValueTypeId: 'dimension',
+                            taxonomyIds: [],
+                            tokenTier: 'PRIMITIVE'
+                          },
+                          logicalMapping: {
+                            scaleType: 'numeric',
+                            zeroIndex: 0,
+                            incrementDirection: 'ascending'
+                          }
+                        } : undefined
+                      }));
+                    }}
+                  >
+                    {currentAlgorithm.tokenGeneration?.enabled ? 'Enabled' : 'Enable Token Generation'}
+                  </Button>
+                </HStack>
+
+                {currentAlgorithm.tokenGeneration?.enabled && (
+                  <VStack spacing={6} align="stretch">
+                    {/* Iteration Range */}
+                    <Box p={4} borderWidth={1} borderRadius="md">
+                      <Text fontWeight="bold" mb={3}>Iteration Range</Text>
+                      <HStack spacing={4}>
+                        <FormControl>
+                          <FormLabel>Start</FormLabel>
+                          <Input
+                            type="number"
+                            value={currentAlgorithm.tokenGeneration.iterationRange.start}
+                            onChange={(e) => {
+                              setCurrentAlgorithm(prev => ({
+                                ...prev,
+                                tokenGeneration: {
+                                  ...prev.tokenGeneration!,
+                                  iterationRange: {
+                                    ...prev.tokenGeneration!.iterationRange,
+                                    start: parseInt(e.target.value) || 0
+                                  }
+                                }
+                              }));
+                            }}
+                          />
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel>End</FormLabel>
+                          <Input
+                            type="number"
+                            value={currentAlgorithm.tokenGeneration.iterationRange.end}
+                            onChange={(e) => {
+                              setCurrentAlgorithm(prev => ({
+                                ...prev,
+                                tokenGeneration: {
+                                  ...prev.tokenGeneration!,
+                                  iterationRange: {
+                                    ...prev.tokenGeneration!.iterationRange,
+                                    end: parseInt(e.target.value) || 0
+                                  }
+                                }
+                              }));
+                            }}
+                          />
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel>Step</FormLabel>
+                          <Input
+                            type="number"
+                            value={currentAlgorithm.tokenGeneration.iterationRange.step}
+                            onChange={(e) => {
+                              setCurrentAlgorithm(prev => ({
+                                ...prev,
+                                tokenGeneration: {
+                                  ...prev.tokenGeneration!,
+                                  iterationRange: {
+                                    ...prev.tokenGeneration!.iterationRange,
+                                    step: parseInt(e.target.value) || 1
+                                  }
+                                }
+                              }));
+                            }}
+                          />
+                        </FormControl>
+                      </HStack>
+                    </Box>
+
+                    {/* Bulk Assignments */}
+                    <Box p={4} borderWidth={1} borderRadius="md">
+                      <Text fontWeight="bold" mb={3}>Bulk Assignments</Text>
+                      <VStack spacing={4} align="stretch">
+                        <FormControl>
+                          <FormLabel>Resolved Value Type</FormLabel>
+                          <Select
+                            value={currentAlgorithm.tokenGeneration.bulkAssignments.resolvedValueTypeId}
+                            onChange={(e) => {
+                              setCurrentAlgorithm(prev => ({
+                                ...prev,
+                                tokenGeneration: {
+                                  ...prev.tokenGeneration!,
+                                  bulkAssignments: {
+                                    ...prev.tokenGeneration!.bulkAssignments,
+                                    resolvedValueTypeId: e.target.value
+                                  }
+                                }
+                              }));
+                            }}
+                          >
+                            <option value="dimension">Dimension</option>
+                            <option value="color">Color</option>
+                            <option value="spacing">Spacing</option>
+                            <option value="font-size">Font Size</option>
+                          </Select>
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel>Token Tier</FormLabel>
+                          <Select
+                            value={currentAlgorithm.tokenGeneration.bulkAssignments.tokenTier}
+                            onChange={(e) => {
+                              setCurrentAlgorithm(prev => ({
+                                ...prev,
+                                tokenGeneration: {
+                                  ...prev.tokenGeneration!,
+                                  bulkAssignments: {
+                                    ...prev.tokenGeneration!.bulkAssignments,
+                                    tokenTier: e.target.value as 'PRIMITIVE' | 'SEMANTIC' | 'COMPONENT'
+                                  }
+                                }
+                              }));
+                            }}
+                          >
+                            <option value="PRIMITIVE">Primitive</option>
+                            <option value="SEMANTIC">Semantic</option>
+                            <option value="COMPONENT">Component</option>
+                          </Select>
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel>Taxonomies</FormLabel>
+                          <VStack spacing={2} align="stretch">
+                            <Text fontSize="sm" color="gray.600">
+                              Select taxonomies for logical term assignment. Terms will be automatically mapped based on the logical mapping settings.
+                            </Text>
+                            <TaxonomyPicker
+                              taxonomies={filteredTaxonomies}
+                              value={selectedTaxonomies}
+                              onChange={handleTaxonomyChange}
+                              disabled={filteredTaxonomies.length === 0}
+                            />
+                            {filteredTaxonomies.length === 0 && (
+                              <Box p={3} bg={colorMode === 'light' ? 'gray.50' : 'gray.700'} borderRadius="md">
+                                <Text fontSize="sm" color="gray.500">
+                                  No taxonomies available for this value type. Please select a different value type or add taxonomies for this type.
+                                </Text>
+                              </Box>
+                            )}
+                          </VStack>
+                        </FormControl>
+                      </VStack>
+                    </Box>
+
+                    {/* Logical Mapping */}
+                    <Box p={4} borderWidth={1} borderRadius="md">
+                      <Text fontWeight="bold" mb={3}>Logical Mapping</Text>
+                      <VStack spacing={4} align="stretch">
+                        <FormControl>
+                          <FormLabel>Scale Type</FormLabel>
+                          <Select
+                            value={currentAlgorithm.tokenGeneration.logicalMapping.scaleType}
+                            onChange={(e) => {
+                              setCurrentAlgorithm(prev => ({
+                                ...prev,
+                                tokenGeneration: {
+                                  ...prev.tokenGeneration!,
+                                  logicalMapping: {
+                                    ...prev.tokenGeneration!.logicalMapping,
+                                    scaleType: e.target.value as 'numeric' | 'tshirt'
+                                  }
+                                }
+                              }));
+                            }}
+                          >
+                            <option value="numeric">Numeric</option>
+                            <option value="tshirt">T-Shirt Sizing</option>
+                          </Select>
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel>Zero Index</FormLabel>
+                          <Input
+                            type="number"
+                            value={currentAlgorithm.tokenGeneration.logicalMapping.zeroIndex}
+                            onChange={(e) => {
+                              setCurrentAlgorithm(prev => ({
+                                ...prev,
+                                tokenGeneration: {
+                                  ...prev.tokenGeneration!,
+                                  logicalMapping: {
+                                    ...prev.tokenGeneration!.logicalMapping,
+                                    zeroIndex: parseInt(e.target.value) || 0
+                                  }
+                                }
+                              }));
+                            }}
+                          />
+                        </FormControl>
+                      </VStack>
+                    </Box>
+                  </VStack>
+                )}
+              </VStack>
+            </TabPanel>
+
             {/* Algorithm Steps Tab */}
             <TabPanel>
               <VStack spacing={4} align="stretch">
@@ -825,19 +1200,72 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
 
             {/* Preview Tab */}
             <TabPanel>
-              <Box
-                p={4}
-                bg={colorMode === 'light' ? 'gray.50' : 'gray.800'}
-                borderRadius="md"
-                fontSize="sm"
-                fontFamily="mono"
-                overflowX="auto"
-              >
-                <Text fontWeight="bold" mb={2}>JSON Preview</Text>
-                <pre style={{ margin: 0 }}>
-                  {JSON.stringify(currentAlgorithm, null, 2)}
-                </pre>
-              </Box>
+              <VStack spacing={4} align="stretch">
+                {/* Algorithm JSON Preview */}
+                <Box
+                  p={4}
+                  bg={colorMode === 'light' ? 'gray.50' : 'gray.800'}
+                  borderRadius="md"
+                  fontSize="sm"
+                  fontFamily="mono"
+                  overflowX="auto"
+                >
+                  <Text fontWeight="bold" mb={2}>Algorithm JSON Preview</Text>
+                  <pre style={{ margin: 0 }}>
+                    {JSON.stringify(currentAlgorithm, null, 2)}
+                  </pre>
+                </Box>
+
+                {/* Generated Tokens Preview */}
+                {currentAlgorithm.tokenGeneration?.enabled && (
+                  <Box
+                    p={4}
+                    bg={colorMode === 'light' ? 'gray.50' : 'gray.800'}
+                    borderRadius="md"
+                    fontSize="sm"
+                    fontFamily="mono"
+                    overflowX="auto"
+                  >
+                    <Text fontWeight="bold" mb={2}>Generated Tokens Preview</Text>
+                    {generationErrors.length > 0 && (
+                      <Box mb={3} p={3} bg="red.100" borderRadius="md">
+                        <Text fontWeight="bold" color="red.600">Generation Errors:</Text>
+                        {generationErrors.map((error, index) => (
+                          <Text key={index} color="red.600" fontSize="xs">• {error}</Text>
+                        ))}
+                      </Box>
+                    )}
+                    {generatedTokens.length > 0 && (
+                      <Box>
+                        <Text mb={2} fontSize="sm" color="gray.500">
+                          {generatedTokens.length} tokens will be generated:
+                        </Text>
+                        <VStack spacing={2} align="stretch">
+                          {generatedTokens.slice(0, 10).map((token, index) => (
+                            <Box key={index} p={2} bg="white" borderRadius="sm" borderWidth={1}>
+                              <Text fontSize="xs" fontWeight="bold">{token.id}</Text>
+                              <Text fontSize="xs" color="gray.600">{token.displayName}</Text>
+                              <Text fontSize="xs" color="gray.500">
+                                Value: {token.valuesByMode[0]?.value && 'value' in token.valuesByMode[0].value ? token.valuesByMode[0].value.value : 'N/A'}
+                              </Text>
+                            </Box>
+                          ))}
+                          {generatedTokens.length > 10 && (
+                            <Text fontSize="xs" color="gray.500">
+                              ... and {generatedTokens.length - 10} more tokens
+                            </Text>
+                          )}
+                        </VStack>
+                      </Box>
+                    )}
+                    {generatedTokens.length === 0 && generationErrors.length === 0 && (
+                      <Text fontSize="sm" color="gray.500">
+                        No tokens will be generated. Check your algorithm configuration.
+                      </Text>
+                    )}
+                  </Box>
+                )}
+              </VStack>
             </TabPanel>
           </TabPanels>
         </Tabs>
@@ -849,7 +1277,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
           onClick={handleSave}
           size="lg"
         >
-          Save Algorithm
+          {currentAlgorithm.tokenGeneration?.enabled ? 'Save and Run' : 'Save Algorithm'}
         </Button>
       </VStack>
     </Box>
