@@ -1,5 +1,6 @@
 import type { Token, TokenCollection, Taxonomy } from '@token-model/data-model';
-import type { Algorithm, TokenGeneration, Formula, Variable } from '../types/algorithm';
+import type { Algorithm, TokenGeneration, Formula, Condition } from '../types/algorithm';
+import { createUniqueId } from '../utils/id';
 
 export interface GeneratedToken {
   id: string;
@@ -17,8 +18,9 @@ export class TokenGenerationService {
     algorithm: Algorithm,
     existingTokens: Token[],
     collections: TokenCollection[],
-    taxonomies: Taxonomy[]
-  ): { tokens: Token[]; errors: string[] } {
+    taxonomies: Taxonomy[],
+    modifyTaxonomiesInPlace: boolean = false
+  ): { tokens: Token[]; errors: string[]; newTaxonomies?: Taxonomy[]; updatedTaxonomies?: Taxonomy[] } {
     if (!algorithm.tokenGeneration?.enabled) {
       return { tokens: [], errors: [] };
     }
@@ -33,22 +35,47 @@ export class TokenGenerationService {
         return { tokens: [], errors };
       }
 
-      // Get the first formula (primary formula for generation)
-      const primaryFormula = algorithm.formulas[0];
-      
+      // Validate logical mapping configuration
+      const { logicalMapping } = algorithm.tokenGeneration;
+      if (!logicalMapping.taxonomyId && !logicalMapping.newTaxonomyName) {
+        errors.push('Must select an existing taxonomy or provide a name for a new taxonomy');
+        return { tokens: [], errors };
+      }
+
       // Generate iteration values
       const iterationValues = this.generateIterationValues(algorithm.tokenGeneration.iterationRange);
       
-      // Generate tokens for each iteration
+      // Step 1: Generate terms based on logical mapping
+      const generatedTerms = this.generateTermsFromLogicalMapping(iterationValues, logicalMapping);
+      
+      // Step 2: Handle taxonomy creation or selection
+      const { taxonomy, newTaxonomies } = this.handleTaxonomyCreation(
+        logicalMapping,
+        generatedTerms,
+        taxonomies,
+        algorithm.tokenGeneration.bulkAssignments.resolvedValueTypeId
+      );
+      
+      // Store original taxonomy state for comparison if we're modifying in place
+      const originalTaxonomyState = modifyTaxonomiesInPlace ? {
+        id: taxonomy.id,
+        termCount: taxonomy.terms.length,
+        termNames: taxonomy.terms.map(t => t.name)
+      } : null;
+      
+      // Step 3: Match existing terms or create new ones
+      const termMappings = this.matchOrCreateTerms(taxonomy, generatedTerms, iterationValues, modifyTaxonomiesInPlace);
+      
+      // Step 4: Generate tokens with calculated values
       for (let i = 0; i < iterationValues.length; i++) {
         const n = iterationValues[i];
         
         try {
-          // Evaluate formula with current iteration value
-          const result = this.evaluateFormula(primaryFormula, algorithm.variables, n);
+          // Execute algorithm steps in order to calculate the final value
+          const calculatedValue = this.executeAlgorithmSteps(algorithm, n);
           
           // Generate token ID
-          const tokenId = this.generateTokenId(n, i);
+          const tokenId = this.generateTokenId();
           
           // Check for duplicate ID
           if (existingTokens.some(t => t.id === tokenId)) {
@@ -56,13 +83,21 @@ export class TokenGenerationService {
             continue;
           }
           
+          // Get the term mapping for this iteration
+          const termMapping = termMappings.find(tm => tm.iterationValue === n);
+          if (!termMapping) {
+            errors.push(`No term mapping found for iteration ${n}`);
+            continue;
+          }
+          
           // Create token object
-          const token = this.createToken(
+          const token = this.createTokenWithLogicalMapping(
             tokenId,
             algorithm,
-            result,
+            calculatedValue,
             n,
-            collections,
+            taxonomy,
+            termMapping.termId,
             taxonomies
           );
           
@@ -71,6 +106,48 @@ export class TokenGenerationService {
           errors.push(`Error generating token for iteration ${n}: ${error}`);
         }
       }
+      
+      // Determine if we need to return updated taxonomies
+      let updatedTaxonomies: Taxonomy[] | undefined;
+      if (logicalMapping.taxonomyId && modifyTaxonomiesInPlace && originalTaxonomyState) {
+        // We used an existing taxonomy and may have added new terms to it
+        // Check if any new terms were actually added by comparing with the original state
+        console.log('TokenGenerationService: Checking for taxonomy updates:', {
+          taxonomyId: taxonomy.id,
+          taxonomyName: taxonomy.name,
+          originalTermCount: originalTaxonomyState.termCount,
+          currentTermCount: taxonomy.terms.length,
+          originalTerms: originalTaxonomyState.termNames,
+          currentTerms: taxonomy.terms.map(t => t.name),
+          modifyTaxonomiesInPlace
+        });
+        
+        if (taxonomy.terms.length > originalTaxonomyState.termCount) {
+          // New terms were added, return the updated taxonomy
+          updatedTaxonomies = [taxonomy];
+          console.log('TokenGenerationService: Returning updated taxonomy with new terms:', {
+            taxonomyId: taxonomy.id,
+            taxonomyName: taxonomy.name,
+            originalTermCount: originalTaxonomyState.termCount,
+            newTermCount: taxonomy.terms.length,
+            newTerms: taxonomy.terms.slice(originalTaxonomyState.termCount).map(t => t.name)
+          });
+        } else {
+          console.log('TokenGenerationService: No new terms added to taxonomy:', {
+            taxonomyId: taxonomy.id,
+            taxonomyName: taxonomy.name,
+            termCount: taxonomy.terms.length
+          });
+        }
+      }
+      
+      // Return both tokens and any new/updated taxonomies that need to be saved
+      return { 
+        tokens: generatedTokens, 
+        errors,
+        newTaxonomies: newTaxonomies.length > 0 ? newTaxonomies : undefined,
+        updatedTaxonomies
+      };
     } catch (error) {
       errors.push(`Token generation failed: ${error}`);
     }
@@ -93,44 +170,14 @@ export class TokenGenerationService {
   }
 
   /**
-   * Evaluate formula with given variable values
+   * Generate unique token ID using the same ID generator as manual token creation
    */
-  private static evaluateFormula(formula: Formula, variables: Variable[], n: number): number {
-    // Create variable context with iteration variable 'n'
-    const context: Record<string, number> = { n };
-    
-    // Add algorithm variables with their default values
-    variables.forEach(variable => {
-      context[variable.name] = variable.defaultValue ? parseFloat(variable.defaultValue) : 0;
-    });
-    
-    // Evaluate the JavaScript expression
-    const expression = formula.expressions.javascript.value;
-    
-    try {
-      // Create a safe evaluation function
-      const evalFunction = new Function(...Object.keys(context), `return ${expression}`);
-      const result = evalFunction(...Object.values(context));
-      
-      if (typeof result !== 'number' || isNaN(result)) {
-        throw new Error('Formula must evaluate to a valid number');
-      }
-      
-      return result;
-    } catch (error) {
-      throw new Error(`Formula evaluation failed: ${error}`);
-    }
+  private static generateTokenId(): string {
+    return createUniqueId('token');
   }
 
   /**
-   * Generate unique token ID based on naming pattern
-   */
-  private static generateTokenId(n: number, i: number): string {
-    return `${n}-${i}`;
-  }
-
-  /**
-   * Create token object with all required properties
+   * Create a token object with the given parameters
    */
   private static createToken(
     id: string,
@@ -140,19 +187,21 @@ export class TokenGenerationService {
     collections: TokenCollection[],
     taxonomies: Taxonomy[]
   ): Token {
-    const { tokenGeneration } = algorithm;
-    const { bulkAssignments, logicalMapping } = tokenGeneration!;
+    const bulkAssignments = algorithm.tokenGeneration?.bulkAssignments;
+    if (!bulkAssignments) {
+      throw new Error('Bulk assignments not configured');
+    }
 
     // Create taxonomies array
     const taxonomiesArray = this.createTaxonomiesArray(
-      bulkAssignments.taxonomies,
+      bulkAssignments.taxonomies || [],
       n,
-      logicalMapping,
+      algorithm.tokenGeneration!.logicalMapping,
       taxonomies
     );
 
     // Generate display name from taxonomy terms
-    const displayName = this.generateDisplayNameFromTaxonomies(taxonomiesArray, taxonomies, n, logicalMapping);
+    const displayName = this.generateDisplayNameFromTaxonomies(taxonomiesArray, taxonomies, n, algorithm.tokenGeneration!.logicalMapping);
 
     // Create token object
     const token: Token = {
@@ -161,9 +210,12 @@ export class TokenGenerationService {
       resolvedValueTypeId: bulkAssignments.resolvedValueTypeId,
       tokenCollectionId: bulkAssignments.collectionId || undefined,
       description: `Generated by algorithm "${algorithm.name}" with n=${n}`,
-      private: false,
-      status: 'stable',
-      themeable: false,
+      private: bulkAssignments.private,
+      status: bulkAssignments.status || 'stable',
+      themeable: bulkAssignments.themeable,
+      tokenTier: bulkAssignments.tokenTier || 'PRIMITIVE',
+      generatedByAlgorithm: true,
+      algorithmId: algorithm.id,
       taxonomies: taxonomiesArray,
       propertyTypes: [],
       codeSyntax: [],
@@ -217,49 +269,51 @@ export class TokenGenerationService {
     n: number,
     logicalMapping: TokenGeneration['logicalMapping']
   ): string {
-    const { scaleType, zeroIndex } = logicalMapping;
+    const { scaleType } = logicalMapping;
     
     if (scaleType === 'tshirt') {
-      return this.generateTshirtSizeName(n, zeroIndex);
+      return this.generateTshirtSizeName(n, logicalMapping.defaultValue, logicalMapping.extraPrefix || 'X');
     } else {
-      return this.generateNumericSizeName(n, zeroIndex);
+      return this.generateNumericSizeName(n, logicalMapping.defaultValue, logicalMapping.increasingStep || 100, logicalMapping.decreasingStep || 25);
     }
   }
 
   /**
    * Generate t-shirt size name (x-small, small, medium, large, x-large, etc.)
    */
-  private static generateTshirtSizeName(n: number, zeroIndex: number): string {
-    const relativeIndex = n - zeroIndex;
+  private static generateTshirtSizeName(n: number, defaultValue: string, extraPrefix: string): string {
+    if (n === 0) return defaultValue;
     
-    if (relativeIndex === 0) return 'Medium';
-    if (relativeIndex === 1) return 'Large';
-    if (relativeIndex === -1) return 'Small';
-    if (relativeIndex === 2) return 'X-Large';
-    if (relativeIndex === -2) return 'X-Small';
-    
-    // Handle larger ranges
-    if (relativeIndex > 2) {
-      const xCount = relativeIndex - 2;
-      return `${'X'.repeat(xCount)}-Large`;
+    if (n > 0) {
+      // Large sizes
+      if (n === 1) return 'Large';
+      const xCount = n - 1;
+      return `${extraPrefix.repeat(xCount)}-Large`;
+    } else {
+      // Small sizes
+      if (n === -1) return 'Small';
+      const xCount = Math.abs(n) - 1;
+      return `${extraPrefix.repeat(xCount)}-Small`;
     }
-    if (relativeIndex < -2) {
-      const xCount = Math.abs(relativeIndex) - 2;
-      return `${'X'.repeat(xCount)}-Small`;
-    }
-    
-    return `Size ${n}`;
   }
 
   /**
    * Generate numeric size name
    */
-  private static generateNumericSizeName(n: number, zeroIndex: number): string {
-    const relativeIndex = n - zeroIndex;
+  private static generateNumericSizeName(n: number, defaultValue: string, increasingStep: number, decreasingStep: number): string {
+    const defaultNum = parseFloat(defaultValue) || 100;
     
-    if (relativeIndex === 0) return 'Base';
-    if (relativeIndex > 0) return `+${relativeIndex}`;
-    return `${relativeIndex}`;
+    if (n === 0) return defaultValue;
+    
+    if (n > 0) {
+      // Increasing values
+      const value = defaultNum + (n * increasingStep);
+      return value.toString();
+    } else {
+      // Decreasing values
+      const value = defaultNum + (n * decreasingStep);
+      return value.toString();
+    }
   }
 
   /**
@@ -289,20 +343,285 @@ export class TokenGenerationService {
     n: number,
     logicalMapping: TokenGeneration['logicalMapping']
   ): { id: string; name: string } | null {
-    const { scaleType, zeroIndex } = logicalMapping;
+    const { scaleType } = logicalMapping;
     
     if (scaleType === 'tshirt') {
-      const sizeName = this.generateTshirtSizeName(n, zeroIndex);
+      const sizeName = this.generateTshirtSizeName(n, logicalMapping.defaultValue, logicalMapping.extraPrefix || 'X');
       return taxonomy.terms.find(term => 
         term.name.toLowerCase() === sizeName.toLowerCase()
       ) || null;
     } else {
-      // For numeric scale, try to find a term that matches the number
-      const relativeIndex = n - zeroIndex;
+      // For numeric scale, try to find a term that matches the calculated value
+      const calculatedValue = this.generateNumericSizeName(n, logicalMapping.defaultValue, logicalMapping.increasingStep || 100, logicalMapping.decreasingStep || 25);
       return taxonomy.terms.find(term => 
-        term.name === relativeIndex.toString() ||
+        term.name === calculatedValue ||
         term.name === n.toString()
       ) || null;
     }
   }
-} 
+
+  /**
+   * Generate terms based on logical mapping
+   */
+  private static generateTermsFromLogicalMapping(
+    iterationValues: number[],
+    logicalMapping: TokenGeneration['logicalMapping']
+  ): string[] {
+    const terms: string[] = [];
+    
+    for (const n of iterationValues) {
+      if (logicalMapping.scaleType === 'tshirt') {
+        terms.push(this.generateTshirtSizeName(n, logicalMapping.defaultValue, logicalMapping.extraPrefix || 'X'));
+      } else {
+        terms.push(this.generateNumericSizeName(n, logicalMapping.defaultValue, logicalMapping.increasingStep || 100, logicalMapping.decreasingStep || 25));
+      }
+    }
+    
+    return terms;
+  }
+
+  /**
+   * Handle taxonomy creation or selection
+   */
+  private static handleTaxonomyCreation(
+    logicalMapping: TokenGeneration['logicalMapping'],
+    generatedTerms: string[],
+    taxonomies: Taxonomy[],
+    resolvedValueTypeId: string
+  ): { taxonomy: Taxonomy; newTaxonomies: Taxonomy[] } {
+    const newTaxonomies: Taxonomy[] = [];
+
+    // If existing taxonomy is selected
+    if (logicalMapping.taxonomyId) {
+      const existingTaxonomy = taxonomies.find(t => t.id === logicalMapping.taxonomyId);
+      if (!existingTaxonomy) {
+        throw new Error(`Selected taxonomy with ID "${logicalMapping.taxonomyId}" not found`);
+      }
+      return { taxonomy: existingTaxonomy, newTaxonomies };
+    }
+
+    // Create new taxonomy
+    if (logicalMapping.newTaxonomyName) {
+      const newTaxonomy: Taxonomy = {
+        id: createUniqueId('taxonomy'),
+        name: logicalMapping.newTaxonomyName,
+        description: `Generated by algorithm for scale terms`,
+        terms: generatedTerms.map(term => ({ 
+          id: createUniqueId('term'), 
+          name: term,
+          description: `Generated term for scale: ${term}`
+        })),
+        resolvedValueTypeIds: [resolvedValueTypeId]
+      };
+      newTaxonomies.push(newTaxonomy);
+      return { taxonomy: newTaxonomy, newTaxonomies };
+    }
+
+    throw new Error('No taxonomy selected or new taxonomy name provided');
+  }
+
+  /**
+   * Match existing terms or create new ones
+   */
+  private static matchOrCreateTerms(
+    taxonomy: Taxonomy,
+    generatedTerms: string[],
+    iterationValues: number[],
+    modifyTaxonomiesInPlace: boolean = false
+  ): Array<{ iterationValue: number; termId: string; termName: string }> {
+    const termMappings: Array<{ iterationValue: number; termId: string; termName: string }> = [];
+    
+    // Create a copy of the taxonomy if we're not modifying in place
+    const workingTaxonomy = modifyTaxonomiesInPlace ? taxonomy : {
+      ...taxonomy,
+      terms: [...taxonomy.terms]
+    };
+    
+    for (let i = 0; i < iterationValues.length; i++) {
+      const n = iterationValues[i];
+      const termName = generatedTerms[i];
+      
+      // Try to find existing term with matching name
+      let existingTerm = workingTaxonomy.terms.find(term => term.name === termName);
+      
+      // If term doesn't exist, create it
+      if (!existingTerm) {
+        const newTerm = {
+          id: createUniqueId('term'),
+          name: termName,
+          description: `Generated term for scale: ${termName}`
+        };
+        workingTaxonomy.terms.push(newTerm);
+        existingTerm = newTerm;
+      }
+      
+      termMappings.push({ 
+        iterationValue: n, 
+        termId: existingTerm.id, 
+        termName: existingTerm.name 
+      });
+    }
+    
+    return termMappings;
+  }
+
+  /**
+   * Create token with logical mapping
+   */
+  private static createTokenWithLogicalMapping(
+    id: string,
+    algorithm: Algorithm,
+    value: number,
+    n: number,
+    taxonomy: Taxonomy,
+    termId: string,
+    availableTaxonomies: Taxonomy[]
+  ): Token {
+    const { tokenGeneration } = algorithm;
+    const { bulkAssignments, logicalMapping } = tokenGeneration!;
+
+    // Start with the manually selected taxonomies from Bulk Assignments
+    const taxonomiesArray = [...bulkAssignments.taxonomies];
+
+    // Add the logical mapping taxonomy if it's not already included
+    const logicalMappingTaxonomy = {
+      taxonomyId: taxonomy.id,
+      termId: termId
+    };
+    
+    // Check if this taxonomy is already in the manually selected ones
+    const isAlreadyIncluded = taxonomiesArray.some(t => t.taxonomyId === taxonomy.id);
+    if (!isAlreadyIncluded) {
+      taxonomiesArray.push(logicalMappingTaxonomy);
+    }
+
+    // Generate display name from all taxonomy terms
+    const displayName = this.generateDisplayNameFromTaxonomies(taxonomiesArray, availableTaxonomies, n, logicalMapping);
+
+    // Create token object
+    const token: Token = {
+      id,
+      displayName,
+      resolvedValueTypeId: bulkAssignments.resolvedValueTypeId,
+      tokenCollectionId: bulkAssignments.collectionId || undefined,
+      description: `Generated by algorithm "${algorithm.name}" with n=${n}`,
+      private: bulkAssignments.private,
+      status: bulkAssignments.status || 'stable',
+      themeable: bulkAssignments.themeable,
+      tokenTier: bulkAssignments.tokenTier || 'PRIMITIVE',
+      generatedByAlgorithm: true,
+      algorithmId: algorithm.id,
+      taxonomies: taxonomiesArray,
+      propertyTypes: [],
+      codeSyntax: [],
+      valuesByMode: [
+        {
+          modeIds: [],
+          value: {
+            value: `${value}px` // Assuming dimension type, adjust as needed
+          }
+        }
+      ]
+    };
+
+    return token;
+  }
+
+  /**
+   * Execute algorithm steps in order to calculate the final value
+   */
+  private static executeAlgorithmSteps(algorithm: Algorithm, n: number): number {
+    // Create execution context with iteration variable 'n' and algorithm variables
+    const context: Record<string, number> = { n };
+    
+    // Add algorithm variables with their default values
+    algorithm.variables.forEach(variable => {
+      context[variable.name] = variable.defaultValue ? parseFloat(variable.defaultValue) : 0;
+    });
+    
+    // Execute each step in order
+    for (const step of algorithm.steps) {
+      if (step.type === 'formula') {
+        // Find the formula by ID
+        const formula = algorithm.formulas.find(f => f.id === step.id);
+        if (!formula) {
+          throw new Error(`Formula with ID "${step.id}" not found`);
+        }
+        
+        // Evaluate the formula and store the result in context
+        const result = this.evaluateFormulaWithContext(formula, context);
+        context[formula.name] = result;
+        
+      } else if (step.type === 'condition') {
+        // Find the condition by ID
+        const condition = algorithm.conditions.find(c => c.id === step.id);
+        if (!condition) {
+          throw new Error(`Condition with ID "${step.id}" not found`);
+        }
+        
+        // Evaluate the condition (for now, just evaluate but don't use the result)
+        // In the future, this could be used for conditional logic
+        this.evaluateConditionWithContext(condition, context);
+      }
+    }
+    
+    // Return the result of the last formula step, or the last calculated value
+    // If no formula steps were executed, throw an error
+    const formulaSteps = algorithm.steps.filter(step => step.type === 'formula');
+    if (formulaSteps.length === 0) {
+      throw new Error('Algorithm must have at least one formula step');
+    }
+    
+    const lastFormulaStep = formulaSteps[formulaSteps.length - 1];
+    const lastFormula = algorithm.formulas.find(f => f.id === lastFormulaStep.id);
+    if (!lastFormula) {
+      throw new Error(`Last formula with ID "${lastFormulaStep.id}" not found`);
+    }
+    
+    return context[lastFormula.name];
+  }
+
+  /**
+   * Evaluate formula with given context
+   */
+  private static evaluateFormulaWithContext(formula: Formula, context: Record<string, number>): number {
+    // Evaluate the JavaScript expression
+    const expression = formula.expressions.javascript.value;
+    
+    try {
+      // Create a safe evaluation function
+      const evalFunction = new Function(...Object.keys(context), `return ${expression}`);
+      const result = evalFunction(...Object.values(context));
+      
+      if (typeof result !== 'number' || isNaN(result)) {
+        throw new Error(`Formula "${formula.name}" must evaluate to a valid number`);
+      }
+      
+      return result;
+    } catch (error) {
+      throw new Error(`Formula "${formula.name}" evaluation failed: ${error}`);
+    }
+  }
+
+  /**
+   * Evaluate condition with given context
+   */
+  private static evaluateConditionWithContext(condition: Condition, context: Record<string, number>): boolean {
+    // Evaluate the JavaScript expression
+    const expression = condition.expression;
+    
+    try {
+      // Create a safe evaluation function
+      const evalFunction = new Function(...Object.keys(context), `return ${expression}`);
+      const result = evalFunction(...Object.values(context));
+      
+      if (typeof result !== 'boolean') {
+        throw new Error(`Condition "${condition.name}" must evaluate to a boolean`);
+      }
+      
+      return result;
+    } catch (error) {
+      throw new Error(`Condition "${condition.name}" evaluation failed: ${error}`);
+    }
+  }
+}

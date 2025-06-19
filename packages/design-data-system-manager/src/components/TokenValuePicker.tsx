@@ -35,6 +35,7 @@ interface TokenValuePickerProps {
   resolvedValueTypeId: string;
   resolvedValueTypes: ResolvedValueType[];
   onChange: (value: TokenValueChange) => void;
+  isDisabled?: boolean;
 }
 
 // Helper to get a display value for a token
@@ -54,7 +55,8 @@ export function TokenValuePicker({
   modes,
   resolvedValueTypeId,
   resolvedValueTypes,
-  onChange
+  onChange,
+  isDisabled
 }: TokenValuePickerProps) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [searchTerm, setSearchTerm] = useState('');
@@ -124,6 +126,7 @@ export function TokenValuePicker({
               value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
               onChange={(e) => handleValueChange(e.target.value)}
               placeholder="Enter color (hex)"
+              isDisabled={isDisabled}
             />
           );
         case 'DIMENSION':
@@ -141,6 +144,7 @@ export function TokenValuePicker({
               size="sm"
               value={typeof value === 'object' && 'value' in value ? Number(value.value) : 0}
               onChange={(_, val) => handleValueChange(val)}
+              isDisabled={isDisabled}
             >
               <NumberInputField />
               <NumberInputStepper>
@@ -157,6 +161,7 @@ export function TokenValuePicker({
               value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
               onChange={(e) => handleValueChange(e.target.value)}
               placeholder={`Enter ${valueType.type.toLowerCase()}`}
+              isDisabled={isDisabled}
             />
           );
         default:
@@ -166,6 +171,7 @@ export function TokenValuePicker({
               value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
               onChange={(e) => handleValueChange(e.target.value)}
               placeholder="Enter value"
+              isDisabled={isDisabled}
             />
           );
       }
@@ -176,6 +182,7 @@ export function TokenValuePicker({
         value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
         onChange={(e) => handleValueChange(e.target.value)}
         placeholder="Enter value"
+        isDisabled={isDisabled}
       />
     );
   };
@@ -268,7 +275,7 @@ export function TokenValuePicker({
                   resolvedValueTypeId={referencedToken.resolvedValueTypeId}
                   resolvedValueTypes={resolvedValueTypes}
                   value={getTokenDisplayValue(referencedToken)}
-                  onClick={onOpen}
+                  onClick={isDisabled ? undefined : onOpen}
                 />
               </Box>
             </PopoverTrigger>
@@ -279,6 +286,7 @@ export function TokenValuePicker({
               aria-label="Unlink token alias"
               icon={<Unlink size={16} />}
               onClick={handleUnlink}
+              isDisabled={isDisabled}
           />
           </>
         ) : (
@@ -291,6 +299,7 @@ export function TokenValuePicker({
                   aria-label="Search tokens"
                   icon={<Search size={16} />}
                   onClick={onOpen}
+                  isDisabled={isDisabled}
                 />
               </PopoverTrigger>
               {popoverContent}

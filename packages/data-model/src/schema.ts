@@ -206,6 +206,9 @@ export const Token = z.object({
   private: z.boolean().default(false),
   themeable: z.boolean().default(false),
   status: TokenStatus.optional(),
+  tokenTier: TokenTier,
+  generatedByAlgorithm: z.boolean().default(false),
+  algorithmId: z.string().regex(/^[a-zA-Z0-9-_]+$/).optional(),
   taxonomies: z.array(TokenTaxonomyRef),
   propertyTypes: z.array(z.string()),
   codeSyntax: z.array(z.object({

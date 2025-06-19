@@ -20,7 +20,8 @@ import {
   Tab,
   TabPanel,
   FormControl,
-  FormLabel
+  FormLabel,
+  Checkbox
 } from '@chakra-ui/react';
 import { Plus, Trash2, GripVertical, Save, Edit } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -29,6 +30,7 @@ import { FormulaEditor } from './FormulaEditor';
 import { BlockMath } from 'react-katex';
 import { TokenGenerationService } from '../services/tokenGenerationService';
 import { StorageService } from '../services/storage';
+import { generateId } from '../utils/id';
 import type { Token } from '@token-model/data-model';
 import type { Taxonomy, ResolvedValueType } from '@token-model/data-model';
 import { TaxonomyPicker } from './TaxonomyPicker';
@@ -39,13 +41,35 @@ interface AlgorithmEditorProps {
 }
 
 const defaultAlgorithm: Algorithm = {
-  id: 'new-algorithm',
+  id: generateId('algorithm'),
   name: 'New Algorithm',
   resolvedValueTypeId: 'color',
   variables: [],
   formulas: [],
   conditions: [],
-  steps: []
+  steps: [],
+  tokenGeneration: {
+    enabled: false,
+    iterationRange: { start: -2, end: 8, step: 1 },
+    bulkAssignments: {
+      resolvedValueTypeId: 'color',
+      taxonomies: [],
+      tokenTier: 'PRIMITIVE',
+      private: false,
+      status: 'stable',
+      themeable: false
+    },
+    logicalMapping: {
+      scaleType: 'numeric',
+      defaultValue: '100',
+      increasingStep: 100,
+      decreasingStep: 25,
+      extraPrefix: 'X',
+      incrementDirection: 'ascending',
+      taxonomyId: undefined,
+      newTaxonomyName: undefined
+    }
+  }
 };
 
 export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({ 
@@ -186,7 +210,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
     }
 
     const variable: Variable = {
-      id: `var_${Date.now()}`,
+      id: generateId('var'),
       name: newVariable.name,
       type: newVariable.type,
       defaultValue: newVariable.defaultValue
@@ -206,7 +230,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
 
   const handleAddCondition = () => {
     const newConditionItem: Condition = {
-      id: `cond_${Date.now()}`,
+      id: generateId('cond'),
       name: '',
       expression: '',
       variableIds: []
@@ -337,12 +361,39 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
         const collections = StorageService.getCollections();
         const taxonomies = StorageService.getTaxonomies();
 
-        const { tokens, errors } = TokenGenerationService.generateTokens(
+        const { tokens, errors, newTaxonomies, updatedTaxonomies } = TokenGenerationService.generateTokens(
           currentAlgorithm,
           existingTokens,
           collections,
-          taxonomies
+          taxonomies,
+          true // Modify taxonomies in place for actual saving
         );
+
+        console.log('AlgorithmEditor: Received from TokenGenerationService:', {
+          tokensCount: tokens.length,
+          errorsCount: errors.length,
+          newTaxonomiesCount: newTaxonomies?.length || 0,
+          updatedTaxonomiesCount: updatedTaxonomies?.length || 0,
+          newTaxonomies: newTaxonomies,
+          updatedTaxonomies: updatedTaxonomies
+        });
+
+        // Save new taxonomies if any were created
+        if (newTaxonomies && newTaxonomies.length > 0) {
+          const updatedTaxonomiesList = [...taxonomies, ...newTaxonomies];
+          StorageService.setTaxonomies(updatedTaxonomiesList);
+          console.log('AlgorithmEditor: Saved new taxonomies:', newTaxonomies);
+        }
+
+        // Save updated taxonomies if any were modified
+        if (updatedTaxonomies && updatedTaxonomies.length > 0) {
+          const updatedTaxonomiesList = taxonomies.map(taxonomy => {
+            const updatedTaxonomy = updatedTaxonomies.find(ut => ut.id === taxonomy.id);
+            return updatedTaxonomy || taxonomy;
+          });
+          StorageService.setTaxonomies(updatedTaxonomiesList);
+          console.log('AlgorithmEditor: Saved updated taxonomies:', updatedTaxonomies);
+        }
 
         if (errors.length > 0) {
           toast({
@@ -485,7 +536,8 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
         currentAlgorithm,
         existingTokens,
         collections,
-        taxonomies
+        taxonomies,
+        false // Don't modify taxonomies in place for preview
       );
 
       setGeneratedTokens(tokens);
@@ -503,7 +555,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
 
   const handleAddFormula = () => {
     const newFormula: Formula = {
-      id: `formula-${Date.now()}`,
+      id: generateId('formula'),
       name: '',
       expressions: {
         latex: { value: '' },
@@ -909,12 +961,20 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                           bulkAssignments: {
                             resolvedValueTypeId: resolvedValueTypes.length > 0 ? resolvedValueTypes[0].id : 'color',
                             taxonomies: [],
-                            tokenTier: 'PRIMITIVE'
+                            tokenTier: 'PRIMITIVE',
+                            private: false,
+                            status: 'stable',
+                            themeable: false
                           },
                           logicalMapping: {
                             scaleType: 'numeric',
-                            zeroIndex: 0,
-                            incrementDirection: 'ascending'
+                            defaultValue: '100',
+                            increasingStep: 100,
+                            decreasingStep: 25,
+                            extraPrefix: 'X',
+                            incrementDirection: 'ascending',
+                            taxonomyId: undefined,
+                            newTaxonomyName: undefined
                           }
                         } : undefined
                       }));
@@ -1041,6 +1101,65 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                           </Select>
                         </FormControl>
                         <FormControl>
+                          <FormLabel>Status</FormLabel>
+                          <Select
+                            value={currentAlgorithm.tokenGeneration.bulkAssignments.status}
+                            onChange={(e) => {
+                              setCurrentAlgorithm(prev => ({
+                                ...prev,
+                                tokenGeneration: {
+                                  ...prev.tokenGeneration!,
+                                  bulkAssignments: {
+                                    ...prev.tokenGeneration!.bulkAssignments,
+                                    status: e.target.value as 'experimental' | 'stable' | 'deprecated' | ''
+                                  }
+                                }
+                              }));
+                            }}
+                          >
+                            <option value="">None</option>
+                            <option value="experimental">Experimental</option>
+                            <option value="stable">Stable</option>
+                            <option value="deprecated">Deprecated</option>
+                          </Select>
+                        </FormControl>
+                        <VStack spacing={3} align="stretch">
+                          <Checkbox
+                            isChecked={currentAlgorithm.tokenGeneration.bulkAssignments.private}
+                            onChange={(e) => {
+                              setCurrentAlgorithm(prev => ({
+                                ...prev,
+                                tokenGeneration: {
+                                  ...prev.tokenGeneration!,
+                                  bulkAssignments: {
+                                    ...prev.tokenGeneration!.bulkAssignments,
+                                    private: e.target.checked
+                                  }
+                                }
+                              }));
+                            }}
+                          >
+                            Private
+                          </Checkbox>
+                          <Checkbox
+                            isChecked={currentAlgorithm.tokenGeneration.bulkAssignments.themeable}
+                            onChange={(e) => {
+                              setCurrentAlgorithm(prev => ({
+                                ...prev,
+                                tokenGeneration: {
+                                  ...prev.tokenGeneration!,
+                                  bulkAssignments: {
+                                    ...prev.tokenGeneration!.bulkAssignments,
+                                    themeable: e.target.checked
+                                  }
+                                }
+                              }));
+                            }}
+                          >
+                            Themeable
+                          </Checkbox>
+                        </VStack>
+                        <FormControl>
                           <FormLabel>Taxonomies</FormLabel>
                           <VStack spacing={2} align="stretch">
                             <Text fontSize="sm" color="gray.600">
@@ -1108,10 +1227,61 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                           </Select>
                         </FormControl>
                         <FormControl>
-                          <FormLabel>Zero Index</FormLabel>
+                          <FormLabel>Taxonomy for Scale Terms</FormLabel>
+                          <VStack spacing={3} align="stretch">
+                            <Text fontSize="sm" color="gray.600">
+                              Select an existing taxonomy or create a new one for the scale terms.
+                            </Text>
+                            <Select
+                              value={currentAlgorithm.tokenGeneration.logicalMapping.taxonomyId || ''}
+                              onChange={(e) => {
+                                setCurrentAlgorithm(prev => ({
+                                  ...prev,
+                                  tokenGeneration: {
+                                    ...prev.tokenGeneration!,
+                                    logicalMapping: {
+                                      ...prev.tokenGeneration!.logicalMapping,
+                                      taxonomyId: e.target.value || undefined,
+                                      newTaxonomyName: e.target.value ? undefined : prev.tokenGeneration!.logicalMapping.newTaxonomyName
+                                    }
+                                  }
+                                }));
+                              }}
+                            >
+                              <option value="">Create new taxonomy</option>
+                              {filteredTaxonomies.map(taxonomy => (
+                                <option key={taxonomy.id} value={taxonomy.id}>
+                                  {taxonomy.name}
+                                </option>
+                              ))}
+                            </Select>
+                            {!currentAlgorithm.tokenGeneration.logicalMapping.taxonomyId && (
+                              <FormControl>
+                                <FormLabel>New Taxonomy Name</FormLabel>
+                                <Input
+                                  placeholder="Enter taxonomy name"
+                                  value={currentAlgorithm.tokenGeneration.logicalMapping.newTaxonomyName || ''}
+                                  onChange={(e) => {
+                                    setCurrentAlgorithm(prev => ({
+                                      ...prev,
+                                      tokenGeneration: {
+                                        ...prev.tokenGeneration!,
+                                        logicalMapping: {
+                                          ...prev.tokenGeneration!.logicalMapping,
+                                          newTaxonomyName: e.target.value
+                                        }
+                                      }
+                                    }));
+                                  }}
+                                />
+                              </FormControl>
+                            )}
+                          </VStack>
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel>Default Value</FormLabel>
                           <Input
-                            type="number"
-                            value={currentAlgorithm.tokenGeneration.logicalMapping.zeroIndex}
+                            value={currentAlgorithm.tokenGeneration.logicalMapping.defaultValue}
                             onChange={(e) => {
                               setCurrentAlgorithm(prev => ({
                                 ...prev,
@@ -1119,13 +1289,84 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                                   ...prev.tokenGeneration!,
                                   logicalMapping: {
                                     ...prev.tokenGeneration!.logicalMapping,
-                                    zeroIndex: parseInt(e.target.value) || 0
+                                    defaultValue: e.target.value
                                   }
                                 }
                               }));
                             }}
                           />
                         </FormControl>
+                        
+                        {/* Numeric Scale Type Fields */}
+                        {currentAlgorithm.tokenGeneration.logicalMapping.scaleType === 'numeric' && (
+                          <>
+                            <FormControl>
+                              <FormLabel>Steps (Increasing)</FormLabel>
+                              <Input
+                                type="number"
+                                placeholder="100"
+                                value={currentAlgorithm.tokenGeneration.logicalMapping.increasingStep || ''}
+                                onChange={(e) => {
+                                  setCurrentAlgorithm(prev => ({
+                                    ...prev,
+                                    tokenGeneration: {
+                                      ...prev.tokenGeneration!,
+                                      logicalMapping: {
+                                        ...prev.tokenGeneration!.logicalMapping,
+                                        increasingStep: parseInt(e.target.value) || undefined
+                                      }
+                                    }
+                                  }));
+                                }}
+                              />
+                            </FormControl>
+                            <FormControl>
+                              <FormLabel>Steps (Decreasing)</FormLabel>
+                              <Input
+                                type="number"
+                                placeholder="25"
+                                value={currentAlgorithm.tokenGeneration.logicalMapping.decreasingStep || ''}
+                                onChange={(e) => {
+                                  setCurrentAlgorithm(prev => ({
+                                    ...prev,
+                                    tokenGeneration: {
+                                      ...prev.tokenGeneration!,
+                                      logicalMapping: {
+                                        ...prev.tokenGeneration!.logicalMapping,
+                                        decreasingStep: parseInt(e.target.value) || undefined
+                                      }
+                                    }
+                                  }));
+                                }}
+                              />
+                            </FormControl>
+                          </>
+                        )}
+                        
+                        {/* T-Shirt Scale Type Fields */}
+                        {currentAlgorithm.tokenGeneration.logicalMapping.scaleType === 'tshirt' && (
+                          <FormControl>
+                            <FormLabel>Prefix for Extra Sizes</FormLabel>
+                            <Select
+                              value={currentAlgorithm.tokenGeneration.logicalMapping.extraPrefix || 'X'}
+                              onChange={(e) => {
+                                setCurrentAlgorithm(prev => ({
+                                  ...prev,
+                                  tokenGeneration: {
+                                    ...prev.tokenGeneration!,
+                                    logicalMapping: {
+                                      ...prev.tokenGeneration!.logicalMapping,
+                                      extraPrefix: e.target.value
+                                    }
+                                  }
+                                }));
+                              }}
+                            >
+                              <option value="X">X (X-Small, X-Large)</option>
+                              <option value="extra">extra (extra-small, extra-large)</option>
+                            </Select>
+                          </FormControl>
+                        )}
                       </VStack>
                     </Box>
                   </VStack>

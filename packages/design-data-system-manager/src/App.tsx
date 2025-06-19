@@ -94,6 +94,68 @@ const App = () => {
     }
   }, [collections]);
 
+  // Add effect to reload tokens from storage periodically and on window focus
+  useEffect(() => {
+    const reloadTokens = () => {
+      const storedTokens = StorageService.getTokens();
+      setTokens(prevTokens => {
+        if (JSON.stringify(storedTokens) !== JSON.stringify(prevTokens)) {
+          return storedTokens;
+        }
+        return prevTokens;
+      });
+    };
+
+    // Reload on window focus (when user returns to the app)
+    const handleFocus = () => {
+      reloadTokens();
+    };
+
+    // Reload periodically (every 2 seconds)
+    const interval = setInterval(reloadTokens, 2000);
+
+    // Initial load
+    reloadTokens();
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
+  // Add effect to reload taxonomies from storage when they change
+  useEffect(() => {
+    const reloadTaxonomies = () => {
+      const storedTaxonomies = StorageService.getTaxonomies();
+      setTaxonomies(prevTaxonomies => {
+        if (JSON.stringify(storedTaxonomies) !== JSON.stringify(prevTaxonomies)) {
+          return storedTaxonomies;
+        }
+        return prevTaxonomies;
+      });
+    };
+
+    // Reload on window focus (when user returns to the app)
+    const handleFocus = () => {
+      reloadTaxonomies();
+    };
+
+    // Reload periodically (every 2 seconds)
+    const interval = setInterval(reloadTaxonomies, 2000);
+
+    // Initial load
+    reloadTaxonomies();
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
   useEffect(() => {
     setDataOptions(getDataSourceOptions());
   }, []);
@@ -260,6 +322,8 @@ const App = () => {
       private: false,
       themeable: false,
       status: 'experimental',
+      tokenTier: 'PRIMITIVE',
+      generatedByAlgorithm: false,
       taxonomies: [],
       codeSyntax: [],
       valuesByMode: []

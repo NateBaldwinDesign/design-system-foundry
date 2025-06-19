@@ -55,11 +55,19 @@ export interface TokenGeneration {
     taxonomies: Array<{ taxonomyId: string; termId: string }>;
     collectionId?: string;
     tokenTier: 'PRIMITIVE' | 'SEMANTIC' | 'COMPONENT';
+    private: boolean;
+    status: 'experimental' | 'stable' | 'deprecated' | '';
+    themeable: boolean;
   };
   logicalMapping: {
     scaleType: 'numeric' | 'tshirt';
-    zeroIndex: number;
+    defaultValue: string;
+    increasingStep?: number;
+    decreasingStep?: number;
+    extraPrefix?: string;
     incrementDirection: 'ascending' | 'descending';
+    taxonomyId?: string;
+    newTaxonomyName?: string;
   };
 }
 

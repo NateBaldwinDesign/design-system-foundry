@@ -1078,7 +1078,8 @@
         "shadow",
         "border",
         "radius",
-        "z_index"
+        "z_index",
+        "font-size"
       ]
     },
     {
@@ -1130,6 +1131,11 @@
           "id": "termId-f888d6f7-0218-4c58-be57-5c8ac239f020",
           "name": "Z Index",
           "description": ""
+        },
+        {
+          "id": "termId-1b26134e-783a-ewaf1-9fewa17-c21f454afe",
+          "name": "Font size",
+          "description": ""
         }
       ],
       "resolvedValueTypeIds": [
@@ -1141,7 +1147,8 @@
         "shadow",
         "border",
         "radius",
-        "z_index"
+        "z_index",
+        "font-size"
       ]
     }
   ],
@@ -1191,6 +1198,11 @@
     {
       "id": "z_index",
       "displayName": "Z Index"
+    },
+    {
+      "id": "font-size",
+      "type": "FONT_SIZE",
+      "displayName": "Font Size"
     }
   ],
   "namingRules": {

@@ -190,13 +190,29 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
     </MenuItem>
   ));
 
-  const variableMenuItems = variables.map(variable => (
+  // Create system variables (always available)
+  const systemVariables: Variable[] = [
+    {
+      id: 'system_n',
+      name: 'n',
+      type: 'number',
+      defaultValue: '0'
+    }
+  ];
+
+  // Combine system variables with user variables
+  const allVariables = [...systemVariables, ...variables];
+
+  const variableMenuItems = allVariables.map(variable => (
     <MenuItem
       key={variable.id}
       onClick={() => handleAddVariable(variable)}
       icon={<Plus size={16} />}
     >
       {variable.name}
+      {variable.id === 'system_n' && (
+        <Badge ml={2} size="sm" colorScheme="green">System</Badge>
+      )}
     </MenuItem>
   ));
 
