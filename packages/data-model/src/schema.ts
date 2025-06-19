@@ -303,7 +303,8 @@ export const Taxonomy = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
-  terms: z.array(TaxonomyTerm)
+  terms: z.array(TaxonomyTerm),
+  resolvedValueTypeIds: z.array(z.string()).optional()
 });
 
 // Version history types

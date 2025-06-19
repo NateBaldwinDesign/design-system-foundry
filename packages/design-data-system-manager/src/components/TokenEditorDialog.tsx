@@ -63,7 +63,7 @@ import {
 import { ValueByModeTable } from './ValueByModeTable';
 import { TokenValuePicker } from './TokenValuePicker';
 import { TaxonomyPicker } from './TaxonomyPicker';
-import { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef, ResolvedValueType, TokenValue, validateToken, TokenCollection } from '@token-model/data-model';
+import { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef, ResolvedValueType, TokenValue, validateToken, TokenCollection, Taxonomy } from '@token-model/data-model';
 import { createUniqueId } from '../utils/id';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
@@ -95,14 +95,6 @@ function getDefaultTokenValue(resolvedValueTypeId: string, schema: { resolvedVal
   }
   const defaultValue = getDefaultValueForType(resolvedValueTypeId, schema.resolvedValueTypes);
   return { value: defaultValue };
-}
-
-interface Taxonomy {
-  id: string;
-  name: string;
-  description: string;
-  terms: { id: string; name: string; description?: string }[];
-  resolvedValueTypeIds?: string[];
 }
 
 export interface TokenEditorDialogProps {

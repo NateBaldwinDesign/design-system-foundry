@@ -25,12 +25,6 @@ interface ClassificationViewProps {
   setTaxonomies: (taxonomies: Taxonomy[]) => void;
 }
 
-// Extend the Taxonomy type to include resolvedValueTypeIds
-interface ExtendedTaxonomy extends Taxonomy {
-  resolvedValueTypeIds?: string[];
-}
-
-// Utility to ensure all terms have a string description
 function normalizeTerms(terms: { id: string; name: string; description?: string }[]): { id: string; name: string; description: string }[] {
   return terms.map((term: { id: string; name: string; description?: string }) => ({
     ...term,
@@ -62,7 +56,7 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
     if (index !== null) {
-      const taxonomy = taxonomies[index] as ExtendedTaxonomy;
+      const taxonomy = taxonomies[index] as Taxonomy;
       setForm({
         id: taxonomy.id,
         name: taxonomy.name,
@@ -277,7 +271,6 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
         </Button>
         <VStack align="stretch" spacing={2}>
           {taxonomies.map((taxonomy, i) => {
-            const extendedTaxonomy = taxonomy as ExtendedTaxonomy;
             return (
               <Box 
                 key={taxonomy.id} 
@@ -292,9 +285,9 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
                     <Text fontSize="lg" fontWeight="medium">{taxonomy.name}</Text>
                     <Text fontSize="sm" color="gray.600">{taxonomy.description}</Text>
                     <Text fontSize="sm" color="gray.600">Terms: {taxonomy.terms.map((t: { name: string }) => t.name).join(', ')}</Text>
-                    {Array.isArray(extendedTaxonomy.resolvedValueTypeIds) && extendedTaxonomy.resolvedValueTypeIds.length > 0 && (
+                    {Array.isArray(taxonomy.resolvedValueTypeIds) && taxonomy.resolvedValueTypeIds.length > 0 && (
                       <Wrap mt={2} spacing={2}>
-                        {extendedTaxonomy.resolvedValueTypeIds.map((typeId: string) => {
+                        {taxonomy.resolvedValueTypeIds.map((typeId: string) => {
                           const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
                           return type ? (
                             <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">

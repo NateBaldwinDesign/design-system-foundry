@@ -30,13 +30,8 @@ import { BlockMath } from 'react-katex';
 import { TokenGenerationService } from '../services/tokenGenerationService';
 import { StorageService } from '../services/storage';
 import type { Token } from '@token-model/data-model';
-import type { Taxonomy } from '@token-model/data-model';
+import type { Taxonomy, ResolvedValueType } from '@token-model/data-model';
 import { TaxonomyPicker } from './TaxonomyPicker';
-
-// Custom Taxonomy interface similar to TokenEditorDialog
-interface ExtendedTaxonomy extends Taxonomy {
-  resolvedValueTypeIds?: string[];
-}
 
 interface AlgorithmEditorProps {
   algorithm?: Algorithm;
@@ -46,7 +41,7 @@ interface AlgorithmEditorProps {
 const defaultAlgorithm: Algorithm = {
   id: 'new-algorithm',
   name: 'New Algorithm',
-  resolvedValueTypeId: 'dimension',
+  resolvedValueTypeId: 'color',
   variables: [],
   formulas: [],
   conditions: [],
@@ -88,26 +83,45 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
   const [generatedTokens, setGeneratedTokens] = useState<Token[]>([]);
   const [generationErrors, setGenerationErrors] = useState<string[]>([]);
 
-  // Helper function to filter taxonomies by value type (similar to TokenEditorDialog)
-  const filterTaxonomiesByValueType = (taxonomies: ExtendedTaxonomy[], resolvedValueTypeId: string): ExtendedTaxonomy[] => {
-    return taxonomies.filter(taxonomy => 
-      Array.isArray(taxonomy.resolvedValueTypeIds) && 
-      taxonomy.resolvedValueTypeIds.includes(resolvedValueTypeId)
-    );
-  };
-
   // State for filtered taxonomies
-  const [filteredTaxonomies, setFilteredTaxonomies] = useState<ExtendedTaxonomy[]>([]);
+  const [filteredTaxonomies, setFilteredTaxonomies] = useState<Taxonomy[]>([]);
   const [selectedTaxonomies, setSelectedTaxonomies] = useState<Array<{ taxonomyId: string; termId: string }>>([]);
+  const [resolvedValueTypes, setResolvedValueTypes] = useState<ResolvedValueType[]>([]);
+
+  // Load resolved value types from storage
+  useEffect(() => {
+    const loadResolvedValueTypes = () => {
+      const valueTypes = StorageService.getValueTypes();
+      setResolvedValueTypes(valueTypes);
+      
+      // Update default algorithm if it has an invalid resolvedValueTypeId
+      if (valueTypes.length > 0) {
+        setCurrentAlgorithm(prev => {
+          const hasValidType = valueTypes.some(vt => vt.id === prev.resolvedValueTypeId);
+          if (!hasValidType) {
+            return {
+              ...prev,
+              resolvedValueTypeId: valueTypes[0].id
+            };
+          }
+          return prev;
+        });
+      }
+    };
+    loadResolvedValueTypes();
+  }, []);
 
   // Load and filter taxonomies when algorithm changes
   useEffect(() => {
     const loadTaxonomies = () => {
-      const allTaxonomies = StorageService.getTaxonomies() as ExtendedTaxonomy[];
+      const allTaxonomies = StorageService.getTaxonomies() as Taxonomy[];
       const currentValueTypeId = currentAlgorithm.tokenGeneration?.bulkAssignments?.resolvedValueTypeId;
       
       if (currentValueTypeId) {
-        const filtered = filterTaxonomiesByValueType(allTaxonomies, currentValueTypeId);
+        const filtered = allTaxonomies.filter(taxonomy => 
+          Array.isArray(taxonomy.resolvedValueTypeIds) && 
+          taxonomy.resolvedValueTypeIds.includes(currentValueTypeId)
+        );
         setFilteredTaxonomies(filtered);
       } else {
         setFilteredTaxonomies([]);
@@ -894,7 +908,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                           enabled: true,
                           iterationRange: { start: -2, end: 8, step: 1 },
                           bulkAssignments: {
-                            resolvedValueTypeId: 'dimension',
+                            resolvedValueTypeId: resolvedValueTypes.length > 0 ? resolvedValueTypes[0].id : 'color',
                             taxonomyIds: [],
                             tokenTier: 'PRIMITIVE'
                           },
@@ -998,10 +1012,11 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                               }));
                             }}
                           >
-                            <option value="dimension">Dimension</option>
-                            <option value="color">Color</option>
-                            <option value="spacing">Spacing</option>
-                            <option value="font-size">Font Size</option>
+                            {resolvedValueTypes.map(valueType => (
+                              <option key={valueType.id} value={valueType.id}>
+                                {valueType.displayName}
+                              </option>
+                            ))}
                           </Select>
                         </FormControl>
                         <FormControl>
@@ -1041,7 +1056,25 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                             {filteredTaxonomies.length === 0 && (
                               <Box p={3} bg={colorMode === 'light' ? 'gray.50' : 'gray.700'} borderRadius="md">
                                 <Text fontSize="sm" color="gray.500">
-                                  No taxonomies available for this value type. Please select a different value type or add taxonomies for this type.
+                                  {(() => {
+                                    const allTaxonomies = StorageService.getTaxonomies() as Taxonomy[];
+                                    const currentValueTypeId = currentAlgorithm.tokenGeneration?.bulkAssignments?.resolvedValueTypeId;
+                                    
+                                    if (allTaxonomies.length === 0) {
+                                      return "No taxonomies have been created yet. Please create taxonomies in the Classification setup first.";
+                                    } else if (currentValueTypeId) {
+                                      const supportingTaxonomies = allTaxonomies.filter(taxonomy => 
+                                        Array.isArray(taxonomy.resolvedValueTypeIds) && 
+                                        taxonomy.resolvedValueTypeIds.includes(currentValueTypeId)
+                                      );
+                                      
+                                      if (supportingTaxonomies.length === 0) {
+                                        return `No taxonomies support the "${currentValueTypeId}" value type. Please select a different value type (like "color" or "spacing") or create a taxonomy that supports "${currentValueTypeId}".`;
+                                      }
+                                    }
+                                    
+                                    return "No taxonomies available for this value type. Please select a different value type or add taxonomies for this type.";
+                                  })()}
                                 </Text>
                               </Box>
                             )}
