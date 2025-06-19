@@ -27,6 +27,7 @@ const TEMP_TEST_ALGORITHMS: Algorithm[] = [
   {
     id: 'test-algo-1',
     name: 'Test Algorithm 1',
+    resolvedValueTypeId: 'dimension',
     variables: [
       { id: 'var1', name: 'x', type: 'number', defaultValue: '0' },
       { id: 'var2', name: 'y', type: 'number', defaultValue: '0' }
@@ -35,16 +36,30 @@ const TEMP_TEST_ALGORITHMS: Algorithm[] = [
       {
         id: 'formula1',
         name: 'Sum',
-        expression: 'x + y',
-        latexExpression: '{x} + {y}',
+        expressions: {
+          latex: { value: '{x} + {y}' },
+          javascript: { 
+            value: 'x + y',
+            metadata: {
+              allowedOperations: ['math']
+            }
+          }
+        },
         description: 'Adds two numbers',
         variableIds: ['var1', 'var2']
       },
       {
         id: 'formula2',
         name: 'Product',
-        expression: 'x * y',
-        latexExpression: '{x} \\times {y}',
+        expressions: {
+          latex: { value: '{x} \\times {y}' },
+          javascript: { 
+            value: 'x * y',
+            metadata: {
+              allowedOperations: ['math']
+            }
+          }
+        },
         description: 'Multiplies two numbers',
         variableIds: ['var1', 'var2']
       }
@@ -64,81 +79,52 @@ const TEMP_TEST_ALGORITHMS: Algorithm[] = [
     ]
   },
   {
-    "id": "new-algorithm",
-    "name": "New Algorithm",
-    "variables": [
+    id: 'typescale-algorithm',
+    name: 'Typography Scale Algorithm',
+    resolvedValueTypeId: 'font-size',
+    variables: [
       {
-        "id": "var_1750285023050",
-        "name": "Base",
-        "type": "number",
-        "defaultValue": "14"
+        id: 'var_base',
+        name: 'Base',
+        type: 'number',
+        defaultValue: '14'
       },
       {
-        "id": "var_1750285027835",
-        "name": "Ratio",
-        "type": "number",
-        "defaultValue": "1.125"
+        id: 'var_ratio',
+        name: 'Ratio',
+        type: 'number',
+        defaultValue: '1.125'
       },
       {
-        "id": "var_1750285031421",
-        "name": "Increment",
-        "type": "number",
-        "defaultValue": ""
-      },
-      {
-        "id": "var_1750285142309",
-        "name": "TextSize",
-        "type": "number",
-        "defaultValue": ""
-      },
-      {
-        "id": "var_1750285199085",
-        "name": "RatioMin",
-        "type": "number",
-        "defaultValue": "1.075"
-      },
-      {
-        "id": "var_1750285226254",
-        "name": "Ratio max",
-        "type": "number",
-        "defaultValue": "1.015"
-      },
-      {
-        "id": "var_1750285274964",
-        "name": "Percent",
-        "type": "number",
-        "defaultValue": "1"
+        id: 'var_increment',
+        name: 'Increment',
+        type: 'number',
+        defaultValue: '1'
       }
     ],
-    "formulas": [
+    formulas: [
       {
-        "id": "formula-1750285032878",
-        "name": "Typescale",
-        "expression": "TextSize = Base * Ratio ^ Increment",
-        "latexExpression": "\\mathit{TextSize} = \\mathit{Base} \\times \\mathit{Ratio}^{\\mathit{Increment}}",
-        "description": "",
-        "variableIds": []
-      },
-      {
-        "id": "formula-1750285160745",
-        "name": "Ratio scale",
-        "expression": "Ratio = RatioMin * (1 - Percent) + Ratiomax * Percent",
-        "latexExpression": "\\mathit{Ratio} = \\mathit {RatioMin} \\times {(1} - \\mathit{Percent)} + \\mathit{Ratio}{max} \\times \\mathit{Percent}",
-        "description": "",
-        "variableIds": []
+        id: 'formula-typescale',
+        name: 'Type Scale',
+        expressions: {
+          latex: { value: '\\mathit{Base} \\times \\mathit{Ratio}^{\\mathit{Increment}}' },
+          javascript: { 
+            value: 'Base * Math.pow(Ratio, Increment)',
+            metadata: {
+              allowedOperations: ['math']
+            }
+          }
+        },
+        description: 'Calculates font size based on modular scale',
+        variableIds: ['var_base', 'var_ratio', 'var_increment']
       }
     ],
-    "conditions": [],
-    "steps": [
+    conditions: [],
+    steps: [
       {
-        "type": "formula",
-        "id": "formula-1750285160745",
-        "name": "Ratio scale"
-      },
-      {
-        "type": "formula",
-        "id": "formula-1750285032878",
-        "name": "Typescale"
+        type: 'formula',
+        id: 'formula-typescale',
+        name: 'Type Scale'
       }
     ]
   }

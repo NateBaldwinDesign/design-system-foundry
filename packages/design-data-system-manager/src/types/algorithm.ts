@@ -1,16 +1,32 @@
 export interface Variable {
   id: string;
   name: string;
-  type: 'string' | 'number' | 'boolean';
-  defaultValue?: string | number | boolean;
+  type: 'string' | 'number' | 'boolean' | 'color';
+  defaultValue?: string;
+  description?: string;
+  constraints?: {
+    min?: number;
+    max?: number;
+    step?: number;
+    pattern?: string;
+  };
+}
+
+export interface Expression {
+  value: string;
+  metadata?: {
+    allowedOperations?: Array<'math' | 'color' | 'dimension'>;
+  };
 }
 
 export interface Formula {
   id: string;
   name: string;
-  expression: string;
-  latexExpression: string;
-  description: string;
+  expressions: {
+    latex: { value: string };
+    javascript: Expression;
+  };
+  description?: string;
   variableIds: string[];
 }
 
@@ -31,6 +47,7 @@ export interface Algorithm {
   id: string;
   name: string;
   description?: string;
+  resolvedValueTypeId: string;
   variables: Variable[];
   formulas: Formula[];
   conditions: Condition[];

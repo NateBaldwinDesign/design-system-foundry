@@ -1,8 +1,8 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "$id": "https://designsystem.org/schemas/algorithms/v5.0.0",
-    "title": "Algorithm Schema for Design Token Generation",
-    "description": "Schema for algorithmic design token generation with support for multiple expression formats",
+    "title": "Simplified Algorithm Schema for Design Token Generation",
+    "description": "A streamlined and modular schema for algorithmic design token generation. Every algorithm is reusable, enabling a composable system for both basic and advanced usage.",
     "type": "object",
     "properties": {
       "schemaVersion": {
@@ -40,10 +40,10 @@
       },
       "algorithms": {
         "type": "array",
-        "description": "Algorithm definitions",
+        "description": "Algorithm definitions. Every algorithm is self-contained and can be reused as a template.",
         "items": {
           "type": "object",
-          "required": ["id", "name", "variables", "formulas", "steps", "resolvedValueTypeId"],
+          "required": ["id", "name", "formula"],
           "properties": {
             "id": {
               "type": "string",
@@ -56,32 +56,30 @@
             },
             "description": {
               "type": "string",
-              "description": "Description of the algorithm's purpose"
+              "description": "Description of the algorithm's purpose and behavior"
             },
-            "resolvedValueTypeId": {
-              "type": "string",
-              "description": "ID of the resolved value type this algorithm generates (must match an ID from the main schema's resolvedValueTypes array)"
-            },
-            "variables": {
+            "dependencies": {
               "type": "array",
-              "description": "Input variables for the algorithm",
-              "items": {
+              "description": "IDs of algorithms this one depends on (allowing composition of algorithms)",
+              "items": { "type": "string" }
+            },
+            "inputs": {
+              "type": "object",
+              "description": "Required inputs",
+              "additionalProperties": {
                 "type": "object",
-                "required": ["id", "name", "type"],
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-zA-Z0-9-_]+$"
-                  },
-                  "name": { "type": "string" },
                   "type": {
                     "type": "string",
-                    "enum": ["number", "string", "boolean", "color"]
+                    "enum": ["number", "string", "color", "token-reference"],
+                    "description": "Input data type"
                   },
-                  "defaultValue": { "type": "string" },
                   "description": { "type": "string" },
+                  "default": {},
+                  "required": { "type": "boolean", "default": true },
                   "constraints": {
                     "type": "object",
+                    "description": "Validation rules for the input",
                     "properties": {
                       "min": { "type": "number" },
                       "max": { "type": "number" },
@@ -92,96 +90,102 @@
                 }
               }
             },
-            "formulas": {
-              "type": "array",
-              "description": "Formulas that define the algorithm's logic",
-              "items": {
-                "type": "object",
-                "required": ["id", "name", "expressions"],
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-zA-Z0-9-_]+$"
-                  },
-                  "name": { "type": "string" },
-                  "description": { "type": "string" },
-                  "expressions": {
+            "formula": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "A simple mathematical or logical expression using input names and config values"
+                },
+                {
+                  "type": "object",
+                  "description": "Structured formula definition",
+                  "required": ["operation"],
+                  "properties": {
+                    "operation": {
+                      "type": "string",
+                      "enum": ["add", "multiply", "linear-scale", "round", "custom"],
+                      "description": "Operation type"
+                    },
+                    "parameters": {
+                      "type": "object",
+                      "description": "Parameter mappings (key-value pairs)",
+                      "additionalProperties": true
+                    },
+                    "expression": {
+                      "type": "string",
+                      "description": "Custom expression for 'custom' operations"
+                    }
+                  }
+                }
+              ]
+            },
+            "outputs": {
+              "type": "object",
+              "description": "Definition of outputs produced by the algorithm",
+              "properties": {
+                "tokens": {
+                  "type": "array",
+                  "description": "Configuration for generated tokens (if applicable)",
+                  "items": {
                     "type": "object",
-                    "required": ["latex", "javascript"],
+                    "required": ["name", "type"],
                     "properties": {
-                      "latex": {
-                        "type": "object",
-                        "required": ["value"],
-                        "properties": {
-                          "value": { "type": "string" }
-                        }
+                      "name": {
+                        "type": "string",
+                        "description": "Token naming pattern (supports {index}, {value} placeholders)"
                       },
-                      "javascript": {
-                        "type": "object",
-                        "required": ["value"],
-                        "properties": {
-                          "value": { "type": "string" },
-                          "metadata": {
-                            "type": "object",
-                            "properties": {
-                              "allowedOperations": {
-                                "type": "array",
-                                "items": {
-                                  "type": "string",
-                                  "enum": ["math", "color", "dimension"]
-                                }
-                              }
-                            }
-                          }
-                        }
+                      "type": {
+                        "type": "string",
+                        "description": "Token type (e.g., color, dimension)"
+                      },
+                      "description": {
+                        "type": "string",
+                        "description": "Token description pattern"
+                      },
+                      "tier": {
+                        "type": "string",
+                        "enum": ["primitive", "semantic", "component"],
+                        "default": "primitive"
+                      },
+                      "private": {
+                        "type": "boolean",
+                        "default": false
                       }
                     }
-                  },
-                  "variableIds": {
-                    "type": "array",
-                    "items": { "type": "string" }
+                  }
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Number of tokens to generate (for scale algorithms)"
+                },
+                "range": {
+                  "type": "object",
+                  "description": "Value range parameters for token generation",
+                  "properties": {
+                    "min": { "type": "number" },
+                    "max": { "type": "number" },
+                    "steps": { "type": "integer", "minimum": 1 }
                   }
                 }
               }
             },
             "conditions": {
               "type": "array",
-              "description": "Conditional logic for the algorithm",
+              "description": "Conditional execution rules (advanced usage)",
               "items": {
                 "type": "object",
-                "required": ["id", "name", "expression"],
+                "required": ["when", "then"],
                 "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^[a-zA-Z0-9-_]+$"
-                  },
-                  "name": { "type": "string" },
-                  "expression": {
-                    "type": "string",
-                    "description": "JavaScript expression that evaluates to a boolean"
-                  },
-                  "variableIds": {
-                    "type": "array",
-                    "items": { "type": "string" }
-                  }
+                  "when": { "type": "string", "description": "Condition expression" },
+                  "then": { "type": "object", "description": "Configuration adjustments when the condition is met" }
                 }
               }
             },
-            "steps": {
+            "tags": {
               "type": "array",
-              "description": "Execution steps for the algorithm",
-              "items": {
-                "type": "object",
-                "required": ["type", "id", "name"],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": ["formula", "condition"]
-                  },
-                  "id": { "type": "string" },
-                  "name": { "type": "string" }
-                }
-              }
+              "description": "Tags for organization and filtering",
+              "items": { "type": "string" }
             }
           }
         }

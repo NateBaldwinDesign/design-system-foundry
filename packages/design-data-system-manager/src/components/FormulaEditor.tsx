@@ -18,7 +18,10 @@ import {
   Menu,
   MenuButton,
   MenuList,
-  MenuItem
+  MenuItem,
+  Alert,
+  AlertIcon,
+  AlertDescription
 } from '@chakra-ui/react';
 import { Plus, Trash2, GripVertical, Parentheses, Check, ChevronDown, SquareFunction, VariableIcon, TextCursorInputIcon, SplitIcon } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -174,6 +177,49 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
   });
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedBlock, setSelectedBlock] = useState<FormulaBlock | null>(null);
+  const [validationMessage, setValidationMessage] = useState<string>('');
+
+  // UI Mapping Logic - moved to constants above return statement per project rules
+  const operatorOptions = mode === 'formula' ? MATH_OPERATORS : CONDITIONAL_OPERATORS;
+  const operatorMenuItems = operatorOptions.map(op => (
+    <MenuItem
+      key={op.id}
+      onClick={() => handleAddOperator(op.id)}
+    >
+      {op.label}
+    </MenuItem>
+  ));
+
+  const variableMenuItems = variables.map(variable => (
+    <MenuItem
+      key={variable.id}
+      onClick={() => handleAddVariable(variable)}
+      icon={<Plus size={16} />}
+    >
+      {variable.name}
+    </MenuItem>
+  ));
+
+  // Progressive validation function for inline feedback
+  const validateFormulaStructure = (blocks: FormulaBlock[]): string => {
+    if (blocks.length === 0) {
+      return 'Formula is empty. Add variables, values, or operators.';
+    }
+
+    const hasOperators = blocks.some(block => block.type === 'operator');
+    const valueCount = blocks.filter(block => block.type === 'variable' || block.type === 'value').length;
+    const operatorCount = blocks.filter(block => block.type === 'operator').length;
+
+    if (hasOperators && operatorCount > valueCount) {
+      return `Formula has ${operatorCount} operators but only ${valueCount} values. Consider adding more values or variables.`;
+    }
+
+    if (hasOperators && valueCount < 2) {
+      return 'Formula has operators but needs at least 2 values or variables to be valid.';
+    }
+
+    return '';
+  };
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -283,7 +329,7 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
     setBlocks(prev => deleteFromBlocks(prev));
   };
 
-  // Add useEffect to handle formula updates
+  // Add useEffect to handle formula updates with progressive validation
   useEffect(() => {
     const buildFormula = (blocks: FormulaBlock[]): string => {
       return blocks.map(block => {
@@ -304,8 +350,13 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
 
     const formula = buildFormula(blocks);
     const latexExpression = buildLatexFormula(blocks);
+    
+    // Progressive validation for inline feedback
+    const validationMsg = validateFormulaStructure(blocks);
+    setValidationMessage(validationMsg);
+    
     onChange(formula, latexExpression);
-  }, [blocks, onChange]);
+  }, [blocks, onChange, variables, mode]);
 
   const buildLatexFormula = (blocks: FormulaBlock[]): string => {
     let latex = '';
@@ -330,47 +381,15 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
               latex += '^{' + buildLatexFormula([exponent]) + '}';
             }
           } else {
-            // Map operators to their proper LaTeX symbols
+            // Map operators to their proper LaTeX symbols using the operator arrays
             const operator = MATH_OPERATORS.find(op => op.symbol === block.content) || 
                            CONDITIONAL_OPERATORS.find(op => op.symbol === block.content);
             if (operator) {
-              switch (operator.id) {
-                case '+':
-                  latex += ' + ';
-                  break;
-                case '-':
-                  latex += ' - ';
-                  break;
-                case '*':
-                  latex += ' \\times ';
-                  break;
-                case '/':
-                  latex += ' \\div ';
-                  break;
-                case '%':
-                  latex += ' \\bmod ';
-                  break;
-                case '=':
-                  latex += ' = ';
-                  break;
-                case '>':
-                  latex += ' > ';
-                  break;
-                case '<':
-                  latex += ' < ';
-                  break;
-                case '>=':
-                  latex += ' \\geq ';
-                  break;
-                case '<=':
-                  latex += ' \\leq ';
-                  break;
-                case '!=':
-                  latex += ' \\neq ';
-                  break;
-                default:
-                  latex += ' ' + operator.latex + ' ';
-              }
+              // Use the latex property from the operator definition
+              latex += ' ' + operator.latex + ' ';
+            } else {
+              // Fallback for unknown operators
+              latex += ' ' + block.content + ' ';
             }
           }
           break;
@@ -406,15 +425,7 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
               Variable
             </MenuButton>
             <MenuList>
-              {variables.map(variable => (
-                <MenuItem
-                  key={variable.id}
-                  onClick={() => handleAddVariable(variable)}
-                  icon={<Plus size={16} />}
-                >
-                  {variable.name}
-                </MenuItem>
-              ))}
+              {variableMenuItems}
             </MenuList>
           </Menu>
 
@@ -428,34 +439,27 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
               {mode === 'formula' ? 'Math Operator' : 'Condition'}
             </MenuButton>
             <MenuList>
-              {(mode === 'formula' ? MATH_OPERATORS : CONDITIONAL_OPERATORS).map(op => (
-                <MenuItem
-                  key={op.id}
-                  onClick={() => handleAddOperator(op.id)}
-                >
-                  {op.label}
-                </MenuItem>
-              ))}
+              {operatorMenuItems}
             </MenuList>
           </Menu>
 
-            <Button
-              aria-label="Add parentheses group"
-              leftIcon={<Parentheses size={16} />}
-              size="sm"
-              onClick={handleAddGroup}
-            >
-                Parentheses
-            </Button>
+          <Button
+            aria-label="Add parentheses group"
+            leftIcon={<Parentheses size={16} />}
+            size="sm"
+            onClick={handleAddGroup}
+          >
+            Parentheses
+          </Button>
 
-            <Button
-              aria-label="Add value"
-              leftIcon={<TextCursorInputIcon size={16} />}
-              size="sm"
-              onClick={handleAddValue}
-            >
-                Value
-            </Button>
+          <Button
+            aria-label="Add value"
+            leftIcon={<TextCursorInputIcon size={16} />}
+            size="sm"
+            onClick={handleAddValue}
+          >
+            Value
+          </Button>
         </HStack>
         
         {/* Formula Blocks */}
@@ -490,6 +494,15 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
           </DragDropContext>
         </Box>
 
+        {/* Inline Validation Feedback */}
+        {validationMessage && (
+          <Alert status="warning" borderRadius="md">
+            <AlertIcon />
+            <AlertDescription fontSize="sm">
+              {validationMessage}
+            </AlertDescription>
+          </Alert>
+        )}
       </VStack>
 
       {/* Value Input Modal */}

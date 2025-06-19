@@ -18,16 +18,15 @@ import {
   TabList,
   TabPanels,
   Tab,
-  TabPanel
+  TabPanel,
+  FormControl,
+  FormLabel
 } from '@chakra-ui/react';
 import { Plus, Trash2, GripVertical, Save, Edit } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Algorithm, Variable, Formula, Condition, AlgorithmStep } from '../types/algorithm';
 import { FormulaEditor } from './FormulaEditor';
 import { BlockMath } from 'react-katex';
-
-// Add type declaration for react-katex
-declare module 'react-katex';
 
 interface AlgorithmEditorProps {
   algorithm?: Algorithm;
@@ -37,6 +36,7 @@ interface AlgorithmEditorProps {
 const defaultAlgorithm: Algorithm = {
   id: 'new-algorithm',
   name: 'New Algorithm',
+  resolvedValueTypeId: 'dimension',
   variables: [],
   formulas: [],
   conditions: [],
@@ -67,19 +67,6 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
     defaultValue: ''
   });
 
-  const [newFormula, setNewFormula] = React.useState<Partial<Formula>>({
-    name: '',
-    expression: '',
-    latexExpression: '',
-    variableIds: []
-  });
-
-  const [newCondition, setNewCondition] = React.useState<Partial<Condition>>({
-    name: '',
-    expression: '',
-    variableIds: []
-  });
-
   const [newStep, setNewStep] = React.useState<Partial<AlgorithmStep>>({
     type: 'formula',
     id: '',
@@ -103,10 +90,21 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
   };
 
   const handleAddVariable = () => {
-    if (!newVariable.name || !newVariable.type) {
+    if (!newVariable.name?.trim()) {
       toast({
         title: 'Error',
-        description: 'Please fill in all required fields',
+        description: 'Please enter a variable name',
+        status: 'error',
+        duration: 3000,
+        isClosable: true
+      });
+      return;
+    }
+    
+    if (!newVariable.type) {
+      toast({
+        title: 'Error',
+        description: 'Please select a variable type',
         status: 'error',
         duration: 3000,
         isClosable: true
@@ -133,51 +131,18 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
     });
   };
 
-  const handleAddFormula = () => {
-    const newFormula: Formula = {
-      id: `formula-${Date.now()}`,
+  const handleAddCondition = () => {
+    const newConditionItem: Condition = {
+      id: `cond_${Date.now()}`,
       name: '',
       expression: '',
-      latexExpression: '',
-      description: '',
       variableIds: []
     };
     const updatedAlgorithm = {
       ...currentAlgorithm,
-      formulas: [...(currentAlgorithm.formulas || []), newFormula]
+      conditions: [...(currentAlgorithm.conditions || []), newConditionItem]
     };
     setCurrentAlgorithm(updatedAlgorithm);
-  };
-
-  const handleAddCondition = () => {
-    if (!newCondition.name || !newCondition.expression) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all required fields',
-        status: 'error',
-        duration: 3000,
-        isClosable: true
-      });
-      return;
-    }
-
-    const condition: Condition = {
-      id: `cond_${Date.now()}`,
-      name: newCondition.name,
-      expression: newCondition.expression,
-      variableIds: newCondition.variableIds || []
-    };
-
-    setCurrentAlgorithm(prev => ({
-      ...prev,
-      conditions: [...prev.conditions, condition]
-    }));
-
-    setNewCondition({
-      name: '',
-      expression: '',
-      variableIds: []
-    });
   };
 
   const handleAddStep = () => {
@@ -217,22 +182,6 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
     }));
   };
 
-  const handleDeleteFormula = (id: string) => {
-    setCurrentAlgorithm(prev => ({
-      ...prev,
-      formulas: prev.formulas.filter(f => f.id !== id),
-      steps: prev.steps.filter(s => s.id !== id)
-    }));
-  };
-
-  const handleDeleteCondition = (id: string) => {
-    setCurrentAlgorithm(prev => ({
-      ...prev,
-      conditions: prev.conditions.filter(c => c.id !== id),
-      steps: prev.steps.filter(s => s.id !== id)
-    }));
-  };
-
   const handleDeleteStep = (index: number) => {
     setCurrentAlgorithm(prev => ({
       ...prev,
@@ -241,7 +190,8 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
   };
 
   const handleSave = () => {
-    if (!currentAlgorithm.name) {
+    // Validate algorithm name (required)
+    if (!currentAlgorithm.name?.trim()) {
       toast({
         title: 'Error',
         description: 'Please enter an algorithm name',
@@ -250,6 +200,58 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
         isClosable: true
       });
       return;
+    }
+
+    // Validate variables (name and type are required)
+    for (const variable of currentAlgorithm.variables) {
+      if (!variable.name?.trim()) {
+        toast({
+          title: 'Error',
+          description: `Variable "${variable.id}" is missing a name`,
+          status: 'error',
+          duration: 3000,
+          isClosable: true
+        });
+        return;
+      }
+      if (!variable.type) {
+        toast({
+          title: 'Error',
+          description: `Variable "${variable.name}" is missing a type`,
+          status: 'error',
+          duration: 3000,
+          isClosable: true
+        });
+        return;
+      }
+    }
+
+    // Validate formulas (name is required)
+    for (const formula of currentAlgorithm.formulas || []) {
+      if (!formula.name?.trim()) {
+        toast({
+          title: 'Error',
+          description: `Formula "${formula.id}" is missing a name`,
+          status: 'error',
+          duration: 3000,
+          isClosable: true
+        });
+        return;
+      }
+    }
+
+    // Validate conditions (name is required)
+    for (const condition of currentAlgorithm.conditions || []) {
+      if (!condition.name?.trim()) {
+        toast({
+          title: 'Error',
+          description: `Condition "${condition.id}" is missing a name`,
+          status: 'error',
+          duration: 3000,
+          isClosable: true
+        });
+        return;
+      }
     }
 
     onSave(currentAlgorithm);
@@ -279,10 +281,32 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
   };
 
   const handleSaveEditVariable = () => {
-    if (!editingVariableId || !editingVariable.name || !editingVariable.type) {
+    if (!editingVariableId) {
       toast({
         title: 'Error',
-        description: 'Please fill in all required fields',
+        description: 'No variable selected for editing',
+        status: 'error',
+        duration: 3000,
+        isClosable: true
+      });
+      return;
+    }
+    
+    if (!editingVariable.name?.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a variable name',
+        status: 'error',
+        duration: 3000,
+        isClosable: true
+      });
+      return;
+    }
+    
+    if (!editingVariable.type) {
+      toast({
+        title: 'Error',
+        description: 'Please select a variable type',
         status: 'error',
         duration: 3000,
         isClosable: true
@@ -313,22 +337,51 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
     setEditingVariable({});
   };
 
+  const handleAddFormula = () => {
+    const newFormula: Formula = {
+      id: `formula-${Date.now()}`,
+      name: '',
+      expressions: {
+        latex: { value: '' },
+        javascript: { 
+          value: '',
+          metadata: {
+            allowedOperations: ['math']
+          }
+        }
+      },
+      description: '',
+      variableIds: []
+    };
+    const updatedAlgorithm = {
+      ...currentAlgorithm,
+      formulas: [...(currentAlgorithm.formulas || []), newFormula]
+    };
+    setCurrentAlgorithm(updatedAlgorithm);
+  };
+
   return (
     <Box>
       <VStack spacing={6} align="stretch">
         {/* Basic Information */}
         <VStack spacing={4} align="stretch">
           <Text fontSize="lg" fontWeight="bold">Basic Information</Text>
-          <Input
-            placeholder="Algorithm Name"
-            value={currentAlgorithm.name}
-            onChange={e => setCurrentAlgorithm(prev => ({ ...prev, name: e.target.value }))}
-          />
-          <Textarea
-            placeholder="Description (optional)"
-            value={currentAlgorithm.description}
-            onChange={e => setCurrentAlgorithm(prev => ({ ...prev, description: e.target.value }))}
-          />
+          <FormControl isRequired>
+            <FormLabel>Algorithm Name</FormLabel>
+            <Input
+              placeholder="Algorithm Name"
+              value={currentAlgorithm.name}
+              onChange={e => setCurrentAlgorithm(prev => ({ ...prev, name: e.target.value }))}
+            />
+          </FormControl>
+          <FormControl>
+            <FormLabel>Description</FormLabel>
+            <Textarea
+              placeholder="Description (optional)"
+              value={currentAlgorithm.description}
+              onChange={e => setCurrentAlgorithm(prev => ({ ...prev, description: e.target.value }))}
+            />
+          </FormControl>
         </VStack>
 
         <Divider />
@@ -348,30 +401,33 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
             <TabPanel>
               <VStack spacing={4} align="stretch">
                 <HStack spacing={4} justify="start">
-                  <Input
-                    flex="1"
-                    maxW="200px"
-                    placeholder="Variable Name"
-                    value={newVariable.name}
-                    onChange={e => setNewVariable(prev => ({ ...prev, name: e.target.value }))}
-                  />
-                  <Select
-                    flex="1"
-                    maxW="140px"
-                    value={newVariable.type}
-                    onChange={e => handleVariableTypeChange(e.target.value as Variable['type'])}
-                  >
-                    <option value="number">Number</option>
-                    <option value="string">String</option>
-                    <option value="boolean">Boolean</option>
-                  </Select>
-                  <Input
-                    flex="1"
-                    maxW="180px"
-                    placeholder="Default Value (optional)"
-                    value={newVariable.defaultValue?.toString() || ''}
-                    onChange={e => handleVariableDefaultValueChange(e.target.value)}
-                  />
+                  <FormControl isRequired>
+                    <FormLabel>Variable Name</FormLabel>
+                    <Input
+                      placeholder="Variable Name"
+                      value={newVariable.name}
+                      onChange={e => setNewVariable(prev => ({ ...prev, name: e.target.value }))}
+                    />
+                  </FormControl>
+                  <FormControl isRequired>
+                    <FormLabel>Type</FormLabel>
+                    <Select
+                      value={newVariable.type}
+                      onChange={e => handleVariableTypeChange(e.target.value as Variable['type'])}
+                    >
+                      <option value="number">Number</option>
+                      <option value="string">String</option>
+                      <option value="boolean">Boolean</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Default Value</FormLabel>
+                    <Input
+                      placeholder="Default Value (optional)"
+                      value={newVariable.defaultValue?.toString() || ''}
+                      onChange={e => handleVariableDefaultValueChange(e.target.value)}
+                    />
+                  </FormControl>
                   <Button
                     leftIcon={<Plus size={16} />}
                     flexShrink={0}
@@ -385,30 +441,33 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                     <HStack key={variable.id} justify="space-between">
                       {editingVariableId === variable.id ? (
                         <HStack spacing={4} flex={1}>
-                          <Input
-                            flex="1"
-                            maxW="200px"
-                            placeholder="Variable Name"
-                            value={editingVariable.name}
-                            onChange={e => setEditingVariable(prev => ({ ...prev, name: e.target.value }))}
-                          />
-                          <Select
-                            flex="1"
-                            maxW="140px"
-                            value={editingVariable.type}
-                            onChange={e => setEditingVariable(prev => ({ ...prev, type: e.target.value as Variable['type'] }))}
-                          >
-                            <option value="number">Number</option>
-                            <option value="string">String</option>
-                            <option value="boolean">Boolean</option>
-                          </Select>
-                          <Input
-                            flex="1"
-                            maxW="180px"
-                            placeholder="Default Value (optional)"
-                            value={editingVariable.defaultValue?.toString() || ''}
-                            onChange={e => setEditingVariable(prev => ({ ...prev, defaultValue: e.target.value }))}
-                          />
+                          <FormControl isRequired>
+                            <FormLabel>Variable Name</FormLabel>
+                            <Input
+                              placeholder="Variable Name"
+                              value={editingVariable.name}
+                              onChange={e => setEditingVariable(prev => ({ ...prev, name: e.target.value }))}
+                            />
+                          </FormControl>
+                          <FormControl isRequired>
+                            <FormLabel>Type</FormLabel>
+                            <Select
+                              value={editingVariable.type}
+                              onChange={e => setEditingVariable(prev => ({ ...prev, type: e.target.value as Variable['type'] }))}
+                            >
+                              <option value="number">Number</option>
+                              <option value="string">String</option>
+                              <option value="boolean">Boolean</option>
+                            </Select>
+                          </FormControl>
+                          <FormControl>
+                            <FormLabel>Default Value</FormLabel>
+                            <Input
+                              placeholder="Default Value (optional)"
+                              value={editingVariable.defaultValue?.toString() || ''}
+                              onChange={e => setEditingVariable(prev => ({ ...prev, defaultValue: e.target.value }))}
+                            />
+                          </FormControl>
                           <Button
                             size="sm"
                             colorScheme="blue"
@@ -480,43 +539,48 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                       <HStack spacing={4} align="start">
                         <Box flex={1}>
                           <HStack spacing={4} align="start">
-                            <Input
-                              placeholder="Formula Name"
-                              value={formula.name}
-                              onChange={(e) => {
-                                const newFormulas = [...(currentAlgorithm.formulas || [])];
-                                newFormulas[index] = {
-                                  ...formula,
-                                  name: e.target.value
-                                };
-                                const updatedAlgorithm = {
-                                  ...currentAlgorithm,
-                                  formulas: newFormulas
-                                };
-                                setCurrentAlgorithm(updatedAlgorithm);
-                              }}
-                              mb={2}
-                            />
-                            <Input
-                              placeholder="Description"
-                              value={formula.description}
-                              onChange={(e) => {
-                                const newFormulas = [...(currentAlgorithm.formulas || [])];
-                                newFormulas[index] = {
-                                  ...formula,
-                                  description: e.target.value
-                                };
-                                const updatedAlgorithm = {
-                                  ...currentAlgorithm,
-                                  formulas: newFormulas
-                                };
-                                setCurrentAlgorithm(updatedAlgorithm);
-                              }}
-                              mb={2}
-                            />
-
+                            <FormControl isRequired>
+                              <FormLabel>Formula Name</FormLabel>
+                              <Input
+                                placeholder="Formula Name"
+                                value={formula.name}
+                                onChange={(e) => {
+                                  const newFormulas = [...(currentAlgorithm.formulas || [])];
+                                  newFormulas[index] = {
+                                    ...formula,
+                                    name: e.target.value
+                                  };
+                                  const updatedAlgorithm = {
+                                    ...currentAlgorithm,
+                                    formulas: newFormulas
+                                  };
+                                  setCurrentAlgorithm(updatedAlgorithm);
+                                }}
+                                mb={2}
+                              />
+                            </FormControl>
+                            <FormControl>
+                              <FormLabel>Description</FormLabel>
+                              <Input
+                                placeholder="Description"
+                                value={formula.description}
+                                onChange={(e) => {
+                                  const newFormulas = [...(currentAlgorithm.formulas || [])];
+                                  newFormulas[index] = {
+                                    ...formula,
+                                    description: e.target.value
+                                  };
+                                  const updatedAlgorithm = {
+                                    ...currentAlgorithm,
+                                    formulas: newFormulas
+                                  };
+                                  setCurrentAlgorithm(updatedAlgorithm);
+                                }}
+                                mb={2}
+                              />
+                            </FormControl>
                           </HStack>
-                          {formula.latexExpression && (
+                          {formula.expressions.latex.value && (
                             <Box
                               p={2}
                               bg={colorMode === 'light' ? 'gray.50' : 'gray.700'}
@@ -525,19 +589,26 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                               fontSize="sm"
                             >
                               <Text mb={-2} fontSize="sm" color="gray.500">LaTeX preview:</Text>
-                              <BlockMath math={formula.latexExpression} />
+                              <BlockMath math={formula.expressions.latex.value} />
                             </Box>
                           )}
                           <FormulaEditor
                             variables={currentAlgorithm.variables || []}
-                            value={formula.expression}
+                            value={formula.expressions.javascript.value}
                             mode="formula"
                             onChange={(value, latexExpression) => {
                               const newFormulas = [...(currentAlgorithm.formulas || [])];
                               newFormulas[index] = {
                                 ...formula,
-                                expression: value,
-                                latexExpression
+                                expressions: {
+                                  latex: { value: latexExpression },
+                                  javascript: { 
+                                    value: value,
+                                    metadata: {
+                                      allowedOperations: ['math']
+                                    }
+                                  }
+                                }
                               };
                               const updatedAlgorithm = {
                                 ...currentAlgorithm,
@@ -572,37 +643,84 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
             {/* Conditions Tab */}
             <TabPanel>
               <VStack spacing={4} align="stretch">
-                <VStack spacing={4} align="stretch">
-                  <Input
-                    placeholder="Condition Name"
-                    value={newCondition.name}
-                    onChange={e => setNewCondition(prev => ({ ...prev, name: e.target.value }))}
-                  />
-                  <FormulaEditor
-                    variables={currentAlgorithm.variables || []}
-                    value={newCondition.expression || ''}
-                    mode="condition"
-                    onChange={expression => setNewCondition(prev => ({ ...prev, expression }))}
-                  />
-                  <Button leftIcon={<Plus size={16} />} onClick={handleAddCondition}>
+                <HStack justify="space-between">
+                  <Button
+                    size="sm"
+                    leftIcon={<Plus size={16} />}
+                    onClick={handleAddCondition}
+                  >
                     Add Condition
                   </Button>
-                </VStack>
-                <VStack spacing={2} align="stretch">
-                  {currentAlgorithm.conditions.map(condition => (
-                    <HStack key={condition.id} justify="space-between">
-                      <VStack align="start" spacing={1}>
-                        <Badge colorScheme="green">{condition.name}</Badge>
-                        <Text fontSize="sm" color="gray.500">{condition.expression}</Text>
-                      </VStack>
-                      <IconButton
-                        aria-label="Delete condition"
-                        icon={<Trash2 size={16} />}
-                        size="sm"
-                        colorScheme="red"
-                        onClick={() => handleDeleteCondition(condition.id)}
-                      />
-                    </HStack>
+                </HStack>
+
+                <VStack spacing={4} align="stretch">
+                  {(currentAlgorithm.conditions || []).map((condition, index) => (
+                    <Box
+                      key={condition.id}
+                      p={4}
+                      borderWidth={1}
+                      borderRadius="md"
+                      position="relative"
+                    >
+                      <HStack spacing={4} align="start">
+                        <Box flex={1}>
+                          <HStack spacing={4} align="start">
+                            <FormControl isRequired>
+                              <FormLabel>Condition Name</FormLabel>
+                              <Input
+                                placeholder="Condition Name"
+                                value={condition.name}
+                                onChange={(e) => {
+                                  const newConditions = [...(currentAlgorithm.conditions || [])];
+                                  newConditions[index] = {
+                                    ...condition,
+                                    name: e.target.value
+                                  };
+                                  const updatedAlgorithm = {
+                                    ...currentAlgorithm,
+                                    conditions: newConditions
+                                  };
+                                  setCurrentAlgorithm(updatedAlgorithm);
+                                }}
+                                mb={2}
+                              />
+                            </FormControl>
+                          </HStack>
+                          <FormulaEditor
+                            variables={currentAlgorithm.variables || []}
+                            value={condition.expression}
+                            mode="condition"
+                            onChange={(expression) => {
+                              const newConditions = [...(currentAlgorithm.conditions || [])];
+                              newConditions[index] = {
+                                ...condition,
+                                expression: expression
+                              };
+                              const updatedAlgorithm = {
+                                ...currentAlgorithm,
+                                conditions: newConditions
+                              };
+                              setCurrentAlgorithm(updatedAlgorithm);
+                            }}
+                          />
+                        </Box>
+                        <IconButton
+                          aria-label="Delete condition"
+                          icon={<Trash2 size={16} />}
+                          size="sm"
+                          variant="ghost"
+                          colorScheme="red"
+                          onClick={() => {
+                            const newConditions = (currentAlgorithm.conditions || []).filter(c => c.id !== condition.id);
+                            const updatedAlgorithm = {
+                              ...currentAlgorithm,
+                              conditions: newConditions
+                            };
+                            setCurrentAlgorithm(updatedAlgorithm);
+                          }}
+                        />
+                      </HStack>
+                    </Box>
                   ))}
                 </VStack>
               </VStack>
