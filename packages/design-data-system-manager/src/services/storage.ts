@@ -23,7 +23,7 @@ const STORAGE_KEYS = {
 } as const;
 
 // TEMPORARY: Test data for algorithm debugging
-const TEMP_TEST_ALGORITHMS: Algorithm[] = [
+export const TEMP_TEST_ALGORITHMS: Algorithm[] = [
   {
     id: 'test-algo-1',
     name: 'Test Algorithm 1',
@@ -125,6 +125,50 @@ const TEMP_TEST_ALGORITHMS: Algorithm[] = [
         type: 'formula',
         id: 'formula-typescale',
         name: 'Type Scale'
+      }
+    ]
+  },
+  {
+    id: 'spacing-scale-algorithm',
+    name: 'Spacing Scale Algorithm',
+    resolvedValueTypeId: 'gap',
+    variables: [
+      {
+        id: 'var_base_spacing',
+        name: 'BaseSpacing',
+        type: 'number',
+        defaultValue: '4'
+      },
+      {
+        id: 'var_multiplier',
+        name: 'Multiplier',
+        type: 'number',
+        defaultValue: '2'
+      }
+    ],
+    formulas: [
+      {
+        id: 'formula-spacing',
+        name: 'Spacing Scale',
+        expressions: {
+          latex: { value: '\\mathit{BaseSpacing} \\times \\mathit{Multiplier}^{n}' },
+          javascript: { 
+            value: 'BaseSpacing * Math.pow(Multiplier, n)',
+            metadata: {
+              allowedOperations: ['math']
+            }
+          }
+        },
+        description: 'Calculates spacing based on exponential scale',
+        variableIds: ['var_base_spacing', 'var_multiplier']
+      }
+    ],
+    conditions: [],
+    steps: [
+      {
+        type: 'formula',
+        id: 'formula-spacing',
+        name: 'Spacing Scale'
       }
     ]
   }

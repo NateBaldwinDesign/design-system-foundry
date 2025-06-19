@@ -1,6 +1,7 @@
 import type { Token, TokenCollection, Taxonomy } from '@token-model/data-model';
 import type { Algorithm, TokenGeneration, Formula, Condition } from '../types/algorithm';
 import { createUniqueId } from '../utils/id';
+import { AlgorithmExecutionService } from './algorithmExecutionService';
 
 export interface GeneratedToken {
   id: string;
@@ -531,95 +532,59 @@ export class TokenGenerationService {
    * Execute algorithm steps in order to calculate the final value
    */
   private static executeAlgorithmSteps(algorithm: Algorithm, n: number): number {
-    // Create execution context with iteration variable 'n' and algorithm variables
-    const context: Record<string, number> = { n };
-    
-    // Add algorithm variables with their default values
-    algorithm.variables.forEach(variable => {
-      context[variable.name] = variable.defaultValue ? parseFloat(variable.defaultValue) : 0;
-    });
-    
-    // Execute each step in order
-    for (const step of algorithm.steps) {
-      if (step.type === 'formula') {
-        // Find the formula by ID
-        const formula = algorithm.formulas.find(f => f.id === step.id);
-        if (!formula) {
-          throw new Error(`Formula with ID "${step.id}" not found`);
+    try {
+      // Use the new AlgorithmExecutionService for proper algorithm execution
+      const executionContext = AlgorithmExecutionService.executeAlgorithm(algorithm, n);
+      
+      // Ensure the result is a number
+      const result = executionContext.finalResult;
+      if (typeof result === 'number' && !isNaN(result)) {
+        return result;
+      } else if (typeof result === 'string') {
+        // Try to parse string as number
+        const parsed = parseFloat(result);
+        if (!isNaN(parsed)) {
+          return parsed;
         }
-        
-        // Evaluate the formula and store the result in context
-        const result = this.evaluateFormulaWithContext(formula, context);
-        context[formula.name] = result;
-        
-      } else if (step.type === 'condition') {
-        // Find the condition by ID
-        const condition = algorithm.conditions.find(c => c.id === step.id);
-        if (!condition) {
-          throw new Error(`Condition with ID "${step.id}" not found`);
-        }
-        
-        // Evaluate the condition (for now, just evaluate but don't use the result)
-        // In the future, this could be used for conditional logic
-        this.evaluateConditionWithContext(condition, context);
       }
+      
+      // If we can't get a valid number, throw an error
+      throw new Error(`Algorithm execution did not produce a valid number. Got: ${typeof result} ${result}`);
+    } catch (error) {
+      throw new Error(`Algorithm execution failed: ${error}`);
     }
-    
-    // Return the result of the last formula step, or the last calculated value
-    // If no formula steps were executed, throw an error
-    const formulaSteps = algorithm.steps.filter(step => step.type === 'formula');
-    if (formulaSteps.length === 0) {
-      throw new Error('Algorithm must have at least one formula step');
-    }
-    
-    const lastFormulaStep = formulaSteps[formulaSteps.length - 1];
-    const lastFormula = algorithm.formulas.find(f => f.id === lastFormulaStep.id);
-    if (!lastFormula) {
-      throw new Error(`Last formula with ID "${lastFormulaStep.id}" not found`);
-    }
-    
-    return context[lastFormula.name];
   }
 
   /**
-   * Evaluate formula with given context
+   * Evaluate formula with given context (legacy method - use AlgorithmExecutionService instead)
    */
   private static evaluateFormulaWithContext(formula: Formula, context: Record<string, number>): number {
-    // Evaluate the JavaScript expression
-    const expression = formula.expressions.javascript.value;
-    
     try {
-      // Create a safe evaluation function
-      const evalFunction = new Function(...Object.keys(context), `return ${expression}`);
-      const result = evalFunction(...Object.values(context));
+      // Use the new AlgorithmExecutionService for formula evaluation
+      const result = AlgorithmExecutionService.evaluateFormula(formula, context);
       
-      if (typeof result !== 'number' || isNaN(result)) {
-        throw new Error(`Formula "${formula.name}" must evaluate to a valid number`);
+      if (typeof result === 'number' && !isNaN(result)) {
+        return result;
+      } else if (typeof result === 'string') {
+        const parsed = parseFloat(result);
+        if (!isNaN(parsed)) {
+          return parsed;
+        }
       }
       
-      return result;
+      throw new Error(`Formula "${formula.name}" must evaluate to a valid number`);
     } catch (error) {
       throw new Error(`Formula "${formula.name}" evaluation failed: ${error}`);
     }
   }
 
   /**
-   * Evaluate condition with given context
+   * Evaluate condition with given context (legacy method - use AlgorithmExecutionService instead)
    */
   private static evaluateConditionWithContext(condition: Condition, context: Record<string, number>): boolean {
-    // Evaluate the JavaScript expression
-    const expression = condition.expression;
-    
     try {
-      // Create a safe evaluation function
-      const evalFunction = new Function(...Object.keys(context), `return ${expression}`);
-      const result = evalFunction(...Object.values(context));
-      
-      if (typeof result !== 'boolean') {
-        throw new Error(`Condition "${condition.name}" must evaluate to a boolean`);
-      }
-      
-      return result;
+      // Use the new AlgorithmExecutionService for condition evaluation
+      return AlgorithmExecutionService.evaluateCondition(condition, context);
     } catch (error) {
       throw new Error(`Condition "${condition.name}" evaluation failed: ${error}`);
     }
