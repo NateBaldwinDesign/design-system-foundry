@@ -88,35 +88,11 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
   const [selectedTaxonomies, setSelectedTaxonomies] = useState<Array<{ taxonomyId: string; termId: string }>>([]);
   const [resolvedValueTypes, setResolvedValueTypes] = useState<ResolvedValueType[]>([]);
 
-  // Load resolved value types from storage
-  useEffect(() => {
-    const loadResolvedValueTypes = () => {
-      const valueTypes = StorageService.getValueTypes();
-      setResolvedValueTypes(valueTypes);
-      
-      // Update default algorithm if it has an invalid resolvedValueTypeId
-      if (valueTypes.length > 0) {
-        setCurrentAlgorithm(prev => {
-          const hasValidType = valueTypes.some(vt => vt.id === prev.resolvedValueTypeId);
-          if (!hasValidType) {
-            return {
-              ...prev,
-              resolvedValueTypeId: valueTypes[0].id
-            };
-          }
-          return prev;
-        });
-      }
-    };
-    loadResolvedValueTypes();
-  }, []);
-
-  // Load and filter taxonomies when algorithm changes
+  // Load and filter taxonomies when algorithm changes or window regains focus
   useEffect(() => {
     const loadTaxonomies = () => {
       const allTaxonomies = StorageService.getTaxonomies() as Taxonomy[];
       const currentValueTypeId = currentAlgorithm.tokenGeneration?.bulkAssignments?.resolvedValueTypeId;
-      
       if (currentValueTypeId) {
         const filtered = allTaxonomies.filter(taxonomy => 
           Array.isArray(taxonomy.resolvedValueTypeIds) && 
@@ -127,15 +103,36 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
         setFilteredTaxonomies([]);
       }
     };
-
     loadTaxonomies();
+    window.addEventListener('focus', loadTaxonomies);
+    return () => {
+      window.removeEventListener('focus', loadTaxonomies);
+    };
   }, [currentAlgorithm.tokenGeneration?.bulkAssignments?.resolvedValueTypeId]);
 
   // Update selected taxonomies when algorithm changes
   useEffect(() => {
-    const currentTaxonomies = currentAlgorithm.tokenGeneration?.bulkAssignments?.taxonomyIds || [];
-    setSelectedTaxonomies(currentTaxonomies.map(id => ({ taxonomyId: id, termId: '' })));
-  }, [currentAlgorithm.tokenGeneration?.bulkAssignments?.taxonomyIds]);
+    const currentTaxonomies = currentAlgorithm.tokenGeneration?.bulkAssignments?.taxonomies || [];
+    setSelectedTaxonomies(currentTaxonomies);
+  }, [currentAlgorithm.tokenGeneration?.bulkAssignments?.taxonomies]);
+
+  // Load resolved value types from storage
+  useEffect(() => {
+    const valueTypes = StorageService.getValueTypes();
+    setResolvedValueTypes(valueTypes);
+    if (valueTypes.length > 0) {
+      setCurrentAlgorithm(prev => {
+        const hasValidType = valueTypes.some(vt => vt.id === prev.resolvedValueTypeId);
+        if (!hasValidType) {
+          return {
+            ...prev,
+            resolvedValueTypeId: valueTypes[0].id
+          };
+        }
+        return prev;
+      });
+    }
+  }, []);
 
   // Handler for taxonomy changes
   const handleTaxonomyChange = (newTaxonomies: Array<{ taxonomyId: string; termId: string }>) => {
@@ -146,7 +143,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
         ...prev.tokenGeneration!,
         bulkAssignments: {
           ...prev.tokenGeneration!.bulkAssignments,
-          taxonomyIds: newTaxonomies.map(t => t.taxonomyId)
+          taxonomies: newTaxonomies
         }
       }
     }));
@@ -361,6 +358,8 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
           // Merge generated tokens with existing tokens
           const updatedTokens = [...existingTokens, ...tokens];
           StorageService.setTokens(updatedTokens);
+
+          console.log('new tokens', tokens);
 
           toast({
             title: 'Success',
@@ -909,7 +908,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                           iterationRange: { start: -2, end: 8, step: 1 },
                           bulkAssignments: {
                             resolvedValueTypeId: resolvedValueTypes.length > 0 ? resolvedValueTypes[0].id : 'color',
-                            taxonomyIds: [],
+                            taxonomies: [],
                             tokenTier: 'PRIMITIVE'
                           },
                           logicalMapping: {

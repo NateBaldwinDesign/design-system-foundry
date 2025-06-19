@@ -43,7 +43,15 @@ export function TaxonomyPicker({ taxonomies, value, onChange, disabled = false, 
   // Helper to check if a term is valid
   const isTermValid = (taxonomyId: string, termId: string) => {
     const taxonomy = taxonomies.find(t => t.id === taxonomyId);
-    return taxonomy?.terms.some(term => term.id === termId) ?? false;
+    if (!taxonomy) return false;
+    
+    // Check if the term exists in the taxonomy
+    const termExists = taxonomy.terms.some(term => term.id === termId);
+    if (!termExists) return false;
+    
+    // If the taxonomy has resolvedValueTypeIds, it must be in the filtered taxonomies
+    // This ensures the taxonomy is compatible with the current value type
+    return taxonomies.some(t => t.id === taxonomyId);
   };
 
   const handleAdd = () => {

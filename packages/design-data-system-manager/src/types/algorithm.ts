@@ -52,7 +52,7 @@ export interface TokenGeneration {
   };
   bulkAssignments: {
     resolvedValueTypeId: string;
-    taxonomyIds: string[];
+    taxonomies: Array<{ taxonomyId: string; termId: string }>;
     collectionId?: string;
     tokenTier: 'PRIMITIVE' | 'SEMANTIC' | 'COMPONENT';
   };

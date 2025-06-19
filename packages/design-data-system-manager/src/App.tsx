@@ -79,6 +79,13 @@ const App = () => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const toast = useToast();
 
+  // Add effect to save resolved value types to storage when they change
+  useEffect(() => {
+    if (resolvedValueTypes.length > 0) {
+      StorageService.setValueTypes(resolvedValueTypes);
+    }
+  }, [resolvedValueTypes]);
+
   // Add effect to reload collections from storage when they change
   useEffect(() => {
     const storedCollections = StorageService.getCollections();

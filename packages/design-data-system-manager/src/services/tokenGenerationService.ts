@@ -145,7 +145,7 @@ export class TokenGenerationService {
 
     // Create taxonomies array
     const taxonomiesArray = this.createTaxonomiesArray(
-      bulkAssignments.taxonomyIds,
+      bulkAssignments.taxonomies,
       n,
       logicalMapping,
       taxonomies
@@ -263,31 +263,22 @@ export class TokenGenerationService {
   }
 
   /**
-   * Create taxonomies array with logical mapping
+   * Create taxonomies array with selected terms
    */
   private static createTaxonomiesArray(
-    taxonomyIds: string[],
+    selectedTaxonomies: Array<{ taxonomyId: string; termId: string }>,
     n: number,
     logicalMapping: TokenGeneration['logicalMapping'],
     availableTaxonomies: Taxonomy[]
   ): Array<{ taxonomyId: string; termId: string }> {
-    const taxonomies: Array<{ taxonomyId: string; termId: string }> = [];
-    
-    for (const taxonomyId of taxonomyIds) {
-      const taxonomy = availableTaxonomies.find(t => t.id === taxonomyId);
-      if (!taxonomy) continue;
+    // Use the exact terms selected by the user
+    return selectedTaxonomies.filter(taxonomyRef => {
+      const taxonomy = availableTaxonomies.find(t => t.id === taxonomyRef.taxonomyId);
+      if (!taxonomy) return false;
       
-      // Find appropriate term based on logical mapping
-      const term = this.findLogicalTerm(taxonomy, n, logicalMapping);
-      if (term) {
-        taxonomies.push({
-          taxonomyId,
-          termId: term.id
-        });
-      }
-    }
-    
-    return taxonomies;
+      // Verify the term exists in the taxonomy
+      return taxonomy.terms.some(term => term.id === taxonomyRef.termId);
+    });
   }
 
   /**

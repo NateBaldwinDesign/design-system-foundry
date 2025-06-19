@@ -345,7 +345,16 @@ export function TokenEditorDialog({
 
   // Update filtered taxonomies when resolvedValueTypeId changes
   useEffect(() => {
-    setFilteredTaxonomies(filterTaxonomiesByValueType(taxonomies, editedToken.resolvedValueTypeId));
+    const newFilteredTaxonomies = filterTaxonomiesByValueType(taxonomies, editedToken.resolvedValueTypeId);
+    setFilteredTaxonomies(newFilteredTaxonomies);
+
+    // Filter out taxonomy assignments that are no longer valid for the new value type
+    const validTaxonomyIds = new Set(newFilteredTaxonomies.map(t => t.id));
+    const validTaxonomyEdits = taxonomyEdits.filter(edit => validTaxonomyIds.has(edit.taxonomyId));
+    
+    if (validTaxonomyEdits.length !== taxonomyEdits.length) {
+      setTaxonomyEdits(validTaxonomyEdits);
+    }
   }, [editedToken.resolvedValueTypeId, taxonomies]);
 
   // Reset internal state when dialog opens with new token
