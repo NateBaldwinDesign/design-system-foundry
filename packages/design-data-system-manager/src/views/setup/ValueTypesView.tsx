@@ -26,6 +26,7 @@ import { ValidationService } from '../../services/validation';
 import type { ResolvedValueType, StandardValueType } from '@token-model/data-model/src/schema';
 import { StandardValueType as StandardValueTypeSchema } from '@token-model/data-model/src/schema';
 import { StorageService } from '../../services/storage';
+import { CardTitle } from '../../components/CardTitle';
 
 interface ValueTypesViewProps {
   valueTypes: ResolvedValueType[];
@@ -199,7 +200,7 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
             >
               <HStack justify="space-between" align="center">
                 <Box>
-                  <Text fontSize="lg" fontWeight="medium">{valueType.displayName}</Text>
+                  <CardTitle title={valueType.displayName} cardType={valueType.type || 'Custom'} />
                   <Text fontSize="sm" color="gray.600">Type: {valueType.type || 'Custom'}</Text>
                 </Box>
                 <HStack>

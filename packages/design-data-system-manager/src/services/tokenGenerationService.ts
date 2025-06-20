@@ -224,7 +224,7 @@ export class TokenGenerationService {
         {
           modeIds: [],
           value: {
-            value: `${value}px` // Assuming dimension type, adjust as needed
+            value: value.toString() // Return pure numeric value without units
           }
         }
       ]
@@ -519,7 +519,7 @@ export class TokenGenerationService {
         {
           modeIds: [],
           value: {
-            value: `${value}px` // Assuming dimension type, adjust as needed
+            value: value.toString() // Return pure numeric value without units
           }
         }
       ]

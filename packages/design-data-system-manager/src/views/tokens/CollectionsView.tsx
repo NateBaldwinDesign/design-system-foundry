@@ -19,6 +19,7 @@ import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
 import type { TokenCollection, ResolvedValueType, Token } from '@token-model/data-model';
 import { CollectionEditorDialog } from '../../components/CollectionEditorDialog';
 import { StorageService } from '../../services/storage';
+import { CardTitle } from '../../components/CardTitle';
 
 interface CollectionsViewProps {
   collections: TokenCollection[];
@@ -140,8 +141,8 @@ export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTy
                 <HStack justify="space-between" align="center">
                   <Box>
                     <HStack>
-                      <Text fontSize="lg" fontWeight="medium">{collection.name}</Text>
-                      {isTypeBased && (
+                      <CardTitle title={collection.name} cardType="collection" />
+                    {isTypeBased && (
                         <Tooltip label="Type-based collections support only one resolved value type" placement="top">
                           <Tag size="sm" colorScheme="blackAlpha" ml={2}>Type-based</Tag>
                         </Tooltip>

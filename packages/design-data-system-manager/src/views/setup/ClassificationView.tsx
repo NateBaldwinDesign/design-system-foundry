@@ -19,6 +19,7 @@ import { ValidationService } from '../../services/validation';
 import { TaxonomyEditorDialog } from '../../components/TaxonomyEditorDialog';
 import { TermEditorDialog } from '../../components/TermEditorDialog';
 import { StorageService } from '../../services/storage';
+import { CardTitle } from '../../components/CardTitle';
 
 interface ClassificationViewProps {
   taxonomies: Taxonomy[];
@@ -282,7 +283,7 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
               >
                 <HStack justify="space-between" align="center">
                   <Box>
-                    <Text fontSize="lg" fontWeight="medium">{taxonomy.name}</Text>
+                    <CardTitle title={taxonomy.name} cardType="taxonomy" />
                     <Text fontSize="sm" color="gray.600">{taxonomy.description}</Text>
                     <Text fontSize="sm" color="gray.600">Terms: {taxonomy.terms.map((t: { name: string }) => t.name).join(', ')}</Text>
                     {Array.isArray(taxonomy.resolvedValueTypeIds) && taxonomy.resolvedValueTypeIds.length > 0 && (

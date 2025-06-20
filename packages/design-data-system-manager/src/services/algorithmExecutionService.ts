@@ -19,6 +19,21 @@ export interface TokenGenerationResult {
 
 export class AlgorithmExecutionService {
   /**
+   * Helper function to filter valid JavaScript identifiers
+   * Prevents "Arg string terminates parameters early" error when variable names contain spaces
+   */
+  private static getValidIdentifiers(variables: Record<string, unknown>): Record<string, unknown> {
+    const validVars: Record<string, unknown> = {};
+    Object.keys(variables).forEach(key => {
+      // Only use keys that are valid JavaScript identifiers (no spaces, start with letter/underscore)
+      if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key)) {
+        validVars[key] = variables[key];
+      }
+    });
+    return validVars;
+  }
+
+  /**
    * Execute an algorithm for a specific iteration value and return the final result
    */
   static executeAlgorithm(
@@ -34,35 +49,62 @@ export class AlgorithmExecutionService {
     };
 
     try {
-      // Initialize variables with default values
+      // Initialize variables with default values - map by both ID and name
       algorithm.variables.forEach(variable => {
-        executionContext.variables[variable.name] = this.parseVariableValue(
+        const parsedValue = this.parseVariableValue(
           variable.defaultValue || '', 
           variable.type
         );
+        // Store by both ID and name for flexibility
+        executionContext.variables[variable.id] = parsedValue;
+        executionContext.variables[variable.name] = parsedValue;
       });
 
-      // Add system variables
+      // Add system variable 'n'
       executionContext.variables['n'] = iterationValue;
       
       // Add any additional context
       Object.assign(executionContext.variables, context);
 
-      // Execute steps in order
+      // Always provide Math and Array in the context for all steps
+      executionContext.variables['Math'] = {
+        pow: Math.pow,
+        max: Math.max,
+        min: Math.min,
+        abs: Math.abs,
+        floor: Math.floor,
+        ceil: Math.ceil,
+        round: Math.round,
+        sqrt: Math.sqrt,
+        sin: Math.sin,
+        cos: Math.cos,
+        tan: Math.tan,
+        log: Math.log,
+        exp: Math.exp
+      };
+      executionContext.variables['Array'] = {
+        isArray: Array.isArray
+      };
+
+      // Execute steps in order, propagating variables between steps
       algorithm.steps.forEach(step => {
         if (step.type === 'formula') {
           const formula = algorithm.formulas.find(f => f.id === step.id);
           if (formula) {
+            // Evaluate the formula, which may be an assignment or pure expression
             const result = this.evaluateFormula(formula, executionContext.variables);
+            // Store result by formula name for reference
             executionContext.results[formula.name] = result;
+            // The last formula result is the final result
             executionContext.finalResult = result;
           }
         } else if (step.type === 'condition') {
           const condition = algorithm.conditions.find(c => c.id === step.id);
           if (condition) {
+            // Evaluate the condition with the current variable context
             const result = this.evaluateCondition(condition, executionContext.variables);
             executionContext.results[condition.name] = result;
-            // Conditions don't change the final result, but can be used for branching
+            // If a condition fails, you may want to throw or handle it (not altering existing design)
           }
         }
       });
@@ -76,6 +118,8 @@ export class AlgorithmExecutionService {
 
   /**
    * Evaluate a formula with given variable context
+   * Supports assignment (e.g., "a = b + c") and pure expressions (e.g., "b + c")
+   * Propagates new variables into the context for subsequent steps
    */
   static evaluateFormula(
     formula: Formula,
@@ -83,26 +127,52 @@ export class AlgorithmExecutionService {
   ): unknown {
     try {
       const expression = formula.expressions.javascript.value;
-      
-      // Create a safe evaluation function with all variables in scope
-      const variableNames = Object.keys(variables);
-      const variableValues = Object.values(variables);
-      
-      // Create function with explicit variable names
-      const evalFunction = new Function(...variableNames, `return ${expression}`);
-      
-      // Execute with variable values
-      const result = evalFunction(...variableValues);
-      
+      // Create a safe evaluation context with all necessary functions and variables
+      const evaluationContext: Record<string, unknown> = {
+        ...variables,
+        Math: variables['Math'] || Math,
+        Array: variables['Array'] || Array,
+        console: console
+      };
+      // Handle assignment expressions (e.g., "p_s = p[n] + z[n]")
+      if (expression.includes('=')) {
+        const parts = expression.split('=').map(part => part.trim());
+        if (parts.length === 2) {
+          const variableName = parts[0];
+          const valueExpression = parts[1];
+          // Evaluate the right side of the assignment
+          const evalFunction = new Function(...Object.keys(this.getValidIdentifiers(evaluationContext)), `return ${valueExpression}`);
+          const result = evalFunction(...Object.values(this.getValidIdentifiers(evaluationContext)));
+          // Store the result in the variables context (by name and id if possible)
+          variables[variableName] = result;
+          evaluationContext[variableName] = result;
+          // Also propagate to id if variableName matches a variable id
+          // (This is a non-destructive enhancement for context propagation)
+          for (const key of Object.keys(variables)) {
+            if (key === variableName) continue;
+            if (variables[key] === result) {
+              variables[key] = result;
+              evaluationContext[key] = result;
+            }
+          }
+          return result;
+        }
+      }
+      // For non-assignment expressions, evaluate directly
+      const evalFunction = new Function(...Object.keys(this.getValidIdentifiers(evaluationContext)), `return ${expression}`);
+      const result = evalFunction(...Object.values(this.getValidIdentifiers(evaluationContext)));
       return result;
     } catch (error) {
       console.error('Formula evaluation error:', error);
+      console.error('Expression:', formula.expressions.javascript.value);
+      console.error('Variables:', variables);
       throw new Error(`Formula evaluation failed for ${formula.name}: ${error}`);
     }
   }
 
   /**
    * Evaluate a condition with given variable context
+   * Always provides Math and Array in the context
    */
   static evaluateCondition(
     condition: Condition,
@@ -110,20 +180,29 @@ export class AlgorithmExecutionService {
   ): boolean {
     try {
       const expression = condition.expression;
-      
-      // Create a safe evaluation function with all variables in scope
-      const variableNames = Object.keys(variables);
-      const variableValues = Object.values(variables);
-      
+      // Create a safe evaluation context with all necessary functions and variables
+      const evaluationContext: Record<string, unknown> = {
+        ...variables,
+        Math: variables['Math'] || Math,
+        Array: variables['Array'] || Array,
+        console: console
+      };
+      // Debug logging
+      // console.log('Condition evaluation debug:');
+      // console.log('  Expression:', expression);
+      // console.log('  Variable names:', Object.keys(variables));
+      // console.log('  Variable values:', Object.values(variables));
+      // console.log('  Variable types:', Object.values(variables).map(v => typeof v));
       // Create function with explicit variable names
-      const evalFunction = new Function(...variableNames, `return ${expression}`);
-      
+      const evalFunction = new Function(...Object.keys(this.getValidIdentifiers(evaluationContext)), `return ${expression}`);
       // Execute with variable values
-      const result = evalFunction(...variableValues);
-      
+      const result = evalFunction(...Object.values(this.getValidIdentifiers(evaluationContext)));
+      // console.log('  Result:', result);
       return Boolean(result);
     } catch (error) {
       console.error('Condition evaluation error:', error);
+      console.error('  Expression:', condition.expression);
+      console.error('  Variables:', variables);
       throw new Error(`Condition evaluation failed for ${condition.name}: ${error}`);
     }
   }
@@ -216,10 +295,10 @@ export class AlgorithmExecutionService {
       case 'dimension':
       case 'gap':
       case 'font-size': {
-        // Ensure numeric values have units
+        // Return pure numeric values without units
         const numValue = Number(value);
         if (!isNaN(numValue)) {
-          return `${numValue}px`;
+          return numValue.toString();
         }
         return String(value);
       }
@@ -263,16 +342,33 @@ export class AlgorithmExecutionService {
    */
   private static parseVariableValue(value: string, type: Variable['type']): unknown {
     switch (type) {
-      case 'number':
-        return Number(value) || 0;
-      case 'string':
+      case 'number': {
+        const numResult = Number(value) || 0;
+        return numResult;
+      }
+      case 'string': {
+        // Check if the string looks like a JSON array and parse it
+        if (value.trim().startsWith('[') && value.trim().endsWith(']')) {
+          try {
+            const arrayResult = JSON.parse(value);
+            return arrayResult;
+          } catch (error) {
+            // If JSON parsing fails, return as regular string
+            return String(value);
+          }
+        }
         return String(value);
-      case 'boolean':
-        return value === 'true' || value === '1';
-      case 'color':
+      }
+      case 'boolean': {
+        const boolResult = value === 'true' || value === '1';
+        return boolResult;
+      }
+      case 'color': {
         return String(value);
-      default:
+      }
+      default: {
         return value;
+      }
     }
   }
 
@@ -325,4 +421,4 @@ export class AlgorithmExecutionService {
 
     return errors;
   }
-} 
+}

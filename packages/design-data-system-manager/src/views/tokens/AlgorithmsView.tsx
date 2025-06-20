@@ -19,6 +19,7 @@ import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 import { AlgorithmEditor } from '../../components/AlgorithmEditor';
 import { StorageService } from '../../services/storage';
 import { Algorithm } from '../../types/algorithm';
+import { CardTitle } from '../../components/CardTitle';
 
 interface AlgorithmsViewProps {
   algorithms: Algorithm[];
@@ -70,13 +71,14 @@ const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms }) => {
   };
 
   return (
-    <Box p={4}>
-      <VStack spacing={6} align="stretch">
-        <HStack justify="space-between">
-          <Text fontSize="2xl" fontWeight="bold">Algorithms</Text>
-          <Button
+    <Box>
+      <Text fontSize="2xl" fontWeight="bold" mb={4}>Algorithms</Text>
+      <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+        <Button
             leftIcon={<LuPlus />}
             colorScheme="blue"
+            size="sm"
+            mb={4}
             onClick={() => {
               setEditingAlgorithm(undefined);
               setIsEditorOpen(true);
@@ -84,10 +86,8 @@ const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms }) => {
           >
             New Algorithm
           </Button>
-        </HStack>
-
         {/* Algorithm List */}
-        <VStack spacing={4} align="stretch">
+        <VStack align="stretch" spacing={2}>
           {algorithms.map(algorithm => (
             <Box
               key={algorithm.id}
@@ -99,7 +99,7 @@ const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms }) => {
             >
               <VStack align="stretch" spacing={2}>
                 <HStack justify="space-between">
-                  <Text fontSize="lg" fontWeight="bold">{algorithm.name}</Text>
+                  <CardTitle title={algorithm.name} cardType="algorithm" />
                   <HStack>
                     <IconButton
                       aria-label="Edit algorithm"
@@ -143,7 +143,7 @@ const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms }) => {
             </ModalBody>
           </ModalContent>
         </Modal>
-      </VStack>
+      </Box>
     </Box>
   );
 };

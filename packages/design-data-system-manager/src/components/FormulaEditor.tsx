@@ -24,15 +24,20 @@ import {
   AlertDescription
 } from '@chakra-ui/react';
 import { Plus, Trash2, GripVertical, Parentheses, Check, ChevronDown, SquareFunction, VariableIcon, TextCursorInputIcon, SplitIcon } from 'lucide-react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable, Draggable, DropResult, DragUpdate } from '@hello-pangea/dnd';
 import { Variable } from '../types/algorithm';
 
 interface FormulaBlock {
   id: string;
-  type: 'variable' | 'operator' | 'group' | 'value';
+  type: 'variable' | 'operator' | 'group' | 'value' | 'array' | 'range';
   content: string;
   value?: string | number;
   children?: FormulaBlock[];
+  // For array and range types
+  arrayValues?: number[];
+  rangeStart?: number;
+  rangeEnd?: number;
+  rangeStep?: number;
 }
 
 interface FormulaEditorProps {
@@ -206,7 +211,8 @@ const FormulaBlockComponent: React.FC<{
   index: number;
   onDelete: (id: string) => void;
   colorMode: 'light' | 'dark';
-}> = ({ block, index, onDelete, colorMode }) => {
+  isGroupDropTarget?: boolean;
+}> = ({ block, index, onDelete, colorMode, isGroupDropTarget }) => {
   if (block.type === 'group') {
     return (
       <Draggable draggableId={block.id} index={index}>
@@ -236,7 +242,7 @@ const FormulaBlockComponent: React.FC<{
             </HStack>
             <Box
               p={2}
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+              bg={isGroupDropTarget ? 'blue.100' : colorMode === 'dark' ? 'gray.800' : 'gray.50'}
               borderRadius="md"
               minH="50px"
             >
@@ -291,10 +297,16 @@ const FormulaBlockComponent: React.FC<{
             colorScheme={
               block.type === 'variable' ? 'blue' :
               block.type === 'operator' ? 'purple' :
-              block.type === 'value' ? 'gray' : 'green'
+              block.type === 'value' ? 'gray' :
+              block.type === 'array' ? 'orange' :
+              block.type === 'range' ? 'teal' : 'green'
             }
           >
-            {block.content}
+            {block.type === 'array' && block.arrayValues ? 
+              `[${block.arrayValues.join(', ')}]` :
+              block.type === 'range' && block.rangeStart !== undefined ? 
+                `${block.rangeStart}..${block.rangeEnd} (${block.rangeStep})` :
+              block.content}
           </Badge>
           <IconButton
             aria-label="Delete block"
@@ -324,8 +336,15 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
     return parsedBlocks;
   });
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { isOpen: isArrayOpen, onOpen: onArrayOpen, onClose: onArrayClose } = useDisclosure();
+  const { isOpen: isRangeOpen, onOpen: onRangeOpen, onClose: onRangeClose } = useDisclosure();
   const [selectedBlock, setSelectedBlock] = useState<FormulaBlock | null>(null);
   const [validationMessage, setValidationMessage] = useState<string>('');
+  const [groupDropTargetId, setGroupDropTargetId] = useState<string>('');
+  const [arrayInput, setArrayInput] = useState<string>('');
+  const [rangeStart, setRangeStart] = useState<string>('0');
+  const [rangeEnd, setRangeEnd] = useState<string>('10');
+  const [rangeStep, setRangeStep] = useState<string>('1');
 
   // UI Mapping Logic - moved to constants above return statement per project rules
   const operatorOptions = mode === 'formula' ? MATH_OPERATORS : CONDITIONAL_OPERATORS;
@@ -386,18 +405,51 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
   };
 
   const handleDragEnd = (result: DropResult) => {
-    if (!result.destination) return;
+    if (!result.destination) {
+      setGroupDropTargetId('');
+      return;
+    }
 
     const { source, destination } = result;
     const newBlocks = Array.from(blocks);
-
-    // Find the block being moved
     const [movedBlock] = newBlocks.splice(source.index, 1);
 
-    // Since we removed nested Droppables, all drops are in the main area
-    newBlocks.splice(destination.index, 0, movedBlock);
+    // Check if the destination is a group block
+    const destinationBlock = newBlocks[destination.index];
+    
+    // If dropping onto a group block, insert into that group's children
+    if (destinationBlock && destinationBlock.type === 'group') {
+      destinationBlock.children = destinationBlock.children || [];
+      destinationBlock.children.push(movedBlock);
+      setBlocks(newBlocks);
+      setGroupDropTargetId('');
+      return;
+    }
 
+    // Otherwise, reorder at the top level
+    newBlocks.splice(destination.index, 0, movedBlock);
     setBlocks(newBlocks);
+    setGroupDropTargetId('');
+  };
+
+  const handleDragStart = () => {
+    // Clear any existing drop target when starting a new drag
+    setGroupDropTargetId('');
+  };
+
+  const handleDragUpdate = (update: DragUpdate) => {
+    if (!update.destination) {
+      setGroupDropTargetId('');
+      return;
+    }
+
+    // Check if hovering over a group block
+    const destinationBlock = blocks[update.destination.index];
+    if (destinationBlock && destinationBlock.type === 'group') {
+      setGroupDropTargetId(destinationBlock.id);
+    } else {
+      setGroupDropTargetId('');
+    }
   };
 
   const handleAddVariable = (variable: Variable) => {
@@ -445,6 +497,18 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
     onOpen();
   };
 
+  const handleAddArray = () => {
+    setArrayInput('');
+    onArrayOpen();
+  };
+
+  const handleAddRange = () => {
+    setRangeStart('0');
+    setRangeEnd('10');
+    setRangeStep('1');
+    onRangeOpen();
+  };
+
   const handleValueSave = (value: string | number) => {
     if (!selectedBlock) return;
 
@@ -456,6 +520,47 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
 
     setBlocks(prev => [...prev, newBlock]);
     onClose();
+  };
+
+  const handleArraySave = () => {
+    const values = arrayInput
+      .split(',')
+      .map(v => v.trim())
+      .filter(v => v !== '')
+      .map(v => Number(v))
+      .filter(n => !isNaN(n));
+
+    if (values.length > 0) {
+      const newBlock: FormulaBlock = {
+        id: `array_${Date.now()}`,
+        type: 'array',
+        content: `[${values.join(', ')}]`,
+        arrayValues: values
+      };
+
+      setBlocks(prev => [...prev, newBlock]);
+      onArrayClose();
+    }
+  };
+
+  const handleRangeSave = () => {
+    const start = Number(rangeStart);
+    const end = Number(rangeEnd);
+    const step = Number(rangeStep);
+
+    if (!isNaN(start) && !isNaN(end) && !isNaN(step) && step > 0) {
+      const newBlock: FormulaBlock = {
+        id: `range_${Date.now()}`,
+        type: 'range',
+        content: `${start}..${end} (step ${step})`,
+        rangeStart: start,
+        rangeEnd: end,
+        rangeStep: step
+      };
+
+      setBlocks(prev => [...prev, newBlock]);
+      onRangeClose();
+    }
   };
 
   const handleDeleteBlock = (blockId: string) => {
@@ -513,6 +618,21 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
             break;
           case 'value':
             formula += block.content;
+            break;
+          case 'array':
+            if (block.arrayValues) {
+              formula += `[${block.arrayValues.join(', ')}]`;
+            }
+            break;
+          case 'range':
+            if (block.rangeStart !== undefined && block.rangeEnd !== undefined && block.rangeStep !== undefined) {
+              // Generate range array: [start, start+step, start+2*step, ..., end]
+              const rangeValues = [];
+              for (let i = block.rangeStart; i <= block.rangeEnd; i += block.rangeStep) {
+                rangeValues.push(i);
+              }
+              formula += `[${rangeValues.join(', ')}]`;
+            }
             break;
           default:
             formula += '';
@@ -601,6 +721,24 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
           >
             Value
           </Button>
+
+          <Button
+            aria-label="Add array"
+            leftIcon={<SquareFunction size={16} />}
+            size="sm"
+            onClick={handleAddArray}
+          >
+            Array
+          </Button>
+
+          <Button
+            aria-label="Add range"
+            leftIcon={<SquareFunction size={16} />}
+            size="sm"
+            onClick={handleAddRange}
+          >
+            Range
+          </Button>
         </HStack>
         
         {/* Formula Blocks */}
@@ -610,26 +748,29 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
           borderRadius="md"
           minH="100px"
         >
-          <DragDropContext onDragEnd={handleDragEnd}>
+          <DragDropContext onDragEnd={handleDragEnd} onDragStart={handleDragStart} onDragUpdate={handleDragUpdate}>
             <Droppable droppableId="formula-blocks" direction="horizontal">
               {(provided) => (
-                <Box
-                  {...provided.droppableProps}
+                <HStack
                   ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  spacing={2}
+                  wrap="wrap"
+                  minH="60px"
+                  align="start"
                 >
-                  <HStack spacing={2} wrap="wrap">
-                    {blocks.map((block, index) => (
-                      <FormulaBlockComponent
-                        key={block.id}
-                        block={block}
-                        index={index}
-                        onDelete={handleDeleteBlock}
-                        colorMode={colorMode}
-                      />
-                    ))}
-                    {provided.placeholder}
-                  </HStack>
-                </Box>
+                  {blocks.map((block, index) => (
+                    <FormulaBlockComponent
+                      key={block.id}
+                      block={block}
+                      index={index}
+                      onDelete={handleDeleteBlock}
+                      colorMode={colorMode}
+                      isGroupDropTarget={groupDropTargetId === block.id}
+                    />
+                  ))}
+                  {provided.placeholder}
+                </HStack>
               )}
             </Droppable>
           </DragDropContext>
@@ -672,6 +813,68 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
                 onClick={() => selectedBlock && handleValueSave(selectedBlock.value || '')}
               >
                 Add Value
+              </Button>
+            </VStack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      {/* Array Input Modal */}
+      <Modal isOpen={isArrayOpen} onClose={onArrayClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Create Array</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4} pb={4}>
+              <Input
+                placeholder="Enter numbers separated by commas (e.g., 1, 2, 3, 4, 5)"
+                value={arrayInput}
+                onChange={e => setArrayInput(e.target.value)}
+              />
+              <Button
+                leftIcon={<Check size={16} />}
+                colorScheme="blue"
+                onClick={handleArraySave}
+              >
+                Create Array
+              </Button>
+            </VStack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      {/* Range Input Modal */}
+      <Modal isOpen={isRangeOpen} onClose={onRangeClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Create Range</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <VStack spacing={4} pb={4}>
+              <HStack spacing={2}>
+                <Input
+                  placeholder="Start"
+                  value={rangeStart}
+                  onChange={e => setRangeStart(e.target.value)}
+                />
+                <Input
+                  placeholder="End"
+                  value={rangeEnd}
+                  onChange={e => setRangeEnd(e.target.value)}
+                />
+                <Input
+                  placeholder="Step"
+                  value={rangeStep}
+                  onChange={e => setRangeStep(e.target.value)}
+                />
+              </HStack>
+              <Button
+                leftIcon={<Check size={16} />}
+                colorScheme="blue"
+                onClick={handleRangeSave}
+              >
+                Create Range
               </Button>
             </VStack>
           </ModalBody>
@@ -726,6 +929,38 @@ function parseSimpleExpression(formula: string): FormulaBlock[] {
         content: '()',
         children: parseSimpleExpression(token.slice(1, -1))
       };
+    } else if (token.startsWith('[') && token.endsWith(']')) {
+      // Parse array: [1, 2, 3, 4]
+      const arrayContent = token.slice(1, -1);
+      const values = arrayContent
+        .split(',')
+        .map(v => v.trim())
+        .map(v => Number(v))
+        .filter(n => !isNaN(n));
+      
+      return {
+        id: `array_${Date.now()}_${Math.random()}`,
+        type: 'array',
+        content: token,
+        arrayValues: values
+      };
+    } else if (token.match(/^\d+\.\.\d+/)) {
+      // Parse range: 0..10 or 0..10:1
+      const rangeMatch = token.match(/^(\d+)\.\.(\d+)(?::(\d+))?$/);
+      if (rangeMatch) {
+        const start = Number(rangeMatch[1]);
+        const end = Number(rangeMatch[2]);
+        const step = rangeMatch[3] ? Number(rangeMatch[3]) : 1;
+        
+        return {
+          id: `range_${Date.now()}_${Math.random()}`,
+          type: 'range',
+          content: `${start}..${end} (step ${step})`,
+          rangeStart: start,
+          rangeEnd: end,
+          rangeStep: step
+        };
+      }
     } else if (token.match(/^\d+(\.\d+)?$/)) {
       return {
         id: `value_${Date.now()}_${Math.random()}`,
@@ -733,12 +968,13 @@ function parseSimpleExpression(formula: string): FormulaBlock[] {
         content: token,
         value: Number(token)
       };
-    } else {
-      return {
-        id: `var_${Date.now()}_${Math.random()}`,
-        type: 'variable',
-        content: token
-      };
     }
+    
+    // Default case: treat as variable
+    return {
+      id: `var_${Date.now()}_${Math.random()}`,
+      type: 'variable',
+      content: token
+    };
   });
 }

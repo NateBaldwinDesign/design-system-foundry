@@ -10,9 +10,183 @@
   "config": {
     "defaultBaseValue": 16,
     "defaultRatio": 1.25,
-    "defaultSpacing": 4
+    "defaultSpacing": 4,
+    "baseMultiplier": 14,
+    "baseRatio": 1.125,
+    "progressiveRatio": 1.0125,
+    "maxRatio": 1.125
   },
   "algorithms": [
+    {
+      "id": "progressive-size-algorithm",
+      "name": "Progressive Size Algorithm",
+      "description": "Generates size values using progressive scaling based on position and zoom factors",
+      "resolvedValueTypeId": "dimension",
+      "variables": [
+        {
+          "id": "p",
+          "name": "Position Array",
+          "type": "string",
+          "defaultValue": "[-2, -1, 0, 1, 2]",
+          "description": "Array of position values"
+        },
+        {
+          "id": "z",
+          "name": "Zoom Array", 
+          "type": "string",
+          "defaultValue": "[-4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8]",
+          "description": "Array of zoom values"
+        },
+        {
+          "id": "n",
+          "name": "Index",
+          "type": "number",
+          "defaultValue": "0",
+          "description": "Current iteration index",
+          "constraints": {
+            "min": 0
+          }
+        }
+      ],
+      "formulas": [
+        {
+          "id": "p_s-calculation",
+          "name": "Position + Zoom",
+          "description": "Calculate combined position and zoom factor",
+          "expressions": {
+            "latex": {
+              "value": "p_s = p[n] + z[n]"
+            },
+            "javascript": {
+              "value": "p_s = p[n] + z[n]",
+              "metadata": {
+                "allowedOperations": ["math"]
+              }
+            }
+          },
+          "variableIds": ["p", "z", "n"]
+        },
+        {
+          "id": "base-calculation",
+          "name": "Base Size",
+          "description": "Calculate base size using exponential scaling",
+          "expressions": {
+            "latex": {
+              "value": "b = 14 \\times 1.125^{p_s}"
+            },
+            "javascript": {
+              "value": "b = 14 * Math.pow(1.125, p_s)",
+              "metadata": {
+                "allowedOperations": ["math"]
+              }
+            }
+          },
+          "variableIds": ["p_s"]
+        },
+        {
+          "id": "normalization-calculation",
+          "name": "Zoom Normalization",
+          "description": "Normalize zoom value to 0-1 range",
+          "expressions": {
+            "latex": {
+              "value": "c = \\frac{z[n] - z_{min}}{z_{max} - z_{min}}"
+            },
+            "javascript": {
+              "value": "c = (z[n] - Math.min(...z)) / (Math.max(...z) - Math.min(...z))",
+              "metadata": {
+                "allowedOperations": ["math"]
+              }
+            }
+          },
+          "variableIds": ["z", "n"]
+        },
+        {
+          "id": "ratio-calculation",
+          "name": "Progressive Ratio",
+          "description": "Calculate progressive ratio based on normalized zoom",
+          "expressions": {
+            "latex": {
+              "value": "r = 1.0125 \\times (1 - c) + 1.125 \\times c"
+            },
+            "javascript": {
+              "value": "r = 1.0125 * (1 - c) + 1.125 * c",
+              "metadata": {
+                "allowedOperations": ["math"]
+              }
+            }
+          },
+          "variableIds": ["c"]
+        },
+        {
+          "id": "final-size-calculation",
+          "name": "Final Size",
+          "description": "Calculate final size using progressive scaling",
+          "expressions": {
+            "latex": {
+              "value": "s = b \\times r^n"
+            },
+            "javascript": {
+              "value": "s = b * Math.pow(r, n)",
+              "metadata": {
+                "allowedOperations": ["math"]
+              }
+            }
+          },
+          "variableIds": ["b", "r", "n"]
+        }
+      ],
+      "conditions": [
+        {
+          "id": "validate-arrays",
+          "name": "Validate Input Arrays",
+          "expression": "Array.isArray(p) && Array.isArray(z) && p.length > 0 && z.length > 0",
+          "variableIds": ["p", "z"]
+        },
+        {
+          "id": "validate-index",
+          "name": "Validate Index Range",
+          "expression": "n >= 0 && n < Math.min(p.length, z.length)",
+          "variableIds": ["n", "p", "z"]
+        }
+      ],
+      "steps": [
+        {
+          "type": "condition",
+          "id": "validate-arrays",
+          "name": "Validate Input Arrays"
+        },
+        {
+          "type": "condition", 
+          "id": "validate-index",
+          "name": "Validate Index Range"
+        },
+        {
+          "type": "formula",
+          "id": "p_s-calculation",
+          "name": "Calculate Position + Zoom"
+        },
+        {
+          "type": "formula",
+          "id": "base-calculation", 
+          "name": "Calculate Base Size"
+        },
+        {
+          "type": "formula",
+          "id": "normalization-calculation",
+          "name": "Calculate Zoom Normalization"
+        },
+        {
+          "type": "formula",
+          "id": "ratio-calculation",
+          "name": "Calculate Progressive Ratio"
+        },
+        {
+          "type": "formula",
+          "id": "final-size-calculation",
+          "name": "Calculate Final Size"
+        }
+      ]
+    },
     {
       "id": "minimal-typescale-algorithm",
       "name": "Minimal Typography Scale Algorithm",
@@ -144,7 +318,7 @@
     }
   ],
   "execution": {
-    "order": [],
+    "order": ["progressive-size-algorithm"],
     "parallel": false,
     "onError": "stop"
   },
@@ -154,5 +328,41 @@
     "mergeStrategy": "merge",
     "validation": true
   },
-  "examples": []
+  "examples": [
+    {
+      "name": "Basic Progressive Sizing",
+      "description": "Generate size values for a range of positions and zoom levels",
+      "useCase": "Typography scale generation",
+      "config": {
+        "baseMultiplier": 14,
+        "baseRatio": 1.125,
+        "progressiveRatio": 1.0125,
+        "maxRatio": 1.125
+      },
+      "algorithms": [
+        {
+          "id": "progressive-size-algorithm",
+          "variables": {
+            "p": [-2, -1, 0, 1, 2],
+            "z": [-4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8],
+            "n": 0
+          }
+        }
+      ],
+      "expectedOutput": {
+        "sizes": [
+          {
+            "name": "size-0",
+            "value": 8.89,
+            "description": "Size for position -2, zoom -4, index 0"
+          },
+          {
+            "name": "size-1", 
+            "value": 9.99,
+            "description": "Size for position -1, zoom -3, index 1"
+          }
+        ]
+      }
+    }
+  ]
 }
