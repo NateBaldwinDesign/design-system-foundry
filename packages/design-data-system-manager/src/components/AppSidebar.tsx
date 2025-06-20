@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Box,
   VStack,
-  IconButton,
   Text,
   useColorMode,
   Tooltip,
@@ -30,7 +29,8 @@ import {
   History,
   Users,
   FileCode,
-  ChartNetwork
+  ChartNetwork,
+  Blend
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
@@ -38,8 +38,8 @@ import Logo from './Logo';
 interface NavItem {
   id: string;
   label: string;
-  icon: React.ElementType;
-  route: string;
+  icon?: React.ElementType;
+  route?: string;
   children?: NavItem[];
 }
 
@@ -59,6 +59,7 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { id: 'tokens', label: 'Tokens', icon: Hexagon, route: '/tokens/tokens' },
       { id: 'collections', label: 'Collections', icon: Folders, route: '/tokens/collections' },
+      { id: 'system-variables', label: 'System Variables', icon: Blend, route: '/tokens/system-variables' },
       { id: 'algorithms', label: 'Algorithms', icon: SquareFunction, route: '/tokens/algorithms' },
       { id: 'analysis', label: 'Analysis', icon: ChartNetwork, route: '/tokens/analysis' },
     ],
@@ -155,7 +156,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         tabIndex={0}
         textDecoration="none"
       >
-        <Icon size={20} />
+        {Icon && <Icon size={20} />}
         {!isCollapsed && (
           <Text ml={3} fontSize="sm">
             {item.label}

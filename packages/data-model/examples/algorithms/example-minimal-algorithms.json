@@ -8,6 +8,22 @@
     "author": "Design System Manager"
   },
   "config": {
+    "systemVariables": [
+      {
+        "id": "system-variable-a3dc1aed-64eb-40d9-9974-a36067b54155",
+        "name": "viewportWidth",
+        "type": "number",
+        "defaultValue": "",
+        "description": "",
+        "modeBased": true,
+        "modeValues": {
+          "modeId-653c36c5-649f-404b-baf2-cf5279ddd06f": "320",
+          "modeId-f56d50e4-446f-49df-9488-6274c40e0877": "760",
+          "modeId-58823f28-08da-40d0-88ff-3063166853ff": "1200"
+        },
+        "dimensionId": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
+      }
+    ],
     "defaultBaseValue": 16,
     "defaultRatio": 1.25,
     "defaultSpacing": 4,

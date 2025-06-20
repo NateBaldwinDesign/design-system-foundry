@@ -19,7 +19,8 @@ const STORAGE_KEYS = {
   THEMES: 'token-model:themes',
   TAXONOMIES: 'token-model:taxonomies',
   NAMING_RULES: 'token-model:naming-rules',
-  ALGORITHMS: 'token-model:algorithms'
+  ALGORITHMS: 'token-model:algorithms',
+  ALGORITHM_FILE: 'token-model:algorithm-file'
 } as const;
 
 export class StorageService {
@@ -125,6 +126,15 @@ export class StorageService {
 
   static setAlgorithms(algorithms: Algorithm[]): void {
     this.setItem(STORAGE_KEYS.ALGORITHMS, algorithms);
+  }
+
+  static getAlgorithmFile(): Record<string, unknown> | null {
+    const item = localStorage.getItem(STORAGE_KEYS.ALGORITHM_FILE);
+    return item ? JSON.parse(item) : null;
+  }
+
+  static setAlgorithmFile(algorithmFile: Record<string, unknown>): void {
+    this.setItem(STORAGE_KEYS.ALGORITHM_FILE, algorithmFile);
   }
 
   static clearAll(): void {

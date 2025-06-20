@@ -130,6 +130,67 @@ export function createAlgorithmJsonFromLocalStorage() {
     version = '1.0.0'
   } = root;
 
+  // Try to get the complete algorithm file structure first
+  const algorithmFile = StorageService.getAlgorithmFile();
+  
+  if (algorithmFile) {
+    // If we have the complete algorithm file, use it as the base and update with current algorithms
+    const result = {
+      ...algorithmFile,
+      algorithms: algorithms.map(algorithm => ({
+        id: algorithm.id,
+        name: algorithm.name,
+        description: algorithm.description || '',
+        resolvedValueTypeId: algorithm.resolvedValueTypeId,
+        variables: algorithm.variables.map(variable => ({
+          id: variable.id,
+          name: variable.name,
+          type: variable.type,
+          defaultValue: variable.defaultValue || '',
+          description: variable.description || ''
+        })),
+        formulas: algorithm.formulas.map(formula => ({
+          id: formula.id,
+          name: formula.name,
+          description: formula.description || '',
+          expressions: {
+            latex: { value: formula.expressions.latex.value },
+            javascript: {
+              value: formula.expressions.javascript.value,
+              metadata: formula.expressions.javascript.metadata || {
+                allowedOperations: ['math']
+              }
+            }
+          },
+          variableIds: formula.variableIds || []
+        })),
+        conditions: algorithm.conditions.map(condition => ({
+          id: condition.id,
+          name: condition.name,
+          expression: condition.expression,
+          variableIds: condition.variableIds || []
+        })),
+        steps: algorithm.steps.map(step => ({
+          type: step.type,
+          id: step.id,
+          name: step.name
+        }))
+      }))
+    };
+    
+    return result;
+  }
+
+  // Fallback: reconstruct the algorithm JSON structure if no complete file is stored
+  // Extract system variables from the first algorithm's config (if it exists)
+  let systemVariables: unknown[] = [];
+  if (algorithms && algorithms.length > 0) {
+    const firstAlgorithm = algorithms[0] as { config?: { systemVariables?: unknown[] } };
+    if (firstAlgorithm.config?.systemVariables) {
+      systemVariables = firstAlgorithm.config.systemVariables;
+    }
+  }
+
   // Compose the algorithm schema-compliant object
   const algorithmJson = {
     schemaVersion: "5.0.0",
@@ -141,6 +202,8 @@ export function createAlgorithmJsonFromLocalStorage() {
       author: "Design System Manager"
     },
     config: {
+      // Include system variables in the config
+      systemVariables,
       // Global configuration values can be added here as needed
       defaultBaseValue: 16,
       defaultRatio: 1.25,

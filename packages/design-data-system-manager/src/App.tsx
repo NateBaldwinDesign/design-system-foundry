@@ -27,6 +27,7 @@ import { AppLayout } from './components/AppLayout';
 import theme from './theme';
 import { TokensView } from './views/tokens/TokensView';
 import { CollectionsView } from './views/tokens/CollectionsView';
+import { SystemVariablesView } from './views/tokens/SystemVariablesView';
 import AlgorithmsView from './views/tokens/AlgorithmsView';
 import { PlatformsView } from './views/publishing/PlatformsView';
 import { ValidationView } from './views/publishing/ValidationView';
@@ -213,10 +214,13 @@ const App = () => {
       
       // Load algorithm data if available
       let loadedAlgorithms: Algorithm[] | null = null;
+      let algorithmFile: Record<string, unknown> | null = null;
       try {
         const algorithmModule = await algorithmData[dataSourceKey as keyof typeof algorithmData]();
         if (algorithmModule && algorithmModule.default) {
           console.log('[App] Algorithm module loaded:', algorithmModule.default);
+          // Store the complete algorithm file structure
+          algorithmFile = algorithmModule.default as Record<string, unknown>;
           // Cast the algorithm data to the correct type
           loadedAlgorithms = (algorithmModule.default.algorithms || []) as Algorithm[];
           console.log('[App] Loaded algorithms:', loadedAlgorithms);
@@ -290,12 +294,18 @@ const App = () => {
         // Cast to Algorithm[] to handle type differences between loaded data and Algorithm interface
         setAlgorithms(loadedAlgorithms as Algorithm[]);
         StorageService.setAlgorithms(loadedAlgorithms as Algorithm[]);
+        // Store the complete algorithm file structure to preserve config and metadata
+        if (algorithmFile) {
+          StorageService.setAlgorithmFile(algorithmFile);
+        }
         console.log(`Loaded ${loadedAlgorithms.length} algorithms from ${dataSourceKey}`);
       } else {
         // Clear algorithms if no algorithm data was found
         console.log('[App] No algorithm data found, clearing algorithms state');
         setAlgorithms([]);
         StorageService.setAlgorithms([]);
+        // Clear algorithm file by removing it from localStorage
+        localStorage.removeItem('token-model:algorithm-file');
       }
       
       setLoading(false);
@@ -495,6 +505,7 @@ const App = () => {
                   </>
                 } />
                 <Route path="/tokens/collections" element={<CollectionsView collections={collections} onUpdate={setCollections} tokens={tokens} resolvedValueTypes={resolvedValueTypes} />} />
+                <Route path="/tokens/system-variables" element={<SystemVariablesView />} />
                 <Route path="/tokens/algorithms" element={<AlgorithmsView algorithms={algorithms} />} />
                 <Route path="/tokens/analysis" element={<TokenAnalysis />} />
                 <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />

@@ -130,12 +130,24 @@
     },
     {
       "id": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24",
-      "displayName": "TESTD",
+      "displayName": "Responsive size",
       "description": "",
       "modes": [
         {
           "id": "modeId-653c36c5-649f-404b-baf2-cf5279ddd06f",
-          "name": "TESTM",
+          "name": "Mobile",
+          "description": "",
+          "dimensionId": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
+        },
+        {
+          "id": "modeId-f56d50e4-446f-49df-9488-6274c40e0877",
+          "name": "Tablet",
+          "description": "",
+          "dimensionId": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
+        },
+        {
+          "id": "modeId-58823f28-08da-40d0-88ff-3063166853ff",
+          "name": "Desktop",
           "description": "",
           "dimensionId": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
         }
@@ -143,7 +155,8 @@
       "defaultMode": "modeId-653c36c5-649f-404b-baf2-cf5279ddd06f",
       "required": false,
       "resolvedValueTypeIds": [
-        "color"
+        "font-size",
+        "spacing"
       ]
     }
   ],

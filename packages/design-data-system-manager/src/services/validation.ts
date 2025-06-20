@@ -32,6 +32,33 @@ interface TokenSystem {
   };
 }
 
+interface SystemVariableByMode {
+  modeIds: string[];
+  value: string | number | boolean;
+}
+
+interface SystemVariableSchema {
+  id: string;
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'color';
+  description?: string;
+  defaultValue?: string | number | boolean;
+  constraints?: {
+    min?: number;
+    max?: number;
+    step?: number;
+    pattern?: string;
+  };
+  modeBased?: boolean;
+  dimensionId?: string;
+  valuesByMode?: SystemVariableByMode[];
+}
+
+interface ConfigSchema {
+  systemVariables?: SystemVariableSchema[];
+  [key: string]: unknown;
+}
+
 export interface ValidationResult {
   isValid: boolean;
   errors?: string[];
@@ -47,7 +74,71 @@ export class ValidationService {
       validateTokenSystem(data);
 
       // Type assertion after schema validation
-      const tokenSystem = data as TokenSystem;
+      const tokenSystem = data as TokenSystem & { config?: ConfigSchema };
+
+      // --- System Variables Validation ---
+      if (tokenSystem.config && Array.isArray(tokenSystem.config.systemVariables)) {
+        const systemVariables = tokenSystem.config.systemVariables;
+        const dimensionIds = new Set((tokenSystem.dimensions || []).map((d) => d.id));
+        for (const variable of systemVariables) {
+          // Required fields
+          if (!variable.id || !variable.name || !variable.type) {
+            return {
+              isValid: false,
+              errors: [
+                `System variable is missing required fields (id, name, type): ${JSON.stringify(variable)}`
+              ]
+            };
+          }
+          // Type check
+          if (!['string', 'number', 'boolean', 'color'].includes(variable.type)) {
+            return {
+              isValid: false,
+              errors: [
+                `System variable ${variable.id} has invalid type: ${variable.type}`
+              ]
+            };
+          }
+          // Mode-based validation
+          if (variable.modeBased) {
+            if (!variable.dimensionId) {
+              return {
+                isValid: false,
+                errors: [
+                  `System variable ${variable.id} is mode-based but missing dimensionId.`
+                ]
+              };
+            }
+            if (!dimensionIds.has(variable.dimensionId)) {
+              return {
+                isValid: false,
+                errors: [
+                  `System variable ${variable.id} references non-existent dimensionId: ${variable.dimensionId}`
+                ]
+              };
+            }
+            if (!Array.isArray(variable.valuesByMode) || variable.valuesByMode.length === 0) {
+              return {
+                isValid: false,
+                errors: [
+                  `System variable ${variable.id} is mode-based but has no valuesByMode array.`
+                ]
+              };
+            }
+            for (const vbm of variable.valuesByMode) {
+              if (!Array.isArray(vbm.modeIds) || typeof vbm.value === 'undefined') {
+                return {
+                  isValid: false,
+                  errors: [
+                    `System variable ${variable.id} has invalid valuesByMode entry: ${JSON.stringify(vbm)}`
+                  ]
+                };
+              }
+            }
+          }
+        }
+      }
+      // --- End System Variables Validation ---
 
       // Additional validation for resolvedValueTypeId
       if (tokenSystem.tokens) {

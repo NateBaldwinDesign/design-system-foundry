@@ -44,52 +44,13 @@ interface ValidationViewProps {
   onValidate: (token: Token) => void;
 }
 
-interface ResolvedValueType {
-  id: string;
-  displayName: string;
-  type?: string;
-  description?: string;
-  validation?: {
-    pattern?: string;
-    minimum?: number;
-    maximum?: number;
-    allowedValues?: string[];
-  };
-}
-
-interface TokenSystemData {
-  systemName: string;
-  systemId: string;
-  description: string;
-  tokenCollections: TokenCollection[];
-  dimensions: Dimension[];
-  tokens: Token[];
-  platforms: Platform[];
-  taxonomies: Taxonomy[];
-  version: string;
-  versionHistory: Array<{
-    version: string;
-    dimensions: string[];
-    date: string;
-  }>;
-  resolvedValueTypes: ResolvedValueType[];
-  themes?: any[];
-  themeOverrides?: Record<string, any>;
-  extensions?: {
-    tokenGroups: any[];
-    tokenVariants: Record<string, any>;
-  };
-  tokenGroups?: any[]; // Optional
-  tokenVariants?: any[]; // Optional
-}
-
 export function ValidationView({ tokens = [], collections = [], dimensions = [], platforms = [], taxonomies = [], version = '1.0.0', versionHistory = [], onValidate }: ValidationViewProps) {
   const { colorMode } = useColorMode();
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [isTokenValidationOpen, setIsTokenValidationOpen] = useState(false);
-  const [tokenValidationResult, setTokenValidationResult] = useState<{ isValid: boolean; errors?: any[] } | null>(null);
+  const [tokenValidationResult, setTokenValidationResult] = useState<{ isValid: boolean; errors?: unknown[] } | null>(null);
   const [isGlobalValidationOpen, setIsGlobalValidationOpen] = useState(false);
-  const [globalValidationResult, setGlobalValidationResult] = useState<{ isValid: boolean; errors?: any[] } | null>(null);
+  const [globalValidationResult, setGlobalValidationResult] = useState<{ isValid: boolean; errors?: unknown[] } | null>(null);
   const [isJsonPreviewOpen, setIsJsonPreviewOpen] = useState(false);
   const [jsonPreview, setJsonPreview] = useState('');
   const cancelRef = React.useRef<HTMLButtonElement>(null);

@@ -29,13 +29,94 @@
       },
       "config": {
         "type": "object",
-        "description": "Global configuration values used across algorithms. Use this space to define system-level parameters as needed. These values are not strictly enforced by the schema and can include any global constant or variable.",
+        "description": "Global configuration values and system variables used across algorithms.",
+        "properties": {
+          "systemVariables": {
+            "type": "array",
+            "description": "System variables that can be referenced by algorithms.",
+            "items": {
+              "type": "object",
+              "required": ["id", "name", "type"],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9-_]+$",
+                  "description": "Unique identifier for the system variable"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "Human-readable name for the system variable"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Optional description of the system variable's purpose"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": ["string", "number", "boolean", "color"],
+                  "description": "Data type of the system variable"
+                },
+                "defaultValue": {
+                  "oneOf": [
+                    { "type": "string" },
+                    { "type": "number" },
+                    { "type": "boolean" }
+                  ],
+                  "description": "Default value for the system variable"
+                },
+                "constraints": {
+                  "type": "object",
+                  "description": "Validation constraints for the system variable",
+                  "properties": {
+                    "min": { "type": "number" },
+                    "max": { "type": "number" },
+                    "step": { "type": "number" },
+                    "pattern": { "type": "string" }
+                  }
+                },
+                "modeBased": {
+                  "type": "boolean",
+                  "description": "Whether this variable has mode-specific values",
+                  "default": false
+                },
+                "dimensionId": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9-_]+$",
+                  "description": "ID of the dimension this variable is associated with (required if modeBased is true)"
+                },
+                "valuesByMode": {
+                  "type": "array",
+                  "description": "Mode-specific values for this system variable (consistent with token structure)",
+                  "items": {
+                    "type": "object",
+                    "required": ["modeIds", "value"],
+                    "properties": {
+                      "modeIds": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "description": "The mode(s) this value applies to"
+                      },
+                      "value": {
+                        "oneOf": [
+                          { "type": "string" },
+                          { "type": "number" },
+                          { "type": "boolean" }
+                        ],
+                        "description": "The value for this mode combination"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "additionalProperties": {
-            "oneOf": [
+          "oneOf": [
             { "type": "string" },
             { "type": "number" },
             { "type": "boolean" }
-            ]
+          ]
         }
       },
       "algorithms": {
