@@ -1,9 +1,8 @@
 import React from 'react';
-import type { Meta, StoryObj } from '@storybook/react';
+import { Meta, StoryObj } from '@storybook/react';
 import { ValueByModeTable } from './ValueByModeTable';
-import type { Mode, TokenValue, ResolvedValueType } from '@token-model/data-model';
-import { Input, Select } from '@chakra-ui/react';
-import type { ChangeEvent } from 'react';
+import type { Mode, TokenValue, ResolvedValueType, Dimension } from '@token-model/data-model';
+import { Box, Text } from '@chakra-ui/react';
 
 const meta: Meta<typeof ValueByModeTable> = {
   title: 'Components/ValueByModeTable',
@@ -17,70 +16,64 @@ const meta: Meta<typeof ValueByModeTable> = {
 export default meta;
 type Story = StoryObj<typeof ValueByModeTable>;
 
-// Mock data for the stories
-const mockModes: Mode[] = [
+// Sample data
+const sampleModes: Mode[] = [
   { id: 'light', name: 'Light', dimensionId: 'theme' },
   { id: 'dark', name: 'Dark', dimensionId: 'theme' },
-  { id: 'mobile', name: 'Mobile', dimensionId: 'device' },
-  { id: 'desktop', name: 'Desktop', dimensionId: 'device' },
+  { id: 'mobile', name: 'Mobile', dimensionId: 'scale' },
+  { id: 'desktop', name: 'Desktop', dimensionId: 'scale' }
 ];
 
-const mockResolvedValueTypes: ResolvedValueType[] = [
+const sampleDimensions: Dimension[] = [
+  {
+    id: 'theme',
+    displayName: 'Theme',
+    required: true,
+    modes: [
+      { id: 'light', name: 'Light', dimensionId: 'theme' },
+      { id: 'dark', name: 'Dark', dimensionId: 'theme' }
+    ],
+    defaultMode: 'light'
+  },
+  {
+    id: 'scale',
+    displayName: 'Scale',
+    required: false,
+    modes: [
+      { id: 'mobile', name: 'Mobile', dimensionId: 'scale' },
+      { id: 'desktop', name: 'Desktop', dimensionId: 'scale' }
+    ],
+    defaultMode: 'mobile'
+  }
+];
+
+const sampleResolvedValueTypes: ResolvedValueType[] = [
   {
     id: 'color',
     displayName: 'Color',
     type: 'COLOR',
     description: 'A color value'
-  },
-  {
-    id: 'spacing',
-    displayName: 'Spacing',
-    type: 'SPACING',
-    description: 'A spacing value'
   }
 ];
 
-// Mock value editor function
-const getValueEditor = (
+// Mock getValueEditor function that matches the expected signature
+const mockGetValueEditor = (
   value: TokenValue | string,
-  modeIndex: number,
   modeIds: string[],
-  isOverride?: boolean,
-  onChange?: (newValue: TokenValue) => void
-) => {
-  if (typeof value === 'string') {
-    return <Input value={value} size="sm" w="100px" />;
-  }
-
-  if ('tokenId' in value) {
-    return (
-      <Select
-        value={value.tokenId}
-        onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange?.({ tokenId: e.target.value })}
-        size="sm"
-        w="120px"
-      >
-        <option value="token1">Token 1</option>
-        <option value="token2">Token 2</option>
-      </Select>
-    );
-  }
-
-  // For direct values, we'll use a simple input
+  isOverride?: boolean
+): React.ReactNode => {
   return (
-    <Input
-      value={String(value.value)}
-      onChange={(e: ChangeEvent<HTMLInputElement>) => onChange?.({ value: e.target.value })}
-      size="sm"
-      w="100px"
-    />
+    <Box p={2} border="1px solid" borderColor="gray.200">
+      <Text>Value: {typeof value === 'string' ? value : JSON.stringify(value)}</Text>
+      <Text>Mode IDs: {modeIds.join(', ')}</Text>
+      {isOverride && <Text color="orange.500">Override</Text>}
+    </Box>
   );
 };
 
 // Base story with simple color values
 export const Default: Story = {
   args: {
-    modes: mockModes,
     valuesByMode: [
       {
         modeIds: ['light'],
@@ -91,14 +84,20 @@ export const Default: Story = {
         value: { value: '#FFFFFF' }
       }
     ],
-    getValueEditor
+    modes: sampleModes,
+    dimensions: sampleDimensions,
+    resolvedValueTypes: sampleResolvedValueTypes,
+    getValueEditor: mockGetValueEditor,
+    onDeleteValue: () => {},
+    resolvedValueTypeId: 'color',
+    onAddValue: () => {}
   }
 };
 
 // Story with 2D mode grid (theme × device)
 export const TwoDimensional: Story = {
   args: {
-    modes: mockModes,
+    modes: sampleModes,
     valuesByMode: [
       {
         modeIds: ['light', 'mobile'],
@@ -117,14 +116,19 @@ export const TwoDimensional: Story = {
         value: { value: '#EEEEEE' }
       }
     ],
-    getValueEditor
+    dimensions: sampleDimensions,
+    resolvedValueTypes: sampleResolvedValueTypes,
+    getValueEditor: mockGetValueEditor,
+    onDeleteValue: () => {},
+    resolvedValueTypeId: 'color',
+    onAddValue: () => {}
   }
 };
 
 // Story with mixed value types
 export const MixedValueTypes: Story = {
   args: {
-    modes: mockModes,
+    modes: sampleModes,
     valuesByMode: [
       {
         modeIds: ['light'],
@@ -143,20 +147,103 @@ export const MixedValueTypes: Story = {
         value: { tokenId: 'token1' }
       }
     ],
-    getValueEditor
+    dimensions: sampleDimensions,
+    resolvedValueTypes: sampleResolvedValueTypes,
+    getValueEditor: mockGetValueEditor,
+    onDeleteValue: () => {},
+    resolvedValueTypeId: 'color',
+    onAddValue: () => {}
   }
 };
 
 // Story with global values (no mode IDs)
 export const GlobalValues: Story = {
   args: {
-    modes: mockModes,
+    modes: sampleModes,
     valuesByMode: [
       {
         modeIds: [],
         value: { value: '#000000' }
       }
     ],
-    getValueEditor
+    dimensions: sampleDimensions,
+    resolvedValueTypes: sampleResolvedValueTypes,
+    getValueEditor: mockGetValueEditor,
+    onDeleteValue: () => {},
+    resolvedValueTypeId: 'color',
+    onAddValue: () => {}
+  }
+};
+
+export const WithMultipleDimensions: Story = {
+  args: {
+    valuesByMode: [
+      {
+        modeIds: ['light', 'mobile'],
+        value: { value: '#FFFFFF' }
+      },
+      {
+        modeIds: ['light', 'desktop'],
+        value: { value: '#F5F5F5' }
+      },
+      {
+        modeIds: ['dark', 'mobile'],
+        value: { value: '#000000' }
+      },
+      {
+        modeIds: ['dark', 'desktop'],
+        value: { value: '#121212' }
+      }
+    ],
+    modes: sampleModes,
+    dimensions: sampleDimensions,
+    resolvedValueTypes: sampleResolvedValueTypes,
+    getValueEditor: mockGetValueEditor,
+    onDeleteValue: () => {},
+    resolvedValueTypeId: 'color',
+    onAddValue: () => {}
+  }
+};
+
+export const WithPlatformOverrides: Story = {
+  args: {
+    valuesByMode: [
+      {
+        modeIds: ['light'],
+        value: { value: '#FFFFFF' },
+        platformOverrides: [
+          { platformId: 'ios', value: '#F8F8F8' },
+          { platformId: 'android', value: '#FAFAFA' }
+        ]
+      },
+      {
+        modeIds: ['dark'],
+        value: { value: '#000000' },
+        platformOverrides: [
+          { platformId: 'ios', value: '#121212' },
+          { platformId: 'android', value: '#1A1A1A' }
+        ]
+      }
+    ],
+    modes: sampleModes,
+    dimensions: sampleDimensions,
+    resolvedValueTypes: sampleResolvedValueTypes,
+    getValueEditor: mockGetValueEditor,
+    onDeleteValue: () => {},
+    resolvedValueTypeId: 'color',
+    onAddValue: () => {}
+  }
+};
+
+export const EmptyToken: Story = {
+  args: {
+    valuesByMode: [],
+    modes: sampleModes,
+    dimensions: sampleDimensions,
+    resolvedValueTypes: sampleResolvedValueTypes,
+    getValueEditor: mockGetValueEditor,
+    onDeleteValue: () => {},
+    resolvedValueTypeId: 'color',
+    onAddValue: () => {}
   }
 }; 

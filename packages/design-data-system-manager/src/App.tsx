@@ -14,9 +14,12 @@ import {
   Platform,
   Taxonomy,
   Theme,
-  ResolvedValueType
+  ResolvedValueType,
+  exampleData,
+  algorithmData
 } from '@token-model/data-model';
 import { StorageService } from './services/storage';
+import { Algorithm } from './types/algorithm';
 import ThemesView from './views/themes/ThemesView';
 import DashboardView from './views/dashboard/DashboardView';
 import './App.css';
@@ -24,7 +27,7 @@ import { AppLayout } from './components/AppLayout';
 import theme from './theme';
 import { TokensView } from './views/tokens/TokensView';
 import { CollectionsView } from './views/tokens/CollectionsView';
-import AlgorithmsTab from './views/tokens/AlgorithmsView';
+import AlgorithmsView from './views/tokens/AlgorithmsView';
 import { PlatformsView } from './views/publishing/PlatformsView';
 import { ValidationView } from './views/publishing/ValidationView';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
@@ -34,29 +37,14 @@ import { Plus } from 'lucide-react';
 import { TokenEditorDialog, ExtendedToken } from './components/TokenEditorDialog';
 import { useSchema } from './hooks/useSchema';
 import { TokenAnalysis } from './views/tokens/TokenAnalysis';
-
-// TypeScript declaration for import.meta.glob
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-const exampleDataFiles = import.meta.glob('../../data-model/examples/**/*.json', { as: 'raw' });
 import { DimensionsView } from './views/setup/DimensionsView';
 import { ClassificationView } from './views/setup/ClassificationView';
 import { NamingRulesView } from './views/setup/NamingRulesView';
 import { ValueTypesView } from './views/setup/ValueTypesView';
 
-function getDataSourceOptions() {
-  return Object.keys(exampleDataFiles).map((filePath) => {
-    // Extract just the file name (no directory, no extension)
-    const fileName = filePath.split('/').pop()?.replace(/\.json$/, '') || filePath;
-    // Capitalize first letter and replace dashes/underscores with spaces
-    const label = fileName.replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-    return { label, value: filePath, filePath };
-  });
-}
-
 const App = () => {
   const { schema } = useSchema();
-  const [dataSource, setDataSource] = useState<string>('../../data-model/examples/unthemed/example-minimal-data.json');
+  const [dataSource, setDataSource] = useState<string>('minimal');
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
@@ -65,8 +53,9 @@ const App = () => {
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
+  const [algorithms, setAlgorithms] = useState<Algorithm[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dataOptions, setDataOptions] = useState<{ label: string; value: string; filePath: string }[]>([]);
+  const [dataOptions, setDataOptions] = useState<{ label: string; value: string; hasAlgorithms: boolean }[]>([]);
   const [taxonomyOrder, setTaxonomyOrder] = useState<string[]>([]);
   const [dimensionOrder, setDimensionOrder] = useState<string[]>(() => {
     const storedOrder = StorageService.getDimensionOrder();
@@ -157,7 +146,14 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    setDataOptions(getDataSourceOptions());
+    // Create data options from the package exports
+    const options = [
+      { label: 'Example Minimal (with algorithms)', value: 'minimal', hasAlgorithms: true },
+      { label: 'Core Data (with algorithms)', value: 'core', hasAlgorithms: true },
+      { label: 'Brand A Overrides', value: 'brandAOverrides', hasAlgorithms: false },
+      { label: 'Brand B Overrides', value: 'brandBOverrides', hasAlgorithms: false }
+    ];
+    setDataOptions(options);
   }, []);
 
   // Update dimension order when dimensions change
@@ -176,13 +172,32 @@ const App = () => {
     }
   }, [dimensions]);
 
-  const loadDataFromSource = async (filePath: string) => {
+  const loadDataFromSource = async (dataSourceKey: string) => {
     try {
-      const fileContent: string = await exampleDataFiles[filePath]();
-      if (!fileContent || fileContent.trim() === '') {
-        throw new Error('The selected data file is empty. Please choose a valid JSON file.');
+      console.log('[App] Loading data from package source:', dataSourceKey);
+      
+      // Load core data from package
+      const coreDataModule = await exampleData[dataSourceKey as keyof typeof exampleData]();
+      const coreData = coreDataModule.default || coreDataModule;
+      
+      // Load algorithm data if available
+      let loadedAlgorithms: Algorithm[] | null = null;
+      try {
+        const algorithmModule = await algorithmData[dataSourceKey as keyof typeof algorithmData]();
+        if (algorithmModule && algorithmModule.default) {
+          console.log('[App] Algorithm module loaded:', algorithmModule.default);
+          // Cast the algorithm data to the correct type
+          loadedAlgorithms = (algorithmModule.default.algorithms || []) as Algorithm[];
+          console.log('[App] Loaded algorithms:', loadedAlgorithms);
+        } else {
+          console.log('[App] No algorithm data available for this data source');
+          loadedAlgorithms = null;
+        }
+      } catch (algorithmError) {
+        console.log('[App] No algorithm data available for:', dataSourceKey);
       }
-      const d: LoadedData = JSON.parse(fileContent);
+
+      const d = coreData as LoadedData;
 
       // Use a type for the loaded data
       type LoadedData = {
@@ -200,14 +215,15 @@ const App = () => {
         description?: string;
         version?: string;
       };
+
       const normalizedCollections = d.tokenCollections ?? [];
       const normalizedDimensions = d.dimensions ?? [];
-      const normalizedTokens = (d.tokens ?? []).map((token: any) => ({
+      const normalizedTokens = (d.tokens ?? []).map((token: Token) => ({
         ...token,
         valuesByMode: token.valuesByMode
       }));
       const normalizedPlatforms = d.platforms ?? [];
-      const normalizedThemes = (d.themes ?? []).map((theme) => ({
+      const normalizedThemes = (d.themes ?? []).map((theme: Theme) => ({
         id: theme.id,
         displayName: theme.displayName,
         isDefault: theme.isDefault ?? false,
@@ -236,6 +252,21 @@ const App = () => {
       setThemes(normalizedThemes);
       setTaxonomies(normalizedTaxonomies);
       setTaxonomyOrder(normalizedNamingRules.taxonomyOrder);
+      
+      // Set algorithms state if algorithm data was loaded
+      if (loadedAlgorithms) {
+        console.log('[App] Loading', loadedAlgorithms.length, 'algorithms');
+        // Cast to Algorithm[] to handle type differences between loaded data and Algorithm interface
+        setAlgorithms(loadedAlgorithms as Algorithm[]);
+        StorageService.setAlgorithms(loadedAlgorithms as Algorithm[]);
+        console.log(`Loaded ${loadedAlgorithms.length} algorithms from ${dataSourceKey}`);
+      } else {
+        // Clear algorithms if no algorithm data was found
+        console.log('[App] No algorithm data found, clearing algorithms state');
+        setAlgorithms([]);
+        StorageService.setAlgorithms([]);
+      }
+      
       setLoading(false);
 
       // Store in localStorage via StorageService
@@ -410,7 +441,6 @@ const App = () => {
                         setSelectedToken(token);
                         setIsEditorOpen(true);
                       }}
-                      onDeleteToken={handleDeleteToken}
                     />
                     {isEditorOpen && selectedToken && (
                       <TokenEditorDialog
@@ -433,9 +463,9 @@ const App = () => {
                     )}
                   </>
                 } />
-                <Route path="/tokens/collections" element={<CollectionsView collections={collections} modes={modes} onUpdate={setCollections} tokens={tokens} resolvedValueTypes={resolvedValueTypes} />} />
-                <Route path="/tokens/algorithms" element={<AlgorithmsTab />} />
-                <Route path="/tokens/analysis" element={schema ? <TokenAnalysis schema={schema} /> : null} />
+                <Route path="/tokens/collections" element={<CollectionsView collections={collections} onUpdate={setCollections} tokens={tokens} resolvedValueTypes={resolvedValueTypes} />} />
+                <Route path="/tokens/algorithms" element={<AlgorithmsView algorithms={algorithms} />} />
+                <Route path="/tokens/analysis" element={<TokenAnalysis />} />
                 <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />
                 <Route path="/schemas/core-data" element={<CoreDataView />} />
                 <Route path="/schemas/theme-overrides" element={<ThemeOverridesView />} />

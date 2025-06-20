@@ -87,4 +87,10 @@ export const exampleData = {
   brandAOverrides: () => import('../examples/themed/brand-a-overrides.json'),
   brandBOverrides: () => import('../examples/themed/brand-b-overrides.json'),
   minimal: () => import('../examples/unthemed/example-minimal-data.json')
+} as const;
+
+// Export algorithm data
+export const algorithmData = {
+  core: () => import('../examples/algorithms/core-algorithms.json').catch(() => null),
+  minimal: () => import('../examples/algorithms/example-minimal-algorithms.json').catch(() => null)
 } as const; 

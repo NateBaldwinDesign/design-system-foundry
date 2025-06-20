@@ -9,49 +9,49 @@ const mockTokens: Token[] = [
   {
     id: 'token1',
     displayName: 'Primary Color',
-    description: 'Main brand color',
-    tokenCollectionId: 'collection1',
+    description: 'The primary brand color',
+    tokenCollectionId: 'colors',
     resolvedValueTypeId: 'color',
     private: false,
     themeable: true,
     taxonomies: [],
-    propertyTypes: ['ALL_PROPERTY_TYPES'],
+    propertyTypes: ['brand', 'primary'],
     codeSyntax: [
-      {
-        platformId: 'web',
-        formattedName: 'primary-color'
-      }
+      { platformId: 'css', formattedName: '--color-primary' },
+      { platformId: 'scss', formattedName: '$color-primary' }
     ],
     valuesByMode: [
       {
-        modeIds: ['mode1'],
-        value: { value: '#000000' },
-      },
+        modeIds: ['light'],
+        value: { value: '#007AFF' }
+      }
     ],
+    tokenTier: 'PRIMITIVE',
+    generatedByAlgorithm: false
   },
   {
     id: 'token2',
     displayName: 'Spacing Unit',
     description: 'Base spacing unit',
-    tokenCollectionId: 'collection2',
-    resolvedValueTypeId: 'dimension',
+    tokenCollectionId: 'spacing',
+    resolvedValueTypeId: 'spacing',
     private: false,
     themeable: false,
     taxonomies: [],
-    propertyTypes: ['ALL_PROPERTY_TYPES'],
+    propertyTypes: ['spacing', 'base'],
     codeSyntax: [
-      {
-        platformId: 'web',
-        formattedName: 'spacing-unit'
-      }
+      { platformId: 'css', formattedName: '--spacing-unit' },
+      { platformId: 'scss', formattedName: '$spacing-unit' }
     ],
     valuesByMode: [
       {
-        modeIds: ['mode1'],
-        value: {  value: 8 },
-      },
+        modeIds: ['default'],
+        value: { value: '8px' }
+      }
     ],
-  },
+    tokenTier: 'PRIMITIVE',
+    generatedByAlgorithm: false
+  }
 ];
 
 const mockCollections: TokenCollection[] = [

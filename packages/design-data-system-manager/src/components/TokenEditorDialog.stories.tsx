@@ -1,6 +1,6 @@
 import { Meta, StoryObj } from '@storybook/react';
-import { TokenEditorDialog } from './TokenEditorDialog';
-import type { Token, Dimension, Platform, TokenStatus, TokenValue, StandardValueType } from '@token-model/data-model';
+import { TokenEditorDialog, ExtendedToken } from './TokenEditorDialog';
+import type { Token, Dimension, Platform, TokenStatus, StandardValueType } from '@token-model/data-model';
 
 const meta: Meta<typeof TokenEditorDialog> = {
   title: 'Components/TokenEditorDialog',
@@ -81,30 +81,33 @@ const sampleResolvedValueTypes = [
   }
 ];
 
-const sampleToken = {
-  id: 'token-1',
-  displayName: 'Primary Background',
-  description: 'The primary background color',
+// Sample token for stories
+const sampleToken: ExtendedToken = {
+  id: 'sample-token',
+  displayName: 'Sample Token',
+  description: 'A sample token for testing',
   resolvedValueTypeId: 'color',
   valuesByMode: [
     {
       modeIds: ['light'],
-      value: { value: '#FFFFFF' }
+      value: { value: '#000000' }
     },
     {
       modeIds: ['dark'],
-      value: { value: '#000000' }
+      value: { value: '#ffffff' }
     }
-  ] as { modeIds: string[]; value: TokenValue }[],
-  taxonomies: [
-    { taxonomyId: 'color-usage', termId: 'background' }
   ],
-  status: 'stable' as TokenStatus,
+  taxonomies: [
+    { taxonomyId: 'color', termId: 'primary' }
+  ],
+  status: 'stable',
   private: false,
   themeable: true,
-  tokenCollectionId: 'default',
+  tokenCollectionId: 'colors',
   propertyTypes: [],
-  codeSyntax: []
+  codeSyntax: [],
+  tokenTier: 'PRIMITIVE',
+  generatedByAlgorithm: false
 };
 
 // Base story with common props
@@ -136,7 +139,9 @@ export const CreateNew: Story = {
       themeable: false,
       tokenCollectionId: 'default',
       propertyTypes: [],
-      codeSyntax: []
+      codeSyntax: [],
+      tokenTier: 'PRIMITIVE',
+      generatedByAlgorithm: false
     },
     tokens: []
   }
@@ -176,7 +181,7 @@ export const MultipleDimensions: Story = {
           modeIds: ['dark', 'desktop'],
           value: { value: '#121212' }
         }
-      ] as { modeIds: string[]; value: TokenValue }[]
+      ]
     },
     tokens: [sampleToken]
   }
@@ -206,7 +211,7 @@ export const WithPlatformOverrides: Story = {
             { platformId: 'android', value: '#1A1A1A' }
           ]
         }
-      ] as { modeIds: string[]; value: TokenValue; platformOverrides?: { platformId: string; value: string }[] }[]
+      ]
     },
     tokens: [sampleToken]
   }

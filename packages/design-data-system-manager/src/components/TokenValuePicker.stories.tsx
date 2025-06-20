@@ -104,15 +104,32 @@ const tokens: Token[] = [
   {
     id: 'token-1',
     displayName: 'Primary Color',
-    description: 'The primary color of the application',
+    description: 'The primary brand color',
     resolvedValueTypeId: 'color',
     valuesByMode: [
       {
         modeIds: ['light'],
-        value: { value: '#000000' }
-      },
+        value: { value: '#007AFF' }
+      }
+    ],
+    taxonomies: [],
+    status: 'stable',
+    private: false,
+    themeable: true,
+    tokenCollectionId: 'colors',
+    propertyTypes: [],
+    codeSyntax: [],
+    tokenTier: 'PRIMITIVE',
+    generatedByAlgorithm: false
+  },
+  {
+    id: 'token-2',
+    displayName: 'Background Color',
+    description: 'The background color',
+    resolvedValueTypeId: 'color',
+    valuesByMode: [
       {
-        modeIds: ['dark'],
+        modeIds: ['light'],
         value: { value: '#FFFFFF' }
       }
     ],
@@ -120,32 +137,11 @@ const tokens: Token[] = [
     status: 'stable',
     private: false,
     themeable: true,
-    tokenCollectionId: 'default',
+    tokenCollectionId: 'colors',
     propertyTypes: [],
-    codeSyntax: []
-  },
-  {
-    id: 'token-2',
-    displayName: 'Secondary Color',
-    description: 'The secondary color of the application',
-    resolvedValueTypeId: 'color',
-    valuesByMode: [
-      {
-        modeIds: ['light'],
-        value: { value: '#666666' }
-      },
-      {
-        modeIds: ['dark'],
-        value: { value: '#999999' }
-      }
-    ],
-    taxonomies: [],
-    status: 'stable',
-    private: false,
-    themeable: true,
-    tokenCollectionId: 'default',
-    propertyTypes: [],
-    codeSyntax: []
+    codeSyntax: [],
+    tokenTier: 'PRIMITIVE',
+    generatedByAlgorithm: false
   }
 ];
 

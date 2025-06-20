@@ -20,22 +20,24 @@ import { AlgorithmEditor } from '../../components/AlgorithmEditor';
 import { StorageService } from '../../services/storage';
 import { Algorithm } from '../../types/algorithm';
 
-const AlgorithmsView: React.FC = () => {
+interface AlgorithmsViewProps {
+  algorithms: Algorithm[];
+}
+
+const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms }) => {
   const { colorMode } = useColorMode();
   const toast = useToast();
-  const [algorithms, setAlgorithms] = useState<Algorithm[]>(() => {
-    const stored = StorageService.getAlgorithms();
-    return stored || [];
-  });
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingAlgorithm, setEditingAlgorithm] = useState<Algorithm | undefined>();
+
+  // Debug logging
+  console.log('[AlgorithmsView] Received', algorithms.length, 'algorithms');
 
   const handleSaveAlgorithm = (algorithm: Algorithm) => {
     const newAlgorithms = editingAlgorithm
       ? algorithms.map(a => a.id === algorithm.id ? algorithm : a)
       : [...algorithms, algorithm];
 
-    setAlgorithms(newAlgorithms);
     StorageService.setAlgorithms(newAlgorithms);
     setIsEditorOpen(false);
     setEditingAlgorithm(undefined);
@@ -51,7 +53,6 @@ const AlgorithmsView: React.FC = () => {
 
   const handleDeleteAlgorithm = (algorithmId: string) => {
     const newAlgorithms = algorithms.filter(a => a.id !== algorithmId);
-    setAlgorithms(newAlgorithms);
     StorageService.setAlgorithms(newAlgorithms);
 
     toast({

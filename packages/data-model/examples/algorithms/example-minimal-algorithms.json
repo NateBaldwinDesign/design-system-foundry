@@ -2,8 +2,8 @@
   "schemaVersion": "4.0.0",
   "profile": "basic",
   "metadata": {
-    "name": "Progressive Text Size Algorithms Collection",
-    "description": "A set of algorithms demonstrating progressive token generation by chaining variable generators.",
+    "name": "Minimal Example Algorithms Collection",
+    "description": "A set of algorithms for the minimal example design system",
     "author": "Design System Team",
     "version": "1.0.0"
   },
@@ -14,90 +14,9 @@
   },
   "algorithms": [
     {
-      "id": "test-algo-1",
-      "name": "Test Algorithm 1",
-      "description": "A test algorithm with basic mathematical operations",
-      "resolvedValueTypeId": "dimension",
-      "variables": [
-        {
-          "id": "var1",
-          "name": "x",
-          "type": "number",
-          "defaultValue": "0"
-        },
-        {
-          "id": "var2",
-          "name": "y",
-          "type": "number",
-          "defaultValue": "0"
-        }
-      ],
-      "formulas": [
-        {
-          "id": "formula1",
-          "name": "Sum",
-          "expressions": {
-            "latex": {
-              "value": "{x} + {y}"
-            },
-            "javascript": {
-              "value": "x + y",
-              "metadata": {
-                "allowedOperations": ["math"]
-              }
-            }
-          },
-          "description": "Adds two numbers",
-          "variableIds": ["var1", "var2"]
-        },
-        {
-          "id": "formula2",
-          "name": "Product",
-          "expressions": {
-            "latex": {
-              "value": "{x} \\times {y}"
-            },
-            "javascript": {
-              "value": "x * y",
-              "metadata": {
-                "allowedOperations": ["math"]
-              }
-            }
-          },
-          "description": "Multiplies two numbers",
-          "variableIds": ["var1", "var2"]
-        }
-      ],
-      "conditions": [
-        {
-          "id": "cond1",
-          "name": "Is Positive",
-          "expression": "x > 0",
-          "variableIds": ["var1"]
-        }
-      ],
-      "steps": [
-        {
-          "type": "formula",
-          "id": "formula1",
-          "name": "Sum"
-        },
-        {
-          "type": "condition",
-          "id": "cond1",
-          "name": "Is Positive"
-        },
-        {
-          "type": "formula",
-          "id": "formula2",
-          "name": "Product"
-        }
-      ]
-    },
-    {
-      "id": "typescale-algorithm",
-      "name": "Typography Scale Algorithm",
-      "description": "Calculates font size based on modular scale",
+      "id": "minimal-typescale-algorithm",
+      "name": "Minimal Typography Scale Algorithm",
+      "description": "Calculates font size based on modular scale for minimal example",
       "resolvedValueTypeId": "font-size",
       "variables": [
         {
@@ -142,10 +61,10 @@
       ]
     },
     {
-      "id": "spacing-scale-algorithm",
-      "name": "Spacing Scale Algorithm",
-      "description": "Calculates spacing based on exponential scale",
-      "resolvedValueTypeId": "gap",
+      "id": "minimal-spacing-algorithm",
+      "name": "Minimal Spacing Scale Algorithm",
+      "description": "Calculates spacing based on exponential scale for minimal example",
+      "resolvedValueTypeId": "spacing",
       "variables": [
         {
           "id": "var_base_spacing",
@@ -191,9 +110,8 @@
   ],
   "execution": {
     "order": [
-      "test-algo-1",
-      "typescale-algorithm",
-      "spacing-scale-algorithm"
+      "minimal-typescale-algorithm",
+      "minimal-spacing-algorithm"
     ],
     "parallel": false,
     "onError": "stop"
@@ -204,4 +122,4 @@
     "mergeStrategy": "merge",
     "validation": true
   }
-}
+} 

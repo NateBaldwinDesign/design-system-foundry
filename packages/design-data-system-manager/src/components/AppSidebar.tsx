@@ -46,7 +46,7 @@ interface NavItem {
 interface AppSidebarProps {
   dataSource?: string;
   setDataSource?: (source: string) => void;
-  dataOptions?: { label: string; value: string; filePath: string }[];
+  dataOptions?: { label: string; value: string; hasAlgorithms: boolean }[];
   onResetData?: () => void;
   onExportData?: () => void;
 }
@@ -240,7 +240,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 onChange={(e) => setDataSource(e.target.value)}
               >
                 {dataOptions.map((option) => (
-                  <option key={option.filePath} value={option.filePath}>
+                  <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
