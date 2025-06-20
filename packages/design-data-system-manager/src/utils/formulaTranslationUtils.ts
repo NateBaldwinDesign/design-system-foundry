@@ -40,13 +40,13 @@ export function convertJavaScriptToLatex(js: string): string {
 
   // Math functions
   latex = latex.replace(/Math\.pow\(([^,]+),\s*([^)]+)\)/g, (_, base, exp) => `${wrapIfNeeded(base)}^{${wrapIfNeeded(exp)}}`);
-  latex = latex.replace(/Math\.sqrt\(([^)]+)\)/g, (_, arg) => `\\sqrt(${wrapIfNeeded(arg)})`);
+  latex = latex.replace(/Math\.sqrt\(([^)]+)\)/g, (_, arg) => `\\sqrt{${wrapIfNeeded(arg)}}`);
   latex = latex.replace(/Math\.abs\(([^)]+)\)/g, (_, arg) => `|${wrapIfNeeded(arg)}|`);
   latex = latex.replace(/Math\.floor\(([^)]+)\)/g, (_, arg) => `\\lfloor ${wrapIfNeeded(arg)} \\rfloor`);
   latex = latex.replace(/Math\.ceil\(([^)]+)\)/g, (_, arg) => `\\lceil ${wrapIfNeeded(arg)} \\rceil`);
   latex = latex.replace(/Math\.round\(([^)]+)\)/g, (_, arg) => `\\text{round}(${wrapIfNeeded(arg)})`);
-  latex = latex.replace(/Math\.min\(([^)]+)\)/g, (_, args) => `\\min(${args.split(',').map((a: string) => wrapIfNeeded(a)).join(', ')})`);
-  latex = latex.replace(/Math\.max\(([^)]+)\)/g, (_, args) => `\\max(${args.split(',').map((a: string) => wrapIfNeeded(a)).join(', ')})`);
+  latex = latex.replace(/Math\.min\(([^)]+)\)/g, (_, args) => `\\min(${args.split(',').map((a: string) => wrapIfNeeded(a.trim())).join(', ')})`);
+  latex = latex.replace(/Math\.max\(([^)]+)\)/g, (_, args) => `\\max(${args.split(',').map((a: string) => wrapIfNeeded(a.trim())).join(', ')})`);
   latex = latex.replace(/Math\.sin\(([^)]+)\)/g, (_, arg) => `\\sin(${wrapIfNeeded(arg)})`);
   latex = latex.replace(/Math\.cos\(([^)]+)\)/g, (_, arg) => `\\cos(${wrapIfNeeded(arg)})`);
   latex = latex.replace(/Math\.tan\(([^)]+)\)/g, (_, arg) => `\\tan(${wrapIfNeeded(arg)})`);
@@ -54,12 +54,12 @@ export function convertJavaScriptToLatex(js: string): string {
   latex = latex.replace(/Math\.log\(([^)]+)\)/g, (_, arg) => `\\ln(${wrapIfNeeded(arg)})`);
   latex = latex.replace(/Math\.exp\(([^)]+)\)/g, (_, arg) => `e^{${wrapIfNeeded(arg)}}`);
 
-  // Operators: strict regex to avoid replacing inside variables
-  latex = latex.replace(/([\w}\]])\s*\*\s*([\w{\[])/g, '$1 \\times $2');
-  latex = latex.replace(/([\w}\]])\s*\/\s*([\w{\[])/g, '$1 \\div $2');
-  latex = latex.replace(/([\w}\]])\s*%\s*([\w{\[])/g, '$1 \\bmod $2');
-  latex = latex.replace(/([\w}\]])\s*\+\s*([\w{\[])/g, '$1 + $2');
-  latex = latex.replace(/([\w}\]])\s*-\s*([\w{\[])/g, '$1 - $2');
+  // Operators: more robust regex to handle various cases
+  latex = latex.replace(/([a-zA-Z0-9_{}]+)\s*\*\s*([a-zA-Z0-9_{}]+)/g, '$1 \\times $2');
+  latex = latex.replace(/([a-zA-Z0-9_{}]+)\s*\/\s*([a-zA-Z0-9_{}]+)/g, '$1 \\div $2');
+  latex = latex.replace(/([a-zA-Z0-9_{}]+)\s*%\s*([a-zA-Z0-9_{}]+)/g, '$1 \\bmod $2');
+  latex = latex.replace(/([a-zA-Z0-9_{}]+)\s*\+\s*([a-zA-Z0-9_{}]+)/g, '$1 + $2');
+  latex = latex.replace(/([a-zA-Z0-9_{}]+)\s*-\s*([a-zA-Z0-9_{}]+)/g, '$1 - $2');
 
   // Comparisons
   latex = latex.replace(/>=/g, ' \\geq ');
@@ -98,28 +98,34 @@ export function convertLatexToJavaScript(latex: string): string {
   // Remove \mathit{} wrapper
   js = js.replace(/\\mathit\{([^}]+)\}/g, (match, varName) => varName);
 
-  // Functions
-  js = js.replace(/\\sqrt\(([^)]+)\)/g, (match, arg) => `Math.sqrt(${unwrapIfNeeded(arg)})`);
+  // Handle power expressions first (before other functions)
+  js = js.replace(/([a-zA-Z0-9_{}]+)\^\{([^}]+)\}/g, (match, base, exp) => `Math.pow(${unwrapIfNeeded(base)}, ${unwrapIfNeeded(exp)})`);
+
+  // Functions with proper argument handling
+  js = js.replace(/\\sqrt\{([^}]+)\}/g, (match, arg) => `Math.sqrt(${unwrapIfNeeded(arg)})`);
   js = js.replace(/\\sin\(([^)]+)\)/g, (match, arg) => `Math.sin(${unwrapIfNeeded(arg)})`);
   js = js.replace(/\\cos\(([^)]+)\)/g, (match, arg) => `Math.cos(${unwrapIfNeeded(arg)})`);
   js = js.replace(/\\tan\(([^)]+)\)/g, (match, arg) => `Math.tan(${unwrapIfNeeded(arg)})`);
   js = js.replace(/\\ln\(([^)]+)\)/g, (match, arg) => `Math.log(${unwrapIfNeeded(arg)})`);
   js = js.replace(/\\log_\{10\}\(([^)]+)\)/g, (match, arg) => `Math.log10(${unwrapIfNeeded(arg)})`);
-  js = js.replace(/\\min\(([^)]+)\)/g, (match, args) => `Math.min(${args.split(',').map((a: string) => unwrapIfNeeded(a)).join(', ')})`);
-  js = js.replace(/\\max\(([^)]+)\)/g, (match, args) => `Math.max(${args.split(',').map((a: string) => unwrapIfNeeded(a)).join(', ')})`);
+  js = js.replace(/\\min\(([^)]+)\)/g, (match, args) => `Math.min(${args.split(',').map((a: string) => unwrapIfNeeded(a.trim())).join(', ')})`);
+  js = js.replace(/\\max\(([^)]+)\)/g, (match, args) => `Math.max(${args.split(',').map((a: string) => unwrapIfNeeded(a.trim())).join(', ')})`);
   js = js.replace(/\\lfloor ([^\\]+) \\rfloor/g, (match, arg) => `Math.floor(${unwrapIfNeeded(arg)})`);
   js = js.replace(/\\lceil ([^\\]+) \\rceil/g, (match, arg) => `Math.ceil(${unwrapIfNeeded(arg)})`);
   js = js.replace(/\\text\{round\}\(([^)]+)\)/g, (match, arg) => `Math.round(${unwrapIfNeeded(arg)})`);
   js = js.replace(/e\^\{([^}]+)\}/g, (match, arg) => `Math.exp(${unwrapIfNeeded(arg)})`);
-  js = js.replace(/([a-zA-Z0-9_{}]+)\^\{([^}]+)\}/g, (match, base, exp) => `Math.pow(${unwrapIfNeeded(base)}, ${unwrapIfNeeded(exp)})`);
   js = js.replace(/\|([^|]+)\|/g, (match, arg) => `Math.abs(${unwrapIfNeeded(arg)})`);
 
-  // Operators
-  js = js.replace(/\s*\\times\s*/g, ' * ');
-  js = js.replace(/\s*\\div\s*/g, ' / ');
-  js = js.replace(/\s*\\bmod\s*/g, ' % ');
+  // Operators - handle LaTeX operators properly (including the specific format with spaces)
+  js = js.replace(/\\\s*times/g, '*');
+  js = js.replace(/\\\s*div/g, '/');
+  js = js.replace(/\\\s*bmod/g, '%');
+  
+  // Clean up operator spacing
   js = js.replace(/\s*\+\s*/g, ' + ');
-  js = js.replace(/\s*-\s*/g, ' - ');
+  js = js.replace(/\s*\*\s*/g, ' * ');
+  js = js.replace(/\s*\/\s*/g, ' / ');
+  js = js.replace(/\s*%\s*/g, ' % ');
 
   // Comparisons
   js = js.replace(/\s*\\geq\s*/g, ' >= ');
@@ -127,7 +133,7 @@ export function convertLatexToJavaScript(latex: string): string {
   js = js.replace(/\s*\\neq\s*/g, ' != ');
   js = js.replace(/\s*\\Rightarrow\s*/g, ' => ');
 
-  // Fallback: unwrap {var} to var
+  // Fallback: unwrap {var} to var, but be more careful about nested expressions
   js = js.replace(/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g, (match, varName) => varName);
 
   // Remove extra whitespace
@@ -222,9 +228,19 @@ export function buildFormulaFromBlocks(blocks: FormulaBlock[]): string {
           formula += `${block.content}(${args})`;
         }
         break;
-      case 'group':
-        formula += `(${block.children ? buildFormulaFromBlocks(block.children) : ''})`;
+      case 'group': {
+        // Preserve parentheses for groups - they are important for operator precedence
+        // But don't add parentheses for groups that are function arguments
+        const groupContent = block.children ? buildFormulaFromBlocks(block.children) : '';
+        // Check if this group is a function argument (no parentheses needed)
+        // or a regular group (parentheses needed)
+        if (block.content === '()' && block.children && block.children.length > 1) {
+          formula += `(${groupContent})`;
+        } else {
+          formula += groupContent;
+        }
         break;
+      }
       case 'value':
         formula += block.content;
         break;
@@ -239,127 +255,178 @@ export function buildFormulaFromBlocks(blocks: FormulaBlock[]): string {
 
 // Helper function to parse formula string into blocks (tree structure)
 export function parseFormulaToBlocks(formula: string): FormulaBlock[] {
-  // Handle Math.pow(a, b) expressions by creating function blocks
-  if (formula.includes('Math.pow(')) {
-    // Find all Math.pow expressions in the formula
-    const mathPowRegex = /Math\.pow\(([^,]+),\s*([^)]+)\)/g;
-    let match;
-    let lastIndex = 0;
-    const blocks: FormulaBlock[] = [];
+  // Handle complex nested expressions by parsing the entire formula
+  const blocks: FormulaBlock[] = [];
+  let currentIndex = 0;
+  
+  while (currentIndex < formula.length) {
+    const remainingFormula = formula.slice(currentIndex);
     
-    while ((match = mathPowRegex.exec(formula)) !== null) {
-      // Parse everything before this Math.pow
-      const beforeMathPow = formula.slice(lastIndex, match.index).trim();
-      if (beforeMathPow) {
-        blocks.push(...parseSimpleExpression(beforeMathPow));
+    // Try to match Math functions first
+    const mathFunctionMatch = remainingFormula.match(/^Math\.(pow|sqrt|abs|floor|ceil|round|min|max|sin|cos|tan|log|log10|exp)\(/);
+    if (mathFunctionMatch) {
+      const funcName = `Math.${mathFunctionMatch[1]}`;
+      const funcStart = currentIndex + mathFunctionMatch[0].length;
+      
+      // Find the closing parenthesis for this function
+      let parenCount = 1;
+      let funcEnd = funcStart;
+      
+      while (funcEnd < formula.length && parenCount > 0) {
+        if (formula[funcEnd] === '(') parenCount++;
+        if (formula[funcEnd] === ')') parenCount--;
+        funcEnd++;
       }
       
-      // Parse the Math.pow arguments
-      const base = match[1].trim();
-      const exponent = match[2].trim();
-      
-      // Create function block for Math.pow
-      blocks.push({
-        id: `func_${Date.now()}_${Math.random()}`,
-        type: 'function',
-        content: 'Math.pow',
-        args: [
-          ...parseSimpleExpression(base),
-          ...parseSimpleExpression(exponent)
-        ]
-      });
-      
-      lastIndex = match.index + match[0].length;
-    }
-    
-    // Parse everything after the last Math.pow
-    const afterMathPow = formula.slice(lastIndex).trim();
-    if (afterMathPow) {
-      blocks.push(...parseSimpleExpression(afterMathPow));
-    }
-    
-    return blocks;
-  }
-  
-  // Handle other Math functions
-  const mathFunctions = [
-    'Math.sqrt', 'Math.abs', 'Math.floor', 'Math.ceil', 'Math.round',
-    'Math.min', 'Math.max', 'Math.sin', 'Math.cos', 'Math.tan',
-    'Math.log', 'Math.log10', 'Math.exp'
-  ];
-  
-  for (const func of mathFunctions) {
-    if (formula.includes(func + '(')) {
-      const funcRegex = new RegExp(`${func.replace('.', '\\.')}\\(([^)]+)\\)`, 'g');
-      let match;
-      let lastIndex = 0;
-      const blocks: FormulaBlock[] = [];
-      
-      while ((match = funcRegex.exec(formula)) !== null) {
-        // Parse everything before this function
-        const beforeFunc = formula.slice(lastIndex, match.index).trim();
-        if (beforeFunc) {
-          blocks.push(...parseSimpleExpression(beforeFunc));
-        }
+      if (parenCount === 0) {
+        const argsString = formula.slice(funcStart, funcEnd - 1);
+        const args = parseFunctionArguments(argsString);
         
-        // Parse the function argument(s)
-        const args = match[1].trim();
-        
-        // Create function block
         blocks.push({
           id: `func_${Date.now()}_${Math.random()}`,
           type: 'function',
-          content: func,
-          args: parseSimpleExpression(args)
+          content: funcName,
+          args: args
         });
         
-        lastIndex = match.index + match[0].length;
+        currentIndex = funcEnd;
+        continue;
       }
-      
-      // Parse everything after the last function
-      const afterFunc = formula.slice(lastIndex).trim();
-      if (afterFunc) {
-        blocks.push(...parseSimpleExpression(afterFunc));
-      }
-      
-      return blocks;
     }
-  }
-  
-  // For other expressions, use the simple parser
-  return parseSimpleExpression(formula);
-}
-
-// Helper function to parse simple expressions (no Math.pow)
-function parseSimpleExpression(formula: string): FormulaBlock[] {
-  const tokens = formula.split(/\s+/);
-  return tokens.map(token => {
-    if (token.match(/^[+\-*/=><]$/)) {
-      return {
+    
+    // Try to match operators
+    const operatorMatch = remainingFormula.match(/^(\s*[+\-*/=><]\s*)/);
+    if (operatorMatch) {
+      blocks.push({
         id: `op_${Date.now()}_${Math.random()}`,
         type: 'operator',
-        content: token
-      };
-    } else if (token.startsWith('(') && token.endsWith(')')) {
-      return {
+        content: operatorMatch[1].trim()
+      });
+      currentIndex += operatorMatch[1].length;
+      continue;
+    }
+    
+    // Try to match parentheses groups
+    if (remainingFormula.startsWith('(')) {
+      let parenCount = 1;
+      let groupEnd = 1;
+      
+      while (groupEnd < remainingFormula.length && parenCount > 0) {
+        if (remainingFormula[groupEnd] === '(') parenCount++;
+        if (remainingFormula[groupEnd] === ')') parenCount--;
+        groupEnd++;
+      }
+      
+      if (parenCount === 0) {
+        const innerFormula = remainingFormula.slice(1, groupEnd - 1);
+        blocks.push({
+          id: `group_${Date.now()}_${Math.random()}`,
+          type: 'group',
+          content: '()',
+          children: parseFormulaToBlocks(innerFormula)
+        });
+        currentIndex += groupEnd;
+        continue;
+      }
+    }
+    
+    // Try to match variables or numbers
+    const tokenMatch = remainingFormula.match(/^([a-zA-Z_][a-zA-Z0-9_]*|\d+(?:\.\d+)?)/);
+    if (tokenMatch) {
+      const token = tokenMatch[1];
+      if (isNumber(token)) {
+        blocks.push({
+          id: `value_${Date.now()}_${Math.random()}`,
+          type: 'value',
+          content: token,
+          value: Number(token)
+        });
+      } else {
+        blocks.push({
+          id: `var_${Date.now()}_${Math.random()}`,
+          type: 'variable',
+          content: token
+        });
+      }
+      currentIndex += token.length;
+      continue;
+    }
+    
+    // Skip whitespace
+    const whitespaceMatch = remainingFormula.match(/^\s+/);
+    if (whitespaceMatch) {
+      currentIndex += whitespaceMatch[0].length;
+      continue;
+    }
+    
+    // If we get here, we have an unrecognized character
+    blocks.push({
+      id: `var_${Date.now()}_${Math.random()}`,
+      type: 'variable',
+      content: remainingFormula[0]
+    });
+    currentIndex++;
+  }
+  
+  return blocks;
+}
+
+// Helper function to parse function arguments
+function parseFunctionArguments(argsString: string): FormulaBlock[] {
+  const args: FormulaBlock[] = [];
+  let currentIndex = 0;
+  let parenCount = 0;
+  let currentArg = '';
+  
+  while (currentIndex < argsString.length) {
+    const char = argsString[currentIndex];
+    
+    if (char === '(') {
+      parenCount++;
+      currentArg += char;
+    } else if (char === ')') {
+      parenCount--;
+      currentArg += char;
+    } else if (char === ',' && parenCount === 0) {
+      // End of argument
+      if (currentArg.trim()) {
+        // Parse the entire argument as a single expression
+        const parsedBlocks = parseFormulaToBlocks(currentArg.trim());
+        if (parsedBlocks.length === 1) {
+          args.push(parsedBlocks[0]);
+        } else {
+          // If multiple blocks, create a group for function arguments
+          args.push({
+            id: `group_${Date.now()}_${Math.random()}`,
+            type: 'group',
+            content: '()',
+            children: parsedBlocks
+          });
+        }
+      }
+      currentArg = '';
+    } else {
+      currentArg += char;
+    }
+    
+    currentIndex++;
+  }
+  
+  // Add the last argument
+  if (currentArg.trim()) {
+    const parsedBlocks = parseFormulaToBlocks(currentArg.trim());
+    if (parsedBlocks.length === 1) {
+      args.push(parsedBlocks[0]);
+    } else {
+      // If multiple blocks, create a group for function arguments
+      args.push({
         id: `group_${Date.now()}_${Math.random()}`,
         type: 'group',
         content: '()',
-        children: parseSimpleExpression(token.slice(1, -1))
-      };
-    } else if (token.match(/^\d+(\.\d+)?$/)) {
-      return {
-        id: `value_${Date.now()}_${Math.random()}`,
-        type: 'value',
-        content: token,
-        value: Number(token)
-      };
-    } else {
-      return {
-        id: `var_${Date.now()}_${Math.random()}`,
-        type: 'variable',
-        content: token
-      };
+        children: parsedBlocks
+      });
     }
-  });
+  }
+  
+  return args;
 } 
