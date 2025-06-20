@@ -173,12 +173,30 @@ function convertJavaScriptToLatex(javascriptExpression: string): string {
   latex = latex.replace(/=>/g, ' \\Rightarrow ');
   
   // Wrap multi-character variable names in \mathit{}
-  latex = latex.replace(/\b([a-zA-Z][a-zA-Z0-9]*)\b/g, (match, varName) => {
-    if (varName.length > 1 && !['sin', 'cos', 'tan', 'log', 'ln', 'min', 'max', 'round'].includes(varName)) {
+  // But exclude LaTeX commands and common math terms
+  latex = latex.replace(/\b([a-zA-Z][a-zA-Z0-9]*)\b/g, (_, varName) => {
+    if (varName.length > 1 && 
+        !['sin', 'cos', 'tan', 'log', 'ln', 'min', 'max', 'round', 'times', 'div', 'bmod', 'geq', 'leq', 'neq'].includes(varName)) {
       return `\\mathit{${varName}}`;
     }
     return varName;
   });
+  
+  // Fix: Don't wrap LaTeX commands in \mathit{}
+  // This prevents \times, \div, \bmod, etc. from being treated as variables
+  latex = latex.replace(/\\mathit\{([^}]+)\}/g, (match, content) => {
+    // If the content starts with a backslash, it's a LaTeX command, so don't wrap it
+    if (content.startsWith('\\')) {
+      return content;
+    }
+    return match;
+  });
+  
+  // After all replacements, clean up spaces around operators and exponents
+  // Remove space before caret and format as ^{n}
+  latex = latex.replace(/\s*\^\s*([a-zA-Z0-9]+)/g, '^{$1}');
+  // Remove extra spaces around \times, \div, etc.
+  latex = latex.replace(/\s*\\(times|div|bmod|geq|leq|neq|Rightarrow)\s*/g, ' \\$1 ');
   
   return latex.trim();
 }
@@ -678,26 +696,24 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
 function parseFormulaToBlocks(formula: string): FormulaBlock[] {
   // Handle Math.pow(a, b) expressions by converting them to a^b structure
   if (formula.includes('Math.pow(')) {
-    const match = formula.match(/Math\.pow\(([^,]+),\s*([^)]+)\)/);
-    if (match) {
-      const base = match[1].trim();
-      const exponent = match[2].trim();
-      
-      // Parse the base and exponent separately
-      const baseBlocks = parseSimpleExpression(base);
-      const exponentBlocks = parseSimpleExpression(exponent);
-      
-      // Combine: base ^ exponent
-      return [
-        ...baseBlocks,
-        {
-          id: `op_${Date.now()}_${Math.random()}`,
-          type: 'operator',
-          content: '^'
-        },
-        ...exponentBlocks
-      ];
+    // Find all Math.pow calls and replace them with a^b format
+    let processedFormula = formula;
+    const mathPowMatches = formula.match(/Math\.pow\(([^,]+),\s*([^)]+)\)/g);
+    
+    if (mathPowMatches) {
+      mathPowMatches.forEach(match => {
+        const innerMatch = match.match(/Math\.pow\(([^,]+),\s*([^)]+)\)/);
+        if (innerMatch) {
+          const base = innerMatch[1].trim();
+          const exponent = innerMatch[2].trim();
+          const replacement = `${base} ^ ${exponent}`;
+          processedFormula = processedFormula.replace(match, replacement);
+        }
+      });
     }
+    
+    // Now parse the processed formula
+    return parseSimpleExpression(processedFormula);
   }
   
   // For other expressions, use the simple parser
