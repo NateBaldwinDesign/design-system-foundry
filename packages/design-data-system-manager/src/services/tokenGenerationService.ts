@@ -2,6 +2,8 @@ import type { Token, TokenCollection, Taxonomy } from '@token-model/data-model';
 import type { Algorithm, TokenGeneration, Formula, Condition } from '../types/algorithm';
 import { createUniqueId } from '../utils/id';
 import { AlgorithmExecutionService } from './algorithmExecutionService';
+import { StorageService } from './storage';
+import type { Dimension } from '@token-model/data-model';
 
 export interface GeneratedToken {
   id: string;
@@ -67,44 +69,53 @@ export class TokenGenerationService {
       // Step 3: Match existing terms or create new ones
       const termMappings = this.matchOrCreateTerms(taxonomy, generatedTerms, iterationValues, modifyTaxonomiesInPlace);
       
-      // Step 4: Generate tokens with calculated values
+      // Step 4: Generate mode combinations for mode-based variables
+      const modeCombinations = this.generateModeCombinations(algorithm);
+      
+      // Step 5: Generate tokens with calculated values for each mode combination
       for (let i = 0; i < iterationValues.length; i++) {
         const n = iterationValues[i];
         
-        try {
-          // Execute algorithm steps in order to calculate the final value
-          const calculatedValue = this.executeAlgorithmSteps(algorithm, n);
-          
-          // Generate token ID
-          const tokenId = this.generateTokenId();
-          
-          // Check for duplicate ID
-          if (existingTokens.some(t => t.id === tokenId)) {
-            errors.push(`Token ID "${tokenId}" already exists`);
-            continue;
+        for (const modeContext of modeCombinations) {
+          try {
+            // Execute algorithm steps in order to calculate the final value with mode context
+            const calculatedValue = this.executeAlgorithmSteps(algorithm, n, modeContext);
+            
+            // Generate token ID
+            const tokenId = this.generateTokenId();
+            
+            // Check for duplicate ID
+            if (existingTokens.some(t => t.id === tokenId)) {
+              errors.push(`Token ID "${tokenId}" already exists`);
+              continue;
+            }
+            
+            // Get the term mapping for this iteration
+            const termMapping = termMappings.find(tm => tm.iterationValue === n);
+            if (!termMapping) {
+              errors.push(`No term mapping found for iteration ${n}`);
+              continue;
+            }
+            
+            // Create token object with mode context
+            const token = this.createTokenWithLogicalMappingAndModes(
+              tokenId,
+              algorithm,
+              calculatedValue,
+              n,
+              taxonomy,
+              termMapping.termId,
+              taxonomies,
+              modeContext
+            );
+            
+            generatedTokens.push(token);
+          } catch (error) {
+            const modeContextStr = Object.keys(modeContext).length > 0 
+              ? ` (modes: ${Object.entries(modeContext).map(([dimId, modeId]) => `${dimId}:${modeId}`).join(', ')})`
+              : '';
+            errors.push(`Error generating token for iteration ${n}${modeContextStr}: ${error}`);
           }
-          
-          // Get the term mapping for this iteration
-          const termMapping = termMappings.find(tm => tm.iterationValue === n);
-          if (!termMapping) {
-            errors.push(`No term mapping found for iteration ${n}`);
-            continue;
-          }
-          
-          // Create token object
-          const token = this.createTokenWithLogicalMapping(
-            tokenId,
-            algorithm,
-            calculatedValue,
-            n,
-            taxonomy,
-            termMapping.termId,
-            taxonomies
-          );
-          
-          generatedTokens.push(token);
-        } catch (error) {
-          errors.push(`Error generating token for iteration ${n}: ${error}`);
         }
       }
       
@@ -154,6 +165,43 @@ export class TokenGenerationService {
     }
 
     return { tokens: generatedTokens, errors };
+  }
+
+  /**
+   * Generate mode combinations for mode-based variables
+   */
+  private static generateModeCombinations(algorithm: Algorithm): Record<string, string>[] {
+    const modeBasedVariables = algorithm.variables.filter(v => v.modeBased && v.dimensionId);
+    
+    if (modeBasedVariables.length === 0) {
+      // No mode-based variables, return empty context
+      return [{}];
+    }
+
+    // Get unique dimensions used by mode-based variables
+    const dimensions = StorageService.getDimensions();
+    const usedDimensions = dimensions.filter((dim: Dimension) => 
+      modeBasedVariables.some(v => v.dimensionId === dim.id)
+    );
+
+    // Generate all possible mode combinations
+    const combinations: Record<string, string>[] = [{}];
+    
+    for (const dimension of usedDimensions) {
+      const currentCombinations = [...combinations];
+      combinations.length = 0; // Clear array
+      
+      for (const mode of dimension.modes) {
+        for (const combination of currentCombinations) {
+          combinations.push({
+            ...combination,
+            [dimension.id]: mode.id
+          });
+        }
+      }
+    }
+
+    return combinations;
   }
 
   /**
@@ -530,11 +578,12 @@ export class TokenGenerationService {
 
   /**
    * Execute algorithm steps in order to calculate the final value
+   * Enhanced to support mode-based variables
    */
-  private static executeAlgorithmSteps(algorithm: Algorithm, n: number): number {
+  private static executeAlgorithmSteps(algorithm: Algorithm, n: number, modeContext?: Record<string, string>): number {
     try {
       // Use the new AlgorithmExecutionService for proper algorithm execution
-      const executionContext = AlgorithmExecutionService.executeAlgorithm(algorithm, n);
+      const executionContext = AlgorithmExecutionService.executeAlgorithm(algorithm, n, {}, modeContext);
       
       // Ensure the result is a number
       const result = executionContext.finalResult;
@@ -588,5 +637,68 @@ export class TokenGenerationService {
     } catch (error) {
       throw new Error(`Condition "${condition.name}" evaluation failed: ${error}`);
     }
+  }
+
+  /**
+   * Create token with logical mapping and mode context
+   */
+  private static createTokenWithLogicalMappingAndModes(
+    id: string,
+    algorithm: Algorithm,
+    value: number,
+    n: number,
+    taxonomy: Taxonomy,
+    termId: string,
+    availableTaxonomies: Taxonomy[],
+    modeContext: Record<string, string>
+  ): Token {
+    const { tokenGeneration } = algorithm;
+    const { bulkAssignments, logicalMapping } = tokenGeneration!;
+
+    // Start with the manually selected taxonomies from Bulk Assignments
+    const taxonomiesArray = [...bulkAssignments.taxonomies];
+
+    // Add the logical mapping taxonomy if it's not already included
+    const logicalMappingTaxonomy = {
+      taxonomyId: taxonomy.id,
+      termId: termId
+    };
+    
+    // Check if this taxonomy is already in the manually selected ones
+    const isAlreadyIncluded = taxonomiesArray.some(t => t.taxonomyId === taxonomy.id);
+    if (!isAlreadyIncluded) {
+      taxonomiesArray.push(logicalMappingTaxonomy);
+    }
+
+    // Generate display name from all taxonomy terms
+    const displayName = this.generateDisplayNameFromTaxonomies(taxonomiesArray, availableTaxonomies, n, logicalMapping);
+
+    // Create token object
+    const token: Token = {
+      id,
+      displayName,
+      resolvedValueTypeId: bulkAssignments.resolvedValueTypeId,
+      tokenCollectionId: bulkAssignments.collectionId || undefined,
+      description: `Generated by algorithm "${algorithm.name}" with n=${n}`,
+      private: bulkAssignments.private,
+      status: bulkAssignments.status || 'stable',
+      themeable: bulkAssignments.themeable,
+      tokenTier: bulkAssignments.tokenTier || 'PRIMITIVE',
+      generatedByAlgorithm: true,
+      algorithmId: algorithm.id,
+      taxonomies: taxonomiesArray,
+      propertyTypes: [],
+      codeSyntax: [],
+      valuesByMode: [
+        {
+          modeIds: Object.values(modeContext).map(modeId => modeId),
+          value: {
+            value: value.toString() // Return pure numeric value without units
+          }
+        }
+      ]
+    };
+
+    return token;
   }
 }

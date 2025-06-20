@@ -40,6 +40,7 @@ import { AlgorithmSavePreviewDialog } from './AlgorithmSavePreviewDialog';
 import { AlgorithmResetDialog } from './AlgorithmResetDialog';
 import { DependencyVisualization } from './DependencyVisualization';
 import { ExecutionPreview } from './ExecutionPreview';
+import { ModeBasedVariableEditor } from './ModeBasedVariableEditor';
 
 interface AlgorithmEditorProps {
   algorithm?: Algorithm;
@@ -1020,79 +1021,109 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                     Add Variable
                   </Button>
                 </HStack>
+                
+                {/* Mode-Based Variable Settings for New Variable */}
+                {newVariable.name && (
+                  <ModeBasedVariableEditor
+                    variable={newVariable as Variable}
+                    onVariableChange={(updatedVariable) => setNewVariable(updatedVariable)}
+                  />
+                )}
+                
                 <VStack spacing={2} align="stretch">
                   {currentAlgorithm.variables.map(variable => (
-                    <HStack key={variable.id} justify="space-between">
-                      {editingVariableId === variable.id ? (
-                        <HStack spacing={4} flex={1}>
-                          <FormControl isRequired>
-                            <FormLabel>Variable Name</FormLabel>
-                            <Input
-                              placeholder="Variable Name"
-                              value={editingVariable.name}
-                              onChange={e => setEditingVariable(prev => ({ ...prev, name: e.target.value }))}
-                            />
-                          </FormControl>
-                          <FormControl isRequired>
-                            <FormLabel>Type</FormLabel>
-                            <Select
-                              value={editingVariable.type}
-                              onChange={e => setEditingVariable(prev => ({ ...prev, type: e.target.value as Variable['type'] }))}
+                    <Box key={variable.id} p={3} borderWidth={1} borderRadius="md">
+                      <HStack justify="space-between" mb={2}>
+                        {editingVariableId === variable.id ? (
+                          <HStack spacing={4} flex={1}>
+                            <FormControl isRequired>
+                              <FormLabel>Variable Name</FormLabel>
+                              <Input
+                                placeholder="Variable Name"
+                                value={editingVariable.name}
+                                onChange={e => setEditingVariable(prev => ({ ...prev, name: e.target.value }))}
+                              />
+                            </FormControl>
+                            <FormControl isRequired>
+                              <FormLabel>Type</FormLabel>
+                              <Select
+                                value={editingVariable.type}
+                                onChange={e => setEditingVariable(prev => ({ ...prev, type: e.target.value as Variable['type'] }))}
+                              >
+                                <option value="number">Number</option>
+                                <option value="string">String</option>
+                                <option value="boolean">Boolean</option>
+                              </Select>
+                            </FormControl>
+                            <FormControl>
+                              <FormLabel>Default Value</FormLabel>
+                              <Input
+                                placeholder="Default Value (optional)"
+                                value={editingVariable.defaultValue?.toString() || ''}
+                                onChange={e => setEditingVariable(prev => ({ ...prev, defaultValue: e.target.value }))}
+                              />
+                            </FormControl>
+                            <Button
+                              size="sm"
+                              colorScheme="blue"
+                              onClick={handleSaveEditVariable}
                             >
-                              <option value="number">Number</option>
-                              <option value="string">String</option>
-                              <option value="boolean">Boolean</option>
-                            </Select>
-                          </FormControl>
-                          <FormControl>
-                            <FormLabel>Default Value</FormLabel>
-                            <Input
-                              placeholder="Default Value (optional)"
-                              value={editingVariable.defaultValue?.toString() || ''}
-                              onChange={e => setEditingVariable(prev => ({ ...prev, defaultValue: e.target.value }))}
-                            />
-                          </FormControl>
-                          <Button
-                            size="sm"
-                            colorScheme="blue"
-                            onClick={handleSaveEditVariable}
-                          >
-                            Save
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={handleCancelEdit}
-                          >
-                            Cancel
-                          </Button>
-                        </HStack>
-                      ) : (
-                        <>
-                          <HStack>
-                            <Badge colorScheme="blue">{variable.name}</Badge>
-                            <Text fontSize="sm" color="gray.500">({variable.type})</Text>
-                            {variable.defaultValue && (
-                              <Text fontSize="sm" color="gray.500">= {variable.defaultValue}</Text>
-                            )}
-                          </HStack>
-                          <HStack>
-                            <IconButton
-                              aria-label="Edit variable"
-                              icon={<Edit size={16} />}
+                              Save
+                            </Button>
+                            <Button
                               size="sm"
-                              onClick={() => handleEditVariable(variable)}
-                            />
-                            <IconButton
-                              aria-label="Delete variable"
-                              icon={<Trash2 size={16} />}
-                              size="sm"
-                              colorScheme="red"
-                              onClick={() => handleDeleteVariable(variable.id)}
-                            />
+                              onClick={handleCancelEdit}
+                            >
+                              Cancel
+                            </Button>
                           </HStack>
-                        </>
+                        ) : (
+                          <>
+                            <HStack>
+                              <Badge colorScheme="blue">{variable.name}</Badge>
+                              <Text fontSize="sm" color="gray.500">({variable.type})</Text>
+                              {variable.defaultValue && (
+                                <Text fontSize="sm" color="gray.500">= {variable.defaultValue}</Text>
+                              )}
+                              {variable.modeBased && (
+                                <Badge colorScheme="green" size="sm">Mode-Based</Badge>
+                              )}
+                            </HStack>
+                            <HStack>
+                              <IconButton
+                                aria-label="Edit variable"
+                                icon={<Edit size={16} />}
+                                size="sm"
+                                onClick={() => handleEditVariable(variable)}
+                              />
+                              <IconButton
+                                aria-label="Delete variable"
+                                icon={<Trash2 size={16} />}
+                                size="sm"
+                                colorScheme="red"
+                                onClick={() => handleDeleteVariable(variable.id)}
+                              />
+                            </HStack>
+                          </>
+                        )}
+                      </HStack>
+                      
+                      {/* Mode-Based Variable Settings for Existing Variable */}
+                      {editingVariableId !== variable.id && variable.modeBased && (
+                        <ModeBasedVariableEditor
+                          variable={variable}
+                          onVariableChange={(updatedVariable) => {
+                            const updatedVariables = currentAlgorithm.variables.map(v => 
+                              v.id === variable.id ? updatedVariable : v
+                            );
+                            setCurrentAlgorithm(prev => ({
+                              ...prev,
+                              variables: updatedVariables
+                            }));
+                          }}
+                        />
                       )}
-                    </HStack>
+                    </Box>
                   ))}
                 </VStack>
               </VStack>

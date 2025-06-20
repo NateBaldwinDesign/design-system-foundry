@@ -35,11 +35,13 @@ export class AlgorithmExecutionService {
 
   /**
    * Execute an algorithm for a specific iteration value and return the final result
+   * Enhanced to support mode-based variables
    */
   static executeAlgorithm(
     algorithm: Algorithm,
     iterationValue: number,
-    context: Record<string, unknown> = {}
+    context: Record<string, unknown> = {},
+    modeContext?: Record<string, string> // modeId -> modeId mapping for mode-based variables
   ): ExecutionContext {
     const executionContext: ExecutionContext = {
       variables: {},
@@ -49,15 +51,28 @@ export class AlgorithmExecutionService {
     };
 
     try {
-      // Initialize variables with default values - map by both ID and name
+      // Initialize variables with default values - map by ID only for execution
       algorithm.variables.forEach(variable => {
-        const parsedValue = this.parseVariableValue(
-          variable.defaultValue || '', 
-          variable.type
-        );
-        // Store by both ID and name for flexibility
+        let parsedValue: unknown;
+        
+        // Handle mode-based variables
+        if (variable.modeBased && variable.dimensionId && variable.modeValues && modeContext) {
+          // Find the mode ID for this dimension in the current context
+          const currentModeId = modeContext[variable.dimensionId];
+          if (currentModeId && variable.modeValues[currentModeId]) {
+            // Use the mode-specific value
+            parsedValue = this.parseVariableValue(variable.modeValues[currentModeId], variable.type);
+          } else {
+            // Fallback to default value if mode-specific value not found
+            parsedValue = this.parseVariableValue(variable.defaultValue || '', variable.type);
+          }
+        } else {
+          // Use default value for non-mode-based variables
+          parsedValue = this.parseVariableValue(variable.defaultValue || '', variable.type);
+        }
+        
+        // Store by ID only for execution (avoid display names with spaces)
         executionContext.variables[variable.id] = parsedValue;
-        executionContext.variables[variable.name] = parsedValue;
       });
 
       // Add system variable 'n'

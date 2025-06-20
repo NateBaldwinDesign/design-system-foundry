@@ -10,6 +10,11 @@ export interface Variable {
     step?: number;
     pattern?: string;
   };
+  modeBased?: boolean;
+  modeValues?: {
+    [modeId: string]: string;
+  };
+  dimensionId?: string;
 }
 
 export interface Expression {
