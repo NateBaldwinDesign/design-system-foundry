@@ -22,11 +22,16 @@ import {
   ModalContent,
   ModalHeader,
   ModalBody,
-  ModalCloseButton
+  ModalCloseButton,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel
 } from '@chakra-ui/react';
 import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { ValidationService } from '../../services/validation';
-import { createSchemaJsonFromLocalStorage } from '../../services/createJson';
+import { createSchemaJsonFromLocalStorage, createAlgorithmJsonFromLocalStorage } from '../../services/createJson';
 
 interface ValidationViewProps {
   tokens: Token[];
@@ -292,17 +297,35 @@ export function ValidationView({ tokens = [], collections = [], dimensions = [],
       </AlertDialog>
 
       {/* JSON Preview Modal */}
-      <Modal isOpen={isJsonPreviewOpen} onClose={() => setIsJsonPreviewOpen(false)}>
+      <Modal size="4xl" isOpen={isJsonPreviewOpen} onClose={() => setIsJsonPreviewOpen(false)}>
         <ModalOverlay />
         <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'} maxH="80vh" overflowY="auto">
           <ModalHeader>Local Storage Data Preview</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <Box maxH="60vh" overflowY="auto">
-              <Code width="100%" whiteSpace="pre" p={4} fontSize="sm" display="block">
-                {jsonPreview}
-              </Code>
-            </Box>
+            <Tabs isFitted>
+              <TabList>
+                <Tab>Core Data</Tab>
+                <Tab>Algorithm Data</Tab>
+              </TabList>
+
+              <TabPanels>
+                <TabPanel>
+                  <Box maxH="60vh" overflowY="auto">
+                    <Code width="100%" whiteSpace="pre" p={4} fontSize="sm" display="block">
+                      {jsonPreview}
+                    </Code>
+                  </Box>
+                </TabPanel>
+                <TabPanel>
+                  <Box maxH="60vh" overflowY="auto">
+                    <Code width="100%" whiteSpace="pre" p={4} fontSize="sm" display="block">
+                      {JSON.stringify(createAlgorithmJsonFromLocalStorage(), null, 2)}
+                    </Code>
+                  </Box>
+                </TabPanel>
+              </TabPanels>
+            </Tabs>
           </ModalBody>
         </ModalContent>
       </Modal>

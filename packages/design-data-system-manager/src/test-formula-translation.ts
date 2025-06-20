@@ -1,8 +1,44 @@
-import { TEMP_TEST_ALGORITHMS } from './services/storage';
 import { parseFormulaToBlocks, buildFormulaFromBlocks, convertJavaScriptToLatex, convertLatexToJavaScript } from './utils/formulaTranslationUtils';
 
-// Test data from storage
-const testAlgorithms = TEMP_TEST_ALGORITHMS;
+// Test data for formula translation testing
+const testAlgorithms = [
+  {
+    id: 'test-algo-1',
+    name: 'Test Algorithm 1',
+    formulas: [
+      {
+        id: 'formula1',
+        name: 'Sum',
+        expressions: {
+          javascript: { value: 'x + y' },
+          latex: { value: '{x} + {y}' }
+        }
+      },
+      {
+        id: 'formula2',
+        name: 'Product',
+        expressions: {
+          javascript: { value: 'x * y' },
+          latex: { value: '{x} \\times {y}' }
+        }
+      }
+    ]
+  },
+  {
+    id: 'typescale-algorithm',
+    name: 'Typography Scale Algorithm',
+    formulas: [
+      {
+        id: 'formula-typescale',
+        name: 'Type Scale',
+        expressions: {
+          javascript: { value: 'Base * Math.pow(Ratio, n)' },
+          latex: { value: '\\mathit{Base} \\times \\mathit{Ratio}^{n}' }
+        }
+      }
+    ]
+  }
+];
 
 interface TranslationTest {
   name: string;

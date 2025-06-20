@@ -234,31 +234,36 @@ const FormulaBlockComponent: React.FC<{
                 onClick={() => onDelete(block.id)}
               />
             </HStack>
-            <Droppable droppableId={block.id} direction="horizontal">
-              {(provided) => (
-                <Box
-                  {...provided.droppableProps}
-                  ref={provided.innerRef}
-                  p={2}
-                  bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-                  borderRadius="md"
-                  minH="50px"
-                >
-                  <HStack spacing={2} wrap="wrap">
-                    {block.children?.map((child, childIndex) => (
-                      <FormulaBlockComponent
-                        key={child.id}
-                        block={child}
-                        index={childIndex}
-                        onDelete={onDelete}
-                        colorMode={colorMode}
-                      />
-                    ))}
-                    {provided.placeholder}
-                  </HStack>
-                </Box>
-              )}
-            </Droppable>
+            <Box
+              p={2}
+              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+              borderRadius="md"
+              minH="50px"
+            >
+              <HStack spacing={2} wrap="wrap">
+                {block.children?.map((child) => (
+                  <Box
+                    key={child.id}
+                    p={1}
+                    bg={colorMode === 'dark' ? 'gray.700' : 'white'}
+                    borderRadius="sm"
+                    borderWidth={1}
+                    borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                  >
+                    <Badge
+                      size="sm"
+                      colorScheme={
+                        child.type === 'variable' ? 'blue' :
+                        child.type === 'operator' ? 'purple' :
+                        child.type === 'value' ? 'gray' : 'green'
+                      }
+                    >
+                      {child.content}
+                    </Badge>
+                  </Box>
+                ))}
+              </HStack>
+            </Box>
           </Box>
         )}
       </Draggable>
@@ -389,31 +394,10 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
     // Find the block being moved
     const [movedBlock] = newBlocks.splice(source.index, 1);
 
-    // If dropping into a group
-    if (destination.droppableId !== 'formula-blocks') {
-      const groupId = destination.droppableId;
-      const group = findBlockById(newBlocks, groupId);
-      if (group && group.type === 'group') {
-        if (!group.children) group.children = [];
-        group.children.splice(destination.index, 0, movedBlock);
-      }
-    } else {
-      // Dropping in the main area
-      newBlocks.splice(destination.index, 0, movedBlock);
-    }
+    // Since we removed nested Droppables, all drops are in the main area
+    newBlocks.splice(destination.index, 0, movedBlock);
 
     setBlocks(newBlocks);
-  };
-
-  const findBlockById = (blocks: FormulaBlock[], id: string): FormulaBlock | null => {
-    for (const block of blocks) {
-      if (block.id === id) return block;
-      if (block.children) {
-        const found = findBlockById(block.children, id);
-        if (found) return found;
-      }
-    }
-    return null;
   };
 
   const handleAddVariable = (variable: Variable) => {
@@ -539,14 +523,17 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
       return formula.trim();
     };
 
-    // If blocks are empty, use the lookup table to convert JavaScript to LaTeX
+    // If blocks are empty, only call onChange if the current value is different from empty
     if (blocks.length === 0) {
-      const latexExpression = convertJavaScriptToLatex(value);
-      console.log('FormulaEditor: Converting JavaScript to LaTeX for empty blocks:', {
-        javascript: value,
-        latex: latexExpression
-      });
-      onChange(value, latexExpression);
+      // Only convert and call onChange if there's actually a value to convert
+      if (value && value.trim() !== '') {
+        const latexExpression = convertJavaScriptToLatex(value);
+        console.log('FormulaEditor: Converting JavaScript to LaTeX for empty blocks:', {
+          javascript: value,
+          latex: latexExpression
+        });
+        onChange(value, latexExpression);
+      }
       setValidationMessage('');
       return;
     }
@@ -558,8 +545,10 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
     const validationMsg = validateFormulaStructure(blocks);
     setValidationMessage(validationMsg);
     
-    // Always call onChange to ensure real-time LaTeX preview updates
-    onChange(formula, latexExpression);
+    // Only call onChange if the formula has actually changed from the current value
+    if (formula !== value) {
+      onChange(formula, latexExpression);
+    }
   }, [blocks, onChange, variables, mode, value]);
 
   return (

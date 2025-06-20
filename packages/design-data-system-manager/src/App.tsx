@@ -145,6 +145,37 @@ const App = () => {
     };
   }, []);
 
+  // Add effect to reload algorithms from storage when they change
+  useEffect(() => {
+    const reloadAlgorithms = () => {
+      const storedAlgorithms = StorageService.getAlgorithms();
+      setAlgorithms(prevAlgorithms => {
+        if (JSON.stringify(storedAlgorithms) !== JSON.stringify(prevAlgorithms)) {
+          return storedAlgorithms;
+        }
+        return prevAlgorithms;
+      });
+    };
+
+    // Reload on window focus (when user returns to the app)
+    const handleFocus = () => {
+      reloadAlgorithms();
+    };
+
+    // Reload periodically (every 2 seconds)
+    const interval = setInterval(reloadAlgorithms, 2000);
+
+    // Initial load
+    reloadAlgorithms();
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
   useEffect(() => {
     // Create data options from the package exports
     const options = [

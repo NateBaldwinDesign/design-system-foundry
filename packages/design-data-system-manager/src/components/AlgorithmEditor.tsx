@@ -38,6 +38,8 @@ import type { Taxonomy, ResolvedValueType } from '@token-model/data-model';
 import { TaxonomyPicker } from './TaxonomyPicker';
 import { AlgorithmSavePreviewDialog } from './AlgorithmSavePreviewDialog';
 import { AlgorithmResetDialog } from './AlgorithmResetDialog';
+import { DependencyVisualization } from './DependencyVisualization';
+import { ExecutionPreview } from './ExecutionPreview';
 
 interface AlgorithmEditorProps {
   algorithm?: Algorithm;
@@ -975,6 +977,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
             <Tab>Token Generation</Tab>
             <Tab>Algorithm Steps</Tab>
             <Tab>Preview</Tab>
+            <Tab>Dependency Visualization</Tab>
           </TabList>
 
           <TabPanels>
@@ -1981,6 +1984,23 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                     )}
                   </Box>
                 )}
+              </VStack>
+            </TabPanel>
+
+            {/* Dependency Visualization Tab */}
+            <TabPanel>
+              <VStack spacing={6} align="stretch">
+                <DependencyVisualization
+                  algorithm={currentAlgorithm}
+                  showValidation={true}
+                  showExecutionTrace={false}
+                />
+                <ExecutionPreview
+                  algorithm={currentAlgorithm}
+                  onExecutionComplete={(trace) => {
+                    console.log('Execution completed:', trace);
+                  }}
+                />
               </VStack>
             </TabPanel>
           </TabPanels>

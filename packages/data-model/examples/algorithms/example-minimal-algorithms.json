@@ -1,16 +1,16 @@
 {
-  "schemaVersion": "4.0.0",
+  "schemaVersion": "5.0.0",
   "profile": "basic",
   "metadata": {
-    "name": "Minimal Example Algorithms Collection",
-    "description": "A set of algorithms for the minimal example design system",
-    "author": "Design System Team",
-    "version": "1.0.0"
+    "name": "Simple design system Algorithm Collection",
+    "description": "Algorithm collection for Simple design system",
+    "version": "1.0.0",
+    "author": "Design System Manager"
   },
   "config": {
-    "baseUnit": 16,
-    "scaleFactor": 1.25,
-    "precision": 2
+    "defaultBaseValue": 16,
+    "defaultRatio": 1.25,
+    "defaultSpacing": 4
   },
   "algorithms": [
     {
@@ -23,32 +23,60 @@
           "id": "var_base",
           "name": "Base",
           "type": "number",
-          "defaultValue": "14"
+          "defaultValue": "14",
+          "description": ""
         },
         {
           "id": "var_ratio",
           "name": "Ratio",
           "type": "number",
-          "defaultValue": "1.125"
+          "defaultValue": "1.125",
+          "description": ""
+        },
+        {
+          "id": "variable-35b22c3d-327f-42cb-a0c0-c1458935c804",
+          "name": "minWidth",
+          "type": "number",
+          "defaultValue": "320",
+          "description": ""
+        },
+        {
+          "id": "variable-d550c892-8cbe-4bfa-9575-c9960fc03f74",
+          "name": "maxWidth",
+          "type": "number",
+          "defaultValue": "1200",
+          "description": ""
+        },
+        {
+          "id": "variable-574c854f-5f32-47ea-aef7-2e0e6c5b128a",
+          "name": "viewportWidth",
+          "type": "number",
+          "defaultValue": "",
+          "description": ""
         }
       ],
       "formulas": [
         {
           "id": "formula-typescale",
           "name": "Type Scale",
+          "description": "Calculates font size based on modular scale",
           "expressions": {
             "latex": {
               "value": "\\mathit{Base} \\times \\mathit{Ratio}^{n}"
             },
             "javascript": {
-              "value": "Base * Math.pow(Ratio, n)",
+              "value": "Base * Ratio^n",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
               }
             }
           },
-          "description": "Calculates font size based on modular scale",
-          "variableIds": ["var_base", "var_ratio"]
+          "variableIds": [
+            "var_base",
+            "var_ratio"
+          ]
         }
       ],
       "conditions": [],
@@ -70,19 +98,22 @@
           "id": "var_base_spacing",
           "name": "BaseSpacing",
           "type": "number",
-          "defaultValue": "4"
+          "defaultValue": "4",
+          "description": ""
         },
         {
           "id": "var_multiplier",
           "name": "Multiplier",
           "type": "number",
-          "defaultValue": "2"
+          "defaultValue": "2",
+          "description": ""
         }
       ],
       "formulas": [
         {
           "id": "formula-spacing",
           "name": "Spacing Scale",
+          "description": "Calculates spacing based on exponential scale",
           "expressions": {
             "latex": {
               "value": "\\mathit{BaseSpacing} \\times \\mathit{Multiplier}^{n}"
@@ -90,12 +121,16 @@
             "javascript": {
               "value": "BaseSpacing * Math.pow(Multiplier, n)",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
               }
             }
           },
-          "description": "Calculates spacing based on exponential scale",
-          "variableIds": ["var_base_spacing", "var_multiplier"]
+          "variableIds": [
+            "var_base_spacing",
+            "var_multiplier"
+          ]
         }
       ],
       "conditions": [],
@@ -109,10 +144,7 @@
     }
   ],
   "execution": {
-    "order": [
-      "minimal-typescale-algorithm",
-      "minimal-spacing-algorithm"
-    ],
+    "order": [],
     "parallel": false,
     "onError": "stop"
   },
@@ -121,5 +153,6 @@
     "outputFormat": "design-tokens",
     "mergeStrategy": "merge",
     "validation": true
-  }
-} 
+  },
+  "examples": []
+}

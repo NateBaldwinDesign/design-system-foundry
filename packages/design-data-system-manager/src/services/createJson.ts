@@ -1,6 +1,7 @@
 import { StorageService } from './storage';
 import { validateTokenSystem } from '@token-model/data-model';
 import type { ResolvedValueType, TokenCollection, Token, Dimension, Platform, Theme, Taxonomy } from '@token-model/data-model';
+import type { Algorithm } from '../types/algorithm';
 
 /**
  * Reconstructs a schema-compliant JSON object from localStorage.
@@ -112,6 +113,93 @@ export function createSchemaJsonFromLocalStorage() {
   };
 
   return schemaJson;
+}
+
+/**
+ * Reconstructs an algorithm schema-compliant JSON object from localStorage.
+ * Returns an object matching the @algorithm-schema.json structure.
+ */
+export function createAlgorithmJsonFromLocalStorage() {
+  // Read algorithm data from localStorage
+  const algorithms = StorageService.getAlgorithms() as Algorithm[];
+  
+  // Read root-level data from localStorage for metadata
+  const root = JSON.parse(localStorage.getItem('token-model:root') || '{}') as Record<string, unknown>;
+  const {
+    systemName = 'Design System',
+    version = '1.0.0'
+  } = root;
+
+  // Compose the algorithm schema-compliant object
+  const algorithmJson = {
+    schemaVersion: "5.0.0",
+    profile: "basic",
+    metadata: {
+      name: `${systemName} Algorithm Collection`,
+      description: `Algorithm collection for ${systemName}`,
+      version: version,
+      author: "Design System Manager"
+    },
+    config: {
+      // Global configuration values can be added here as needed
+      defaultBaseValue: 16,
+      defaultRatio: 1.25,
+      defaultSpacing: 4
+    },
+    algorithms: algorithms.map(algorithm => ({
+      id: algorithm.id,
+      name: algorithm.name,
+      description: algorithm.description || '',
+      resolvedValueTypeId: algorithm.resolvedValueTypeId,
+      variables: algorithm.variables.map(variable => ({
+        id: variable.id,
+        name: variable.name,
+        type: variable.type,
+        defaultValue: variable.defaultValue || '',
+        description: variable.description || ''
+      })),
+      formulas: algorithm.formulas.map(formula => ({
+        id: formula.id,
+        name: formula.name,
+        description: formula.description || '',
+        expressions: {
+          latex: { value: formula.expressions.latex.value },
+          javascript: {
+            value: formula.expressions.javascript.value,
+            metadata: formula.expressions.javascript.metadata || {
+              allowedOperations: ['math']
+            }
+          }
+        },
+        variableIds: formula.variableIds || []
+      })),
+      conditions: algorithm.conditions.map(condition => ({
+        id: condition.id,
+        name: condition.name,
+        expression: condition.expression,
+        variableIds: condition.variableIds || []
+      })),
+      steps: algorithm.steps.map(step => ({
+        type: step.type,
+        id: step.id,
+        name: step.name
+      }))
+    })),
+    execution: {
+      order: [],
+      parallel: false,
+      onError: "stop"
+    },
+    integration: {
+      targetSchema: "https://designsystem.org/schemas/tokens/v1.0.0",
+      outputFormat: "design-tokens",
+      mergeStrategy: "merge",
+      validation: true
+    },
+    examples: []
+  };
+
+  return algorithmJson;
 }
 
 /**
