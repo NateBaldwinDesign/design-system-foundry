@@ -23,17 +23,31 @@ import {
 } from '@chakra-ui/react';
 import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
 import { ValidationService } from '../../services/validation';
-import type { ResolvedValueType, StandardValueType } from '@token-model/data-model/src/schema';
+import type { ResolvedValueType, StandardValueType, Token, TokenCollection, Dimension, Platform, Taxonomy, Theme } from '@token-model/data-model/src/schema';
 import { StandardValueType as StandardValueTypeSchema } from '@token-model/data-model/src/schema';
-import { StorageService } from '../../services/storage';
 import { CardTitle } from '../../components/CardTitle';
 
 interface ValueTypesViewProps {
   valueTypes: ResolvedValueType[];
   onUpdate: (valueTypes: ResolvedValueType[]) => void;
+  tokens: Token[];
+  collections: TokenCollection[];
+  dimensions: Dimension[];
+  platforms: Platform[];
+  taxonomies: Taxonomy[];
+  themes: Theme[];
 }
 
-export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
+export function ValueTypesView({ 
+  valueTypes, 
+  onUpdate, 
+  tokens, 
+  collections, 
+  dimensions, 
+  platforms, 
+  taxonomies, 
+  themes 
+}: ValueTypesViewProps) {
   const { colorMode } = useColorMode();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<ResolvedValueType | null>(null);
@@ -41,13 +55,6 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
   const [type, setType] = useState<StandardValueType | 'CUSTOM'>('CUSTOM');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const toast = useToast();
-  // Get actual data from storage for validation
-  const currentTokens = StorageService.getTokens();
-  const currentCollections = StorageService.getCollections();
-  const currentDimensions = StorageService.getDimensions();
-  const currentPlatforms = StorageService.getPlatforms();
-  const currentTaxonomies = StorageService.getTaxonomies();
-  const currentThemes = StorageService.getThemes();
 
   // Compute available standard types (exclude those already used, except for the one being edited)
   const usedTypes = valueTypes
@@ -79,12 +86,12 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
     const systemId = storedData.systemId || 'default-system-id';
 
     const data = {
-      tokenCollections: currentCollections,
-      dimensions: currentDimensions,
-      tokens: currentTokens,
-      platforms: currentPlatforms,
-      taxonomies: currentTaxonomies,
-      themes: currentThemes,
+      tokenCollections: collections,
+      dimensions: dimensions,
+      tokens: tokens,
+      platforms: platforms,
+      taxonomies: taxonomies,
+      themes: themes,
       resolvedValueTypes: updatedValueTypes,
       version: '1.0.0',
       versionHistory: [],

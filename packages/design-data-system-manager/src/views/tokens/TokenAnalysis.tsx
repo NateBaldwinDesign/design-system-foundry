@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Button, HStack } from '@chakra-ui/react';
 import * as d3 from 'd3';
-import { StorageService } from '../../services/storage';
 import { ValidationService } from '../../services/validation';
+import type { TokenCollection, Dimension, Platform, Taxonomy, ResolvedValueType } from '@token-model/data-model';
+import type { ExtendedToken } from '../../components/TokenEditorDialog';
 
 interface TokenNode extends d3.SimulationNodeDatum {
   id: string;
@@ -31,19 +32,27 @@ interface D3DragEvent extends d3.D3DragEvent<SVGCircleElement, TokenNode, TokenN
   fy?: number | null;
 }
 
-export const TokenAnalysis: React.FC = () => {
+interface TokenAnalysisProps {
+  tokens: ExtendedToken[];
+  collections: TokenCollection[];
+  dimensions: Dimension[];
+  platforms: Platform[];
+  taxonomies: Taxonomy[];
+  resolvedValueTypes: ResolvedValueType[];
+}
+
+export const TokenAnalysis: React.FC<TokenAnalysisProps> = ({ 
+  tokens, 
+  collections, 
+  dimensions, 
+  platforms, 
+  taxonomies, 
+  resolvedValueTypes 
+}) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
   const simulationRef = useRef<d3.Simulation<TokenNode, undefined> | null>(null);
-
-  // Load all required data from StorageService
-  const tokens = StorageService.getTokens();
-  const collections = StorageService.getCollections();
-  const dimensions = StorageService.getDimensions();
-  const platforms = StorageService.getPlatforms();
-  const taxonomies = StorageService.getTaxonomies();
-  const resolvedValueTypes = StorageService.getValueTypes();
 
   // Create complete schema object
   const schema = {

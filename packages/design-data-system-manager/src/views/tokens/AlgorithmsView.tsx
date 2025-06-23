@@ -17,15 +17,17 @@ import {
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 import { AlgorithmEditor } from '../../components/AlgorithmEditor';
-import { StorageService } from '../../services/storage';
 import { Algorithm } from '../../types/algorithm';
 import { CardTitle } from '../../components/CardTitle';
+import type { Token } from '@token-model/data-model';
 
 interface AlgorithmsViewProps {
   algorithms: Algorithm[];
+  onUpdate: (updatedAlgorithms: Algorithm[]) => void;
+  onUpdateTokens: (updatedTokens: Token[]) => void;
 }
 
-const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms }) => {
+const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms, onUpdate, onUpdateTokens }) => {
   const { colorMode } = useColorMode();
   const toast = useToast();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -39,7 +41,7 @@ const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms }) => {
       ? algorithms.map(a => a.id === algorithm.id ? algorithm : a)
       : [...algorithms, algorithm];
 
-    StorageService.setAlgorithms(newAlgorithms);
+    onUpdate(newAlgorithms);
     setIsEditorOpen(false);
     setEditingAlgorithm(undefined);
 
@@ -54,7 +56,7 @@ const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms }) => {
 
   const handleDeleteAlgorithm = (algorithmId: string) => {
     const newAlgorithms = algorithms.filter(a => a.id !== algorithmId);
-    StorageService.setAlgorithms(newAlgorithms);
+    onUpdate(newAlgorithms);
 
     toast({
       title: 'Success',
@@ -139,6 +141,7 @@ const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms }) => {
               <AlgorithmEditor
                 algorithm={editingAlgorithm}
                 onSave={handleSaveAlgorithm}
+                onUpdateTokens={onUpdateTokens}
               />
             </ModalBody>
           </ModalContent>

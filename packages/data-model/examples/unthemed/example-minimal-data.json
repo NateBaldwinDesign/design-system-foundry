@@ -158,13 +158,45 @@
         "font-size",
         "spacing"
       ]
+    },
+    {
+      "id": "dimensionId-053537da-160d-4766-8f60-a6fbb88f0ba7",
+      "displayName": "User density",
+      "description": "",
+      "modes": [
+        {
+          "id": "modeId-0c7852b9-abe4-47cf-a2d6-b5392dfb549d",
+          "name": "Compact",
+          "description": "",
+          "dimensionId": "dimensionId-053537da-160d-4766-8f60-a6fbb88f0ba7"
+        },
+        {
+          "id": "modeId-e277ad43-3e36-4743-9e36-e867c28f8b3f",
+          "name": "Regular",
+          "description": "",
+          "dimensionId": "dimensionId-053537da-160d-4766-8f60-a6fbb88f0ba7"
+        },
+        {
+          "id": "modeId-847b0653-c79a-4e35-82a4-c150f6a20f9b",
+          "name": "Spacious",
+          "description": "",
+          "dimensionId": "dimensionId-053537da-160d-4766-8f60-a6fbb88f0ba7"
+        }
+      ],
+      "defaultMode": "modeId-e277ad43-3e36-4743-9e36-e867c28f8b3f",
+      "required": false,
+      "resolvedValueTypeIds": [
+        "font-size",
+        "spacing"
+      ]
     }
   ],
   "dimensionOrder": [
     "dimensionId-0000-0000-0000",
     "dimensionId-1111-1111-1111",
     "dimensionId-2222-2222-2222",
-    "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
+    "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24",
+    "dimensionId-053537da-160d-4766-8f60-a6fbb88f0ba7"
   ],
   "tokens": [
     {

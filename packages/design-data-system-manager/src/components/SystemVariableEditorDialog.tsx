@@ -14,11 +14,13 @@ import {
   FormLabel,
   Input,
   Select,
-  useToast
+  useToast,
+  Text
 } from '@chakra-ui/react';
 import { ModeBasedVariableEditor } from './ModeBasedVariableEditor';
 import { generateId } from '../utils/id';
 import type { Variable } from '../types/algorithm';
+import type { Dimension } from '@token-model/data-model';
 
 interface SystemVariableEditorDialogProps {
   open: boolean;
@@ -26,6 +28,7 @@ interface SystemVariableEditorDialogProps {
   onSave: (variable: Variable) => void;
   variable?: Variable | null;
   isNew?: boolean;
+  dimensions: Dimension[];
 }
 
 export const SystemVariableEditorDialog: React.FC<SystemVariableEditorDialogProps> = ({
@@ -33,9 +36,13 @@ export const SystemVariableEditorDialog: React.FC<SystemVariableEditorDialogProp
   onClose,
   onSave,
   variable,
-  isNew = false
+  isNew = false,
+  dimensions
 }) => {
   const toast = useToast();
+  // Regex for valid variable names
+  const variableNamePattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+  
   const [currentVariable, setCurrentVariable] = useState<Variable>({
     id: '',
     name: '',
@@ -43,29 +50,33 @@ export const SystemVariableEditorDialog: React.FC<SystemVariableEditorDialogProp
     defaultValue: '',
     description: '',
     modeBased: false,
-    modeValues: {},
+    valuesByMode: [],
     dimensionId: undefined
   });
 
-  // Initialize variable when dialog opens
+  // Validate the current variable name
+  const isCurrentNameValid = currentVariable.name ? variableNamePattern.test(currentVariable.name) : true;
+
+  // Initialize currentVariable when variable prop changes
   useEffect(() => {
-    if (open) {
-      if (variable && !isNew) {
-        setCurrentVariable({ ...variable });
-      } else {
-        setCurrentVariable({
-          id: generateId('system-variable'),
-          name: '',
-          type: 'number',
-          defaultValue: '',
-          description: '',
-          modeBased: false,
-          modeValues: {},
-          dimensionId: undefined
-        });
-      }
+    if (variable) {
+      setCurrentVariable({
+        ...variable,
+        id: variable.id || generateId('system-variable')
+      });
+    } else {
+      setCurrentVariable({
+        id: generateId('system-variable'),
+        name: '',
+        type: 'number',
+        defaultValue: '',
+        description: '',
+        modeBased: false,
+        valuesByMode: [],
+        dimensionId: undefined
+      });
     }
-  }, [open, variable, isNew]);
+  }, [variable]);
 
   const handleSave = () => {
     // Validate required fields
@@ -73,6 +84,18 @@ export const SystemVariableEditorDialog: React.FC<SystemVariableEditorDialogProp
       toast({
         title: 'Error',
         description: 'Please enter a variable name',
+        status: 'error',
+        duration: 3000,
+        isClosable: true
+      });
+      return;
+    }
+
+    // Validate variable name pattern
+    if (!isCurrentNameValid) {
+      toast({
+        title: 'Error',
+        description: 'Variable name must start with a letter or underscore and contain only letters, numbers, and underscores.',
         status: 'error',
         duration: 3000,
         isClosable: true
@@ -122,13 +145,18 @@ export const SystemVariableEditorDialog: React.FC<SystemVariableEditorDialogProp
         <ModalBody>
           <VStack spacing={4} align="stretch">
             <HStack spacing={4}>
-              <FormControl isRequired>
+              <FormControl isRequired isInvalid={!!currentVariable.name && !isCurrentNameValid}>
                 <FormLabel>Variable Name</FormLabel>
                 <Input
                   placeholder="Variable Name"
                   value={currentVariable.name}
                   onChange={(e) => setCurrentVariable(prev => ({ ...prev, name: e.target.value }))}
                 />
+                {!isCurrentNameValid && currentVariable.name && (
+                  <Text fontSize="xs" color="red.500">
+                    Variable names must start with a letter or underscore and contain only letters, numbers, and underscores.
+                  </Text>
+                )}
               </FormControl>
               <FormControl isRequired>
                 <FormLabel>Type</FormLabel>
@@ -166,6 +194,7 @@ export const SystemVariableEditorDialog: React.FC<SystemVariableEditorDialogProp
             <ModeBasedVariableEditor
               variable={currentVariable}
               onVariableChange={handleVariableChange}
+              dimensions={dimensions}
             />
           </VStack>
         </ModalBody>
@@ -175,7 +204,7 @@ export const SystemVariableEditorDialog: React.FC<SystemVariableEditorDialogProp
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button colorScheme="blue" onClick={handleSave}>
+            <Button colorScheme="blue" onClick={handleSave} isDisabled={!isCurrentNameValid}>
               {isNew ? 'Create Variable' : 'Save Changes'}
             </Button>
           </HStack>

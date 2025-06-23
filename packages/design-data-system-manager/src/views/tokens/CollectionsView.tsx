@@ -16,9 +16,8 @@ import {
   Tooltip
 } from '@chakra-ui/react';
 import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
-import type { TokenCollection, ResolvedValueType, Token } from '@token-model/data-model';
+import type { TokenCollection, Token, ResolvedValueType } from '@token-model/data-model';
 import { CollectionEditorDialog } from '../../components/CollectionEditorDialog';
-import { StorageService } from '../../services/storage';
 import { CardTitle } from '../../components/CardTitle';
 
 interface CollectionsViewProps {
@@ -35,9 +34,6 @@ export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTy
   const [isNew, setIsNew] = useState(false);
   const toast = useToast();
 
-  // Get resolvedValueTypes from storage (for legacy display only)
-  const resolvedValueTypesFromStorage = StorageService.getValueTypes() || [];
-
   // Helper: Get count of tokens with unsupported value types
   function getMismatchedTokenCount(collection: TokenCollection) {
     return tokens.filter(t => 
@@ -52,8 +48,7 @@ export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTy
       t.tokenCollectionId === collection.id && 
       !collection.resolvedValueTypeIds.includes(t.resolvedValueTypeId)
     ).map(t => {
-      const type = resolvedValueTypes.find(rt => rt.id === t.resolvedValueTypeId) || 
-                  resolvedValueTypesFromStorage.find(rt => rt.id === t.resolvedValueTypeId);
+      const type = resolvedValueTypes.find(rt => rt.id === t.resolvedValueTypeId);
       return {
         name: t.displayName,
         type: type?.displayName || t.resolvedValueTypeId
@@ -84,9 +79,6 @@ export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTy
       newCollections = collections.map(c => c.id === collection.id ? collection : c);
     }
     
-    // Save to local storage
-    StorageService.setCollections(newCollections);
-    
     // Update state
     onUpdate(newCollections);
     
@@ -105,9 +97,6 @@ export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTy
 
   const handleDeleteCollection = (id: string) => {
     const newCollections = collections.filter(c => c.id !== id);
-    
-    // Save to local storage
-    StorageService.setCollections(newCollections);
     
     // Update state
     onUpdate(newCollections);
@@ -160,7 +149,7 @@ export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTy
                   </Text>
                   <Wrap spacing={2}>
                     {Array.isArray(collection.resolvedValueTypeIds) && collection.resolvedValueTypeIds.map((typeId: string) => {
-                      const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId) || resolvedValueTypesFromStorage.find((t: ResolvedValueType) => t.id === typeId);
+                      const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
                       // Count tokens that are either:
                       // 1. Explicitly assigned to this collection
                       // 2. Have a matching resolvedValueTypeId but no collection assignment

@@ -15,10 +15,14 @@ import {
 import { LuTrash2, LuPencil, LuPlus, LuSettings } from 'react-icons/lu';
 import { SystemVariableEditorDialog } from '../../components/SystemVariableEditorDialog';
 import { SystemVariableService, SystemVariable } from '../../services/systemVariableService';
-import { StorageService } from '../../services/storage';
 import { CardTitle } from '../../components/CardTitle';
+import type { Dimension } from '@token-model/data-model';
 
-export function SystemVariablesView() {
+interface SystemVariablesViewProps {
+  dimensions: Dimension[];
+}
+
+export function SystemVariablesView({ dimensions }: SystemVariablesViewProps) {
   const { colorMode } = useColorMode();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVariable, setEditingVariable] = useState<SystemVariable | null>(null);
@@ -26,25 +30,10 @@ export function SystemVariablesView() {
   const [systemVariables, setSystemVariables] = useState<SystemVariable[]>([]);
   const toast = useToast();
 
-  // Load system variables from storage
-  const loadSystemVariables = () => {
+  // Load system variables from storage on mount
+  useEffect(() => {
     const variables = SystemVariableService.getSystemVariables();
     setSystemVariables(variables);
-  };
-
-  // Load variables on mount and when window gains focus
-  useEffect(() => {
-    loadSystemVariables();
-    
-    const handleFocus = () => {
-      loadSystemVariables();
-    };
-    
-    window.addEventListener('focus', handleFocus);
-    
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
   }, []);
 
   // Open dialog for creating a new system variable
@@ -66,7 +55,9 @@ export function SystemVariablesView() {
     const success = SystemVariableService.saveSystemVariable(variable);
     
     if (success) {
-      loadSystemVariables(); // Refresh the list
+      // Refresh the list by getting updated data from storage
+      const updatedVariables = SystemVariableService.getSystemVariables();
+      setSystemVariables(updatedVariables);
       toast({ 
         title: isNew ? 'System variable created' : 'System variable updated', 
         status: 'success', 
@@ -90,11 +81,13 @@ export function SystemVariablesView() {
     setDialogOpen(false);
   };
 
-  const handleDeleteVariable = (variableName: string) => {
-    const success = SystemVariableService.deleteSystemVariable(variableName);
+  const handleDeleteVariable = (variableId: string) => {
+    const success = SystemVariableService.deleteSystemVariable(variableId);
     
     if (success) {
-      loadSystemVariables(); // Refresh the list
+      // Refresh the list by getting updated data from storage
+      const updatedVariables = SystemVariableService.getSystemVariables();
+      setSystemVariables(updatedVariables);
       toast({ 
         title: 'System variable deleted', 
         status: 'info', 
@@ -114,7 +107,6 @@ export function SystemVariablesView() {
   // Helper function to get mode name from mode ID
   const getModeName = (modeId: string, dimensionId?: string): string => {
     if (!dimensionId) return modeId;
-    const dimensions = StorageService.getDimensions();
     const dimension = dimensions.find(d => d.id === dimensionId);
     if (!dimension) return modeId;
     const mode = dimension.modes.find(m => m.id === modeId);
@@ -182,13 +174,13 @@ export function SystemVariablesView() {
                     )}
                     
                     {/* Display mode-specific values */}
-                    {variable.modeBased && variable.modeValues && Object.keys(variable.modeValues).length > 0 && (
+                    {variable.modeBased && variable.valuesByMode && variable.valuesByMode.length > 0 && (
                       <Box mt={2}>
                         <Text fontSize="xs" color="gray.500" mb={1}>Mode Values:</Text>
                         <HStack spacing={2} wrap="wrap">
-                          {Object.entries(variable.modeValues).map(([modeId, value]) => (
-                            <Badge key={modeId} size="sm" colorScheme="purple" variant="outline">
-                              {getModeName(modeId, variable.dimensionId)}: {value}
+                          {variable.valuesByMode.map((entry, idx) => (
+                            <Badge key={entry.modeIds.join('-') || idx} size="sm" colorScheme="purple" variant="outline">
+                              {entry.modeIds.map(modeId => getModeName(modeId, variable.dimensionId)).join(', ')}: {entry.value}
                             </Badge>
                           ))}
                         </HStack>
@@ -208,7 +200,7 @@ export function SystemVariablesView() {
                       icon={<LuTrash2 />} 
                       size="sm" 
                       colorScheme="red" 
-                      onClick={() => handleDeleteVariable(variable.name)} 
+                      onClick={() => handleDeleteVariable(variable.id)} 
                     />
                   </HStack>
                 </HStack>
@@ -224,6 +216,7 @@ export function SystemVariablesView() {
         onSave={handleDialogSave}
         variable={editingVariable}
         isNew={isNew}
+        dimensions={dimensions}
       />
     </Box>
   );

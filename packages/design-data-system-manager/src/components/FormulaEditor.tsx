@@ -30,6 +30,7 @@ import { DragDropContext, Droppable, Draggable, DropResult, DragUpdate } from '@
 import { Variable, ASTNode } from '../types/algorithm';
 import { SystemVariableService } from '../services/systemVariableService';
 import { ASTService } from '../services/astService';
+import { VariableMappingService } from '../services/variableMappingService';
 
 interface FormulaBlock {
   id: string;
@@ -79,8 +80,8 @@ function convertJavaScriptToLatex(javascriptExpression: string): string {
   try {
     let latexExpression = javascriptExpression;
 
-    // Handle Math.pow(a, b) -> a^b
-    latexExpression = latexExpression.replace(/Math\.pow\(([^,]+),\s*([^)]+)\)/g, '($1)^{$2}');
+    // Handle Math.pow(a, b) -> a^b (without unnecessary parentheses around base)
+    latexExpression = latexExpression.replace(/Math\.pow\(([^,]+),\s*([^)]+)\)/g, '$1^{$2}');
     
     // Handle Math.sqrt(a) -> \sqrt{a}
     latexExpression = latexExpression.replace(/Math\.sqrt\(([^)]+)\)/g, '\\sqrt{$1}');
@@ -225,7 +226,10 @@ const FormulaBlockComponent: React.FC<{
                 icon={<Trash2 size={16} />}
                 size="xs"
                 colorScheme="red"
-                onClick={() => onDelete(block.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(block.id);
+                }}
               />
             </HStack>
             <Box
@@ -340,9 +344,13 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
   const { colorMode } = useColorMode();
   const [blocks, setBlocks] = useState<FormulaBlock[]>(() => {
     if (!value) return [];
+    
+    // Convert stored formula from IDs to display names for UI
+    const formulaWithNames = VariableMappingService.convertFormulaToNames(value, variables);
+    
     // Parse all expressions into blocks - the lookup table will handle conversion
-    const parsedBlocks = parseFormulaToBlocks(value);
-    console.log('FormulaEditor: Parsed blocks for expression:', value, parsedBlocks);
+    const parsedBlocks = parseFormulaToBlocks(formulaWithNames);
+    console.log('FormulaEditor: Parsed blocks for expression:', formulaWithNames, parsedBlocks);
     return parsedBlocks;
   });
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -364,6 +372,9 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
   const [autoCompleteSuggestions, setAutoCompleteSuggestions] = useState<Array<{id: string, label: string, type: 'variable' | 'operator' | 'template'}>>([]);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
   const [optimizationResult, setOptimizationResult] = useState<{original: string, optimized: string, improvements: string[]} | null>(null);
+
+  // Combine algorithm variables and system variables
+  const allVariables = [...variables, ...systemVariables];
 
   // Load system variables on mount and when window gains focus
   useEffect(() => {
@@ -406,9 +417,6 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
       {op.label}
     </MenuItem>
   ));
-
-  // Combine system variables with user variables
-  const allVariables = [...systemVariables, ...variables];
 
   // Progressive validation function for inline feedback
   const validateFormulaStructure = (blocks: FormulaBlock[]): string => {
@@ -663,29 +671,34 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
   const generateAutoCompleteSuggestions = (input: string) => {
     const suggestions: Array<{id: string, label: string, type: 'variable' | 'operator' | 'template'}> = [];
     
-    // Variable suggestions
+    // Variables
     allVariables.forEach(variable => {
       if (variable.name.toLowerCase().includes(input.toLowerCase())) {
         suggestions.push({
           id: variable.id,
           label: variable.name,
-          type: 'variable'
+          type: 'variable' as const
         });
       }
     });
     
-    // Operator suggestions
-    const operators = mode === 'formula' 
-      ? ['+', '-', '*', '/', '^', 'Math.pow', 'Math.sqrt', 'Math.abs', 'Math.round', 'Math.floor', 'Math.ceil']
-      : ['==', '!=', '>', '<', '>=', '<=', '&&', '||', '!'];
+    // Operators
+    const operators = [
+      { id: '+', label: 'Addition (+)', type: 'operator' as const },
+      { id: '-', label: 'Subtraction (-)', type: 'operator' as const },
+      { id: '*', label: 'Multiplication (*)', type: 'operator' as const },
+      { id: '/', label: 'Division (/)', type: 'operator' as const },
+      { id: '^', label: 'Power (^)', type: 'operator' as const },
+      { id: 'Math.sqrt', label: 'Square Root (Math.sqrt)', type: 'operator' as const },
+      { id: 'Math.abs', label: 'Absolute Value (Math.abs)', type: 'operator' as const },
+      { id: 'Math.round', label: 'Round (Math.round)', type: 'operator' as const },
+      { id: 'Math.min', label: 'Minimum (Math.min)', type: 'operator' as const },
+      { id: 'Math.max', label: 'Maximum (Math.max)', type: 'operator' as const }
+    ];
     
-    operators.forEach(op => {
-      if (op.toLowerCase().includes(input.toLowerCase())) {
-        suggestions.push({
-          id: op,
-          label: op,
-          type: 'operator'
-        });
+    operators.forEach(operator => {
+      if (operator.label.toLowerCase().includes(input.toLowerCase())) {
+        suggestions.push(operator);
       }
     });
     
@@ -880,13 +893,26 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
     const formula = buildFormula(blocks);
     const latexExpression = convertJavaScriptToLatex(formula);
     
-    // Generate AST for the formula
-    const ast = ASTService.parseExpression(formula);
-    
-    // Validate AST and update validation state
-    const validationErrors = ASTService.validateAST(ast);
-    setAstValidationErrors(validationErrors);
-    setAstComplexity(ast.metadata?.complexity || 'low');
+    // Generate AST from the formula with display names
+    let ast: ASTNode;
+    try {
+      ast = ASTService.parseExpression(formula);
+      setAstValidationErrors([]);
+      setAstComplexity(ASTService.calculateComplexity(ast));
+    } catch (error) {
+      console.error('AST generation error:', error);
+      ast = {
+        type: 'literal',
+        value: formula,
+        metadata: {
+          astVersion: '1.0.0',
+          validationErrors: [error instanceof Error ? error.message : 'Unknown error'],
+          complexity: 'low'
+        }
+      };
+      setAstValidationErrors([error instanceof Error ? error.message : 'Unknown error']);
+      setAstComplexity('low');
+    }
     
     // Progressive validation for inline feedback
     const validationMsg = validateFormulaStructure(blocks);
@@ -959,9 +985,63 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
       }
       i++;
     }
-
+    
     return formula.trim();
   };
+
+  // Update blocks when value changes (e.g., from external updates)
+  useEffect(() => {
+    if (value) {
+      // Convert stored formula from IDs to display names for UI
+      const formulaWithNames = VariableMappingService.convertFormulaToNames(value, variables);
+      const parsedBlocks = parseFormulaToBlocks(formulaWithNames);
+      setBlocks(parsedBlocks);
+    } else {
+      setBlocks([]);
+    }
+  }, [value, variables]);
+
+  // Update formula when blocks change
+  useEffect(() => {
+    if (blocks.length > 0) {
+      const formula = buildFormula(blocks);
+      const latexExpression = convertJavaScriptToLatex(formula);
+      
+      // Generate AST from the formula with display names
+      let ast: ASTNode;
+      try {
+        ast = ASTService.parseExpression(formula);
+        setAstValidationErrors([]);
+        setAstComplexity(ASTService.calculateComplexity(ast));
+      } catch (error) {
+        console.error('AST generation error:', error);
+        ast = {
+          type: 'literal',
+          value: formula,
+          metadata: {
+            astVersion: '1.0.0',
+            validationErrors: [error instanceof Error ? error.message : 'Unknown error'],
+            complexity: 'low'
+          }
+        };
+        setAstValidationErrors([error instanceof Error ? error.message : 'Unknown error']);
+        setAstComplexity('low');
+      }
+      
+      // Call onChange with the formula with display names (will be converted to IDs by parent)
+      onChange(formula, latexExpression, ast);
+    } else {
+      onChange('', '', {
+        type: 'literal',
+        value: '',
+        metadata: {
+          astVersion: '1.0.0',
+          validationErrors: [],
+          complexity: 'low'
+        }
+      });
+    }
+  }, [blocks, onChange, variables]);
 
   // Expression optimization
   const handleOptimizeExpression = () => {
@@ -1475,9 +1555,12 @@ export const FormulaEditor: React.FC<FormulaEditorProps> = ({
 
 // Helper function to parse formula string into blocks
 function parseFormulaToBlocks(formula: string): FormulaBlock[] {
+  if (!formula || formula.trim() === '') {
+    return [];
+  }
+
   // Handle Math.pow(a, b) expressions by converting them to a^b structure
   if (formula.includes('Math.pow(')) {
-    // Find all Math.pow calls and replace them with a^b format
     let processedFormula = formula;
     const mathPowMatches = formula.match(/Math\.pow\(([^,]+),\s*([^)]+)\)/g);
     
@@ -1493,68 +1576,251 @@ function parseFormulaToBlocks(formula: string): FormulaBlock[] {
       });
     }
     
-    // Now parse the processed formula
-    return parseSimpleExpression(processedFormula);
+    return parseComplexExpression(processedFormula);
   }
   
-  // For other expressions, use the simple parser
-  return parseSimpleExpression(formula);
+  // Check if the formula contains arrays or ranges
+  const hasArraysOrRanges = /\[.*\]|\d+\.\.\d+/.test(formula);
+  
+  if (hasArraysOrRanges) {
+    // For formulas with arrays/ranges, use a hybrid approach
+    const arrayRangeBlocks = parseArraysAndRanges(formula);
+    const expressionBlocks = parseComplexExpression(formula);
+    
+    // Combine both types of blocks
+    return [...expressionBlocks, ...arrayRangeBlocks];
+  }
+  
+  return parseComplexExpression(formula);
 }
 
-// Helper function to parse simple expressions (no Math.pow)
-function parseSimpleExpression(formula: string): FormulaBlock[] {
-  const tokens = formula.split(/\s+/);
-  return tokens.map(token => {
-    if (token.match(/^[+\-*/=><]$/)) {
-      return {
-        id: `op_${Date.now()}_${Math.random()}`,
-        type: 'operator',
-        content: token
-      };
-    } else if (token.startsWith('(') && token.endsWith(')')) {
-      return {
-        id: `group_${Date.now()}_${Math.random()}`,
-        type: 'group',
-        content: '()',
-        children: parseSimpleExpression(token.slice(1, -1))
-      };
-    } else if (token.startsWith('[') && token.endsWith(']')) {
-      // Parse array: [1, 2, 3, 4]
-      const arrayContent = token.slice(1, -1);
-      const values = arrayContent
-        .split(',')
-        .map(v => v.trim())
-        .map(v => Number(v))
-        .filter(n => !isNaN(n));
+// Token types for parsing
+type TokenType = 'variable' | 'operator' | 'number' | 'parenthesis' | 'whitespace';
+
+interface Token {
+  type: TokenType;
+  value: string;
+  position: number;
+}
+
+// Tokenize the expression into meaningful tokens
+function tokenizeExpression(expression: string): Token[] {
+  const tokens: Token[] = [];
+  let current = 0;
+  
+  while (current < expression.length) {
+    const char = expression[current];
+    
+    // Skip whitespace
+    if (/\s/.test(char)) {
+      current++;
+      continue;
+    }
+    
+    // Handle numbers
+    if (/\d/.test(char)) {
+      let value = '';
+      while (current < expression.length && /\d|\./.test(expression[current])) {
+        value += expression[current];
+        current++;
+      }
+      tokens.push({ type: 'number', value, position: current - value.length });
+      continue;
+    }
+    
+    // Handle operators
+    if (/[+\-*/^=<>!&|]/.test(char)) {
+      let value = char;
+      current++;
       
-      return {
+      // Handle multi-character operators
+      if (current < expression.length) {
+        const nextChar = expression[current];
+        if ((char === '=' && nextChar === '=') || 
+            (char === '!' && nextChar === '=') ||
+            (char === '<' && nextChar === '=') ||
+            (char === '>' && nextChar === '=') ||
+            (char === '&' && nextChar === '&') ||
+            (char === '|' && nextChar === '|')) {
+          value += nextChar;
+          current++;
+        }
+      }
+      
+      tokens.push({ type: 'operator', value, position: current - value.length });
+      continue;
+    }
+    
+    // Handle parentheses
+    if (char === '(' || char === ')') {
+      tokens.push({ type: 'parenthesis', value: char, position: current });
+      current++;
+      continue;
+    }
+    
+    // Handle variables (alphanumeric + underscore)
+    if (/[a-zA-Z_]/.test(char)) {
+      let value = '';
+      while (current < expression.length && /[a-zA-Z0-9_]/.test(expression[current])) {
+        value += expression[current];
+        current++;
+      }
+      tokens.push({ type: 'variable', value, position: current - value.length });
+      continue;
+    }
+    
+    // Unknown character, skip it
+    current++;
+  }
+  
+  return tokens;
+}
+
+// Parse complex expressions with proper handling of parentheses and operators
+function parseComplexExpression(formula: string): FormulaBlock[] {
+  const tokens = tokenizeExpression(formula);
+  const blocks: FormulaBlock[] = [];
+  let i = 0;
+  
+  while (i < tokens.length) {
+    const token = tokens[i];
+    
+    switch (token.type) {
+      case 'variable':
+        // Check if this is a Math function
+        if (token.value === 'Math' && i + 2 < tokens.length && 
+            tokens[i + 1].value === '.' && tokens[i + 2].type === 'variable') {
+          const mathFunction = tokens[i + 2].value;
+          blocks.push({
+            id: `op_${Date.now()}_${Math.random()}`,
+            type: 'operator',
+            content: `Math.${mathFunction}`
+          });
+          i += 2; // Skip the "." and function name
+        } else {
+          blocks.push({
+            id: `var_${Date.now()}_${Math.random()}`,
+            type: 'variable',
+            content: token.value
+          });
+        }
+        break;
+        
+      case 'number':
+        blocks.push({
+          id: `value_${Date.now()}_${Math.random()}`,
+          type: 'value',
+          content: token.value,
+          value: parseFloat(token.value)
+        });
+        break;
+        
+      case 'operator':
+        // Handle power operator specially
+        if (token.value === '^') {
+          blocks.push({
+            id: `op_${Date.now()}_${Math.random()}`,
+            type: 'operator',
+            content: '^'
+          });
+        } else {
+          blocks.push({
+            id: `op_${Date.now()}_${Math.random()}`,
+            type: 'operator',
+            content: token.value
+          });
+        }
+        break;
+        
+      case 'parenthesis':
+        if (token.value === '(') {
+          // Find matching closing parenthesis
+          let depth = 1;
+          let j = i + 1;
+          let groupContent = '';
+          
+          while (j < tokens.length && depth > 0) {
+            if (tokens[j].value === '(') depth++;
+            if (tokens[j].value === ')') depth--;
+            
+            if (depth > 0) {
+              groupContent += tokens[j].value;
+            }
+            j++;
+          }
+          
+          if (depth === 0) {
+            // Parse the content inside parentheses
+            const children = parseComplexExpression(groupContent);
+            blocks.push({
+              id: `group_${Date.now()}_${Math.random()}`,
+              type: 'group',
+              content: '()',
+              children
+            });
+            i = j - 1; // Skip to after the closing parenthesis
+          } else {
+            // Unmatched parenthesis, treat as variable
+            blocks.push({
+              id: `var_${Date.now()}_${Math.random()}`,
+              type: 'variable',
+              content: token.value
+            });
+          }
+        }
+        break;
+    }
+    
+    i++;
+  }
+  
+  return blocks;
+}
+
+// Helper function to parse arrays and ranges from the original formula
+function parseArraysAndRanges(formula: string): FormulaBlock[] {
+  const blocks: FormulaBlock[] = [];
+  
+  // Parse arrays: [1, 2, 3, 4]
+  const arrayRegex = /\[([^\]]+)\]/g;
+  let arrayMatch;
+  while ((arrayMatch = arrayRegex.exec(formula)) !== null) {
+    const arrayContent = arrayMatch[1];
+    const values = arrayContent
+      .split(',')
+      .map(v => v.trim())
+      .map(v => Number(v))
+      .filter(n => !isNaN(n));
+    
+    if (values.length > 0) {
+      blocks.push({
         id: `array_${Date.now()}_${Math.random()}`,
         type: 'array',
-        content: token,
+        content: arrayMatch[0],
         arrayValues: values
-      };
-    } else if (token.match(/^\d+\.\.\d+/)) {
-      // Parse range: 0..10 or 0..10:1
-      const rangeMatch = token.match(/^(\d+)\.\.(\d+)(?::(\d+))?$/);
-      if (rangeMatch) {
-        const start = Number(rangeMatch[1]);
-        const end = Number(rangeMatch[2]);
-        const step = rangeMatch[3] ? Number(rangeMatch[3]) : 1;
-        
-        return {
-          id: `range_${Date.now()}_${Math.random()}`,
-          type: 'range',
-          content: `${start}..${end} (step ${step})`,
-          rangeStart: start,
-          rangeEnd: end,
-          rangeStep: step
-        };
-      }
+      });
     }
-    return {
-      id: `var_${Date.now()}_${Math.random()}`,
-      type: 'variable',
-      content: token
-    };
-  });
+  }
+  
+  // Parse ranges: 0..10 or 0..10:1
+  const rangeRegex = /(\d+)\.\.(\d+)(?::(\d+))?/g;
+  let rangeMatch;
+  while ((rangeMatch = rangeRegex.exec(formula)) !== null) {
+    const start = Number(rangeMatch[1]);
+    const end = Number(rangeMatch[2]);
+    const step = rangeMatch[3] ? Number(rangeMatch[3]) : 1;
+    
+    if (!isNaN(start) && !isNaN(end) && !isNaN(step)) {
+      blocks.push({
+        id: `range_${Date.now()}_${Math.random()}`,
+        type: 'range',
+        content: `${start}..${end} (step ${step})`,
+        rangeStart: start,
+        rangeEnd: end,
+        rangeStep: step
+      });
+    }
+  }
+  
+  return blocks;
 }

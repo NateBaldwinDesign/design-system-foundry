@@ -44,6 +44,16 @@ export class AlgorithmExecutionService {
     context: Record<string, unknown> = {},
     modeContext?: Record<string, string> // modeId -> modeId mapping for mode-based variables
   ): ExecutionContext {
+    console.log('🔧 AlgorithmExecutionService.executeAlgorithm: Starting algorithm execution', {
+      algorithmId: algorithm.id,
+      algorithmName: algorithm.name,
+      iterationValue,
+      context,
+      modeContext,
+      variablesCount: algorithm.variables.length,
+      stepsCount: algorithm.steps.length
+    });
+
     const executionContext: ExecutionContext = {
       variables: {},
       results: {},
@@ -53,34 +63,82 @@ export class AlgorithmExecutionService {
 
     try {
       // Initialize variables with default values - map by ID only for execution
+      console.log('📊 AlgorithmExecutionService.executeAlgorithm: Initializing variables');
       algorithm.variables.forEach(variable => {
+        console.log(`📊 AlgorithmExecutionService.executeAlgorithm: Processing variable "${variable.name}" (${variable.id})`, {
+          variableId: variable.id,
+          variableName: variable.name,
+          variableType: variable.type,
+          modeBased: variable.modeBased,
+          dimensionId: variable.dimensionId,
+          defaultValue: variable.defaultValue,
+          valuesByMode: variable.valuesByMode
+        });
+
         let parsedValue: unknown;
         
         // Handle mode-based variables
-        if (variable.modeBased && variable.dimensionId && variable.modeValues && modeContext) {
+        if (variable.modeBased && variable.dimensionId && variable.valuesByMode && modeContext) {
+          console.log(`🎯 AlgorithmExecutionService.executeAlgorithm: Processing mode-based variable "${variable.name}"`, {
+            variableId: variable.id,
+            dimensionId: variable.dimensionId,
+            modeContext,
+            availableModeValues: Object.keys(variable.valuesByMode)
+          });
+
           // Find the mode ID for this dimension in the current context
           const currentModeId = modeContext[variable.dimensionId];
-          if (currentModeId && variable.modeValues[currentModeId]) {
+          console.log(`🎯 AlgorithmExecutionService.executeAlgorithm: Current mode for dimension "${variable.dimensionId}"`, {
+            currentModeId,
+            hasModeValue: currentModeId ? !!variable.valuesByMode[currentModeId] : false
+          });
+
+          if (currentModeId && variable.valuesByMode[currentModeId]) {
             // Use the mode-specific value
-            parsedValue = this.parseVariableValue(variable.modeValues[currentModeId], variable.type);
+            const modeValue = variable.valuesByMode[currentModeId];
+            parsedValue = this.parseVariableValue(modeValue, variable.type);
+            console.log(`✅ AlgorithmExecutionService.executeAlgorithm: Using mode-specific value for "${variable.name}"`, {
+              modeId: currentModeId,
+              modeValue,
+              parsedValue,
+              parsedValueType: typeof parsedValue
+            });
           } else {
             // Fallback to default value if mode-specific value not found
             parsedValue = this.parseVariableValue(variable.defaultValue || '', variable.type);
+            console.log(`⚠️ AlgorithmExecutionService.executeAlgorithm: Mode-specific value not found for "${variable.name}", using default`, {
+              currentModeId,
+              availableModeValues: Object.keys(variable.valuesByMode),
+              defaultValue: variable.defaultValue,
+              parsedValue,
+              parsedValueType: typeof parsedValue
+            });
           }
         } else {
           // Use default value for non-mode-based variables
           parsedValue = this.parseVariableValue(variable.defaultValue || '', variable.type);
+          console.log(`📊 AlgorithmExecutionService.executeAlgorithm: Using default value for "${variable.name}"`, {
+            defaultValue: variable.defaultValue,
+            parsedValue,
+            parsedValueType: typeof parsedValue
+          });
         }
         
         // Store by ID only for execution (avoid display names with spaces)
         executionContext.variables[variable.id] = parsedValue;
+        console.log(`💾 AlgorithmExecutionService.executeAlgorithm: Stored variable "${variable.name}" in execution context`, {
+          variableId: variable.id,
+          storedValue: parsedValue
+        });
       });
 
       // Add system variable 'n'
       executionContext.variables['n'] = iterationValue;
+      console.log('📊 AlgorithmExecutionService.executeAlgorithm: Added system variable "n"', { n: iterationValue });
       
       // Add any additional context
       Object.assign(executionContext.variables, context);
+      console.log('📊 AlgorithmExecutionService.executeAlgorithm: Added additional context', { context });
 
       // Always provide Math and Array in the context for all steps
       executionContext.variables['Math'] = {
@@ -101,33 +159,91 @@ export class AlgorithmExecutionService {
       executionContext.variables['Array'] = {
         isArray: Array.isArray
       };
+      console.log('📊 AlgorithmExecutionService.executeAlgorithm: Added Math and Array utilities');
+
+      console.log('📊 AlgorithmExecutionService.executeAlgorithm: Final execution context variables', {
+        variableCount: Object.keys(executionContext.variables).length,
+        variables: executionContext.variables
+      });
 
       // Execute steps in order, propagating variables between steps
-      algorithm.steps.forEach(step => {
+      console.log('🚀 AlgorithmExecutionService.executeAlgorithm: Starting step execution');
+      algorithm.steps.forEach((step, stepIndex) => {
+        console.log(`🚀 AlgorithmExecutionService.executeAlgorithm: Executing step ${stepIndex + 1}/${algorithm.steps.length}`, {
+          stepType: step.type,
+          stepId: step.id,
+          stepName: step.name
+        });
+
         if (step.type === 'formula') {
           const formula = algorithm.formulas.find(f => f.id === step.id);
           if (formula) {
+            console.log(`📝 AlgorithmExecutionService.executeAlgorithm: Evaluating formula "${formula.name}"`, {
+              formulaId: formula.id,
+              formulaName: formula.name,
+              expression: formula.expressions.javascript.value
+            });
+
             // Evaluate the formula, which may be an assignment or pure expression
             const result = this.evaluateFormula(formula, executionContext.variables);
+            console.log(`✅ AlgorithmExecutionService.executeAlgorithm: Formula "${formula.name}" evaluated successfully`, {
+              result,
+              resultType: typeof result
+            });
+
             // Store result by formula name for reference
             executionContext.results[formula.name] = result;
             // The last formula result is the final result
             executionContext.finalResult = result;
+          } else {
+            console.error(`❌ AlgorithmExecutionService.executeAlgorithm: Formula not found for step`, {
+              stepId: step.id,
+              stepName: step.name
+            });
           }
         } else if (step.type === 'condition') {
           const condition = algorithm.conditions.find(c => c.id === step.id);
           if (condition) {
+            console.log(`🔍 AlgorithmExecutionService.executeAlgorithm: Evaluating condition "${condition.name}"`, {
+              conditionId: condition.id,
+              conditionName: condition.name,
+              expression: condition.expression
+            });
+
             // Evaluate the condition with the current variable context
             const result = this.evaluateCondition(condition, executionContext.variables);
+            console.log(`✅ AlgorithmExecutionService.executeAlgorithm: Condition "${condition.name}" evaluated successfully`, {
+              result,
+              resultType: typeof result
+            });
+
             executionContext.results[condition.name] = result;
             // If a condition fails, you may want to throw or handle it (not altering existing design)
+          } else {
+            console.error(`❌ AlgorithmExecutionService.executeAlgorithm: Condition not found for step`, {
+              stepId: step.id,
+              stepName: step.name
+            });
           }
         }
       });
 
+      console.log('🎉 AlgorithmExecutionService.executeAlgorithm: Algorithm execution completed successfully', {
+        finalResult: executionContext.finalResult,
+        finalResultType: typeof executionContext.finalResult,
+        resultsCount: Object.keys(executionContext.results).length,
+        results: executionContext.results
+      });
+
       return executionContext;
     } catch (error) {
-      console.error('Algorithm execution error:', error);
+      console.error('💥 AlgorithmExecutionService.executeAlgorithm: Algorithm execution failed', {
+        error,
+        stack: error instanceof Error ? error.stack : undefined,
+        algorithmId: algorithm.id,
+        iterationValue,
+        modeContext
+      });
       throw new Error(`Algorithm execution failed: ${error}`);
     }
   }
@@ -146,8 +262,19 @@ export class AlgorithmExecutionService {
       if (formula.expressions.ast) {
         // Validate AST first
         const validationErrors = ASTService.validateAST(formula.expressions.ast);
-        if (validationErrors.length > 0) {
-          throw new Error(`AST validation failed: ${validationErrors.join(', ')}`);
+        
+        // Separate warnings from actual errors
+        const warnings = validationErrors.filter(error => error.startsWith('Warning:'));
+        const actualErrors = validationErrors.filter(error => !error.startsWith('Warning:'));
+        
+        // Log warnings but don't block execution
+        if (warnings.length > 0) {
+          console.warn(`AST validation warnings for formula "${formula.name}":`, warnings);
+        }
+        
+        // Only throw for actual validation errors
+        if (actualErrors.length > 0) {
+          throw new Error(`AST validation failed: ${actualErrors.join(', ')}`);
         }
 
         // Generate JavaScript from AST

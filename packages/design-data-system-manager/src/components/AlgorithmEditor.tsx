@@ -43,10 +43,12 @@ import { ExecutionPreview } from './ExecutionPreview';
 import { ModeBasedVariableEditor } from './ModeBasedVariableEditor';
 import { ModeSelectionDialog } from './ModeSelectionDialog';
 import { SystemVariableService } from '../services/systemVariableService';
+import { VariableMappingService } from '../services/variableMappingService';
 
 interface AlgorithmEditorProps {
   algorithm?: Algorithm;
   onSave?: (algorithm: Algorithm) => void;
+  onUpdateTokens?: (updatedTokens: Token[]) => void;
 }
 
 const defaultAlgorithm: Algorithm = {
@@ -83,7 +85,8 @@ const defaultAlgorithm: Algorithm = {
 
 export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({ 
   algorithm = defaultAlgorithm, 
-  onSave = () => {} 
+  onSave = () => {}, 
+  onUpdateTokens = () => {}
 }) => {
   const { colorMode } = useColorMode();
   const toast = useToast();
@@ -142,6 +145,9 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
   const [filteredTaxonomies, setFilteredTaxonomies] = useState<Taxonomy[]>([]);
   const [selectedTaxonomies, setSelectedTaxonomies] = useState<Array<{ taxonomyId: string; termId: string }>>([]);
   const [resolvedValueTypes, setResolvedValueTypes] = useState<ResolvedValueType[]>([]);
+
+  // Add state to track if token generation configuration is complete
+  const [tokenGenerationConfigured, setTokenGenerationConfigured] = useState(false);
 
   // Track changes for history
   useEffect(() => {
@@ -207,12 +213,33 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
   // Detect mode-based variables
   useEffect(() => {
     const algorithmVariables = currentAlgorithm.variables || [];
+    
+    // Only check system variables that are actually referenced in formulas
+    const referencedSystemVariableNames = new Set<string>();
+    currentAlgorithm.formulas?.forEach(formula => {
+      if (formula.expressions.javascript.value) {
+        // Extract variable names from JavaScript expression
+        const variableMatches = formula.expressions.javascript.value.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g) || [];
+        variableMatches.forEach(varName => {
+          // Check if this variable name is not in algorithm variables (might be a system variable)
+          if (!algorithmVariables.some(v => v.name === varName)) {
+            referencedSystemVariableNames.add(varName);
+          }
+        });
+      }
+    });
+    
+    // Get only the system variables that are actually referenced
     const systemVariables = SystemVariableService.getSystemVariables();
-    const allVariables = [...algorithmVariables, ...systemVariables];
+    const referencedSystemVariables = systemVariables.filter(v => 
+      referencedSystemVariableNames.has(v.name)
+    );
+    
+    const allVariables = [...algorithmVariables, ...referencedSystemVariables];
     
     const modeBasedVariables = allVariables.filter(v => v.modeBased && v.dimensionId);
     setHasModeBasedVariables(modeBasedVariables.length > 0);
-  }, [currentAlgorithm.variables]);
+  }, [currentAlgorithm.variables, currentAlgorithm.formulas]);
 
   // Token detection logic - Phase 1
   useEffect(() => {
@@ -371,7 +398,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       // Include mode-based properties
       modeBased: newVariable.modeBased,
       dimensionId: newVariable.dimensionId,
-      modeValues: newVariable.modeValues
+      valuesByMode: newVariable.valuesByMode || []
     };
 
     const updatedAlgorithm = {
@@ -379,7 +406,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       variables: [...currentAlgorithm.variables, newVariableObj]
     };
     setCurrentAlgorithm(updatedAlgorithm);
-    setNewVariable({ name: '', type: 'number', defaultValue: '', modeBased: false, dimensionId: undefined, modeValues: undefined });
+    setNewVariable({ name: '', type: 'number', defaultValue: '', modeBased: false, dimensionId: undefined, valuesByMode: [] });
     
     // Track history
     trackHistoryChange(`Added variable: ${newVariableObj.name}`, 'variable');
@@ -468,7 +495,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       if (!variable.name?.trim()) {
         toast({
           title: 'Error',
-          description: `Variable "${variable.id}" is missing a name`,
+          description: `Variable with ID "${variable.id}" is missing a name`,
           status: 'error',
           duration: 3000,
           isClosable: true
@@ -492,7 +519,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       if (!formula.name?.trim()) {
         toast({
           title: 'Error',
-          description: `Formula "${formula.id}" is missing a name`,
+          description: `Formula with ID "${formula.id}" is missing a name`,
           status: 'error',
           duration: 3000,
           isClosable: true
@@ -506,9 +533,45 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       if (!condition.name?.trim()) {
         toast({
           title: 'Error',
-          description: `Condition "${condition.id}" is missing a name`,
+          description: `Condition with ID "${condition.id}" is missing a name`,
           status: 'error',
           duration: 3000,
+          isClosable: true
+        });
+        return;
+      }
+    }
+
+    // Validate token generation configuration if enabled
+    if (currentAlgorithm.tokenGeneration?.enabled && !hasExistingTokens) {
+      const { logicalMapping } = currentAlgorithm.tokenGeneration;
+      const hasTaxonomyConfig = logicalMapping.taxonomyId || logicalMapping.newTaxonomyName?.trim();
+      
+      if (!hasTaxonomyConfig) {
+        toast({
+          title: 'Token Generation Configuration Required',
+          description: 'Please configure the taxonomy settings in the Token Generation tab before saving.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true
+        });
+        return;
+      }
+
+      // Check if algorithm has minimum required configuration
+      const hasVariables = currentAlgorithm.variables && currentAlgorithm.variables.length > 0;
+      const hasFormulas = currentAlgorithm.formulas && currentAlgorithm.formulas.length > 0;
+      
+      if (!hasVariables || !hasFormulas) {
+        const missingItems = [];
+        if (!hasVariables) missingItems.push('variables');
+        if (!hasFormulas) missingItems.push('formulas');
+        
+        toast({
+          title: 'Algorithm Configuration Required',
+          description: `Please add ${missingItems.join(' and ')} before saving.`,
+          status: 'error',
+          duration: 5000,
           isClosable: true
         });
         return;
@@ -596,7 +659,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
           return token;
         });
 
-        StorageService.setTokens(updatedTokens);
+        onUpdateTokens(updatedTokens);
 
         toast({
           title: 'Success',
@@ -670,7 +733,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
           if (tokens.length > 0) {
             // Merge generated tokens with existing tokens
             const updatedTokens = [...existingTokens, ...tokens];
-            StorageService.setTokens(updatedTokens);
+            onUpdateTokens(updatedTokens);
 
             console.log('new tokens', tokens);
 
@@ -728,6 +791,18 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       return;
     }
 
+    // Validate variable name pattern
+    if (!variableNamePattern.test(editingVariable.name)) {
+      toast({
+        title: 'Error',
+        description: 'Variable name must start with a letter or underscore and contain only letters, numbers, and underscores.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true
+      });
+      return;
+    }
+
     const updatedAlgorithm = {
       ...currentAlgorithm,
       variables: currentAlgorithm.variables.map(v => 
@@ -756,6 +831,139 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       return;
     }
 
+    // Only generate preview if configuration is complete
+    if (!tokenGenerationConfigured) {
+      setGeneratedTokens([]);
+      setGenerationErrors([]);
+      return;
+    }
+
+    // Additional validation before attempting generation
+    const hasVariables = currentAlgorithm.variables && currentAlgorithm.variables.length > 0;
+    const hasFormulas = currentAlgorithm.formulas && currentAlgorithm.formulas.length > 0;
+    
+    if (!hasExistingTokens && (!hasVariables || !hasFormulas)) {
+      setGeneratedTokens([]);
+      setGenerationErrors(['Please add variables and formulas before generating tokens.']);
+      return;
+    }
+
+    // Check for missing variables referenced in formulas
+    if (hasFormulas) {
+      // Get both algorithm variables and system variables
+      const algorithmVariableNames = new Set(currentAlgorithm.variables.map(v => v.name));
+      const systemVariables = SystemVariableService.getSystemVariables();
+      const systemVariableNames = new Set(systemVariables.map(v => v.name));
+      const allDefinedVariableNames = new Set([...algorithmVariableNames, ...systemVariableNames]);
+      
+      const missingVariables: string[] = [];
+      const syntaxErrors: string[] = [];
+      
+      // Check each formula for missing variables and syntax errors
+      currentAlgorithm.formulas.forEach(formula => {
+        if (formula.expressions.javascript.value) {
+          const jsExpression = formula.expressions.javascript.value;
+          
+          // Check for common syntax errors
+          if (jsExpression.includes('Math.pow(') && jsExpression.includes('=')) {
+            syntaxErrors.push(`Formula "${formula.name}" has invalid Math.pow syntax. Assignment cannot be done inside Math.pow().`);
+          }
+          
+          // Check for malformed function calls
+          if (jsExpression.includes('(') && !jsExpression.includes(')')) {
+            syntaxErrors.push(`Formula "${formula.name}" has unmatched parentheses.`);
+          }
+          
+          // Convert formula from IDs to names for validation
+          const formulaWithNames = VariableMappingService.convertFormulaToNames(
+            jsExpression, 
+            currentAlgorithm.variables
+          );
+          
+          // Extract variable names from the JavaScript expression
+          const variableMatches = formulaWithNames.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g) || [];
+          const uniqueVariables = [...new Set(variableMatches)];
+          
+          // Filter out JavaScript keywords and functions
+          const jsKeywords = ['Math', 'Array', 'Object', 'String', 'Number', 'Boolean', 'Date', 'RegExp', 'Function', 'undefined', 'null', 'true', 'false', 'NaN', 'Infinity'];
+          const formulaVariables = uniqueVariables.filter(v => !jsKeywords.includes(v));
+          
+          // Check for missing variables
+          formulaVariables.forEach(varName => {
+            if (!allDefinedVariableNames.has(varName)) {
+              missingVariables.push(varName);
+            }
+          });
+        }
+      });
+      
+      // Report syntax errors first
+      if (syntaxErrors.length > 0) {
+        setGeneratedTokens([]);
+        setGenerationErrors(syntaxErrors);
+        return;
+      }
+      
+      if (missingVariables.length > 0) {
+        const uniqueMissingVars = [...new Set(missingVariables)];
+        setGeneratedTokens([]);
+        setGenerationErrors([
+          `The following variables are referenced in formulas but not defined: ${uniqueMissingVars.join(', ')}. Please add them in the Variables tab or ensure system variables are properly configured.`
+        ]);
+        return;
+      }
+      
+      // Check for missing variableIds in formulas
+      const variableIdErrors: string[] = [];
+      currentAlgorithm.formulas.forEach(formula => {
+        if (formula.expressions.javascript.value) {
+          const jsExpression = formula.expressions.javascript.value;
+          const formulaWithNames = VariableMappingService.convertFormulaToNames(
+            jsExpression, 
+            currentAlgorithm.variables
+          );
+          
+          // Extract variable names from the JavaScript expression
+          const variableMatches = formulaWithNames.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g) || [];
+          const uniqueVariables = [...new Set(variableMatches)];
+          
+          // Filter out JavaScript keywords and functions
+          const jsKeywords = ['Math', 'Array', 'Object', 'String', 'Number', 'Boolean', 'Date', 'RegExp', 'Function', 'undefined', 'null', 'true', 'false', 'NaN', 'Infinity'];
+          const formulaVariables = uniqueVariables.filter(v => !jsKeywords.includes(v));
+          
+          // Get all variable mappings to check IDs
+          const allVariableMappings = VariableMappingService.getAllVariableMappings(currentAlgorithm.variables);
+          const referencedVariableIds = new Set<string>();
+          
+          formulaVariables.forEach(varName => {
+            const mapping = allVariableMappings.find(m => m.name === varName);
+            if (mapping) {
+              referencedVariableIds.add(mapping.id);
+            }
+          });
+          
+          // Check if all referenced variables are in variableIds
+          const missingVariableIds = Array.from(referencedVariableIds).filter(id => 
+            !formula.variableIds.includes(id)
+          );
+          
+          if (missingVariableIds.length > 0) {
+            const missingNames = missingVariableIds.map(id => {
+              const mapping = allVariableMappings.find(m => m.id === id);
+              return mapping ? mapping.name : id;
+            });
+            variableIdErrors.push(`Formula "${formula.name}" references variables not listed in variableIds: ${missingNames.join(', ')}`);
+          }
+        }
+      });
+      
+      if (variableIdErrors.length > 0) {
+        setGeneratedTokens([]);
+        setGenerationErrors(variableIdErrors);
+        return;
+      }
+    }
+
     try {
       const existingTokens = StorageService.getTokens();
       const collections = StorageService.getCollections();
@@ -773,15 +981,46 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       setGeneratedTokens(tokens);
       setGenerationErrors(errors);
     } catch (error) {
+      console.error('Preview generation error:', error);
       setGenerationErrors([`Preview generation failed: ${error}`]);
       setGeneratedTokens([]);
     }
   };
 
-  // Generate preview tokens when algorithm changes
+  // Generate preview tokens when algorithm changes and configuration is complete
   useEffect(() => {
     generatePreviewTokens();
-  }, [currentAlgorithm, selectedModes]);
+  }, [currentAlgorithm, selectedModes, tokenGenerationConfigured]);
+
+  // Check if token generation configuration is complete
+  useEffect(() => {
+    if (!currentAlgorithm.tokenGeneration?.enabled) {
+      setTokenGenerationConfigured(false);
+      return;
+    }
+
+    const { logicalMapping } = currentAlgorithm.tokenGeneration;
+    
+    // Check if either an existing taxonomy is selected OR a new taxonomy name is provided
+    const hasTaxonomyConfig = logicalMapping.taxonomyId || logicalMapping.newTaxonomyName?.trim();
+    
+    // Check if algorithm has minimum required configuration
+    const hasVariables = currentAlgorithm.variables && currentAlgorithm.variables.length > 0;
+    const hasFormulas = currentAlgorithm.formulas && currentAlgorithm.formulas.length > 0;
+    
+    // For new algorithms, require at least variables and formulas
+    // For existing algorithms with tokens, we can be more lenient
+    const hasMinimumConfig = hasExistingTokens ? true : (hasVariables && hasFormulas);
+    
+    setTokenGenerationConfigured(!!hasTaxonomyConfig && hasMinimumConfig);
+  }, [
+    currentAlgorithm.tokenGeneration?.logicalMapping?.taxonomyId, 
+    currentAlgorithm.tokenGeneration?.logicalMapping?.newTaxonomyName, 
+    currentAlgorithm.tokenGeneration?.enabled,
+    currentAlgorithm.variables,
+    currentAlgorithm.formulas,
+    hasExistingTokens
+  ]);
 
   const handleAddFormula = () => {
     const newFormula: Formula = {
@@ -948,6 +1187,11 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
     return mode ? mode.name : modeId;
   };
 
+  // Regex for valid variable names
+  const variableNamePattern = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+  const isVariableNameValid = newVariable.name ? variableNamePattern.test(newVariable.name) : false;
+  const isEditingVariableNameValid = editingVariable.name ? variableNamePattern.test(editingVariable.name) : true;
+
   return (
     <Box>
       <VStack spacing={6} align="stretch">
@@ -1040,13 +1284,18 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
             <TabPanel>
               <VStack spacing={4} align="stretch">
                 <HStack spacing={4} justify="start">
-                  <FormControl isRequired>
+                  <FormControl isRequired isInvalid={!!newVariable.name && !isVariableNameValid}>
                     <FormLabel>Variable Name</FormLabel>
                     <Input
                       placeholder="Variable Name"
                       value={newVariable.name}
                       onChange={e => setNewVariable(prev => ({ ...prev, name: e.target.value }))}
                     />
+                    {!isVariableNameValid && newVariable.name && (
+                      <Text fontSize="xs" color="red.500">
+                        Variable names must start with a letter or underscore and contain only letters, numbers, and underscores.
+                      </Text>
+                    )}
                   </FormControl>
                   <FormControl isRequired>
                     <FormLabel>Type</FormLabel>
@@ -1071,6 +1320,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                     leftIcon={<Plus size={16} />}
                     flexShrink={0}
                     onClick={handleAddVariable}
+                    isDisabled={!isVariableNameValid}
                   >
                     Add Variable
                   </Button>
@@ -1081,6 +1331,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                   <ModeBasedVariableEditor
                     variable={newVariable as Variable}
                     onVariableChange={(updatedVariable) => setNewVariable(updatedVariable)}
+                    dimensions={StorageService.getDimensions()}
                   />
                 )}
                 
@@ -1091,13 +1342,18 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                         {editingVariableId === variable.id ? (
                           <VStack spacing={4} flex={1} align="stretch">
                             <HStack spacing={4}>
-                              <FormControl isRequired>
+                              <FormControl isRequired isInvalid={!!editingVariable.name && !isEditingVariableNameValid}>
                                 <FormLabel>Variable Name</FormLabel>
                                 <Input
                                   placeholder="Variable Name"
                                   value={editingVariable.name}
                                   onChange={e => setEditingVariable(prev => ({ ...prev, name: e.target.value }))}
                                 />
+                                {!isEditingVariableNameValid && editingVariable.name && (
+                                  <Text fontSize="xs" color="red.500">
+                                    Variable names must start with a letter or underscore and contain only letters, numbers, and underscores.
+                                  </Text>
+                                )}
                               </FormControl>
                               <FormControl isRequired>
                                 <FormLabel>Type</FormLabel>
@@ -1124,6 +1380,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                             <ModeBasedVariableEditor
                               variable={editingVariable as Variable}
                               onVariableChange={(updatedVariable) => setEditingVariable(updatedVariable)}
+                              dimensions={StorageService.getDimensions()}
                             />
                             
                             <HStack spacing={2}>
@@ -1131,6 +1388,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                                 size="sm"
                                 colorScheme="blue"
                                 onClick={handleSaveEditVariable}
+                                isDisabled={!isEditingVariableNameValid}
                               >
                                 Save
                               </Button>
@@ -1157,13 +1415,13 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                               </HStack>
                               
                               {/* Display mode-specific values */}
-                              {variable.modeBased && variable.modeValues && Object.keys(variable.modeValues).length > 0 && (
+                              {variable.modeBased && variable.valuesByMode && variable.valuesByMode.length > 0 && (
                                 <Box>
                                   <Text fontSize="xs" color="gray.500" mb={1}>Mode Values:</Text>
                                   <HStack spacing={2} wrap="wrap">
-                                    {Object.entries(variable.modeValues).map(([modeId, value]) => (
-                                      <Badge key={modeId} size="sm" colorScheme="purple" variant="outline">
-                                        {getModeName(modeId, variable.dimensionId)}: {value}
+                                    {variable.valuesByMode.map(({ modeIds, value }) => (
+                                      <Badge key={modeIds.join(', ')} size="sm" colorScheme="purple" variant="outline">
+                                        {getModeName(modeIds[0], variable.dimensionId)}: {value}
                                       </Badge>
                                     ))}
                                   </HStack>
@@ -1281,18 +1539,23 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                             value={formula.expressions.javascript.value}
                             mode="formula"
                             onChange={(value, latexExpression, ast) => {
+                              // Convert the formula from display names to IDs for storage
+                              const formulaWithIds = VariableMappingService.convertFormulaToIds(value, currentAlgorithm.variables);
+                              const latexWithIds = VariableMappingService.convertLatexToIds(latexExpression, currentAlgorithm.variables);
+                              const astWithIds = VariableMappingService.convertASTToIds(ast, currentAlgorithm.variables);
+                              
                               const newFormulas = [...(currentAlgorithm.formulas || [])];
                               newFormulas[index] = {
                                 ...formula,
                                 expressions: {
-                                  latex: { value: latexExpression },
+                                  latex: { value: latexWithIds },
                                   javascript: { 
-                                    value: value,
+                                    value: formulaWithIds,
                                     metadata: {
                                       allowedOperations: ['math']
                                     }
                                   },
-                                  ast: ast
+                                  ast: astWithIds
                                 }
                               };
                               const updatedAlgorithm = {
@@ -1803,11 +2066,14 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                                 <option value="tshirt">T-Shirt Sizing</option>
                               </Select>
                             </FormControl>
-                            <FormControl>
-                              <FormLabel>Taxonomy for Scale Terms</FormLabel>
+                            <FormControl isRequired={!tokenGenerationConfigured}>
+                              <FormLabel>
+                                Taxonomy for Scale Terms
+                                {!tokenGenerationConfigured && <Text as="span" color="red.500"> *</Text>}
+                              </FormLabel>
                               <VStack spacing={3} align="stretch">
                                 <Text fontSize="sm" color="gray.600">
-                                  Select an existing taxonomy or create a new one for the scale terms.
+                                  Choose an existing taxonomy or create a new one for the scale terms. This is required for token generation.
                                 </Text>
                                 <Select
                                   value={currentAlgorithm.tokenGeneration.logicalMapping.taxonomyId || ''}
@@ -1833,10 +2099,13 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                                   ))}
                                 </Select>
                                 {!currentAlgorithm.tokenGeneration.logicalMapping.taxonomyId && (
-                                  <FormControl>
-                                    <FormLabel>New Taxonomy Name</FormLabel>
+                                  <FormControl isRequired={!tokenGenerationConfigured}>
+                                    <FormLabel>
+                                      New Taxonomy Name
+                                      {!tokenGenerationConfigured && <Text as="span" color="red.500"> *</Text>}
+                                    </FormLabel>
                                     <Input
-                                      placeholder="Enter taxonomy name"
+                                      placeholder="Enter taxonomy name (e.g., 'Scale Terms', 'Size Categories')"
                                       value={currentAlgorithm.tokenGeneration.logicalMapping.newTaxonomyName || ''}
                                       onChange={(e) => {
                                         setCurrentAlgorithm(prev => ({
@@ -1851,7 +2120,29 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                                         }));
                                       }}
                                     />
+                                    <Text fontSize="xs" color="gray.500" mt={1}>
+                                      Provide a descriptive name for the new taxonomy that will contain the scale terms.
+                                    </Text>
                                   </FormControl>
+                                )}
+                                {!tokenGenerationConfigured && (
+                                  <Box p={3} bg="orange.50" borderRadius="md" borderWidth={1} borderColor="orange.200">
+                                    <Text fontSize="sm" color="orange.700" mb={2}>
+                                      ⚠️ Please complete the following to enable token generation preview:
+                                    </Text>
+                                    <VStack spacing={1} align="start">
+                                      {!currentAlgorithm.tokenGeneration?.logicalMapping?.taxonomyId && 
+                                       !currentAlgorithm.tokenGeneration?.logicalMapping?.newTaxonomyName?.trim() && (
+                                        <Text fontSize="xs" color="orange.600">• Configure taxonomy settings above</Text>
+                                      )}
+                                      {!hasExistingTokens && currentAlgorithm.variables.length === 0 && (
+                                        <Text fontSize="xs" color="orange.600">• Add variables in the Variables tab</Text>
+                                      )}
+                                      {!hasExistingTokens && currentAlgorithm.formulas.length === 0 && (
+                                        <Text fontSize="xs" color="orange.600">• Add formulas in the Formulas tab</Text>
+                                      )}
+                                    </VStack>
+                                  </Box>
                                 )}
                               </VStack>
                             </FormControl>
@@ -2079,6 +2370,23 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                     overflowX="auto"
                   >
                     <Text fontWeight="bold" mb={2}>Generated Tokens Preview</Text>
+                    {!tokenGenerationConfigured && (
+                      <Box mb={3} p={3} bg="orange.100" borderRadius="md">
+                        <Text fontWeight="bold" color="orange.600">Configuration Required</Text>
+                        <VStack spacing={1} align="start" mt={2}>
+                          {!currentAlgorithm.tokenGeneration?.logicalMapping?.taxonomyId && 
+                           !currentAlgorithm.tokenGeneration?.logicalMapping?.newTaxonomyName?.trim() && (
+                            <Text color="orange.600" fontSize="xs">• Configure taxonomy settings in the Token Generation tab</Text>
+                          )}
+                          {!hasExistingTokens && currentAlgorithm.variables.length === 0 && (
+                            <Text color="orange.600" fontSize="xs">• Add variables in the Variables tab</Text>
+                          )}
+                          {!hasExistingTokens && currentAlgorithm.formulas.length === 0 && (
+                            <Text color="orange.600" fontSize="xs">• Add formulas in the Formulas tab</Text>
+                          )}
+                        </VStack>
+                      </Box>
+                    )}
                     {generationErrors.length > 0 && (
                       <Box mb={3} p={3} bg="red.100" borderRadius="md">
                         <Text fontWeight="bold" color="red.600">Generation Errors:</Text>
@@ -2115,9 +2423,9 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                         </VStack>
                       </Box>
                     )}
-                    {generatedTokens.length === 0 && generationErrors.length === 0 && (
+                    {generatedTokens.length === 0 && generationErrors.length === 0 && tokenGenerationConfigured && (
                       <Text fontSize="sm" color="gray.500">
-                        No tokens will be generated. Check your algorithm configuration.
+                        No tokens will be generated. Check your algorithm configuration and iteration range settings.
                       </Text>
                     )}
                   </Box>

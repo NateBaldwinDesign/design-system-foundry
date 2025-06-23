@@ -45,6 +45,7 @@
                 },
                 "name": {
                   "type": "string",
+                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
                   "description": "Human-readable name for the system variable"
                 },
                 "description": {
@@ -154,7 +155,11 @@
                     "type": "string",
                     "pattern": "^[a-zA-Z0-9-_]+$"
                   },
-                  "name": { "type": "string" },
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                    "description": "Human-readable name for the variable"
+                  },
                   "type": {
                     "type": "string",
                     "enum": ["number", "string", "boolean", "color"]

@@ -11,9 +11,10 @@ export interface Variable {
     pattern?: string;
   };
   modeBased?: boolean;
-  modeValues?: {
-    [modeId: string]: string;
-  };
+  valuesByMode?: {
+    modeIds: string[];
+    value: string | number | boolean;
+  }[];
   dimensionId?: string;
 }
 

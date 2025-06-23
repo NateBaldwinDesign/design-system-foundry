@@ -13,29 +13,59 @@
         "id": "system-variable-a3dc1aed-64eb-40d9-9974-a36067b54155",
         "name": "viewportWidth",
         "type": "number",
-        "defaultValue": "",
-        "description": "",
+        "defaultValue": 320,
+        "description": "Current viewport width for responsive calculations",
         "modeBased": true,
-        "modeValues": {
-          "modeId-653c36c5-649f-404b-baf2-cf5279ddd06f": "320",
-          "modeId-f56d50e4-446f-49df-9488-6274c40e0877": "760",
-          "modeId-58823f28-08da-40d0-88ff-3063166853ff": "1200"
-        },
-        "dimensionId": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
+        "dimensionId": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24",
+        "valuesByMode": [
+          {
+            "modeIds": [
+              "modeId-653c36c5-649f-404b-baf2-cf5279ddd06f"
+            ],
+            "value": 320
+          },
+          {
+            "modeIds": [
+              "modeId-f56d50e4-446f-49df-9488-6274c40e0877"
+            ],
+            "value": 760
+          },
+          {
+            "modeIds": [
+              "modeId-58823f28-08da-40d0-88ff-3063166853ff"
+            ],
+            "value": 1200
+          }
+        ]
       },
       {
         "id": "system-variable-663c3dd5-44b9-43b4-bf40-962f20265159",
-        "name": "Text size index",
+        "name": "textSizeIndex",
         "type": "number",
-        "defaultValue": "1",
-        "description": "",
+        "defaultValue": 1,
+        "description": "Text size index for typography scaling",
         "modeBased": true,
-        "modeValues": {
-          "modeId-1370163a-e968-424d-a7a8-cc8d8ca0941b": "-1",
-          "modeId-c5afb449-ed81-4e2f-a19b-994e48b10d49": "1",
-          "modeId-8d68586f-5843-45e9-b65d-ea4dd24cc817": "0"
-        },
-        "dimensionId": "dimensionId-ce308d40-ddc6-414d-bc4f-6f76ff9123a9"
+        "valuesByMode": [
+          {
+            "modeIds": [
+              "modeId-0c7852b9-abe4-47cf-a2d6-b5392dfb549d"
+            ],
+            "value": -1
+          },
+          {
+            "modeIds": [
+              "modeId-e277ad43-3e36-4743-9e36-e867c28f8b3f"
+            ],
+            "value": 0
+          },
+          {
+            "modeIds": [
+              "modeId-847b0653-c79a-4e35-82a4-c150f6a20f9b"
+            ],
+            "value": 1
+          }
+        ],
+        "dimensionId": "dimensionId-053537da-160d-4766-8f60-a6fbb88f0ba7"
       }
     ],
     "defaultBaseValue": 16,
@@ -233,94 +263,128 @@
               }
             },
             "ast": {
-              "type": "binary",
-              "operator": "-",
-              "left": {
-                "type": "literal",
-                "value": "(z[n]",
-                "metadata": {
-                  "astVersion": "1.0.0",
-                  "validationErrors": [
-                    "Complex expression not fully parsed: (z[n]"
-                  ],
-                  "complexity": "high"
-                }
-              },
-              "right": {
+              "type": "assignment",
+              "variableName": "c",
+              "expression": {
                 "type": "binary",
                 "operator": "/",
                 "left": {
-                  "type": "function",
-                  "functionName": "Math.min",
-                  "arguments": [
-                    {
-                      "type": "function",
-                      "functionName": "spread",
-                      "arguments": [
-                        {
-                          "type": "variable",
-                          "variableName": "z",
-                          "metadata": {
-                            "astVersion": "1.0.0",
-                            "validationErrors": [],
-                            "complexity": "low"
-                          }
+                  "type": "binary",
+                  "operator": "-",
+                  "left": {
+                    "type": "function",
+                    "functionName": "arrayAccess",
+                    "arguments": [
+                      {
+                        "type": "variable",
+                        "variableName": "z",
+                        "metadata": {
+                          "astVersion": "1.0.0",
+                          "validationErrors": [],
+                          "complexity": "low"
                         }
-                      ],
-                      "metadata": {
-                        "astVersion": "1.0.0",
-                        "validationErrors": [],
-                        "complexity": "low"
+                      },
+                      {
+                        "type": "variable",
+                        "variableName": "n",
+                        "metadata": {
+                          "astVersion": "1.0.0",
+                          "validationErrors": [],
+                          "complexity": "low"
+                        }
                       }
+                    ],
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
                     }
-                  ],
+                  },
+                  "right": {
+                    "type": "function",
+                    "functionName": "Math.min",
+                    "arguments": [
+                      {
+                        "type": "variable",
+                        "variableName": "z",
+                        "metadata": {
+                          "astVersion": "1.0.0",
+                          "validationErrors": [],
+                          "complexity": "low"
+                        }
+                      }
+                    ],
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "medium"
+                    }
+                  },
                   "metadata": {
                     "astVersion": "1.0.0",
                     "validationErrors": [],
-                    "complexity": "medium"
+                    "complexity": "low"
                   }
                 },
                 "right": {
-                  "type": "function",
-                  "functionName": "Math.max",
-                  "arguments": [
-                    {
-                      "type": "function",
-                      "functionName": "spread",
-                      "arguments": [
-                        {
-                          "type": "variable",
-                          "variableName": "z",
-                          "metadata": {
-                            "astVersion": "1.0.0",
-                            "validationErrors": [],
-                            "complexity": "low"
-                          }
+                  "type": "binary",
+                  "operator": "-",
+                  "left": {
+                    "type": "function",
+                    "functionName": "Math.max",
+                    "arguments": [
+                      {
+                        "type": "variable",
+                        "variableName": "z",
+                        "metadata": {
+                          "astVersion": "1.0.0",
+                          "validationErrors": [],
+                          "complexity": "low"
                         }
-                      ],
-                      "metadata": {
-                        "astVersion": "1.0.0",
-                        "validationErrors": [],
-                        "complexity": "low"
                       }
+                    ],
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "medium"
                     }
-                  ],
+                  },
+                  "right": {
+                    "type": "function",
+                    "functionName": "Math.min",
+                    "arguments": [
+                      {
+                        "type": "variable",
+                        "variableName": "z",
+                        "metadata": {
+                          "astVersion": "1.0.0",
+                          "validationErrors": [],
+                          "complexity": "low"
+                        }
+                      }
+                    ],
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "medium"
+                    }
+                  },
                   "metadata": {
                     "astVersion": "1.0.0",
                     "validationErrors": [],
-                    "complexity": "medium"
+                    "complexity": "low"
                   }
                 },
                 "metadata": {
                   "astVersion": "1.0.0",
                   "validationErrors": [],
-                  "complexity": "low"
+                  "complexity": "medium"
                 }
               },
               "metadata": {
                 "astVersion": "1.0.0",
                 "validationErrors": [],
-                "complexity": "low"
+                "complexity": "medium"
               }
             }
           },
@@ -346,11 +410,11 @@
               }
             },
             "ast": {
-              "type": "binary",
-              "operator": "+",
-              "left": {
+              "type": "assignment",
+              "variableName": "r",
+              "expression": {
                 "type": "binary",
-                "operator": "-",
+                "operator": "+",
                 "left": {
                   "type": "binary",
                   "operator": "*",
@@ -364,14 +428,30 @@
                     }
                   },
                   "right": {
-                    "type": "literal",
-                    "value": "(1",
+                    "type": "binary",
+                    "operator": "-",
+                    "left": {
+                      "type": "literal",
+                      "value": 1,
+                      "metadata": {
+                        "astVersion": "1.0.0",
+                        "validationErrors": [],
+                        "complexity": "low"
+                      }
+                    },
+                    "right": {
+                      "type": "variable",
+                      "variableName": "c",
+                      "metadata": {
+                        "astVersion": "1.0.0",
+                        "validationErrors": [],
+                        "complexity": "low"
+                      }
+                    },
                     "metadata": {
                       "astVersion": "1.0.0",
-                      "validationErrors": [
-                        "Complex expression not fully parsed: (1"
-                      ],
-                      "complexity": "high"
+                      "validationErrors": [],
+                      "complexity": "low"
                     }
                   },
                   "metadata": {
@@ -381,37 +461,26 @@
                   }
                 },
                 "right": {
-                  "type": "literal",
-                  "value": "c)",
-                  "metadata": {
-                    "astVersion": "1.0.0",
-                    "validationErrors": [
-                      "Complex expression not fully parsed: c)"
-                    ],
-                    "complexity": "high"
-                  }
-                },
-                "metadata": {
-                  "astVersion": "1.0.0",
-                  "validationErrors": [],
-                  "complexity": "low"
-                }
-              },
-              "right": {
-                "type": "binary",
-                "operator": "*",
-                "left": {
-                  "type": "literal",
-                  "value": 1.125,
-                  "metadata": {
-                    "astVersion": "1.0.0",
-                    "validationErrors": [],
-                    "complexity": "low"
-                  }
-                },
-                "right": {
-                  "type": "variable",
-                  "variableName": "c",
+                  "type": "binary",
+                  "operator": "*",
+                  "left": {
+                    "type": "literal",
+                    "value": 1.125,
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  "right": {
+                    "type": "variable",
+                    "variableName": "c",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
                   "metadata": {
                     "astVersion": "1.0.0",
                     "validationErrors": [],
@@ -421,13 +490,13 @@
                 "metadata": {
                   "astVersion": "1.0.0",
                   "validationErrors": [],
-                  "complexity": "low"
+                  "complexity": "medium"
                 }
               },
               "metadata": {
                 "astVersion": "1.0.0",
                 "validationErrors": [],
-                "complexity": "low"
+                "complexity": "medium"
               }
             }
           },
@@ -600,54 +669,75 @@
               }
             },
             "ast": {
-              "type": "binary",
-              "operator": "-",
-              "left": {
-                "type": "literal",
-                "value": "(viewportWidth",
-                "metadata": {
-                  "astVersion": "1.0.0",
-                  "validationErrors": [
-                    "Complex expression not fully parsed: (viewportWidth"
-                  ],
-                  "complexity": "high"
-                }
-              },
-              "right": {
+              "type": "assignment",
+              "variableName": "viewportPercent",
+              "expression": {
                 "type": "binary",
                 "operator": "/",
                 "left": {
-                  "type": "literal",
-                  "value": "minWidth)",
+                  "type": "binary",
+                  "operator": "-",
+                  "left": {
+                    "type": "variable",
+                    "variableName": "viewportWidth",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  "right": {
+                    "type": "variable",
+                    "variableName": "minWidth",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
                   "metadata": {
                     "astVersion": "1.0.0",
-                    "validationErrors": [
-                      "Complex expression not fully parsed: minWidth)"
-                    ],
-                    "complexity": "high"
+                    "validationErrors": [],
+                    "complexity": "low"
                   }
                 },
                 "right": {
-                  "type": "literal",
-                  "value": "(maxWidth",
+                  "type": "binary",
+                  "operator": "-",
+                  "left": {
+                    "type": "variable",
+                    "variableName": "maxWidth",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  "right": {
+                    "type": "variable",
+                    "variableName": "minWidth",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
                   "metadata": {
                     "astVersion": "1.0.0",
-                    "validationErrors": [
-                      "Complex expression not fully parsed: (maxWidth"
-                    ],
-                    "complexity": "high"
+                    "validationErrors": [],
+                    "complexity": "low"
                   }
                 },
                 "metadata": {
                   "astVersion": "1.0.0",
                   "validationErrors": [],
-                  "complexity": "low"
+                  "complexity": "medium"
                 }
               },
               "metadata": {
                 "astVersion": "1.0.0",
                 "validationErrors": [],
-                "complexity": "low"
+                "complexity": "medium"
               }
             }
           },
@@ -673,52 +763,57 @@
               }
             },
             "ast": {
-              "type": "binary",
-              "operator": "+",
-              "left": {
-                "type": "literal",
-                "value": 0.8,
-                "metadata": {
-                  "astVersion": "1.0.0",
-                  "validationErrors": [],
-                  "complexity": "low"
-                }
-              },
-              "right": {
+              "type": "assignment",
+              "variableName": "ResponsiveMultiplier",
+              "expression": {
                 "type": "binary",
-                "operator": "*",
+                "operator": "+",
                 "left": {
                   "type": "literal",
-                  "value": "(0.4",
+                  "value": 0.8,
                   "metadata": {
                     "astVersion": "1.0.0",
-                    "validationErrors": [
-                      "Complex expression not fully parsed: (0.4"
-                    ],
-                    "complexity": "high"
+                    "validationErrors": [],
+                    "complexity": "low"
                   }
                 },
                 "right": {
-                  "type": "literal",
-                  "value": "viewportPercent)",
+                  "type": "binary",
+                  "operator": "*",
+                  "left": {
+                    "type": "literal",
+                    "value": 0.4,
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  "right": {
+                    "type": "variable",
+                    "variableName": "viewportPercent",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
                   "metadata": {
                     "astVersion": "1.0.0",
-                    "validationErrors": [
-                      "Complex expression not fully parsed: viewportPercent)"
-                    ],
-                    "complexity": "high"
+                    "validationErrors": [],
+                    "complexity": "low"
                   }
                 },
                 "metadata": {
                   "astVersion": "1.0.0",
                   "validationErrors": [],
-                  "complexity": "low"
+                  "complexity": "medium"
                 }
               },
               "metadata": {
                 "astVersion": "1.0.0",
                 "validationErrors": [],
-                "complexity": "low"
+                "complexity": "medium"
               }
             }
           },
@@ -741,30 +836,77 @@
               }
             },
             "ast": {
-              "type": "binary",
-              "operator": "*",
-              "left": {
-                "type": "variable",
-                "variableName": "ResponsiveMultiplier",
+              "type": "assignment",
+              "variableName": "fontSize",
+              "expression": {
+                "type": "binary",
+                "operator": "*",
+                "left": {
+                  "type": "binary",
+                  "operator": "*",
+                  "left": {
+                    "type": "variable",
+                    "variableName": "ResponsiveMultiplier",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  "right": {
+                    "type": "variable",
+                    "variableName": "Base",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  "metadata": {
+                    "astVersion": "1.0.0",
+                    "validationErrors": [],
+                    "complexity": "low"
+                  }
+                },
+                "right": {
+                  "type": "function",
+                  "functionName": "Math.pow",
+                  "arguments": [
+                    {
+                      "type": "variable",
+                      "variableName": "Ratio",
+                      "metadata": {
+                        "astVersion": "1.0.0",
+                        "validationErrors": [],
+                        "complexity": "low"
+                      }
+                    },
+                    {
+                      "type": "variable",
+                      "variableName": "n",
+                      "metadata": {
+                        "astVersion": "1.0.0",
+                        "validationErrors": [],
+                        "complexity": "low"
+                      }
+                    }
+                  ],
+                  "metadata": {
+                    "astVersion": "1.0.0",
+                    "validationErrors": [],
+                    "complexity": "medium"
+                  }
+                },
                 "metadata": {
                   "astVersion": "1.0.0",
                   "validationErrors": [],
-                  "complexity": "low"
-                }
-              },
-              "right": {
-                "type": "variable",
-                "variableName": "Base",
-                "metadata": {
-                  "astVersion": "1.0.0",
-                  "validationErrors": [],
-                  "complexity": "low"
+                  "complexity": "medium"
                 }
               },
               "metadata": {
                 "astVersion": "1.0.0",
                 "validationErrors": [],
-                "complexity": "low"
+                "complexity": "medium"
               }
             }
           },
@@ -804,14 +946,14 @@
           "name": "BaseSpacing",
           "type": "number",
           "defaultValue": "4",
-          "description": ""
+          "description": "Base spacing value"
         },
         {
           "id": "var_multiplier",
           "name": "Multiplier",
           "type": "number",
           "defaultValue": "2",
-          "description": ""
+          "description": "Spacing multiplier"
         }
       ],
       "formulas": [
@@ -891,6 +1033,176 @@
           "type": "formula",
           "id": "formula-spacing",
           "name": "Spacing Scale"
+        }
+      ]
+    },
+    {
+      "id": "algorithm-e855a3d8-31a6-4d94-8638-06cecf8b444d",
+      "name": "Test algorithm",
+      "description": "Test algorithm for typography scaling",
+      "resolvedValueTypeId": "font-size",
+      "variables": [
+        {
+          "id": "variable-6e1938c7-617b-46dd-9ff4-f0facde11c2e",
+          "name": "Ratio",
+          "type": "number",
+          "defaultValue": "1.25",
+          "description": "Modular scale ratio"
+        },
+        {
+          "id": "variable-4e70b003-aae2-4ba7-bad8-3f7b347af47f",
+          "name": "baseFontSize",
+          "type": "number",
+          "defaultValue": "14",
+          "description": "Base font size for scaling"
+        },
+        {
+          "id": "variable-fc8da53c-d4df-4908-90ad-c69f0638e6fa",
+          "name": "Multiplier",
+          "type": "number",
+          "defaultValue": "",
+          "description": ""
+        }
+      ],
+      "formulas": [
+        {
+          "id": "formula-d96ec551-68cc-4fc4-a870-4a6fe8539610",
+          "name": "Calculate new index",
+          "description": "Calculate font size using modular scale",
+          "expressions": {
+            "latex": {
+              "value": "n = n + textSizeIndex"
+            },
+            "javascript": {
+              "value": "n = n + system-variable-663c3dd5-44b9-43b4-bf40-962f20265159",
+              "metadata": {
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "assignment",
+              "variableName": "n",
+              "expression": {
+                "type": "binary",
+                "operator": "+",
+                "left": {
+                  "type": "variable",
+                  "variableName": "n"
+                },
+                "right": {
+                  "type": "variable",
+                  "variableName": "system-variable-663c3dd5-44b9-43b4-bf40-962f20265159"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "medium"
+              }
+            }
+          },
+          "variableIds": [
+            "variable-6e1938c7-617b-46dd-9ff4-f0facde11c2e",
+            "variable-4e70b003-aae2-4ba7-bad8-3f7b347af47f"
+          ]
+        },
+        {
+          "id": "formula-148096fe-d207-4b9d-bc88-9fd880628037",
+          "name": "Multiplier",
+          "description": "",
+          "expressions": {
+            "latex": {
+              "value": "Multiplier = Ratio^{n}"
+            },
+            "javascript": {
+              "value": "Math.pow(variable-fc8da53c-d4df-4908-90ad-c69f0638e6fa = variable-6e1938c7-617b-46dd-9ff4-f0facde11c2e, n)",
+              "metadata": {
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "function",
+              "functionName": "Math.pow",
+              "arguments": [
+                {
+                  "type": "assignment",
+                  "variableName": "Multiplier",
+                  "expression": {
+                    "type": "variable",
+                    "variableName": "variable-6e1938c7-617b-46dd-9ff4-f0facde11c2e"
+                  }
+                },
+                {
+                  "type": "variable",
+                  "variableName": "n"
+                }
+              ],
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "medium"
+              }
+            }
+          },
+          "variableIds": []
+        },
+        {
+          "id": "formula-03509c40-a70e-4c07-909e-84d507c556fc",
+          "name": "Typescale",
+          "description": "",
+          "expressions": {
+            "latex": {
+              "value": "baseFontSize \\cdot Multiplier"
+            },
+            "javascript": {
+              "value": "variable-4e70b003-aae2-4ba7-bad8-3f7b347af47f * variable-fc8da53c-d4df-4908-90ad-c69f0638e6fa",
+              "metadata": {
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "*",
+              "left": {
+                "type": "variable",
+                "variableName": "variable-4e70b003-aae2-4ba7-bad8-3f7b347af47f"
+              },
+              "right": {
+                "type": "variable",
+                "variableName": "variable-fc8da53c-d4df-4908-90ad-c69f0638e6fa"
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
+              }
+            }
+          },
+          "variableIds": []
+        }
+      ],
+      "conditions": [],
+      "steps": [
+        {
+          "type": "formula",
+          "id": "formula-d96ec551-68cc-4fc4-a870-4a6fe8539610",
+          "name": "Typescale"
+        },
+        {
+          "type": "formula",
+          "id": "formula-148096fe-d207-4b9d-bc88-9fd880628037",
+          "name": "Multiplier"
+        },
+        {
+          "type": "formula",
+          "id": "formula-03509c40-a70e-4c07-909e-84d507c556fc",
+          "name": "Typescale"
         }
       ]
     }

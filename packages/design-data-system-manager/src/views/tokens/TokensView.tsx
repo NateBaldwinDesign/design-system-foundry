@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Box, Text, HStack, Flex, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Heading, Tabs, TabList, Tab, InputGroup, InputRightElement, Center, Icon, InputLeftElement, useColorMode } from '@chakra-ui/react';
 import { Edit, Columns, Filter, X, Hexagon, Search } from 'lucide-react';
 import type { TokenCollection, ResolvedValueType, Taxonomy, Mode } from '@token-model/data-model';
@@ -6,7 +6,6 @@ import type { ExtendedToken } from '../../components/TokenEditorDialog';
 import TokenTag from '../../components/TokenTag';
 import { formatValueForDisplay } from '../../utils/valueTypeUtils';
 import { getValueTypeIcon } from '../../utils/getValueTypeIcon';
-import { StorageService } from '../../services/storage';
 
 interface TokensViewProps {
   tokens: ExtendedToken[];
@@ -259,27 +258,6 @@ export function TokensView({
       [column]: !prev[column]
     }));
   };
-
-  useEffect(() => {
-    // Refresh tokens from storage when component mounts
-    const refreshTokens = () => {
-      const storedTokens = StorageService.getTokens();
-      console.log('TokensView: Refreshed tokens from storage', storedTokens.length);
-    };
-    
-    refreshTokens();
-    
-    // Also refresh when window gains focus
-    const handleFocus = () => {
-      refreshTokens();
-    };
-    
-    window.addEventListener('focus', handleFocus);
-    
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, []);
 
   return (
     <Box p={4}>

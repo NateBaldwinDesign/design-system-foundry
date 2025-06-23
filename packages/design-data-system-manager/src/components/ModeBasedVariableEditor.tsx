@@ -14,38 +14,34 @@ import {
 } from '@chakra-ui/react';
 import type { Dimension } from '@token-model/data-model';
 import type { Variable } from '../types/algorithm';
-import { StorageService } from '../services/storage';
 
 interface ModeBasedVariableEditorProps {
   variable: Variable;
   onVariableChange: (variable: Variable) => void;
+  dimensions: Dimension[];
 }
 
 export const ModeBasedVariableEditor: React.FC<ModeBasedVariableEditorProps> = ({
   variable,
-  onVariableChange
+  onVariableChange,
+  dimensions
 }) => {
-  const [dimensions, setDimensions] = useState<Dimension[]>([]);
   const [selectedDimension, setSelectedDimension] = useState<Dimension | null>(null);
 
-  // Load dimensions from storage
+  // Set selected dimension if variable already has one
   useEffect(() => {
-    const storedDimensions = StorageService.getDimensions();
-    setDimensions(storedDimensions);
-    
-    // Set selected dimension if variable already has one
     if (variable.dimensionId) {
-      const dim = storedDimensions.find(d => d.id === variable.dimensionId);
+      const dim = dimensions.find(d => d.id === variable.dimensionId);
       setSelectedDimension(dim || null);
     }
-  }, [variable.dimensionId]);
+  }, [variable.dimensionId, dimensions]);
 
   const handleModeBasedToggle = (enabled: boolean) => {
     const updatedVariable: Variable = {
       ...variable,
       modeBased: enabled,
       dimensionId: enabled ? variable.dimensionId : undefined,
-      modeValues: enabled ? (variable.modeValues || {}) : undefined
+      valuesByMode: enabled ? (variable.valuesByMode || []) : undefined
     };
 
     onVariableChange(updatedVariable);
@@ -58,21 +54,50 @@ export const ModeBasedVariableEditor: React.FC<ModeBasedVariableEditorProps> = (
     const updatedVariable: Variable = {
       ...variable,
       dimensionId: dimensionId,
-      modeValues: dimension ? (variable.modeValues || {}) : undefined
+      valuesByMode: dimension ? (variable.valuesByMode || []) : undefined
     };
 
     onVariableChange(updatedVariable);
   };
 
   const handleModeValueChange = (modeId: string, value: string) => {
-    const updatedModeValues = {
-      ...variable.modeValues,
-      [modeId]: value
-    };
+    const existingValuesByMode = variable.valuesByMode || [];
+    
+    // Find if there's already an entry for this mode
+    const existingIndex = existingValuesByMode.findIndex(v => v.modeIds.includes(modeId));
+    
+    // Convert value to the correct type based on variable type
+    let convertedValue: string | number | boolean;
+    switch (variable.type) {
+      case 'number':
+        convertedValue = value === '' ? 0 : Number(value);
+        break;
+      case 'boolean':
+        convertedValue = value === 'true' || value === '1';
+        break;
+      default:
+        convertedValue = value;
+    }
+    
+    let updatedValuesByMode;
+    if (existingIndex >= 0) {
+      // Update existing entry
+      updatedValuesByMode = [...existingValuesByMode];
+      updatedValuesByMode[existingIndex] = {
+        ...updatedValuesByMode[existingIndex],
+        value: convertedValue
+      };
+    } else {
+      // Add new entry
+      updatedValuesByMode = [
+        ...existingValuesByMode,
+        { modeIds: [modeId], value: convertedValue }
+      ];
+    }
 
     const updatedVariable: Variable = {
       ...variable,
-      modeValues: updatedModeValues
+      valuesByMode: updatedValuesByMode
     };
 
     onVariableChange(updatedVariable);
@@ -122,7 +147,11 @@ export const ModeBasedVariableEditor: React.FC<ModeBasedVariableEditorProps> = (
                       <FormControl>
                         <Input
                           placeholder={`Value for ${mode.name}`}
-                          value={variable.modeValues?.[mode.id] || ''}
+                          value={(() => {
+                            const existingValue = variable.valuesByMode?.find(v => v.modeIds.includes(mode.id))?.value;
+                            if (existingValue === undefined || existingValue === null) return '';
+                            return String(existingValue);
+                          })()}
                           onChange={(e) => handleModeValueChange(mode.id, e.target.value)}
                           size="sm"
                         />

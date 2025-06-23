@@ -1,20 +1,24 @@
 import React from 'react';
 import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode } from '@chakra-ui/react';
 import { getTokenStats, getPlatformOverrideStats, getThemeStats, getLatestRelease, getRecentActivity } from '../../utils/dashboardStats';
-import { StorageService } from '../../services/storage';
+import type { Platform, Theme } from '@token-model/data-model';
+import type { ExtendedToken } from '../../components/TokenEditorDialog';
 
-const tokens = StorageService.getTokens();
-const platforms = StorageService.getPlatforms();
-const themes = StorageService.getThemes();
+interface DashboardViewProps {
+  tokens: ExtendedToken[];
+  platforms: Platform[];
+  themes: Theme[];
+}
 
-const tokenStats = getTokenStats(tokens);
-const platformStats = getPlatformOverrideStats(tokens, platforms);
-const themeStats = getThemeStats(themes, tokens);
-const latestRelease = getLatestRelease();
-const recentActivity = getRecentActivity();
-
-const DashboardView: React.FC = () => {
+const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes }) => {
   const { colorMode } = useColorMode();
+  
+  const tokenStats = getTokenStats(tokens);
+  const platformStats = getPlatformOverrideStats(tokens, platforms);
+  const themeStats = getThemeStats(themes);
+  const latestRelease = getLatestRelease();
+  const recentActivity = getRecentActivity();
+
   return (
     <Box p={0} borderWidth={0} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
       <Box p={8}>

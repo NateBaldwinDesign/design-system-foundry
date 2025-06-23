@@ -18,12 +18,16 @@ import { createUniqueId } from '../../utils/id';
 import { ValidationService } from '../../services/validation';
 import { TaxonomyEditorDialog } from '../../components/TaxonomyEditorDialog';
 import { TermEditorDialog } from '../../components/TermEditorDialog';
-import { StorageService } from '../../services/storage';
 import { CardTitle } from '../../components/CardTitle';
 
 interface ClassificationViewProps {
   taxonomies: Taxonomy[];
   setTaxonomies: (taxonomies: Taxonomy[]) => void;
+  tokens: Token[];
+  collections: TokenCollection[];
+  dimensions: Dimension[];
+  platforms: Platform[];
+  resolvedValueTypes: ResolvedValueType[];
 }
 
 function normalizeTerms(terms: { id: string; name: string; description?: string }[]): { id: string; name: string; description: string }[] {
@@ -33,7 +37,15 @@ function normalizeTerms(terms: { id: string; name: string; description?: string 
   }));
 }
 
-export function ClassificationView({ taxonomies, setTaxonomies }: ClassificationViewProps) {
+export function ClassificationView({ 
+  taxonomies, 
+  setTaxonomies, 
+  tokens, 
+  collections, 
+  dimensions, 
+  platforms, 
+  resolvedValueTypes 
+}: ClassificationViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -48,11 +60,6 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
   const [termDialogOpen, setTermDialogOpen] = useState(false);
   const [termEditIndex, setTermEditIndex] = useState<number | null>(null);
   const toast = useToast();
-  const tokens: Token[] = StorageService.getTokens();
-  const collections: TokenCollection[] = StorageService.getCollections();
-  const dimensions: Dimension[] = StorageService.getDimensions();
-  const platforms: Platform[] = StorageService.getPlatforms();
-  const resolvedValueTypes: ResolvedValueType[] = StorageService.getValueTypes();
 
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
@@ -82,10 +89,13 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
     setEditingIndex(null);
   };
 
-  const handleFormChange = (field: string, value: string | { id: string; name: string; description?: string }[]) => {
+  const handleFormChange = (field: string, value: string | string[] | { id: string; name: string; description?: string }[]) => {
     setForm((prev: typeof form) => {
       if (field === 'terms') {
         return { ...prev, terms: normalizeTerms(value as { id: string; name: string; description?: string }[]) };
+      }
+      if (field === 'resolvedValueTypeIds') {
+        return { ...prev, resolvedValueTypeIds: value as string[] };
       }
       return { ...prev, [field]: value };
     });
@@ -110,7 +120,7 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
         tokens,
         platforms,
         taxonomies,
-        resolvedValueTypes: StorageService.getValueTypes(),
+        resolvedValueTypes: resolvedValueTypes,
         version,
         versionHistory
       };
@@ -130,7 +140,7 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
         return;
       }
       // Persist to local storage
-      StorageService.setTaxonomies(taxonomies);
+      localStorage.setItem('token-model:taxonomies', JSON.stringify(taxonomies));
       setTaxonomies(taxonomies);
     } catch (error) {
       console.error('[ClassificationView] Validation error:', error);

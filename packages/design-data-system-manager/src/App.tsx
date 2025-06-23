@@ -69,113 +69,48 @@ const App = () => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const toast = useToast();
 
-  // Add effect to save resolved value types to storage when they change
+  // Initialize data from storage on mount
   useEffect(() => {
-    if (resolvedValueTypes.length > 0) {
-      StorageService.setValueTypes(resolvedValueTypes);
-    }
-  }, [resolvedValueTypes]);
-
-  // Add effect to reload collections from storage when they change
-  useEffect(() => {
+    // Load all data from storage once on mount
     const storedCollections = StorageService.getCollections();
-    if (JSON.stringify(storedCollections) !== JSON.stringify(collections)) {
+    const storedModes = StorageService.getModes();
+    const storedDimensions = StorageService.getDimensions();
+    const storedResolvedValueTypes = StorageService.getValueTypes();
+    const storedPlatforms = StorageService.getPlatforms();
+    const storedThemes = StorageService.getThemes();
+    const storedTokens = StorageService.getTokens();
+    const storedTaxonomies = StorageService.getTaxonomies();
+    const storedAlgorithms = StorageService.getAlgorithms();
+
+    // Only set state if we have data and it's different from current state
+    if (storedCollections.length > 0 && JSON.stringify(storedCollections) !== JSON.stringify(collections)) {
       setCollections(storedCollections);
     }
-  }, [collections]);
-
-  // Add effect to reload tokens from storage periodically and on window focus
-  useEffect(() => {
-    const reloadTokens = () => {
-      const storedTokens = StorageService.getTokens();
-      setTokens(prevTokens => {
-        if (JSON.stringify(storedTokens) !== JSON.stringify(prevTokens)) {
-          return storedTokens;
-        }
-        return prevTokens;
-      });
-    };
-
-    // Reload on window focus (when user returns to the app)
-    const handleFocus = () => {
-      reloadTokens();
-    };
-
-    // Reload periodically (every 2 seconds)
-    const interval = setInterval(reloadTokens, 2000);
-
-    // Initial load
-    reloadTokens();
-
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, []);
-
-  // Add effect to reload taxonomies from storage when they change
-  useEffect(() => {
-    const reloadTaxonomies = () => {
-      const storedTaxonomies = StorageService.getTaxonomies();
-      setTaxonomies(prevTaxonomies => {
-        if (JSON.stringify(storedTaxonomies) !== JSON.stringify(prevTaxonomies)) {
-          return storedTaxonomies;
-        }
-        return prevTaxonomies;
-      });
-    };
-
-    // Reload on window focus (when user returns to the app)
-    const handleFocus = () => {
-      reloadTaxonomies();
-    };
-
-    // Reload periodically (every 2 seconds)
-    const interval = setInterval(reloadTaxonomies, 2000);
-
-    // Initial load
-    reloadTaxonomies();
-
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, []);
-
-  // Add effect to reload algorithms from storage when they change
-  useEffect(() => {
-    const reloadAlgorithms = () => {
-      const storedAlgorithms = StorageService.getAlgorithms();
-      setAlgorithms(prevAlgorithms => {
-        if (JSON.stringify(storedAlgorithms) !== JSON.stringify(prevAlgorithms)) {
-          return storedAlgorithms;
-        }
-        return prevAlgorithms;
-      });
-    };
-
-    // Reload on window focus (when user returns to the app)
-    const handleFocus = () => {
-      reloadAlgorithms();
-    };
-
-    // Reload periodically (every 2 seconds)
-    const interval = setInterval(reloadAlgorithms, 2000);
-
-    // Initial load
-    reloadAlgorithms();
-
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
-    };
-  }, []);
+    if (storedModes.length > 0 && JSON.stringify(storedModes) !== JSON.stringify(modes)) {
+      setModes(storedModes);
+    }
+    if (storedDimensions.length > 0 && JSON.stringify(storedDimensions) !== JSON.stringify(dimensions)) {
+      setDimensions(storedDimensions);
+    }
+    if (storedResolvedValueTypes.length > 0 && JSON.stringify(storedResolvedValueTypes) !== JSON.stringify(resolvedValueTypes)) {
+      setResolvedValueTypes(storedResolvedValueTypes);
+    }
+    if (storedPlatforms.length > 0 && JSON.stringify(storedPlatforms) !== JSON.stringify(platforms)) {
+      setPlatforms(storedPlatforms);
+    }
+    if (storedThemes.length > 0 && JSON.stringify(storedThemes) !== JSON.stringify(themes)) {
+      setThemes(storedThemes);
+    }
+    if (storedTokens.length > 0 && JSON.stringify(storedTokens) !== JSON.stringify(tokens)) {
+      setTokens(storedTokens);
+    }
+    if (storedTaxonomies.length > 0 && JSON.stringify(storedTaxonomies) !== JSON.stringify(taxonomies)) {
+      setTaxonomies(storedTaxonomies);
+    }
+    if (storedAlgorithms.length > 0 && JSON.stringify(storedAlgorithms) !== JSON.stringify(algorithms)) {
+      setAlgorithms(storedAlgorithms);
+    }
+  }, []); // Only run once on mount
 
   useEffect(() => {
     // Create data options from the package exports
@@ -187,22 +122,6 @@ const App = () => {
     ];
     setDataOptions(options);
   }, []);
-
-  // Update dimension order when dimensions change
-  useEffect(() => {
-    const currentIds = dimensions.map(d => d.id);
-    const newOrder = dimensionOrder.filter(id => currentIds.includes(id));
-    // Add any new dimensions to the end
-    currentIds.forEach(id => {
-      if (!newOrder.includes(id)) {
-        newOrder.push(id);
-      }
-    });
-    if (JSON.stringify(newOrder) !== JSON.stringify(dimensionOrder)) {
-      setDimensionOrder(newOrder);
-      StorageService.setDimensionOrder(newOrder);
-    }
-  }, [dimensions]);
 
   const loadDataFromSource = async (dataSourceKey: string) => {
     try {
@@ -441,6 +360,52 @@ const App = () => {
     }
   };
 
+  // Centralized update handlers for all data types
+  const handleUpdateTokens = (updatedTokens: ExtendedToken[]) => {
+    setTokens(updatedTokens);
+    StorageService.setTokens(updatedTokens);
+  };
+
+  const handleUpdateCollections = (updatedCollections: TokenCollection[]) => {
+    setCollections(updatedCollections);
+    StorageService.setCollections(updatedCollections);
+  };
+
+  const handleUpdateModes = (updatedModes: Mode[]) => {
+    setModes(updatedModes);
+    StorageService.setModes(updatedModes);
+  };
+
+  const handleUpdateDimensions = (updatedDimensions: Dimension[]) => {
+    setDimensions(updatedDimensions);
+    StorageService.setDimensions(updatedDimensions);
+  };
+
+  const handleUpdateResolvedValueTypes = (updatedResolvedValueTypes: ResolvedValueType[]) => {
+    setResolvedValueTypes(updatedResolvedValueTypes);
+    StorageService.setValueTypes(updatedResolvedValueTypes);
+  };
+
+  const handleUpdatePlatforms = (updatedPlatforms: Platform[]) => {
+    setPlatforms(updatedPlatforms);
+    StorageService.setPlatforms(updatedPlatforms);
+  };
+
+  const handleUpdateThemes = (updatedThemes: Theme[]) => {
+    setThemes(updatedThemes);
+    StorageService.setThemes(updatedThemes);
+  };
+
+  const handleUpdateTaxonomies = (updatedTaxonomies: Taxonomy[]) => {
+    setTaxonomies(updatedTaxonomies);
+    StorageService.setTaxonomies(updatedTaxonomies);
+  };
+
+  const handleUpdateAlgorithms = (updatedAlgorithms: Algorithm[]) => {
+    setAlgorithms(updatedAlgorithms);
+    StorageService.setAlgorithms(updatedAlgorithms);
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -463,7 +428,7 @@ const App = () => {
             >
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<DashboardView />} />
+                <Route path="/dashboard" element={<DashboardView tokens={tokens} platforms={platforms} themes={themes} />} />
                 <Route path="/tokens" element={<Navigate to="/tokens/tokens" replace />} />
                 <Route path="/tokens/tokens" element={
                   <>
@@ -504,10 +469,10 @@ const App = () => {
                     )}
                   </>
                 } />
-                <Route path="/tokens/collections" element={<CollectionsView collections={collections} onUpdate={setCollections} tokens={tokens} resolvedValueTypes={resolvedValueTypes} />} />
-                <Route path="/tokens/system-variables" element={<SystemVariablesView />} />
-                <Route path="/tokens/algorithms" element={<AlgorithmsView algorithms={algorithms} />} />
-                <Route path="/tokens/analysis" element={<TokenAnalysis />} />
+                <Route path="/tokens/collections" element={<CollectionsView collections={collections} onUpdate={handleUpdateCollections} tokens={tokens} resolvedValueTypes={resolvedValueTypes} />} />
+                <Route path="/tokens/system-variables" element={<SystemVariablesView dimensions={dimensions} />} />
+                <Route path="/tokens/algorithms" element={<AlgorithmsView algorithms={algorithms} onUpdate={handleUpdateAlgorithms} onUpdateTokens={handleUpdateTokens} />} />
+                <Route path="/tokens/analysis" element={<TokenAnalysis tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} resolvedValueTypes={resolvedValueTypes} />} />
                 <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />
                 <Route path="/schemas/core-data" element={<CoreDataView />} />
                 <Route path="/schemas/theme-overrides" element={<ThemeOverridesView />} />
@@ -515,22 +480,22 @@ const App = () => {
                 <Route path="/dimensions" element={
                   <DimensionsView 
                     dimensions={dimensions} 
-                    setDimensions={setDimensions}
+                    setDimensions={handleUpdateDimensions}
                     dimensionOrder={dimensionOrder}
                     setDimensionOrder={setDimensionOrder}
                     onDataChange={(data) => {
-                      setDimensions(data.dimensions);
+                      handleUpdateDimensions(data.dimensions);
                       setDimensionOrder(data.dimensionOrder);
                       StorageService.setDimensionOrder(data.dimensionOrder);
                     }}
                   />
                 } />
-                <Route path="/classification" element={<ClassificationView taxonomies={taxonomies} setTaxonomies={setTaxonomies} />} />
+                <Route path="/classification" element={<ClassificationView taxonomies={taxonomies} setTaxonomies={handleUpdateTaxonomies} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} resolvedValueTypes={resolvedValueTypes} />} />
                 <Route path="/naming-rules" element={<NamingRulesView taxonomies={taxonomies} taxonomyOrder={taxonomyOrder} setTaxonomyOrder={setTaxonomyOrder} />} />
-                <Route path="/value-types" element={<ValueTypesView valueTypes={resolvedValueTypes} onUpdate={setResolvedValueTypes} />} />
-                <Route path="/themes" element={<ThemesView themes={themes} setThemes={setThemes} />} />
+                <Route path="/value-types" element={<ValueTypesView valueTypes={resolvedValueTypes} onUpdate={handleUpdateResolvedValueTypes} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} themes={themes} />} />
+                <Route path="/themes" element={<ThemesView themes={themes} setThemes={handleUpdateThemes} />} />
                 <Route path="/publishing" element={<Navigate to="/platforms" replace />} />
-                <Route path="/platforms" element={<PlatformsView platforms={platforms} setPlatforms={setPlatforms} tokens={tokens} setTokens={setTokens} taxonomies={taxonomies} />} />
+                <Route path="/platforms" element={<PlatformsView platforms={platforms} setPlatforms={handleUpdatePlatforms} tokens={tokens} setTokens={handleUpdateTokens} taxonomies={taxonomies} />} />
                 <Route path="/export-settings" element={<Box p={4}>Export settings content coming soon...</Box>} />
                 <Route path="/validation" element={<ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />} />
                 <Route path="/version-history" element={<Box p={4}>Version history content coming soon...</Box>} />
