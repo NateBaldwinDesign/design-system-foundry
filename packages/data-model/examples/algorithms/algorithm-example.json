@@ -1,0 +1,377 @@
+{
+  "schemaVersion": "4.0.0",
+  "profile": "basic",
+  "metadata": {
+    "name": "Progressive Text Size Algorithms Collection",
+    "description": "A set of algorithms demonstrating progressive token generation by chaining variable generators.",
+    "author": "Design System Team",
+    "version": "1.0.0"
+  },
+  "config": {
+    "baseUnit": 16,
+    "scaleFactor": 1.25,
+    "precision": 2
+  },
+  "algorithms": [
+    {
+      "id": "test-algo-1",
+      "name": "Test Algorithm 1",
+      "description": "A test algorithm with basic mathematical operations",
+      "resolvedValueTypeId": "dimension",
+      "variables": [
+        {
+          "id": "var1",
+          "name": "x",
+          "type": "number",
+          "defaultValue": "0"
+        },
+        {
+          "id": "var2",
+          "name": "y",
+          "type": "number",
+          "defaultValue": "0"
+        }
+      ],
+      "formulas": [
+        {
+          "id": "formula1",
+          "name": "Sum",
+          "expressions": {
+            "latex": {
+              "value": "{x} + {y}"
+            },
+            "javascript": {
+              "value": "x + y",
+              "metadata": {
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "+",
+              "left": {
+                "type": "variable",
+                "variableName": "x",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "variable",
+                "variableName": "y",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
+              }
+            }
+          },
+          "description": "Adds two numbers",
+          "variableIds": [
+            "var1",
+            "var2"
+          ]
+        },
+        {
+          "id": "formula2",
+          "name": "Product",
+          "expressions": {
+            "latex": {
+              "value": "{x} \\times {y}"
+            },
+            "javascript": {
+              "value": "x * y",
+              "metadata": {
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "*",
+              "left": {
+                "type": "variable",
+                "variableName": "x",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "variable",
+                "variableName": "y",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
+              }
+            }
+          },
+          "description": "Multiplies two numbers",
+          "variableIds": [
+            "var1",
+            "var2"
+          ]
+        }
+      ],
+      "conditions": [
+        {
+          "id": "cond1",
+          "name": "Is Positive",
+          "expression": "x > 0",
+          "variableIds": [
+            "var1"
+          ]
+        }
+      ],
+      "steps": [
+        {
+          "type": "formula",
+          "id": "formula1",
+          "name": "Sum"
+        },
+        {
+          "type": "condition",
+          "id": "cond1",
+          "name": "Is Positive"
+        },
+        {
+          "type": "formula",
+          "id": "formula2",
+          "name": "Product"
+        }
+      ]
+    },
+    {
+      "id": "typescale-algorithm",
+      "name": "Typography Scale Algorithm",
+      "description": "Calculates font size based on modular scale",
+      "resolvedValueTypeId": "font-size",
+      "variables": [
+        {
+          "id": "var_base",
+          "name": "Base",
+          "type": "number",
+          "defaultValue": "14"
+        },
+        {
+          "id": "var_ratio",
+          "name": "Ratio",
+          "type": "number",
+          "defaultValue": "1.125"
+        }
+      ],
+      "formulas": [
+        {
+          "id": "formula-typescale",
+          "name": "Type Scale",
+          "expressions": {
+            "latex": {
+              "value": "\\mathit{Base} \\times \\mathit{Ratio}^{n}"
+            },
+            "javascript": {
+              "value": "Base * Math.pow(Ratio, n)",
+              "metadata": {
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "*",
+              "left": {
+                "type": "variable",
+                "variableName": "Base",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "function",
+                "functionName": "Math.pow",
+                "arguments": [
+                  {
+                    "type": "variable",
+                    "variableName": "Ratio",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  {
+                    "type": "variable",
+                    "variableName": "n",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  }
+                ],
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "medium"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
+              }
+            }
+          },
+          "description": "Calculates font size based on modular scale",
+          "variableIds": [
+            "var_base",
+            "var_ratio"
+          ]
+        }
+      ],
+      "conditions": [],
+      "steps": [
+        {
+          "type": "formula",
+          "id": "formula-typescale",
+          "name": "Type Scale"
+        }
+      ]
+    },
+    {
+      "id": "spacing-scale-algorithm",
+      "name": "Spacing Scale Algorithm",
+      "description": "Calculates spacing based on exponential scale",
+      "resolvedValueTypeId": "gap",
+      "variables": [
+        {
+          "id": "var_base_spacing",
+          "name": "BaseSpacing",
+          "type": "number",
+          "defaultValue": "4"
+        },
+        {
+          "id": "var_multiplier",
+          "name": "Multiplier",
+          "type": "number",
+          "defaultValue": "2"
+        }
+      ],
+      "formulas": [
+        {
+          "id": "formula-spacing",
+          "name": "Spacing Scale",
+          "expressions": {
+            "latex": {
+              "value": "\\mathit{BaseSpacing} \\times \\mathit{Multiplier}^{n}"
+            },
+            "javascript": {
+              "value": "BaseSpacing * Math.pow(Multiplier, n)",
+              "metadata": {
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "*",
+              "left": {
+                "type": "variable",
+                "variableName": "BaseSpacing",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "function",
+                "functionName": "Math.pow",
+                "arguments": [
+                  {
+                    "type": "variable",
+                    "variableName": "Multiplier",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  {
+                    "type": "variable",
+                    "variableName": "n",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  }
+                ],
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "medium"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
+              }
+            }
+          },
+          "description": "Calculates spacing based on exponential scale",
+          "variableIds": [
+            "var_base_spacing",
+            "var_multiplier"
+          ]
+        }
+      ],
+      "conditions": [],
+      "steps": [
+        {
+          "type": "formula",
+          "id": "formula-spacing",
+          "name": "Spacing Scale"
+        }
+      ]
+    }
+  ],
+  "execution": {
+    "order": [
+      "test-algo-1",
+      "typescale-algorithm",
+      "spacing-scale-algorithm"
+    ],
+    "parallel": false,
+    "onError": "stop"
+  },
+  "integration": {
+    "targetSchema": "https://designsystem.org/schemas/tokens/v1.0.0",
+    "outputFormat": "design-tokens",
+    "mergeStrategy": "merge",
+    "validation": true
+  }
+}

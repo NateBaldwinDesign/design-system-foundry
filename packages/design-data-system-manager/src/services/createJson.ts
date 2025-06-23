@@ -1,6 +1,7 @@
 import { StorageService } from './storage';
 import { validateTokenSystem } from '@token-model/data-model';
 import type { ResolvedValueType, TokenCollection, Token, Dimension, Platform, Theme, Taxonomy } from '@token-model/data-model';
+import type { Algorithm } from '../types/algorithm';
 
 /**
  * Reconstructs a schema-compliant JSON object from localStorage.
@@ -112,6 +113,174 @@ export function createSchemaJsonFromLocalStorage() {
   };
 
   return schemaJson;
+}
+
+/**
+ * Reconstructs an algorithm schema-compliant JSON object from localStorage.
+ * Returns an object matching the @algorithm-schema.json structure.
+ */
+export function createAlgorithmJsonFromLocalStorage() {
+  // Read algorithm data from localStorage
+  const algorithms = StorageService.getAlgorithms() as Algorithm[];
+  
+  // Read root-level data from localStorage for metadata
+  const root = JSON.parse(localStorage.getItem('token-model:root') || '{}') as Record<string, unknown>;
+  const {
+    systemName = 'Design System',
+    version = '1.0.0'
+  } = root;
+
+  // Try to get the complete algorithm file structure first
+  const algorithmFile = StorageService.getAlgorithmFile();
+  
+  if (algorithmFile) {
+    // If we have the complete algorithm file, use it as the base and update with current algorithms
+    const result = {
+      ...algorithmFile,
+      algorithms: algorithms.map(algorithm => ({
+        id: algorithm.id,
+        name: algorithm.name,
+        description: algorithm.description || '',
+        resolvedValueTypeId: algorithm.resolvedValueTypeId,
+        variables: algorithm.variables.map(variable => ({
+          id: variable.id,
+          name: variable.name,
+          type: variable.type,
+          defaultValue: variable.defaultValue || '',
+          description: variable.description || ''
+        })),
+        formulas: algorithm.formulas.map(formula => ({
+          id: formula.id,
+          name: formula.name,
+          description: formula.description || '',
+          expressions: {
+            latex: { value: formula.expressions.latex.value },
+            javascript: {
+              value: formula.expressions.javascript.value,
+              metadata: formula.expressions.javascript.metadata || {
+                allowedOperations: ['math']
+              }
+            },
+            ast: formula.expressions.ast || {
+              type: 'literal',
+              value: formula.expressions.javascript.value,
+              metadata: {
+                astVersion: '1.0.0',
+                validationErrors: [],
+                complexity: 'low'
+              }
+            }
+          },
+          variableIds: formula.variableIds || []
+        })),
+        conditions: algorithm.conditions.map(condition => ({
+          id: condition.id,
+          name: condition.name,
+          expression: condition.expression,
+          variableIds: condition.variableIds || []
+        })),
+        steps: algorithm.steps.map(step => ({
+          type: step.type,
+          id: step.id,
+          name: step.name
+        }))
+      }))
+    };
+    
+    return result;
+  }
+
+  // Fallback: reconstruct the algorithm JSON structure if no complete file is stored
+  // Extract system variables from the first algorithm's config (if it exists)
+  let systemVariables: unknown[] = [];
+  if (algorithms && algorithms.length > 0) {
+    const firstAlgorithm = algorithms[0] as { config?: { systemVariables?: unknown[] } };
+    if (firstAlgorithm.config?.systemVariables) {
+      systemVariables = firstAlgorithm.config.systemVariables;
+    }
+  }
+
+  // Compose the algorithm schema-compliant object
+  const algorithmJson = {
+    schemaVersion: "5.0.0",
+    profile: "basic",
+    metadata: {
+      name: `${systemName} Algorithm Collection`,
+      description: `Algorithm collection for ${systemName}`,
+      version: version,
+      author: "Design System Manager"
+    },
+    config: {
+      // Include system variables in the config
+      systemVariables,
+      // Global configuration values can be added here as needed
+      defaultBaseValue: 16,
+      defaultRatio: 1.25,
+      defaultSpacing: 4
+    },
+    algorithms: algorithms.map(algorithm => ({
+      id: algorithm.id,
+      name: algorithm.name,
+      description: algorithm.description || '',
+      resolvedValueTypeId: algorithm.resolvedValueTypeId,
+      variables: algorithm.variables.map(variable => ({
+        id: variable.id,
+        name: variable.name,
+        type: variable.type,
+        defaultValue: variable.defaultValue || '',
+        description: variable.description || ''
+      })),
+      formulas: algorithm.formulas.map(formula => ({
+        id: formula.id,
+        name: formula.name,
+        description: formula.description || '',
+        expressions: {
+          latex: { value: formula.expressions.latex.value },
+          javascript: {
+            value: formula.expressions.javascript.value,
+            metadata: formula.expressions.javascript.metadata || {
+              allowedOperations: ['math']
+            }
+          },
+          ast: formula.expressions.ast || {
+            type: 'literal',
+            value: formula.expressions.javascript.value,
+            metadata: {
+              astVersion: '1.0.0',
+              validationErrors: [],
+              complexity: 'low'
+            }
+          }
+        },
+        variableIds: formula.variableIds || []
+      })),
+      conditions: algorithm.conditions.map(condition => ({
+        id: condition.id,
+        name: condition.name,
+        expression: condition.expression,
+        variableIds: condition.variableIds || []
+      })),
+      steps: algorithm.steps.map(step => ({
+        type: step.type,
+        id: step.id,
+        name: step.name
+      }))
+    })),
+    execution: {
+      order: [],
+      parallel: false,
+      onError: "stop"
+    },
+    integration: {
+      targetSchema: "https://designsystem.org/schemas/tokens/v1.0.0",
+      outputFormat: "design-tokens",
+      mergeStrategy: "merge",
+      validation: true
+    },
+    examples: []
+  };
+
+  return algorithmJson;
 }
 
 /**

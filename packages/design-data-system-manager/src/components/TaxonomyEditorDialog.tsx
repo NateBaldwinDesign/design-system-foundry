@@ -42,7 +42,7 @@ export interface TaxonomyEditorDialogProps {
     resolvedValueTypeIds?: string[];
     [key: string]: unknown;
   };
-  handleFormChange: (field: string, value: string) => void;
+  handleFormChange: (field: string, value: string | string[] | { id: string; name: string; description?: string }[]) => void;
   handleTermDialogOpen: (index: number | null) => void;
   handleTermDelete: (index: number) => void;
   resolvedValueTypes: ResolvedValueTypeOption[];

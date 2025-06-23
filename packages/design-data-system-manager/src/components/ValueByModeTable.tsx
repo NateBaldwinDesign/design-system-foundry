@@ -43,6 +43,7 @@ interface ValueByModeTableProps {
   resolvedValueTypeId: string;
   resolvedValueTypes: ResolvedValueType[];
   onAddValue: (modeIds: string[], value: TokenValue) => void;
+  isDisabled?: boolean;
 }
 
 // Helper function to get all possible combinations of modes from dimensions
@@ -129,7 +130,8 @@ function NestedModeTable({
   onDeleteValue,
   resolvedValueTypeId,
   resolvedValueTypes,
-  onAddValue
+  onAddValue,
+  isDisabled
 }: {
   columnDimensions: Dimension[];
   rowDimensions: Dimension[];
@@ -140,6 +142,7 @@ function NestedModeTable({
   resolvedValueTypeId: string;
   resolvedValueTypes: ResolvedValueType[];
   onAddValue: (modeIds: string[], value: TokenValue) => void;
+  isDisabled?: boolean;
 }) {
   const columnCombinations = getModeCombinations(columnDimensions);
   const rowCombinations = getModeCombinations(rowDimensions);
@@ -195,6 +198,7 @@ function NestedModeTable({
                                           size="sm"
                                           variant="outline"
                                           onClick={() => onAddValue(allModeIds, getDefaultTokenValue(resolvedValueTypeId, resolvedValueTypes))}
+                                          isDisabled={isDisabled}
                                         >
                                           Add value
                                         </Button>
@@ -207,6 +211,7 @@ function NestedModeTable({
                                           variant="ghost"
                                           colorScheme="red"
                                           onClick={() => onDeleteValue(allModeIds)}
+                                          isDisabled={isDisabled}
                                         />
                                       )}
                                     </Box>
@@ -277,6 +282,7 @@ function NestedModeTable({
                                     size="sm"
                                     variant="outline"
                                     onClick={() => onAddValue(allModeIds, getDefaultTokenValue(resolvedValueTypeId, resolvedValueTypes))}
+                                    isDisabled={isDisabled}
                                   >
                                     Add value
                                   </Button>
@@ -289,6 +295,7 @@ function NestedModeTable({
                                     variant="ghost"
                                     colorScheme="red"
                                     onClick={() => onDeleteValue(allModeIds)}
+                                    isDisabled={isDisabled}
                                   />
                                 )}
                               </Box>
@@ -344,6 +351,7 @@ function NestedModeTable({
                         size="sm"
                         variant="outline"
                         onClick={() => onAddValue(allModeIds, getDefaultTokenValue(resolvedValueTypeId, resolvedValueTypes))}
+                        isDisabled={isDisabled}
                       >
                         Add value
                       </Button>
@@ -356,6 +364,7 @@ function NestedModeTable({
                         variant="ghost"
                         colorScheme="red"
                         onClick={() => onDeleteValue(allModeIds)}
+                        isDisabled={isDisabled}
                       />
                     )}
                   </Box>
@@ -377,7 +386,8 @@ export function ValueByModeTable({
   onDeleteValue,
   resolvedValueTypeId,
   resolvedValueTypes,
-  onAddValue 
+  onAddValue,
+  isDisabled
 }: ValueByModeTableProps) {
   // Categorize dimensions into columns and rows
   const { columnDimensions, rowDimensions } = categorizeDimensions(dimensions);
@@ -399,6 +409,7 @@ export function ValueByModeTable({
         resolvedValueTypeId={resolvedValueTypeId}
         resolvedValueTypes={resolvedValueTypes}
         onAddValue={onAddValue}
+        isDisabled={isDisabled}
       />
     </Box>
   );

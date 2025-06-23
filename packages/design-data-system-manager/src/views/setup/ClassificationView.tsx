@@ -18,19 +18,18 @@ import { createUniqueId } from '../../utils/id';
 import { ValidationService } from '../../services/validation';
 import { TaxonomyEditorDialog } from '../../components/TaxonomyEditorDialog';
 import { TermEditorDialog } from '../../components/TermEditorDialog';
-import { StorageService } from '../../services/storage';
+import { CardTitle } from '../../components/CardTitle';
 
 interface ClassificationViewProps {
   taxonomies: Taxonomy[];
   setTaxonomies: (taxonomies: Taxonomy[]) => void;
+  tokens: Token[];
+  collections: TokenCollection[];
+  dimensions: Dimension[];
+  platforms: Platform[];
+  resolvedValueTypes: ResolvedValueType[];
 }
 
-// Extend the Taxonomy type to include resolvedValueTypeIds
-interface ExtendedTaxonomy extends Taxonomy {
-  resolvedValueTypeIds?: string[];
-}
-
-// Utility to ensure all terms have a string description
 function normalizeTerms(terms: { id: string; name: string; description?: string }[]): { id: string; name: string; description: string }[] {
   return terms.map((term: { id: string; name: string; description?: string }) => ({
     ...term,
@@ -38,7 +37,15 @@ function normalizeTerms(terms: { id: string; name: string; description?: string 
   }));
 }
 
-export function ClassificationView({ taxonomies, setTaxonomies }: ClassificationViewProps) {
+export function ClassificationView({ 
+  taxonomies, 
+  setTaxonomies, 
+  tokens, 
+  collections, 
+  dimensions, 
+  platforms, 
+  resolvedValueTypes 
+}: ClassificationViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -53,16 +60,11 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
   const [termDialogOpen, setTermDialogOpen] = useState(false);
   const [termEditIndex, setTermEditIndex] = useState<number | null>(null);
   const toast = useToast();
-  const tokens: Token[] = StorageService.getTokens();
-  const collections: TokenCollection[] = StorageService.getCollections();
-  const dimensions: Dimension[] = StorageService.getDimensions();
-  const platforms: Platform[] = StorageService.getPlatforms();
-  const resolvedValueTypes: ResolvedValueType[] = StorageService.getValueTypes();
 
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
     if (index !== null) {
-      const taxonomy = taxonomies[index] as ExtendedTaxonomy;
+      const taxonomy = taxonomies[index] as Taxonomy;
       setForm({
         id: taxonomy.id,
         name: taxonomy.name,
@@ -87,10 +89,13 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
     setEditingIndex(null);
   };
 
-  const handleFormChange = (field: string, value: string | { id: string; name: string; description?: string }[]) => {
+  const handleFormChange = (field: string, value: string | string[] | { id: string; name: string; description?: string }[]) => {
     setForm((prev: typeof form) => {
       if (field === 'terms') {
         return { ...prev, terms: normalizeTerms(value as { id: string; name: string; description?: string }[]) };
+      }
+      if (field === 'resolvedValueTypeIds') {
+        return { ...prev, resolvedValueTypeIds: value as string[] };
       }
       return { ...prev, [field]: value };
     });
@@ -115,7 +120,7 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
         tokens,
         platforms,
         taxonomies,
-        resolvedValueTypes: StorageService.getValueTypes(),
+        resolvedValueTypes: resolvedValueTypes,
         version,
         versionHistory
       };
@@ -135,7 +140,7 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
         return;
       }
       // Persist to local storage
-      StorageService.setTaxonomies(taxonomies);
+      localStorage.setItem('token-model:taxonomies', JSON.stringify(taxonomies));
       setTaxonomies(taxonomies);
     } catch (error) {
       console.error('[ClassificationView] Validation error:', error);
@@ -277,7 +282,6 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
         </Button>
         <VStack align="stretch" spacing={2}>
           {taxonomies.map((taxonomy, i) => {
-            const extendedTaxonomy = taxonomy as ExtendedTaxonomy;
             return (
               <Box 
                 key={taxonomy.id} 
@@ -289,12 +293,12 @@ export function ClassificationView({ taxonomies, setTaxonomies }: Classification
               >
                 <HStack justify="space-between" align="center">
                   <Box>
-                    <Text fontSize="lg" fontWeight="medium">{taxonomy.name}</Text>
+                    <CardTitle title={taxonomy.name} cardType="taxonomy" />
                     <Text fontSize="sm" color="gray.600">{taxonomy.description}</Text>
                     <Text fontSize="sm" color="gray.600">Terms: {taxonomy.terms.map((t: { name: string }) => t.name).join(', ')}</Text>
-                    {Array.isArray(extendedTaxonomy.resolvedValueTypeIds) && extendedTaxonomy.resolvedValueTypeIds.length > 0 && (
+                    {Array.isArray(taxonomy.resolvedValueTypeIds) && taxonomy.resolvedValueTypeIds.length > 0 && (
                       <Wrap mt={2} spacing={2}>
-                        {extendedTaxonomy.resolvedValueTypeIds.map((typeId: string) => {
+                        {taxonomy.resolvedValueTypeIds.map((typeId: string) => {
                           const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
                           return type ? (
                             <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">

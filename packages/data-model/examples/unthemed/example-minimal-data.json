@@ -130,12 +130,24 @@
     },
     {
       "id": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24",
-      "displayName": "TESTD",
+      "displayName": "Responsive size",
       "description": "",
       "modes": [
         {
           "id": "modeId-653c36c5-649f-404b-baf2-cf5279ddd06f",
-          "name": "TESTM",
+          "name": "Mobile",
+          "description": "",
+          "dimensionId": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
+        },
+        {
+          "id": "modeId-f56d50e4-446f-49df-9488-6274c40e0877",
+          "name": "Tablet",
+          "description": "",
+          "dimensionId": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
+        },
+        {
+          "id": "modeId-58823f28-08da-40d0-88ff-3063166853ff",
+          "name": "Desktop",
           "description": "",
           "dimensionId": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
         }
@@ -143,7 +155,39 @@
       "defaultMode": "modeId-653c36c5-649f-404b-baf2-cf5279ddd06f",
       "required": false,
       "resolvedValueTypeIds": [
-        "color"
+        "font-size",
+        "spacing"
+      ]
+    },
+    {
+      "id": "dimensionId-053537da-160d-4766-8f60-a6fbb88f0ba7",
+      "displayName": "User density",
+      "description": "",
+      "modes": [
+        {
+          "id": "modeId-0c7852b9-abe4-47cf-a2d6-b5392dfb549d",
+          "name": "Compact",
+          "description": "",
+          "dimensionId": "dimensionId-053537da-160d-4766-8f60-a6fbb88f0ba7"
+        },
+        {
+          "id": "modeId-e277ad43-3e36-4743-9e36-e867c28f8b3f",
+          "name": "Regular",
+          "description": "",
+          "dimensionId": "dimensionId-053537da-160d-4766-8f60-a6fbb88f0ba7"
+        },
+        {
+          "id": "modeId-847b0653-c79a-4e35-82a4-c150f6a20f9b",
+          "name": "Spacious",
+          "description": "",
+          "dimensionId": "dimensionId-053537da-160d-4766-8f60-a6fbb88f0ba7"
+        }
+      ],
+      "defaultMode": "modeId-e277ad43-3e36-4743-9e36-e867c28f8b3f",
+      "required": false,
+      "resolvedValueTypeIds": [
+        "font-size",
+        "spacing"
       ]
     }
   ],
@@ -151,7 +195,8 @@
     "dimensionId-0000-0000-0000",
     "dimensionId-1111-1111-1111",
     "dimensionId-2222-2222-2222",
-    "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
+    "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24",
+    "dimensionId-053537da-160d-4766-8f60-a6fbb88f0ba7"
   ],
   "tokens": [
     {
@@ -1078,7 +1123,8 @@
         "shadow",
         "border",
         "radius",
-        "z_index"
+        "z_index",
+        "font-size"
       ]
     },
     {
@@ -1130,6 +1176,11 @@
           "id": "termId-f888d6f7-0218-4c58-be57-5c8ac239f020",
           "name": "Z Index",
           "description": ""
+        },
+        {
+          "id": "termId-1b26134e-783a-ewaf1-9fewa17-c21f454afe",
+          "name": "Font size",
+          "description": ""
         }
       ],
       "resolvedValueTypeIds": [
@@ -1141,7 +1192,8 @@
         "shadow",
         "border",
         "radius",
-        "z_index"
+        "z_index",
+        "font-size"
       ]
     }
   ],
@@ -1191,6 +1243,11 @@
     {
       "id": "z_index",
       "displayName": "Z Index"
+    },
+    {
+      "id": "font-size",
+      "type": "FONT_SIZE",
+      "displayName": "Font Size"
     }
   ],
   "namingRules": {

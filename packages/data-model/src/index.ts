@@ -5,6 +5,7 @@ export type {
   StandardValueType,
   ResolvedValueType,
   TokenStatus,
+  TokenTier,
   FallbackStrategy,
   ColorValue,
   DimensionValue,
@@ -32,6 +33,7 @@ export {
   StandardValueType as StandardValueTypeSchema,
   ResolvedValueType as ResolvedValueTypeSchema,
   TokenStatus as TokenStatusSchema,
+  TokenTier as TokenTierSchema,
   FallbackStrategy as FallbackStrategySchema,
   TokenValue as TokenValueSchema,
   Mode as ModeSchema,
@@ -85,4 +87,10 @@ export const exampleData = {
   brandAOverrides: () => import('../examples/themed/brand-a-overrides.json'),
   brandBOverrides: () => import('../examples/themed/brand-b-overrides.json'),
   minimal: () => import('../examples/unthemed/example-minimal-data.json')
+} as const;
+
+// Export algorithm data
+export const algorithmData = {
+  core: () => import('../examples/algorithms/core-algorithms.json').catch(() => null),
+  minimal: () => import('../examples/algorithms/example-minimal-algorithms.json').catch(() => null)
 } as const; 

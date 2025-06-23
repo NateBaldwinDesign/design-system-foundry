@@ -23,15 +23,31 @@ import {
 } from '@chakra-ui/react';
 import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
 import { ValidationService } from '../../services/validation';
-import type { Token, TokenCollection, Dimension, Platform, Taxonomy, Theme, ResolvedValueType, StandardValueType } from '@token-model/data-model/src/schema';
+import type { ResolvedValueType, StandardValueType, Token, TokenCollection, Dimension, Platform, Taxonomy, Theme } from '@token-model/data-model/src/schema';
 import { StandardValueType as StandardValueTypeSchema } from '@token-model/data-model/src/schema';
+import { CardTitle } from '../../components/CardTitle';
 
 interface ValueTypesViewProps {
   valueTypes: ResolvedValueType[];
   onUpdate: (valueTypes: ResolvedValueType[]) => void;
+  tokens: Token[];
+  collections: TokenCollection[];
+  dimensions: Dimension[];
+  platforms: Platform[];
+  taxonomies: Taxonomy[];
+  themes: Theme[];
 }
 
-export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
+export function ValueTypesView({ 
+  valueTypes, 
+  onUpdate, 
+  tokens, 
+  collections, 
+  dimensions, 
+  platforms, 
+  taxonomies, 
+  themes 
+}: ValueTypesViewProps) {
   const { colorMode } = useColorMode();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingType, setEditingType] = useState<ResolvedValueType | null>(null);
@@ -39,13 +55,6 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
   const [type, setType] = useState<StandardValueType | 'CUSTOM'>('CUSTOM');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const toast = useToast();
-  // Assume tokens, collections, dimensions, platforms, taxonomies, and themes are available via props or context (for this edit, use empty arrays as placeholders)
-  const tokens: Token[] = [];
-  const collections: TokenCollection[] = [];
-  const dimensions: Dimension[] = [];
-  const platforms: Platform[] = [];
-  const taxonomies: Taxonomy[] = [];
-  const themes: Theme[] = [];
 
   // Compute available standard types (exclude those already used, except for the one being edited)
   const usedTypes = valueTypes
@@ -71,19 +80,31 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
   };
 
   const validateAndSetValueTypes = (updatedValueTypes: ResolvedValueType[]) => {
+    // Get systemName and systemId from storage or fallback
+    const storedData = JSON.parse(localStorage.getItem('token-model:data') || '{}');
+    const systemName = storedData.systemName || 'Design Token System';
+    const systemId = storedData.systemId || 'default-system-id';
+
     const data = {
       tokenCollections: collections,
-      dimensions,
-      tokens,
-      platforms,
-      taxonomies,
-      themes,
+      dimensions: dimensions,
+      tokens: tokens,
+      platforms: platforms,
+      taxonomies: taxonomies,
+      themes: themes,
       resolvedValueTypes: updatedValueTypes,
       version: '1.0.0',
-      versionHistory: []
+      versionHistory: [],
+      systemName,
+      systemId
     };
     const result = ValidationService.validateData(data);
     if (!result.isValid) {
+      // Debugging: log the validation errors and the data being validated
+      console.error('[ValueTypesView] Schema validation failed:', {
+        errors: result.errors,
+        data
+      });
       toast({
         title: 'Schema Validation Failed',
         description: 'Your change would make the data invalid. See the Validation tab for details.',
@@ -186,7 +207,7 @@ export function ValueTypesView({ valueTypes, onUpdate }: ValueTypesViewProps) {
             >
               <HStack justify="space-between" align="center">
                 <Box>
-                  <Text fontSize="lg" fontWeight="medium">{valueType.displayName}</Text>
+                  <CardTitle title={valueType.displayName} cardType={valueType.type || 'Custom'} />
                   <Text fontSize="sm" color="gray.600">Type: {valueType.type || 'Custom'}</Text>
                 </Box>
                 <HStack>

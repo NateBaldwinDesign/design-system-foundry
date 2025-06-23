@@ -18,6 +18,7 @@ import type { Dimension, Mode, ResolvedValueType } from '@token-model/data-model
 import { ValidationService } from '../../services/validation';
 import { DimensionsEditor } from '../../components/DimensionsEditor';
 import { StorageService } from '../../services/storage';
+import { CardTitle } from '../../components/CardTitle';
 
 interface DimensionsViewProps {
   dimensions: Dimension[];
@@ -265,7 +266,7 @@ export function DimensionsView({
                               <LuGripVertical />
                             </Box>
                             <Box>
-                              <Text fontSize="lg" fontWeight="medium">{dim.displayName}</Text>
+                              <CardTitle title={dim.displayName} cardType="dimension" />
                               <Text fontSize="sm" color="gray.600">Modes: {dim.modes.map((m: Mode) => m.name).join(', ')}</Text>
                               <Text fontSize="xs" color="gray.500">ID: {dim.id}</Text>
                               {Array.isArray(dim.resolvedValueTypeIds) && dim.resolvedValueTypeIds.length > 0 && (

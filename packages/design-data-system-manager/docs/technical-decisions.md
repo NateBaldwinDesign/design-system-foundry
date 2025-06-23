@@ -192,3 +192,102 @@ Implement a clear separation between data operations (using `id`) and UI operati
 - UI components will use `type` field for display and formatting
 - A utility function will handle mapping between IDs and types
 - Value type handlers will support both standard and custom types 
+
+# Unified Storage Management Patterns
+
+## Context
+The application currently uses multiple inconsistent patterns for managing local storage and state synchronization:
+- Direct `StorageService` calls in components
+- App-level state management with periodic refresh
+- Component-specific refresh logic with window focus listeners
+- Inconsistent state update patterns across different views
+
+## Decision
+Implement a unified storage management pattern based on the **App-Level State Management with Centralized Updates** approach, which provides the best balance of consistency, performance, and user experience while avoiding infinite loops.
+
+### Unified Pattern: App-Level State Management with Centralized Updates
+
+#### Core Principles
+1. **Single Source of Truth**: App.tsx maintains all global state and syncs with localStorage
+2. **One-Time Initialization**: Data is loaded from storage once on mount, not continuously
+3. **Centralized Updates**: All mutations go through centralized update handlers
+4. **Props-Based Communication**: Components receive state as props and trigger updates through callbacks
+5. **No Periodic Refresh**: Eliminates infinite loops and performance issues
+
+#### Implementation Pattern
+
+**App.tsx State Management:**
+```tsx
+// Global state for all data types
+const [tokens, setTokens] = useState<ExtendedToken[]>([]);
+const [collections, setCollections] = useState<TokenCollection[]>([]);
+// ... other state
+
+// One-time initialization on mount
+useEffect(() => {
+  // Load all data from storage once on mount
+  const storedCollections = StorageService.getCollections();
+  const storedTokens = StorageService.getTokens();
+  // ... load other data types
+  
+  // Only set state if we have data and it's different from current state
+  if (storedCollections.length > 0 && JSON.stringify(storedCollections) !== JSON.stringify(collections)) {
+    setCollections(storedCollections);
+  }
+  // ... set other state
+}, []); // Only run once on mount
+
+// Centralized update handlers
+const handleUpdateTokens = (updatedTokens: ExtendedToken[]) => {
+  setTokens(updatedTokens);
+  StorageService.setTokens(updatedTokens);
+};
+```
+
+**Component Usage Pattern:**
+```tsx
+// Components receive state as props and update through callbacks
+<TokensView
+  tokens={tokens}
+  collections={collections}
+  onUpdateTokens={handleUpdateTokens}
+  onUpdateCollections={handleUpdateCollections}
+/>
+```
+
+#### Benefits
+- **Consistency**: All components follow the same pattern
+- **Performance**: No periodic refresh eliminates infinite loops and unnecessary re-renders
+- **Reliability**: Centralized state management ensures data consistency
+- **User Experience**: Immediate updates through centralized handlers
+- **Maintainability**: Centralized logic is easier to debug and modify
+- **Type Safety**: Props-based approach provides better TypeScript support
+
+#### Migration Strategy
+1. **Phase 1**: Update App.tsx to implement one-time initialization for all data types
+2. **Phase 2**: Convert components to receive state as props instead of direct storage calls
+3. **Phase 3**: Remove component-specific refresh logic and direct storage calls
+4. **Phase 4**: Standardize all update handlers to follow the same pattern
+
+#### Rationale
+- **Eliminates Infinite Loops**: One-time initialization prevents the refresh cycles that caused infinite loops
+- **Improves Performance**: No periodic refresh reduces unnecessary storage calls and re-renders
+- **Enhances Reliability**: Centralized state management ensures UI always reflects current state
+- **Simplifies Debugging**: Centralized logic is easier to trace and debug
+- **Maintains User Experience**: Centralized update handlers provide immediate feedback
+- **Reduces Complexity**: Eliminates the need for complex refresh coordination
+
+### Forbidden Patterns
+- Direct `StorageService` calls in components (except in App.tsx)
+- Periodic refresh effects with intervals
+- Component-specific refresh logic with different intervals
+- Manual state synchronization without centralized handlers
+- Inconsistent update handler patterns across components
+
+### Outcome
+- All components follow the same state management pattern
+- App.tsx becomes the single source of truth for all data
+- One-time initialization prevents infinite loops
+- Centralized update handlers for all data mutations
+- Props-based component communication
+- Improved performance through elimination of periodic refresh 

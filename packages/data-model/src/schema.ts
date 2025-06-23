@@ -206,6 +206,9 @@ export const Token = z.object({
   private: z.boolean().default(false),
   themeable: z.boolean().default(false),
   status: TokenStatus.optional(),
+  tokenTier: TokenTier,
+  generatedByAlgorithm: z.boolean().default(false),
+  algorithmId: z.string().regex(/^[a-zA-Z0-9-_]+$/).optional(),
   taxonomies: z.array(TokenTaxonomyRef),
   propertyTypes: z.array(z.string()),
   codeSyntax: z.array(z.object({
@@ -303,7 +306,8 @@ export const Taxonomy = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string(),
-  terms: z.array(TaxonomyTerm)
+  terms: z.array(TaxonomyTerm),
+  resolvedValueTypeIds: z.array(z.string()).optional()
 });
 
 // Version history types

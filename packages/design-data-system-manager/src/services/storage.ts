@@ -1,5 +1,6 @@
 import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy, Theme, ResolvedValueType } from '@token-model/data-model';
 import { generateDefaultValueTypes } from '../utils/defaultValueTypes';
+import { Algorithm } from '../types/algorithm';
 
 type ValueType = ResolvedValueType;
 
@@ -17,7 +18,9 @@ const STORAGE_KEYS = {
   PLATFORMS: 'token-model:platforms',
   THEMES: 'token-model:themes',
   TAXONOMIES: 'token-model:taxonomies',
-  NAMING_RULES: 'token-model:naming-rules'
+  NAMING_RULES: 'token-model:naming-rules',
+  ALGORITHMS: 'token-model:algorithms',
+  ALGORITHM_FILE: 'token-model:algorithm-file'
 } as const;
 
 export class StorageService {
@@ -115,6 +118,23 @@ export class StorageService {
 
   static setNamingRules(rules: { taxonomyOrder: string[] }): void {
     this.setItem(STORAGE_KEYS.NAMING_RULES, rules);
+  }
+
+  static getAlgorithms(): Algorithm[] {
+    return this.getItem(STORAGE_KEYS.ALGORITHMS, []);
+  }
+
+  static setAlgorithms(algorithms: Algorithm[]): void {
+    this.setItem(STORAGE_KEYS.ALGORITHMS, algorithms);
+  }
+
+  static getAlgorithmFile(): Record<string, unknown> | null {
+    const item = localStorage.getItem(STORAGE_KEYS.ALGORITHM_FILE);
+    return item ? JSON.parse(item) : null;
+  }
+
+  static setAlgorithmFile(algorithmFile: Record<string, unknown>): void {
+    this.setItem(STORAGE_KEYS.ALGORITHM_FILE, algorithmFile);
   }
 
   static clearAll(): void {

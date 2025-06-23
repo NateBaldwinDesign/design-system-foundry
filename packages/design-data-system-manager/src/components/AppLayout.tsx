@@ -5,7 +5,7 @@ import { AppSidebar } from './AppSidebar';
 interface DataSourceOption {
   label: string;
   value: string;
-  filePath: string;
+  hasAlgorithms: boolean;
 }
 
 interface AppLayoutProps {
