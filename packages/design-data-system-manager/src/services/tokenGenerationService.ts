@@ -3,6 +3,7 @@ import type { Algorithm, TokenGeneration, Formula, Condition } from '../types/al
 import { createUniqueId } from '../utils/id';
 import { AlgorithmExecutionService } from './algorithmExecutionService';
 import { StorageService } from './storage';
+import { CodeSyntaxService } from './codeSyntax';
 import type { Dimension } from '@token-model/data-model';
 
 export interface GeneratedToken {
@@ -879,6 +880,18 @@ export class TokenGenerationService {
       ]
     };
 
+    // Generate code syntax for all platforms
+    const platforms = StorageService.getPlatforms();
+    const namingRules = StorageService.getNamingRules();
+    const schema = {
+      platforms,
+      taxonomies: availableTaxonomies,
+      namingRules
+    };
+    
+    const codeSyntax = CodeSyntaxService.generateAllCodeSyntaxes(token, schema);
+    token.codeSyntax = codeSyntax;
+
     console.log('🎯 TokenGenerationService.createTokenWithLogicalMappingAndModes: Token created successfully', {
       tokenId: token.id,
       displayName: token.displayName,
@@ -887,7 +900,8 @@ export class TokenGenerationService {
       value: token.valuesByMode[0]?.value,
       taxonomiesCount: token.taxonomies.length,
       generatedByAlgorithm: token.generatedByAlgorithm,
-      algorithmId: token.algorithmId
+      algorithmId: token.algorithmId,
+      codeSyntaxCount: token.codeSyntax.length
     });
 
     return token;
