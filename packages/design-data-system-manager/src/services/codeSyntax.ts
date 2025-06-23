@@ -82,13 +82,33 @@ export class CodeSyntaxService {
       default:
         break;
     }
-    // Format string or prefix/suffix
-    let result = `${prefix}${name}${suffix}`;
+    // Format string or prefix/suffix with proper delimiters
+    let result = '';
     if (syntax.formatString) {
       result = syntax.formatString
         .replace('{prefix}', prefix)
         .replace('{name}', name)
         .replace('{suffix}', suffix);
+    } else {
+      // Build result with proper delimiters between prefix, name, and suffix
+      const delimiter = syntax.delimiter ?? '';
+      if (prefix && name && suffix) {
+        result = `${prefix}${delimiter}${name}${delimiter}${suffix}`;
+      } else if (prefix && name) {
+        result = `${prefix}${delimiter}${name}`;
+      } else if (name && suffix) {
+        result = `${name}${delimiter}${suffix}`;
+      } else if (prefix && suffix) {
+        result = `${prefix}${delimiter}${suffix}`;
+      } else if (prefix) {
+        result = prefix;
+      } else if (name) {
+        result = name;
+      } else if (suffix) {
+        result = suffix;
+      } else {
+        result = '';
+      }
     }
     return result;
   }
@@ -128,12 +148,12 @@ export function convertCodeSyntaxToArray(codeSyntaxObj: Record<string, string>):
  * @param codeSyntax Either an array of { platformId, formattedName } or an object with platform IDs as keys
  * @returns Array of { platformId, formattedName } objects
  */
-export function ensureCodeSyntaxArrayFormat(codeSyntax: any): Array<{ platformId: string; formattedName: string }> {
+export function ensureCodeSyntaxArrayFormat(codeSyntax: unknown): Array<{ platformId: string; formattedName: string }> {
   if (Array.isArray(codeSyntax)) {
     return codeSyntax;
   }
   if (typeof codeSyntax === 'object' && codeSyntax !== null) {
-    return convertCodeSyntaxToArray(codeSyntax);
+    return convertCodeSyntaxToArray(codeSyntax as Record<string, string>);
   }
   return [];
 } 

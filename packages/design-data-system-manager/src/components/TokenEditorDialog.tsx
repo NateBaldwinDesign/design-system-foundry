@@ -46,26 +46,13 @@ import {
   Trash2, 
   ChevronDown, 
   MonitorSmartphone, 
-  Tags, 
-  Palette, 
-  Ruler, 
-  PencilRuler,
-  Type,
-  Timer,
-  Circle,
-  Expand,
-  Minus,
-  Plus,
-  MoveHorizontal,
-  MoveVertical,
-  SquareRoundCorner
+  Tags
 } from 'lucide-react';
 import { ValueByModeTable } from './ValueByModeTable';
 import { TokenValuePicker } from './TokenValuePicker';
 import { TaxonomyPicker } from './TaxonomyPicker';
-import { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef, ResolvedValueType, TokenValue, validateToken, TokenCollection, Taxonomy } from '@token-model/data-model';
+import { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef, ResolvedValueType, TokenValue, TokenCollection, Taxonomy } from '@token-model/data-model';
 import { createUniqueId } from '../utils/id';
-import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
 import { getDefaultValueForType, getValueTypeFromId } from '../utils/valueTypeUtils';
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
@@ -263,26 +250,12 @@ interface TokenVariant {
   tokens: Token[];
 }
 
-interface Theme {
-  id: string;
-  name: string;
-  description?: string;
-  overrides?: {
-    tokenOverrides?: Array<{
-      tokenId: string;
-      value: string;
-    }>;
-  };
-}
-
 // Update Schema type to include namingRules
 interface Schema extends SchemaType {
   extensions?: {
     tokenGroups?: TokenGroup[];
     tokenVariants?: Record<string, TokenVariant>;
   };
-  themes?: Theme[];
-  namingRules?: Record<string, unknown>;
 }
 
 export function TokenEditorDialog({ 
@@ -754,8 +727,12 @@ export function TokenEditorDialog({
     };
     setEditedToken((prev: ExtendedToken) => ({
       ...prev,
+      taxonomies: newTaxonomies,
       codeSyntax: CodeSyntaxService.generateAllCodeSyntaxes(
-        prev,
+        {
+          ...prev,
+          taxonomies: newTaxonomies
+        },
         codeSyntaxSchema
       )
     }));
@@ -835,13 +812,14 @@ export function TokenEditorDialog({
     }
 
     // Check for references in theme overrides
-    if (schema?.themes) {
-      schema.themes.forEach(theme => {
-        if (theme.overrides?.tokenOverrides?.some(o => o.tokenId === token.id)) {
-          references.themeOverrides.push(theme.id);
-        }
-      });
-    }
+    // Note: Theme overrides are not currently supported in the schema
+    // if (schema?.themes) {
+    //   schema.themes.forEach(theme => {
+    //     if (theme.overrides?.tokenOverrides?.some(o => o.tokenId === token.id)) {
+    //       references.themeOverrides.push(theme.id);
+    //     }
+    //   });
+    // }
 
     return references;
   };
