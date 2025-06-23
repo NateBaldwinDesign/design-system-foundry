@@ -5,6 +5,9 @@ import {
   HStack,
   Text,
   Badge,
+  Heading,
+  Divider,
+  Tooltip,
   Alert,
   AlertIcon,
   AlertDescription,
@@ -12,10 +15,7 @@ import {
   Card,
   CardBody,
   CardHeader,
-  Heading,
-  Divider,
-  Icon,
-  Tooltip
+  Icon
 } from '@chakra-ui/react';
 import { 
   ArrowRight, 

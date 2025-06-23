@@ -1,43 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   VStack,
   HStack,
   Text,
-  Badge,
   Button,
-  useColorMode,
   Card,
-  CardBody,
   CardHeader,
+  CardBody,
   Heading,
-  Icon,
-  Alert,
-  AlertIcon,
-  AlertDescription,
-  Input,
+  Badge,
+  useColorMode,
   FormControl,
   FormLabel,
   NumberInput,
   NumberInputField,
   NumberInputStepper,
   NumberIncrementStepper,
-  NumberDecrementStepper
+  NumberDecrementStepper,
+  Input,
+  Alert,
+  AlertIcon,
+  AlertDescription,
+  Icon
 } from '@chakra-ui/react';
 import { 
   Play, 
-  RotateCcw, 
   StepForward, 
-  GitCommit,
-  Variable,
-  AlertTriangle,
-  Clock
+  RotateCcw, 
+  GitCommit, 
+  Clock, 
+  Variable, 
+  AlertTriangle 
 } from 'lucide-react';
-import { Algorithm } from '../types/algorithm';
-import { 
-  FormulaDependencyService, 
-  ExecutionTrace
-} from '../services/formulaDependencyService';
+import { Algorithm, Variable as VariableType } from '../types/algorithm';
+import { FormulaDependencyService, ExecutionTrace } from '../services/formulaDependencyService';
+import { SystemVariableService } from '../services/systemVariableService';
 
 interface ExecutionPreviewProps {
   algorithm: Algorithm;
@@ -49,12 +47,32 @@ export const ExecutionPreview: React.FC<ExecutionPreviewProps> = ({
   onExecutionComplete
 }) => {
   const { colorMode } = useColorMode();
-  const [isRunning, setIsRunning] = useState(false);
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [executionContext, setExecutionContext] = useState<Record<string, unknown>>({
-    n: 0 // Default iteration value
-  });
+  const [executionContext, setExecutionContext] = useState<Record<string, unknown>>({});
   const [executionTrace, setExecutionTrace] = useState<ExecutionTrace | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [currentStepIndex, setCurrentStepIndex] = useState(-1);
+  const [systemVariables, setSystemVariables] = useState<VariableType[]>([]);
+
+  // Load system variables on mount
+  useEffect(() => {
+    const loadSystemVariables = () => {
+      const userSystemVariables = SystemVariableService.getSystemVariables();
+      const allSystemVariables: VariableType[] = [
+        // Built-in system variable 'n' (always available)
+        {
+          id: 'system_n',
+          name: 'n',
+          type: 'number',
+          defaultValue: '0'
+        },
+        // User-defined system variables from storage
+        ...userSystemVariables
+      ];
+      setSystemVariables(allSystemVariables);
+    };
+
+    loadSystemVariables();
+  }, []);
 
   // UI Mapping Logic - moved to constants above return statement per project rules
   const stepCount = algorithm.steps.length;
@@ -62,15 +80,11 @@ export const ExecutionPreview: React.FC<ExecutionPreviewProps> = ({
 
   const handleRunExecution = () => {
     setIsRunning(true);
-    setCurrentStepIndex(0);
-    
     try {
       const trace = FormulaDependencyService.generateExecutionTrace(algorithm, executionContext);
       setExecutionTrace(trace);
-      
-      if (onExecutionComplete) {
-        onExecutionComplete(trace);
-      }
+      setCurrentStepIndex(trace.steps.length - 1);
+      onExecutionComplete?.(trace);
     } catch (error) {
       console.error('Execution failed:', error);
     } finally {
@@ -79,14 +93,13 @@ export const ExecutionPreview: React.FC<ExecutionPreviewProps> = ({
   };
 
   const handleStepExecution = () => {
-    if (currentStepIndex >= stepCount) return;
-    
-    setCurrentStepIndex(prev => prev + 1);
+    if (currentStepIndex < stepCount - 1) {
+      setCurrentStepIndex(prev => prev + 1);
+    }
   };
 
   const handleReset = () => {
-    setIsRunning(false);
-    setCurrentStepIndex(0);
+    setCurrentStepIndex(-1);
     setExecutionTrace(null);
   };
 
@@ -99,30 +112,28 @@ export const ExecutionPreview: React.FC<ExecutionPreviewProps> = ({
 
   const getStepStatus = (stepIndex: number) => {
     if (!executionTrace) return 'pending';
-    if (stepIndex < currentStepIndex) return 'completed';
-    if (stepIndex === currentStepIndex) return 'current';
-    return 'pending';
+    if (stepIndex > currentStepIndex) return 'pending';
+    if (executionTrace.steps[stepIndex]?.error) return 'error';
+    return 'completed';
   };
 
   const getStepColor = (status: string) => {
     switch (status) {
       case 'completed':
         return 'green';
-      case 'current':
-        return 'blue';
       case 'error':
         return 'red';
+      case 'pending':
+        return 'gray';
       default:
         return 'gray';
     }
   };
 
   const formatValue = (value: unknown): string => {
-    if (value === null || value === undefined) return 'null';
-    if (typeof value === 'number') return value.toString();
-    if (typeof value === 'boolean') return value ? 'true' : 'false';
-    if (typeof value === 'string') return `"${value}"`;
-    return JSON.stringify(value);
+    if (value === null || value === undefined) return 'undefined';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
   };
 
   return (
@@ -141,22 +152,40 @@ export const ExecutionPreview: React.FC<ExecutionPreviewProps> = ({
             <Box>
               <Text fontWeight="bold" mb={3}>Execution Context</Text>
               <VStack spacing={3} align="stretch">
-                {/* System Variable n */}
-                <FormControl>
-                  <FormLabel>Iteration Value (n)</FormLabel>
-                  <NumberInput
-                    value={executionContext.n as number}
-                    onChange={(_, value) => handleContextChange('n', value)}
-                    min={-10}
-                    max={100}
-                  >
-                    <NumberInputField />
-                    <NumberInputStepper>
-                      <NumberIncrementStepper />
-                      <NumberDecrementStepper />
-                    </NumberInputStepper>
-                  </NumberInput>
-                </FormControl>
+                {/* System Variables */}
+                {systemVariables.map(variable => (
+                  <FormControl key={variable.id}>
+                    <FormLabel>
+                      {variable.name} ({variable.type})
+                      {variable.id === 'system_n' && (
+                        <Badge ml={2} size="sm" colorScheme="green">Built-in</Badge>
+                      )}
+                      {variable.id !== 'system_n' && variable.id.startsWith('system-') && (
+                        <Badge ml={2} size="sm" colorScheme="blue">System</Badge>
+                      )}
+                    </FormLabel>
+                    {variable.type === 'number' ? (
+                      <NumberInput
+                        value={executionContext[variable.name] as number || Number(variable.defaultValue) || 0}
+                        onChange={(_, value) => handleContextChange(variable.name, value)}
+                        min={-10}
+                        max={100}
+                      >
+                        <NumberInputField />
+                        <NumberInputStepper>
+                          <NumberIncrementStepper />
+                          <NumberDecrementStepper />
+                        </NumberInputStepper>
+                      </NumberInput>
+                    ) : (
+                      <Input
+                        value={executionContext[variable.name] as string || variable.defaultValue || ''}
+                        onChange={(e) => handleContextChange(variable.name, e.target.value)}
+                        placeholder={`Enter ${variable.name}`}
+                      />
+                    )}
+                  </FormControl>
+                ))}
 
                 {/* User Variables */}
                 {algorithm.variables.map(variable => (
@@ -337,8 +366,11 @@ export const ExecutionPreview: React.FC<ExecutionPreviewProps> = ({
                               <Text fontSize="sm" fontWeight="medium" mb={2}>Dependencies</Text>
                               <HStack spacing={2} flexWrap="wrap">
                                 {step.dependencies.map(dep => (
-                                  <Badge key={dep} size="sm" colorScheme="teal" variant="outline">
-                                    {dep}
+                                  <Badge key={dep} size="sm" colorScheme="purple" variant="outline">
+                                    <HStack spacing={1}>
+                                      <Icon as={Variable} size={10} />
+                                      <Text>{dep}</Text>
+                                    </HStack>
                                   </Badge>
                                 ))}
                               </HStack>

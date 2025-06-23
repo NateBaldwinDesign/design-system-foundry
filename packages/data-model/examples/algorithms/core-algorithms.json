@@ -43,12 +43,64 @@
             "javascript": {
               "value": "Base * Math.pow(Ratio, n)",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "*",
+              "left": {
+                "type": "variable",
+                "variableName": "Base",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "function",
+                "functionName": "Math.pow",
+                "arguments": [
+                  {
+                    "type": "variable",
+                    "variableName": "Ratio",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  {
+                    "type": "variable",
+                    "variableName": "n",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  }
+                ],
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "medium"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
               }
             }
           },
           "description": "Calculates font size based on modular scale",
-          "variableIds": ["var_base", "var_ratio"]
+          "variableIds": [
+            "var_base",
+            "var_ratio"
+          ]
         }
       ],
       "conditions": [],
@@ -90,12 +142,64 @@
             "javascript": {
               "value": "BaseSpacing * Math.pow(Multiplier, n)",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "*",
+              "left": {
+                "type": "variable",
+                "variableName": "BaseSpacing",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "function",
+                "functionName": "Math.pow",
+                "arguments": [
+                  {
+                    "type": "variable",
+                    "variableName": "Multiplier",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  {
+                    "type": "variable",
+                    "variableName": "n",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  }
+                ],
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "medium"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
               }
             }
           },
           "description": "Calculates spacing based on exponential scale",
-          "variableIds": ["var_base_spacing", "var_multiplier"]
+          "variableIds": [
+            "var_base_spacing",
+            "var_multiplier"
+          ]
         }
       ],
       "conditions": [],
@@ -143,12 +247,28 @@
             "javascript": {
               "value": "`hsl(${BaseHue}, ${Saturation}%, ${LightnessStep * n}%)`",
               "metadata": {
-                "allowedOperations": ["math", "color"]
+                "allowedOperations": [
+                  "math",
+                  "color"
+                ]
+              }
+            },
+            "ast": {
+              "type": "literal",
+              "value": "`hsl(${BaseHue}, ${Saturation}%, ${LightnessStep * n}%)`",
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "medium"
               }
             }
           },
           "description": "Generates color scale based on HSL adjustments",
-          "variableIds": ["var_base_hue", "var_saturation", "var_lightness_step"]
+          "variableIds": [
+            "var_base_hue",
+            "var_saturation",
+            "var_lightness_step"
+          ]
         }
       ],
       "conditions": [],
@@ -176,4 +296,4 @@
     "mergeStrategy": "merge",
     "validation": true
   }
-} 
+}

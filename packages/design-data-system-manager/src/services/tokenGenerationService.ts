@@ -22,7 +22,8 @@ export class TokenGenerationService {
     existingTokens: Token[],
     collections: TokenCollection[],
     taxonomies: Taxonomy[],
-    modifyTaxonomiesInPlace: boolean = false
+    modifyTaxonomiesInPlace: boolean = false,
+    selectedModes?: Record<string, string[]>
   ): { tokens: Token[]; errors: string[]; newTaxonomies?: Taxonomy[]; updatedTaxonomies?: Taxonomy[] } {
     if (!algorithm.tokenGeneration?.enabled) {
       return { tokens: [], errors: [] };
@@ -70,7 +71,7 @@ export class TokenGenerationService {
       const termMappings = this.matchOrCreateTerms(taxonomy, generatedTerms, iterationValues, modifyTaxonomiesInPlace);
       
       // Step 4: Generate mode combinations for mode-based variables
-      const modeCombinations = this.generateModeCombinations(algorithm);
+      const modeCombinations = this.generateModeCombinations(algorithm, selectedModes);
       
       // Step 5: Generate tokens with calculated values for each mode combination
       for (let i = 0; i < iterationValues.length; i++) {
@@ -170,7 +171,7 @@ export class TokenGenerationService {
   /**
    * Generate mode combinations for mode-based variables
    */
-  private static generateModeCombinations(algorithm: Algorithm): Record<string, string>[] {
+  private static generateModeCombinations(algorithm: Algorithm, selectedModes?: Record<string, string[]>): Record<string, string>[] {
     const modeBasedVariables = algorithm.variables.filter(v => v.modeBased && v.dimensionId);
     
     if (modeBasedVariables.length === 0) {
@@ -191,7 +192,16 @@ export class TokenGenerationService {
       const currentCombinations = [...combinations];
       combinations.length = 0; // Clear array
       
-      for (const mode of dimension.modes) {
+      // Get modes to use for this dimension
+      let modesToUse = dimension.modes;
+      if (selectedModes && selectedModes[dimension.id]) {
+        // Filter to only selected modes
+        modesToUse = dimension.modes.filter(mode => 
+          selectedModes[dimension.id].includes(mode.id)
+        );
+      }
+      
+      for (const mode of modesToUse) {
         for (const combination of currentCombinations) {
           combinations.push({
             ...combination,

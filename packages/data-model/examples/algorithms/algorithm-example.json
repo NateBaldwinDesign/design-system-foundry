@@ -43,12 +43,44 @@
             "javascript": {
               "value": "x + y",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "+",
+              "left": {
+                "type": "variable",
+                "variableName": "x",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "variable",
+                "variableName": "y",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
               }
             }
           },
           "description": "Adds two numbers",
-          "variableIds": ["var1", "var2"]
+          "variableIds": [
+            "var1",
+            "var2"
+          ]
         },
         {
           "id": "formula2",
@@ -60,12 +92,44 @@
             "javascript": {
               "value": "x * y",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "*",
+              "left": {
+                "type": "variable",
+                "variableName": "x",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "variable",
+                "variableName": "y",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
               }
             }
           },
           "description": "Multiplies two numbers",
-          "variableIds": ["var1", "var2"]
+          "variableIds": [
+            "var1",
+            "var2"
+          ]
         }
       ],
       "conditions": [
@@ -73,7 +137,9 @@
           "id": "cond1",
           "name": "Is Positive",
           "expression": "x > 0",
-          "variableIds": ["var1"]
+          "variableIds": [
+            "var1"
+          ]
         }
       ],
       "steps": [
@@ -124,12 +190,64 @@
             "javascript": {
               "value": "Base * Math.pow(Ratio, n)",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "*",
+              "left": {
+                "type": "variable",
+                "variableName": "Base",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "function",
+                "functionName": "Math.pow",
+                "arguments": [
+                  {
+                    "type": "variable",
+                    "variableName": "Ratio",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  {
+                    "type": "variable",
+                    "variableName": "n",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  }
+                ],
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "medium"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
               }
             }
           },
           "description": "Calculates font size based on modular scale",
-          "variableIds": ["var_base", "var_ratio"]
+          "variableIds": [
+            "var_base",
+            "var_ratio"
+          ]
         }
       ],
       "conditions": [],
@@ -171,12 +289,64 @@
             "javascript": {
               "value": "BaseSpacing * Math.pow(Multiplier, n)",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "*",
+              "left": {
+                "type": "variable",
+                "variableName": "BaseSpacing",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "function",
+                "functionName": "Math.pow",
+                "arguments": [
+                  {
+                    "type": "variable",
+                    "variableName": "Multiplier",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  {
+                    "type": "variable",
+                    "variableName": "n",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  }
+                ],
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "medium"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
               }
             }
           },
           "description": "Calculates spacing based on exponential scale",
-          "variableIds": ["var_base_spacing", "var_multiplier"]
+          "variableIds": [
+            "var_base_spacing",
+            "var_multiplier"
+          ]
         }
       ],
       "conditions": [],

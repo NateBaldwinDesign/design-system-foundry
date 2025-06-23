@@ -1,4 +1,6 @@
-import { Algorithm, Formula, Condition } from '../types/algorithm';
+import { Algorithm, Formula, Condition, ASTNode } from '../types/algorithm';
+import { ASTService } from './astService';
+import { SystemVariableService } from './systemVariableService';
 
 export interface DependencyGraph {
   nodes: FormulaNode[];
@@ -67,7 +69,14 @@ export class FormulaDependencyService {
     const edges: DependencyEdge[] = [];
     const variableUsage: VariableUsageMap = {};
     
-    // Initialize variable usage tracking
+    // Get all system variables
+    const systemVariables = SystemVariableService.getSystemVariables();
+    const systemVariableNames = new Set([
+      'n', // Built-in system variable
+      ...systemVariables.map(v => v.name)
+    ]);
+    
+    // Initialize variable usage tracking for algorithm variables
     algorithm.variables.forEach(variable => {
       variableUsage[variable.name] = {
         formulas: [],
@@ -76,16 +85,18 @@ export class FormulaDependencyService {
       };
     });
     
-    // Add system variable 'n'
-    variableUsage['n'] = {
-      formulas: [],
-      conditions: [],
-      isSystemVariable: true
-    };
+    // Initialize variable usage tracking for system variables
+    systemVariableNames.forEach(varName => {
+      variableUsage[varName] = {
+        formulas: [],
+        conditions: [],
+        isSystemVariable: true
+      };
+    });
 
     // Analyze formulas
     algorithm.formulas.forEach(formula => {
-      const variableDependencies = this.extractVariableDependencies(formula.expressions.javascript.value);
+      const variableDependencies = this.extractVariableDependencies(formula.expressions.javascript.value, formula.expressions.ast);
       
       // Track which formulas use each variable
       variableDependencies.forEach(varName => {
@@ -179,7 +190,7 @@ export class FormulaDependencyService {
    * Get detailed variable usage information for a specific formula
    */
   static getVariableUsage(formula: Formula): string[] {
-    return this.extractVariableDependencies(formula.expressions.javascript.value);
+    return this.extractVariableDependencies(formula.expressions.javascript.value, formula.expressions.ast);
   }
 
   /**
@@ -189,11 +200,18 @@ export class FormulaDependencyService {
     const results: ValidationResult[] = [];
     const graph = this.analyzeFormulaDependencies(algorithm);
 
+    // Get all system variables
+    const systemVariables = SystemVariableService.getSystemVariables();
+    const systemVariableNames = new Set([
+      'n', // Built-in system variable
+      ...systemVariables.map(v => v.name)
+    ]);
+
     // Check for undefined variables
     graph.nodes.forEach(node => {
       node.inputs.forEach(inputVar => {
         const variableExists = algorithm.variables.some(v => v.name === inputVar);
-        const isSystemVariable = inputVar === 'n';
+        const isSystemVariable = systemVariableNames.has(inputVar);
         
         if (!variableExists && !isSystemVariable) {
           results.push({
@@ -245,11 +263,24 @@ export class FormulaDependencyService {
     let finalResult: unknown = null;
 
     try {
+      // Get all system variables
+      const systemVariables = SystemVariableService.getSystemVariables();
+      
       // Initialize variables with default values
       const variables: Record<string, unknown> = {
         ...context,
-        n: context.n || 0 // System variable
+        n: context.n || 0 // Built-in system variable
       };
+
+      // Add system variables to context
+      systemVariables.forEach(sysVar => {
+        if (!(sysVar.name in variables)) {
+          variables[sysVar.name] = this.parseVariableValue(
+            sysVar.defaultValue || '', 
+            sysVar.type
+          );
+        }
+      });
 
       algorithm.variables.forEach(variable => {
         if (!(variable.name in variables)) {
@@ -282,7 +313,7 @@ export class FormulaDependencyService {
 
           const stepEndTime = Date.now();
           const variableDependencies = step.type === 'formula' 
-            ? this.extractVariableDependencies(algorithm.formulas.find(f => f.id === step.id)?.expressions.javascript.value || '')
+            ? this.extractVariableDependencies(algorithm.formulas.find(f => f.id === step.id)?.expressions.javascript.value || '', algorithm.formulas.find(f => f.id === step.id)?.expressions.ast)
             : this.extractVariableDependencies(algorithm.conditions.find(c => c.id === step.id)?.expression || '');
 
           steps.push({
@@ -326,29 +357,24 @@ export class FormulaDependencyService {
   }
 
   /**
-   * Extract variable names from a JavaScript expression
+   * Extract variable dependencies from a JavaScript expression
+   * Uses AST if available, falls back to regex-based extraction
    */
-  private static extractVariableDependencies(expression: string): string[] {
-    const dependencies: string[] = [];
-    
-    // Simple regex to find variable names (excluding function names and keywords)
-    const variablePattern = /\b[a-zA-Z_$][a-zA-Z0-9_$]*\b/g;
+  static extractVariableDependencies(expression: string, ast?: ASTNode): string[] {
+    // Use AST if available for more accurate variable extraction
+    if (ast) {
+      return ASTService.extractVariables(ast);
+    }
+
+    // Fallback to regex-based extraction for backward compatibility
+    const variablePattern = /\b[a-zA-Z_][a-zA-Z0-9_]*\b/g;
     const matches = expression.match(variablePattern) || [];
     
-    // Filter out common JavaScript keywords and functions
-    const keywords = [
-      'Math', 'sin', 'cos', 'tan', 'sqrt', 'pow', 'abs', 'round', 'floor', 'ceil', 
-      'max', 'min', 'log', 'exp', 'true', 'false', 'null', 'undefined', 'if', 'else',
-      'for', 'while', 'function', 'return', 'var', 'let', 'const'
-    ];
+    // Filter out JavaScript keywords and Math functions
+    const keywords = ['Math', 'Array', 'console', 'function', 'return', 'if', 'else', 'for', 'while', 'var', 'let', 'const'];
+    const filteredMatches = matches.filter(match => !keywords.includes(match));
     
-    matches.forEach(match => {
-      if (!keywords.includes(match)) {
-        dependencies.push(match);
-      }
-    });
-
-    return [...new Set(dependencies)]; // Remove duplicates
+    return [...new Set(filteredMatches)]; // Remove duplicates
   }
 
   /**

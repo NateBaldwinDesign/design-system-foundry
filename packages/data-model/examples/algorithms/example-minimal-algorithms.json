@@ -22,6 +22,20 @@
           "modeId-58823f28-08da-40d0-88ff-3063166853ff": "1200"
         },
         "dimensionId": "dimensionId-146f111c-de78-41e4-95ac-cb124df72d24"
+      },
+      {
+        "id": "system-variable-663c3dd5-44b9-43b4-bf40-962f20265159",
+        "name": "Text size index",
+        "type": "number",
+        "defaultValue": "1",
+        "description": "",
+        "modeBased": true,
+        "modeValues": {
+          "modeId-1370163a-e968-424d-a7a8-cc8d8ca0941b": "-1",
+          "modeId-c5afb449-ed81-4e2f-a19b-994e48b10d49": "1",
+          "modeId-8d68586f-5843-45e9-b65d-ea4dd24cc817": "0"
+        },
+        "dimensionId": "dimensionId-ce308d40-ddc6-414d-bc4f-6f76ff9123a9"
       }
     ],
     "defaultBaseValue": 16,
@@ -37,7 +51,7 @@
       "id": "progressive-size-algorithm",
       "name": "Progressive Size Algorithm",
       "description": "Generates size values using progressive scaling based on position and zoom factors",
-      "resolvedValueTypeId": "dimension",
+      "resolvedValueTypeId": "color",
       "variables": [
         {
           "id": "p",
@@ -48,7 +62,7 @@
         },
         {
           "id": "z",
-          "name": "Zoom Array", 
+          "name": "Zoom Array",
           "type": "string",
           "defaultValue": "[-4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8]",
           "description": "Array of zoom values"
@@ -58,10 +72,7 @@
           "name": "Index",
           "type": "number",
           "defaultValue": "0",
-          "description": "Current iteration index",
-          "constraints": {
-            "min": 0
-          }
+          "description": "Current iteration index"
         }
       ],
       "formulas": [
@@ -76,11 +87,84 @@
             "javascript": {
               "value": "p_s = p[n] + z[n]",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "+",
+              "left": {
+                "type": "function",
+                "functionName": "arrayAccess",
+                "arguments": [
+                  {
+                    "type": "variable",
+                    "variableName": "p",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  {
+                    "type": "variable",
+                    "variableName": "n",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  }
+                ],
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "function",
+                "functionName": "arrayAccess",
+                "arguments": [
+                  {
+                    "type": "variable",
+                    "variableName": "z",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  {
+                    "type": "variable",
+                    "variableName": "n",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  }
+                ],
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
               }
             }
           },
-          "variableIds": ["p", "z", "n"]
+          "variableIds": [
+            "p",
+            "z",
+            "n"
+          ]
         },
         {
           "id": "base-calculation",
@@ -88,16 +172,49 @@
           "description": "Calculate base size using exponential scaling",
           "expressions": {
             "latex": {
-              "value": "b = 14 \\times 1.125^{p_s}"
+              "value": "b = 14 \\cdot 1.125^p_s"
             },
             "javascript": {
-              "value": "b = 14 * Math.pow(1.125, p_s)",
+              "value": "b = 14 * 1.125^p_s",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "assignment",
+              "variableName": "b",
+              "expression": {
+                "type": "binary",
+                "operator": "^",
+                "left": {
+                  "type": "binary",
+                  "operator": "*",
+                  "left": {
+                    "type": "literal",
+                    "value": 14
+                  },
+                  "right": {
+                    "type": "literal",
+                    "value": 1.125
+                  }
+                },
+                "right": {
+                  "type": "variable",
+                  "variableName": "p_s"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "medium"
               }
             }
           },
-          "variableIds": ["p_s"]
+          "variableIds": [
+            "p_s"
+          ]
         },
         {
           "id": "normalization-calculation",
@@ -110,11 +227,107 @@
             "javascript": {
               "value": "c = (z[n] - Math.min(...z)) / (Math.max(...z) - Math.min(...z))",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "-",
+              "left": {
+                "type": "literal",
+                "value": "(z[n]",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [
+                    "Complex expression not fully parsed: (z[n]"
+                  ],
+                  "complexity": "high"
+                }
+              },
+              "right": {
+                "type": "binary",
+                "operator": "/",
+                "left": {
+                  "type": "function",
+                  "functionName": "Math.min",
+                  "arguments": [
+                    {
+                      "type": "function",
+                      "functionName": "spread",
+                      "arguments": [
+                        {
+                          "type": "variable",
+                          "variableName": "z",
+                          "metadata": {
+                            "astVersion": "1.0.0",
+                            "validationErrors": [],
+                            "complexity": "low"
+                          }
+                        }
+                      ],
+                      "metadata": {
+                        "astVersion": "1.0.0",
+                        "validationErrors": [],
+                        "complexity": "low"
+                      }
+                    }
+                  ],
+                  "metadata": {
+                    "astVersion": "1.0.0",
+                    "validationErrors": [],
+                    "complexity": "medium"
+                  }
+                },
+                "right": {
+                  "type": "function",
+                  "functionName": "Math.max",
+                  "arguments": [
+                    {
+                      "type": "function",
+                      "functionName": "spread",
+                      "arguments": [
+                        {
+                          "type": "variable",
+                          "variableName": "z",
+                          "metadata": {
+                            "astVersion": "1.0.0",
+                            "validationErrors": [],
+                            "complexity": "low"
+                          }
+                        }
+                      ],
+                      "metadata": {
+                        "astVersion": "1.0.0",
+                        "validationErrors": [],
+                        "complexity": "low"
+                      }
+                    }
+                  ],
+                  "metadata": {
+                    "astVersion": "1.0.0",
+                    "validationErrors": [],
+                    "complexity": "medium"
+                  }
+                },
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
               }
             }
           },
-          "variableIds": ["z", "n"]
+          "variableIds": [
+            "z",
+            "n"
+          ]
         },
         {
           "id": "ratio-calculation",
@@ -127,11 +340,100 @@
             "javascript": {
               "value": "r = 1.0125 * (1 - c) + 1.125 * c",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "+",
+              "left": {
+                "type": "binary",
+                "operator": "-",
+                "left": {
+                  "type": "binary",
+                  "operator": "*",
+                  "left": {
+                    "type": "literal",
+                    "value": 1.0125,
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  "right": {
+                    "type": "literal",
+                    "value": "(1",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [
+                        "Complex expression not fully parsed: (1"
+                      ],
+                      "complexity": "high"
+                    }
+                  },
+                  "metadata": {
+                    "astVersion": "1.0.0",
+                    "validationErrors": [],
+                    "complexity": "low"
+                  }
+                },
+                "right": {
+                  "type": "literal",
+                  "value": "c)",
+                  "metadata": {
+                    "astVersion": "1.0.0",
+                    "validationErrors": [
+                      "Complex expression not fully parsed: c)"
+                    ],
+                    "complexity": "high"
+                  }
+                },
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "binary",
+                "operator": "*",
+                "left": {
+                  "type": "literal",
+                  "value": 1.125,
+                  "metadata": {
+                    "astVersion": "1.0.0",
+                    "validationErrors": [],
+                    "complexity": "low"
+                  }
+                },
+                "right": {
+                  "type": "variable",
+                  "variableName": "c",
+                  "metadata": {
+                    "astVersion": "1.0.0",
+                    "validationErrors": [],
+                    "complexity": "low"
+                  }
+                },
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
               }
             }
           },
-          "variableIds": ["c"]
+          "variableIds": [
+            "c"
+          ]
         },
         {
           "id": "final-size-calculation",
@@ -139,30 +441,72 @@
           "description": "Calculate final size using progressive scaling",
           "expressions": {
             "latex": {
-              "value": "s = b \\times r^n"
+              "value": "s = b \\cdot r^n"
             },
             "javascript": {
-              "value": "s = b * Math.pow(r, n)",
+              "value": "s = b * r^n",
               "metadata": {
-                "allowedOperations": ["math"]
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "assignment",
+              "variableName": "s",
+              "expression": {
+                "type": "binary",
+                "operator": "^",
+                "left": {
+                  "type": "binary",
+                  "operator": "*",
+                  "left": {
+                    "type": "variable",
+                    "variableName": "b"
+                  },
+                  "right": {
+                    "type": "variable",
+                    "variableName": "r"
+                  }
+                },
+                "right": {
+                  "type": "variable",
+                  "variableName": "n"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "medium"
               }
             }
           },
-          "variableIds": ["b", "r", "n"]
+          "variableIds": [
+            "b",
+            "r",
+            "n"
+          ]
         }
       ],
       "conditions": [
         {
           "id": "validate-arrays",
           "name": "Validate Input Arrays",
-          "expression": "Array.isArray(p) && Array.isArray(z) && p.length > 0 && z.length > 0",
-          "variableIds": ["p", "z"]
+          "expression": "Array.isArray(p)&&Array.isArray(z)&&p.length > 0&&z.length > 0",
+          "variableIds": [
+            "p",
+            "z"
+          ]
         },
         {
           "id": "validate-index",
           "name": "Validate Index Range",
-          "expression": "n >= 0 && n < Math.min(p.length, z.length)",
-          "variableIds": ["n", "p", "z"]
+          "expression": "n>=0&&n < Math.min(p.length,z.length)",
+          "variableIds": [
+            "n",
+            "p",
+            "z"
+          ]
         }
       ],
       "steps": [
@@ -172,7 +516,7 @@
           "name": "Validate Input Arrays"
         },
         {
-          "type": "condition", 
+          "type": "condition",
           "id": "validate-index",
           "name": "Validate Index Range"
         },
@@ -183,7 +527,7 @@
         },
         {
           "type": "formula",
-          "id": "base-calculation", 
+          "id": "base-calculation",
           "name": "Calculate Base Size"
         },
         {
@@ -205,7 +549,7 @@
     },
     {
       "id": "minimal-typescale-algorithm",
-      "name": "Minimal Typography Scale Algorithm",
+      "name": "Responsive Typography Scale Algorithm",
       "description": "Calculates font size based on modular scale for minimal example",
       "resolvedValueTypeId": "font-size",
       "variables": [
@@ -214,52 +558,213 @@
           "name": "Base",
           "type": "number",
           "defaultValue": "14",
-          "description": ""
+          "description": "Base font size"
         },
         {
           "id": "var_ratio",
           "name": "Ratio",
           "type": "number",
           "defaultValue": "1.125",
-          "description": ""
+          "description": "Modular scale ratio"
         },
         {
           "id": "variable-35b22c3d-327f-42cb-a0c0-c1458935c804",
           "name": "minWidth",
           "type": "number",
           "defaultValue": "320",
-          "description": ""
+          "description": "Minimum viewport width"
         },
         {
           "id": "variable-d550c892-8cbe-4bfa-9575-c9960fc03f74",
           "name": "maxWidth",
           "type": "number",
           "defaultValue": "1200",
-          "description": ""
-        },
-        {
-          "id": "variable-574c854f-5f32-47ea-aef7-2e0e6c5b128a",
-          "name": "viewportWidth",
-          "type": "number",
-          "defaultValue": "",
-          "description": ""
+          "description": "Maximum viewport width"
         }
       ],
       "formulas": [
         {
-          "id": "formula-typescale",
-          "name": "Type Scale",
-          "description": "Calculates font size based on modular scale",
+          "id": "formula-viewport-percent",
+          "name": "Viewport Percent",
+          "description": "Calculate viewport percentage based on current width",
           "expressions": {
             "latex": {
-              "value": "\\mathit{Base} \\times \\mathit{Ratio}^{n}"
+              "value": "\\mathit{viewportPercent} = (\\mathit{viewportWidth} - \\mathit{minWidth}) \\div (\\mathit{maxWidth} - \\mathit{minWidth})"
             },
             "javascript": {
-              "value": "Base * Ratio^n",
+              "value": "viewportPercent = (viewportWidth - minWidth) / (maxWidth - minWidth)",
               "metadata": {
                 "allowedOperations": [
                   "math"
                 ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "-",
+              "left": {
+                "type": "literal",
+                "value": "(viewportWidth",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [
+                    "Complex expression not fully parsed: (viewportWidth"
+                  ],
+                  "complexity": "high"
+                }
+              },
+              "right": {
+                "type": "binary",
+                "operator": "/",
+                "left": {
+                  "type": "literal",
+                  "value": "minWidth)",
+                  "metadata": {
+                    "astVersion": "1.0.0",
+                    "validationErrors": [
+                      "Complex expression not fully parsed: minWidth)"
+                    ],
+                    "complexity": "high"
+                  }
+                },
+                "right": {
+                  "type": "literal",
+                  "value": "(maxWidth",
+                  "metadata": {
+                    "astVersion": "1.0.0",
+                    "validationErrors": [
+                      "Complex expression not fully parsed: (maxWidth"
+                    ],
+                    "complexity": "high"
+                  }
+                },
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
+              }
+            }
+          },
+          "variableIds": [
+            "variable-35b22c3d-327f-42cb-a0c0-c1458935c804",
+            "variable-d550c892-8cbe-4bfa-9575-c9960fc03f74"
+          ]
+        },
+        {
+          "id": "formula-responsive-multiplier",
+          "name": "Responsive Multiplier",
+          "description": "Calculate responsive multiplier based on viewport percentage",
+          "expressions": {
+            "latex": {
+              "value": "\\mathit{ResponsiveMultiplier} = 0.8 + (0.4 \\times \\mathit{viewportPercent})"
+            },
+            "javascript": {
+              "value": "ResponsiveMultiplier = 0.8 + (0.4 * viewportPercent)",
+              "metadata": {
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "+",
+              "left": {
+                "type": "literal",
+                "value": 0.8,
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "binary",
+                "operator": "*",
+                "left": {
+                  "type": "literal",
+                  "value": "(0.4",
+                  "metadata": {
+                    "astVersion": "1.0.0",
+                    "validationErrors": [
+                      "Complex expression not fully parsed: (0.4"
+                    ],
+                    "complexity": "high"
+                  }
+                },
+                "right": {
+                  "type": "literal",
+                  "value": "viewportPercent)",
+                  "metadata": {
+                    "astVersion": "1.0.0",
+                    "validationErrors": [
+                      "Complex expression not fully parsed: viewportPercent)"
+                    ],
+                    "complexity": "high"
+                  }
+                },
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
+              }
+            }
+          },
+          "variableIds": []
+        },
+        {
+          "id": "formula-typescale",
+          "name": "Type Scale",
+          "description": "Calculate final font size using responsive multiplier and modular scale",
+          "expressions": {
+            "latex": {
+              "value": "\\mathit{fontSize} = \\mathit{ResponsiveMultiplier} \\times \\mathit{Base} \\times \\mathit{Ratio}^{n}"
+            },
+            "javascript": {
+              "value": "fontSize = ResponsiveMultiplier * Base * Math.pow(Ratio, n)",
+              "metadata": {
+                "allowedOperations": [
+                  "math"
+                ]
+              }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "*",
+              "left": {
+                "type": "variable",
+                "variableName": "ResponsiveMultiplier",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "variable",
+                "variableName": "Base",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
               }
             }
           },
@@ -273,8 +778,18 @@
       "steps": [
         {
           "type": "formula",
+          "id": "formula-viewport-percent",
+          "name": "Calculate Viewport Percent"
+        },
+        {
+          "type": "formula",
+          "id": "formula-responsive-multiplier",
+          "name": "Calculate Responsive Multiplier"
+        },
+        {
+          "type": "formula",
           "id": "formula-typescale",
-          "name": "Type Scale"
+          "name": "Calculate Final Font Size"
         }
       ]
     },
@@ -315,6 +830,53 @@
                   "math"
                 ]
               }
+            },
+            "ast": {
+              "type": "binary",
+              "operator": "*",
+              "left": {
+                "type": "variable",
+                "variableName": "BaseSpacing",
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "low"
+                }
+              },
+              "right": {
+                "type": "function",
+                "functionName": "Math.pow",
+                "arguments": [
+                  {
+                    "type": "variable",
+                    "variableName": "Multiplier",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  },
+                  {
+                    "type": "variable",
+                    "variableName": "n",
+                    "metadata": {
+                      "astVersion": "1.0.0",
+                      "validationErrors": [],
+                      "complexity": "low"
+                    }
+                  }
+                ],
+                "metadata": {
+                  "astVersion": "1.0.0",
+                  "validationErrors": [],
+                  "complexity": "medium"
+                }
+              },
+              "metadata": {
+                "astVersion": "1.0.0",
+                "validationErrors": [],
+                "complexity": "low"
+              }
             }
           },
           "variableIds": [
@@ -334,7 +896,9 @@
     }
   ],
   "execution": {
-    "order": ["progressive-size-algorithm"],
+    "order": [
+      "progressive-size-algorithm"
+    ],
     "parallel": false,
     "onError": "stop"
   },
@@ -359,8 +923,28 @@
         {
           "id": "progressive-size-algorithm",
           "variables": {
-            "p": [-2, -1, 0, 1, 2],
-            "z": [-4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8],
+            "p": [
+              -2,
+              -1,
+              0,
+              1,
+              2
+            ],
+            "z": [
+              -4,
+              -3,
+              -2,
+              -1,
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8
+            ],
             "n": 0
           }
         }
@@ -373,7 +957,7 @@
             "description": "Size for position -2, zoom -4, index 0"
           },
           {
-            "name": "size-1", 
+            "name": "size-1",
             "value": 9.99,
             "description": "Size for position -1, zoom -3, index 1"
           }

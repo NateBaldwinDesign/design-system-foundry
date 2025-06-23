@@ -160,6 +160,15 @@ export function createAlgorithmJsonFromLocalStorage() {
               metadata: formula.expressions.javascript.metadata || {
                 allowedOperations: ['math']
               }
+            },
+            ast: formula.expressions.ast || {
+              type: 'literal',
+              value: formula.expressions.javascript.value,
+              metadata: {
+                astVersion: '1.0.0',
+                validationErrors: [],
+                complexity: 'low'
+              }
             }
           },
           variableIds: formula.variableIds || []
@@ -231,6 +240,15 @@ export function createAlgorithmJsonFromLocalStorage() {
             value: formula.expressions.javascript.value,
             metadata: formula.expressions.javascript.metadata || {
               allowedOperations: ['math']
+            }
+          },
+          ast: formula.expressions.ast || {
+            type: 'literal',
+            value: formula.expressions.javascript.value,
+            metadata: {
+              astVersion: '1.0.0',
+              validationErrors: [],
+              complexity: 'low'
             }
           }
         },

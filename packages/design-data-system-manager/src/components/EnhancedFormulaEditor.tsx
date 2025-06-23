@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Box,
   VStack,
@@ -22,6 +22,7 @@ import {
 import { Variable as VariableType, Formula, Algorithm } from '../types/algorithm';
 import { FormulaEditor } from './FormulaEditor';
 import { FormulaDependencyService } from '../services/formulaDependencyService';
+import { SystemVariableService } from '../services/systemVariableService';
 
 interface EnhancedFormulaEditorProps {
   variables: VariableType[];
@@ -41,6 +42,38 @@ export const EnhancedFormulaEditor: React.FC<EnhancedFormulaEditorProps> = ({
   algorithm
 }) => {
   const { colorMode } = useColorMode();
+  const [systemVariables, setSystemVariables] = useState<VariableType[]>([]);
+
+  // Load system variables on mount and when window gains focus
+  useEffect(() => {
+    const loadSystemVariables = () => {
+      const userSystemVariables = SystemVariableService.getSystemVariables();
+      const allSystemVariables: VariableType[] = [
+        // Built-in system variable 'n' (always available)
+        {
+          id: 'system_n',
+          name: 'n',
+          type: 'number',
+          defaultValue: '0'
+        },
+        // User-defined system variables from storage
+        ...userSystemVariables
+      ];
+      setSystemVariables(allSystemVariables);
+    };
+
+    loadSystemVariables();
+    
+    const handleFocus = () => {
+      loadSystemVariables();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
 
   // UI Mapping Logic - moved to constants above return statement per project rules
   const variableUsage = useMemo(() => {
@@ -50,7 +83,16 @@ export const EnhancedFormulaEditor: React.FC<EnhancedFormulaEditorProps> = ({
       name: formula?.name || 'Formula', 
       expressions: { 
         latex: { value: '' }, 
-        javascript: { value } 
+        javascript: { value },
+        ast: {
+          type: 'literal',
+          value: value,
+          metadata: {
+            astVersion: '1.0.0',
+            validationErrors: [],
+            complexity: 'low'
+          }
+        }
       },
       variableIds: []
     });
@@ -69,31 +111,36 @@ export const EnhancedFormulaEditor: React.FC<EnhancedFormulaEditorProps> = ({
   const undefinedVariables = useMemo(() => {
     return variableUsage.filter(varName => {
       const variableExists = variables.some(v => v.name === varName);
-      const isSystemVariable = varName === 'n';
-      return !variableExists && !isSystemVariable;
+      const systemVariableExists = systemVariables.some(v => v.name === varName);
+      return !variableExists && !systemVariableExists;
     });
-  }, [variableUsage, variables]);
+  }, [variableUsage, variables, systemVariables]);
 
   const getVariableType = (varName: string) => {
     const variable = variables.find(v => v.name === varName);
-    return variable?.type || 'unknown';
+    const systemVariable = systemVariables.find(v => v.name === varName);
+    return variable?.type || systemVariable?.type || 'unknown';
   };
 
   const getVariableDefaultValue = (varName: string) => {
     const variable = variables.find(v => v.name === varName);
-    return variable?.defaultValue || '';
+    const systemVariable = systemVariables.find(v => v.name === varName);
+    return variable?.defaultValue || systemVariable?.defaultValue || '';
   };
 
   const isSystemVariable = (varName: string) => {
-    return varName === 'n';
+    return systemVariables.some(v => v.name === varName);
   };
+
+  // Combine system variables with user variables for the FormulaEditor
+  const allVariables = [...systemVariables, ...variables];
 
   return (
     <VStack spacing={4} align="stretch">
       {/* Enhanced Formula Editor */}
       <Box>
         <FormulaEditor
-          variables={variables}
+          variables={allVariables}
           value={value}
           onChange={onChange}
           mode={mode}
@@ -190,7 +237,10 @@ export const EnhancedFormulaEditor: React.FC<EnhancedFormulaEditorProps> = ({
               <VStack spacing={2} align="stretch">
                 {variableUsage.map(varName => {
                   const variable = variables.find(v => v.name === varName);
-                  if (!variable) return null;
+                  const systemVariable = systemVariables.find(v => v.name === varName);
+                  const foundVariable = variable || systemVariable;
+                  
+                  if (!foundVariable) return null;
 
                   return (
                     <HStack key={varName} justify="space-between" p={2} borderWidth={1} borderRadius="md">
@@ -198,12 +248,17 @@ export const EnhancedFormulaEditor: React.FC<EnhancedFormulaEditorProps> = ({
                         <Icon as={Variable} size={14} />
                         <Text fontSize="sm" fontWeight="medium">{varName}</Text>
                         <Badge size="sm" colorScheme="gray">
-                          {variable.type}
+                          {foundVariable.type}
                         </Badge>
+                        {systemVariable && (
+                          <Badge size="sm" colorScheme="green">
+                            System
+                          </Badge>
+                        )}
                       </HStack>
-                      {variable.defaultValue && (
+                      {foundVariable.defaultValue && (
                         <Text fontSize="sm" color="gray.500">
-                          = {variable.defaultValue}
+                          = {foundVariable.defaultValue}
                         </Text>
                       )}
                     </HStack>

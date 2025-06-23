@@ -20,7 +20,26 @@ export interface Variable {
 export interface Expression {
   value: string;
   metadata?: {
-    allowedOperations?: Array<'math' | 'color' | 'dimension'>;
+    allowedOperations?: string[];
+  };
+}
+
+export interface ASTNode {
+  type: 'binary' | 'unary' | 'variable' | 'literal' | 'function' | 'assignment' | 'group';
+  operator?: string;
+  left?: ASTNode;
+  right?: ASTNode;
+  operand?: ASTNode;
+  value?: string | number | boolean;
+  variableName?: string;
+  functionName?: string;
+  arguments?: ASTNode[];
+  expression?: ASTNode;
+  body?: ASTNode;
+  metadata?: {
+    astVersion?: string;
+    validationErrors?: string[];
+    complexity?: 'low' | 'medium' | 'high';
   };
 }
 
@@ -30,6 +49,7 @@ export interface Formula {
   expressions: {
     latex: { value: string };
     javascript: Expression;
+    ast: ASTNode;
   };
   description?: string;
   variableIds: string[];

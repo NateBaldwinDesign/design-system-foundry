@@ -1,5 +1,6 @@
 import type { TokenValue } from '@token-model/data-model';
 import { Algorithm, Variable, Formula, Condition } from '../types/algorithm';
+import { ASTService } from './astService';
 
 export interface ExecutionContext {
   variables: Record<string, unknown>;
@@ -141,42 +142,84 @@ export class AlgorithmExecutionService {
     variables: Record<string, unknown>
   ): unknown {
     try {
-      const expression = formula.expressions.javascript.value;
-      // Create a safe evaluation context with all necessary functions and variables
-      const evaluationContext: Record<string, unknown> = {
-        ...variables,
-        Math: variables['Math'] || Math,
-        Array: variables['Array'] || Array,
-        console: console
-      };
-      // Handle assignment expressions (e.g., "p_s = p[n] + z[n]")
-      if (expression.includes('=')) {
-        const parts = expression.split('=').map(part => part.trim());
-        if (parts.length === 2) {
-          const variableName = parts[0];
-          const valueExpression = parts[1];
-          // Evaluate the right side of the assignment
-          const evalFunction = new Function(...Object.keys(this.getValidIdentifiers(evaluationContext)), `return ${valueExpression}`);
-          const result = evalFunction(...Object.values(this.getValidIdentifiers(evaluationContext)));
-          // Store the result in the variables context (by name and id if possible)
-          variables[variableName] = result;
-          evaluationContext[variableName] = result;
-          // Also propagate to id if variableName matches a variable id
-          // (This is a non-destructive enhancement for context propagation)
-          for (const key of Object.keys(variables)) {
-            if (key === variableName) continue;
-            if (variables[key] === result) {
-              variables[key] = result;
-              evaluationContext[key] = result;
-            }
-          }
-          return result;
+      // Use AST for evaluation if available, fallback to string evaluation
+      if (formula.expressions.ast) {
+        // Validate AST first
+        const validationErrors = ASTService.validateAST(formula.expressions.ast);
+        if (validationErrors.length > 0) {
+          throw new Error(`AST validation failed: ${validationErrors.join(', ')}`);
         }
+
+        // Generate JavaScript from AST
+        const expression = ASTService.generateJavaScript(formula.expressions.ast);
+        
+        // Create a safe evaluation context with all necessary functions and variables
+        const evaluationContext: Record<string, unknown> = {
+          ...variables,
+          Math: variables['Math'] || Math,
+          Array: variables['Array'] || Array,
+          console: console
+        };
+
+        // Handle assignment expressions (e.g., "a = b + c")
+        if (expression.includes('=')) {
+          const parts = expression.split('=').map(part => part.trim());
+          if (parts.length === 2) {
+            const variableName = parts[0];
+            const valueExpression = parts[1];
+            // Evaluate the right side of the assignment
+            const evalFunction = new Function(...Object.keys(this.getValidIdentifiers(evaluationContext)), `return ${valueExpression}`);
+            const result = evalFunction(...Object.values(this.getValidIdentifiers(evaluationContext)));
+            // Store the result in the variables context
+            variables[variableName] = result;
+            evaluationContext[variableName] = result;
+            return result;
+          }
+        }
+
+        // For non-assignment expressions, evaluate directly
+        const evalFunction = new Function(...Object.keys(this.getValidIdentifiers(evaluationContext)), `return ${expression}`);
+        const result = evalFunction(...Object.values(this.getValidIdentifiers(evaluationContext)));
+        return result;
+      } else {
+        // Fallback to original string-based evaluation for backward compatibility
+        const expression = formula.expressions.javascript.value;
+        // Create a safe evaluation context with all necessary functions and variables
+        const evaluationContext: Record<string, unknown> = {
+          ...variables,
+          Math: variables['Math'] || Math,
+          Array: variables['Array'] || Array,
+          console: console
+        };
+        // Handle assignment expressions (e.g., "p_s = p[n] + z[n]")
+        if (expression.includes('=')) {
+          const parts = expression.split('=').map(part => part.trim());
+          if (parts.length === 2) {
+            const variableName = parts[0];
+            const valueExpression = parts[1];
+            // Evaluate the right side of the assignment
+            const evalFunction = new Function(...Object.keys(this.getValidIdentifiers(evaluationContext)), `return ${valueExpression}`);
+            const result = evalFunction(...Object.values(this.getValidIdentifiers(evaluationContext)));
+            // Store the result in the variables context (by name and id if possible)
+            variables[variableName] = result;
+            evaluationContext[variableName] = result;
+            // Also propagate to id if variableName matches a variable id
+            // (This is a non-destructive enhancement for context propagation)
+            for (const key of Object.keys(variables)) {
+              if (key === variableName) continue;
+              if (variables[key] === result) {
+                variables[key] = result;
+                evaluationContext[key] = result;
+              }
+            }
+            return result;
+          }
+        }
+        // For non-assignment expressions, evaluate directly
+        const evalFunction = new Function(...Object.keys(this.getValidIdentifiers(evaluationContext)), `return ${expression}`);
+        const result = evalFunction(...Object.values(this.getValidIdentifiers(evaluationContext)));
+        return result;
       }
-      // For non-assignment expressions, evaluate directly
-      const evalFunction = new Function(...Object.keys(this.getValidIdentifiers(evaluationContext)), `return ${expression}`);
-      const result = evalFunction(...Object.values(this.getValidIdentifiers(evaluationContext)));
-      return result;
     } catch (error) {
       console.error('Formula evaluation error:', error);
       console.error('Expression:', formula.expressions.javascript.value);

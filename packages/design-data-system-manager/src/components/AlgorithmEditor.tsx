@@ -41,6 +41,8 @@ import { AlgorithmResetDialog } from './AlgorithmResetDialog';
 import { DependencyVisualization } from './DependencyVisualization';
 import { ExecutionPreview } from './ExecutionPreview';
 import { ModeBasedVariableEditor } from './ModeBasedVariableEditor';
+import { ModeSelectionDialog } from './ModeSelectionDialog';
+import { SystemVariableService } from '../services/systemVariableService';
 
 interface AlgorithmEditorProps {
   algorithm?: Algorithm;
@@ -131,6 +133,11 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSavedState, setLastSavedState] = useState<Algorithm | null>(null);
 
+  // Mode selection state for mode-based variables
+  const [showModeSelectionDialog, setShowModeSelectionDialog] = useState(false);
+  const [selectedModes, setSelectedModes] = useState<Record<string, string[]>>({});
+  const [hasModeBasedVariables, setHasModeBasedVariables] = useState(false);
+
   // State for filtered taxonomies
   const [filteredTaxonomies, setFilteredTaxonomies] = useState<Taxonomy[]>([]);
   const [selectedTaxonomies, setSelectedTaxonomies] = useState<Array<{ taxonomyId: string; termId: string }>>([]);
@@ -196,6 +203,16 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       });
     }
   }, []);
+
+  // Detect mode-based variables
+  useEffect(() => {
+    const algorithmVariables = currentAlgorithm.variables || [];
+    const systemVariables = SystemVariableService.getSystemVariables();
+    const allVariables = [...algorithmVariables, ...systemVariables];
+    
+    const modeBasedVariables = allVariables.filter(v => v.modeBased && v.dimensionId);
+    setHasModeBasedVariables(modeBasedVariables.length > 0);
+  }, [currentAlgorithm.variables]);
 
   // Token detection logic - Phase 1
   useEffect(() => {
@@ -504,11 +521,17 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       return;
     }
 
+    // Check if we need to show mode selection dialog
+    if (currentAlgorithm.tokenGeneration?.enabled && hasModeBasedVariables && !hasExistingTokens) {
+      setShowModeSelectionDialog(true);
+      return;
+    }
+
     // Otherwise, save directly
     performSave([]);
   };
 
-  const performSave = (selectedTokenIds: string[]) => {
+  const performSave = (selectedTokenIds: string[], modes?: Record<string, string[]>) => {
     // Save the algorithm
     onSave(currentAlgorithm);
     
@@ -604,7 +627,8 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
             existingTokens,
             collections,
             taxonomies,
-            true // Modify taxonomies in place for actual saving
+            true, // Modify taxonomies in place for actual saving
+            modes
           );
 
           console.log('AlgorithmEditor: Received from TokenGenerationService:', {
@@ -742,7 +766,8 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
         existingTokens,
         collections,
         taxonomies,
-        false // Don't modify taxonomies in place for preview
+        false, // Don't modify taxonomies in place for preview
+        selectedModes
       );
 
       setGeneratedTokens(tokens);
@@ -756,7 +781,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
   // Generate preview tokens when algorithm changes
   useEffect(() => {
     generatePreviewTokens();
-  }, [currentAlgorithm]);
+  }, [currentAlgorithm, selectedModes]);
 
   const handleAddFormula = () => {
     const newFormula: Formula = {
@@ -769,6 +794,15 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
           value: '',
           metadata: {
             allowedOperations: ['math']
+          }
+        },
+        ast: {
+          type: 'literal',
+          value: '',
+          metadata: {
+            astVersion: '1.0.0',
+            validationErrors: [],
+            complexity: 'low'
           }
         }
       },
@@ -893,6 +927,12 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
       duration: 3000,
       isClosable: true
     });
+  };
+
+  const handleModeSelectionConfirm = (modes: Record<string, string[]>) => {
+    setSelectedModes(modes);
+    setShowModeSelectionDialog(false);
+    performSave([], modes);
   };
 
   const canUndo = AlgorithmHistoryService.canUndo(currentAlgorithm.id);
@@ -1240,7 +1280,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                             variables={currentAlgorithm.variables || []}
                             value={formula.expressions.javascript.value}
                             mode="formula"
-                            onChange={(value, latexExpression) => {
+                            onChange={(value, latexExpression, ast) => {
                               const newFormulas = [...(currentAlgorithm.formulas || [])];
                               newFormulas[index] = {
                                 ...formula,
@@ -1251,7 +1291,8 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                                     metadata: {
                                       allowedOperations: ['math']
                                     }
-                                  }
+                                  },
+                                  ast: ast
                                 }
                               };
                               const updatedAlgorithm = {
@@ -1277,6 +1318,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                               formulas: newFormulas
                             };
                             setCurrentAlgorithm(updatedAlgorithm);
+                            
                             trackHistoryChange(`Deleted formula: ${formula.name}`, 'formula');
                           }}
                         />
@@ -1413,6 +1455,41 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                     {currentAlgorithm.tokenGeneration?.enabled ? 'Enabled' : 'Enable Token Generation'}
                   </Button>
                 </HStack>
+
+                {/* Mode-based variables indicator */}
+                {hasModeBasedVariables && currentAlgorithm.tokenGeneration?.enabled && (
+                  <Box p={4} borderWidth={1} borderRadius="md" bg={colorMode === 'light' ? 'blue.50' : 'blue.900'}>
+                    <HStack justify="space-between" mb={3}>
+                      <Text fontWeight="bold" color="blue.600">
+                        Mode-Based Variables Detected
+                      </Text>
+                      <Badge colorScheme="blue">Mode Selection Required</Badge>
+                    </HStack>
+                    <Text fontSize="sm" color="gray.600" mb={3}>
+                      Your algorithm contains variables with mode-specific values. When you save, you&apos;ll be prompted to select which modes to generate tokens for.
+                    </Text>
+                    {Object.keys(selectedModes).length > 0 && (
+                      <Box>
+                        <Text fontSize="sm" fontWeight="medium" mb={2}>Selected Modes:</Text>
+                        <VStack spacing={1} align="stretch">
+                          {Object.entries(selectedModes).map(([dimensionId, modeIds]) => {
+                            const dimension = StorageService.getDimensions().find(d => d.id === dimensionId);
+                            return (
+                              <HStack key={dimensionId} spacing={2}>
+                                <Badge size="sm" colorScheme="green">
+                                  {dimension?.displayName || dimensionId}
+                                </Badge>
+                                <Text fontSize="xs" color="gray.500">
+                                  {modeIds.length} mode{modeIds.length !== 1 ? 's' : ''} selected
+                                </Text>
+                              </HStack>
+                            );
+                          })}
+                        </VStack>
+                      </Box>
+                    )}
+                  </Box>
+                )}
 
                 {/* Show existing tokens info when tokens exist */}
                 {hasExistingTokens && (
@@ -2023,6 +2100,11 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                               <Text fontSize="xs" color="gray.500">
                                 Value: {token.valuesByMode[0]?.value && 'value' in token.valuesByMode[0].value ? token.valuesByMode[0].value.value : 'N/A'}
                               </Text>
+                              {token.valuesByMode[0]?.modeIds && token.valuesByMode[0].modeIds.length > 0 && (
+                                <Text fontSize="xs" color="blue.500">
+                                  Modes: {token.valuesByMode[0].modeIds.join(', ')}
+                                </Text>
+                              )}
                             </Box>
                           ))}
                           {generatedTokens.length > 10 && (
@@ -2090,6 +2172,14 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
           onReset={handleReset}
           algorithm={currentAlgorithm}
           hasUnsavedChanges={hasUnsavedChanges}
+        />
+
+        {/* Mode Selection Dialog */}
+        <ModeSelectionDialog
+          isOpen={showModeSelectionDialog}
+          onClose={() => setShowModeSelectionDialog(false)}
+          onConfirm={handleModeSelectionConfirm}
+          algorithm={currentAlgorithm}
         />
       </VStack>
     </Box>
