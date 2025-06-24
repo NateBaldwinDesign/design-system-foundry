@@ -337,7 +337,17 @@ export function TokenEditorDialog({
           platformOverrides: vbm.platformOverrides ? [...vbm.platformOverrides] : []
         }))
       };
-      setEditedToken(newToken);
+      
+      // For new tokens, preserve the unique ID that was generated in the initial state
+      if (isNew) {
+        setEditedToken(prev => ({
+          ...newToken,
+          id: prev.id // Preserve the unique ID from initial state
+        }));
+      } else {
+        setEditedToken(newToken);
+      }
+      
       originalTokenRef.current = newToken;
       setTaxonomyEdits(Array.isArray(token.taxonomies) ? token.taxonomies : []);
       setActiveDimensionIds(dimensions.filter(d => d.required).map(d => d.id));
@@ -360,9 +370,18 @@ export function TokenEditorDialog({
           codeSyntaxSchema
         )
       };
-      setEditedToken(updatedToken);
+      
+      // For new tokens, preserve the unique ID when updating with code syntax
+      if (isNew) {
+        setEditedToken(prev => ({
+          ...updatedToken,
+          id: prev.id // Preserve the unique ID
+        }));
+      } else {
+        setEditedToken(updatedToken);
+      }
     }
-  }, [token, open, dimensions, platforms, taxonomies, schema?.namingRules]);
+  }, [token, open, dimensions, platforms, taxonomies, schema?.namingRules, isNew]);
 
   // Initialize active dimensions from current valuesByMode
   useEffect(() => {
@@ -667,12 +686,14 @@ export function TokenEditorDialog({
   // Update handleSave to use schema validation
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[TokenEditorDialog] handleSave called with editedToken:', editedToken);
     setFormErrors({});
 
     // Validate collection compatibility only if a collection is selected
     if (editedToken.tokenCollectionId) {
       const collectionErrors = validateTokenCollectionCompatibility(editedToken, collections, resolvedValueTypes);
       if (collectionErrors.length > 0) {
+        console.log('[TokenEditorDialog] Collection validation errors:', collectionErrors);
         setCollectionErrors(collectionErrors);
         return;
       }
@@ -707,6 +728,26 @@ export function TokenEditorDialog({
       )
     };
 
+    // Debug validation variables after code syntax generation
+    const codeSyntaxArray = ensureCodeSyntaxArrayFormat(updatedToken.codeSyntax);
+    const hasTaxonomyError = codeSyntaxArray.some(name => name === undefined);
+    const hasRequiredFieldError = !updatedToken.displayName || !updatedToken.resolvedValueTypeId;
+    
+    console.log('[TokenEditorDialog] Validation debug after code syntax generation:', {
+      codeSyntaxArray,
+      hasTaxonomyError,
+      hasRequiredFieldError,
+      displayName: updatedToken.displayName,
+      resolvedValueTypeId: updatedToken.resolvedValueTypeId
+    });
+
+    // Check for validation errors after code syntax generation
+    if (hasRequiredFieldError) {
+      console.log('[TokenEditorDialog] Required field validation failed');
+      return;
+    }
+
+    console.log('[TokenEditorDialog] Calling onSave with token:', updatedToken);
     onSave(updatedToken);
     onClose();
   };

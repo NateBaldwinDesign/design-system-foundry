@@ -91,6 +91,22 @@ export interface Schema {
 export const useSchema = () => {
   const { getItem, setItem } = useStorage();
   const toast = useToast();
+
+  // Helper function to clean up naming rules by removing references to non-existent taxonomies
+  const cleanNamingRules = (namingRules: { taxonomyOrder: string[] }, taxonomies: Array<{ id: string }>) => {
+    const taxonomyIds = new Set(taxonomies.map(t => t.id));
+    const cleanedTaxonomyOrder = namingRules.taxonomyOrder.filter(id => taxonomyIds.has(id));
+    
+    if (cleanedTaxonomyOrder.length !== namingRules.taxonomyOrder.length) {
+      console.warn('[useSchema] Removed invalid taxonomy IDs from naming rules:', 
+        namingRules.taxonomyOrder.filter(id => !taxonomyIds.has(id)));
+    }
+    
+    return {
+      taxonomyOrder: cleanedTaxonomyOrder
+    };
+  };
+
   const [schema, setSchema] = useState<Schema | null>(() => {
     // Try to load from local storage first
     const stored = getItem('schema');
@@ -99,7 +115,9 @@ export const useSchema = () => {
         const parsed = JSON.parse(stored);
         // Ensure naming rules are included from storage
         const namingRules = StorageService.getNamingRules();
-        const schemaWithNamingRules = { ...parsed, namingRules };
+        const taxonomies = StorageService.getTaxonomies();
+        const cleanedNamingRules = cleanNamingRules(namingRules, taxonomies);
+        const schemaWithNamingRules = { ...parsed, namingRules: cleanedNamingRules };
         
         // Validate schema before setting
         const validationResult = ValidationService.validateData(schemaWithNamingRules);
@@ -143,6 +161,7 @@ export const useSchema = () => {
 
       // Only create schema if we have some data
       if (tokenCollections.length > 0 || tokens.length > 0) {
+        const cleanedNamingRules = cleanNamingRules(namingRules, taxonomies);
         const schemaFromStorage = {
           version: '1.0.0',
           systemName: 'Design System',
@@ -155,7 +174,7 @@ export const useSchema = () => {
           themes,
           taxonomies,
           resolvedValueTypes,
-          namingRules,
+          namingRules: cleanedNamingRules,
           dimensionOrder,
           versionHistory: [{
             version: '1.0.0',
@@ -258,7 +277,7 @@ export const useSchema = () => {
               }))
             })),
             // Ensure naming rules are present
-            namingRules: coreData.namingRules || { taxonomyOrder: [] },
+            namingRules: cleanNamingRules(coreData.namingRules || { taxonomyOrder: [] }, coreData.taxonomies || []),
             // Ensure version history is present
             versionHistory: coreData.versionHistory || [{
               version: coreData.version || '1.0.0',

@@ -294,21 +294,11 @@ const App = () => {
   };
 
   const handleAddToken = () => {
-    if (!collections.length) {
-      toast({
-        title: "No collections available",
-        description: "Please create a collection first before adding tokens.",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
     setSelectedToken({
       id: '',
       displayName: '',
       description: '',
-      tokenCollectionId: collections[0].id,
+      tokenCollectionId: '',
       resolvedValueTypeId: 'color',
       propertyTypes: [],
       private: false,
@@ -329,16 +319,38 @@ const App = () => {
   };
 
   const handleSaveToken = (token: ExtendedToken) => {
+    console.log('[App] handleSaveToken called with token:', token);
+    
     setTokens((prevTokens: ExtendedToken[]) => {
+      console.log('[App] Previous tokens:', prevTokens);
+      
       let updatedTokens;
-      if (token.id) {
+      // Check if this is an existing token by looking for it in the current tokens array
+      const existingTokenIndex = prevTokens.findIndex((t: ExtendedToken) => t.id === token.id);
+      
+      if (existingTokenIndex !== -1) {
+        // Update existing token
+        console.log('[App] Updating existing token at index:', existingTokenIndex);
         updatedTokens = prevTokens.map((t: ExtendedToken) => t.id === token.id ? token : t);
       } else {
-        updatedTokens = [...prevTokens, { ...token, id: `token-${Date.now()}` }];
+        // Add new token
+        console.log('[App] Adding new token with ID:', token.id);
+        updatedTokens = [...prevTokens, token];
       }
+      
+      console.log('[App] Updated tokens:', updatedTokens);
       StorageService.setTokens(updatedTokens);
       return updatedTokens;
     });
+    
+    toast({
+      title: "Token saved",
+      description: `Token "${token.displayName}" has been saved successfully`,
+      status: "success",
+      duration: 3000,
+      isClosable: true,
+    });
+    
     handleCloseEditor();
   };
 

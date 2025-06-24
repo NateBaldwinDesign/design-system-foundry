@@ -117,7 +117,18 @@ export class StorageService {
   }
 
   static setNamingRules(rules: { taxonomyOrder: string[] }): void {
-    this.setItem(STORAGE_KEYS.NAMING_RULES, rules);
+    // Clean up naming rules by removing references to non-existent taxonomies
+    const taxonomies = this.getTaxonomies();
+    const taxonomyIds = new Set(taxonomies.map(t => t.id));
+    const cleanedTaxonomyOrder = rules.taxonomyOrder.filter(id => taxonomyIds.has(id));
+    
+    if (cleanedTaxonomyOrder.length !== rules.taxonomyOrder.length) {
+      console.warn('[StorageService] Removed invalid taxonomy IDs from naming rules:', 
+        rules.taxonomyOrder.filter(id => !taxonomyIds.has(id)));
+    }
+    
+    const cleanedRules = { taxonomyOrder: cleanedTaxonomyOrder };
+    this.setItem(STORAGE_KEYS.NAMING_RULES, cleanedRules);
   }
 
   static getAlgorithms(): Algorithm[] {

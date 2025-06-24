@@ -191,30 +191,14 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     >
       <VStack spacing={0} align="stretch" h="full">
         {/* Logo */}
-        <Box p={4} borderBottom="1px" borderColor={borderColor} display="flex" gap={2} justifyContent="center" alignItems="center">
-          <Logo size={34} color={colorMode === 'dark' ? 'white' : 'black'} />
+        <Box px={4} py={3} borderBottom="1px" borderColor={borderColor} display="flex" gap={2} justifyContent="center" alignItems="center">
+          <Logo size={28} color={colorMode === 'dark' ? 'white' : 'black'} />
           {/* Title */}
           {!isCollapsed && (
-            <Text fontSize="md" lineHeight="1" fontWeight="bold">
+            <Text fontSize="sm" lineHeight="1" fontWeight="bold">
               Design System<br/>Foundry
             </Text>
           )}
-        </Box>
-
-        {/* Collapse Toggle Button */}
-        <Box px={4} py={2} borderBottom="1px" borderColor={borderColor}>
-          <Button
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            size="sm"
-            leftIcon={isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            variant="ghost"
-            w="full"
-            gap={1}
-            justifyContent="flex-start"
-          >
-            {!isCollapsed && 'Collapse'}
-          </Button>
         </Box>
         {/* Navigation Items */}
         <VStack spacing={1} align="stretch" p={4} flex={1}>
@@ -275,6 +259,22 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               </Button>
             </HStack>
          )}
+
+        {/* Collapse Toggle Button */}
+        <Box px={4} py={2} borderBottom="1px" borderColor={borderColor}>
+          <Button
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            size="sm"
+            leftIcon={isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            variant="ghost"
+            w="full"
+            gap={1}
+            justifyContent="flex-start"
+          >
+            {!isCollapsed && 'Collapse'}
+          </Button>
+        </Box>
       </VStack>
     </Box>
   );
