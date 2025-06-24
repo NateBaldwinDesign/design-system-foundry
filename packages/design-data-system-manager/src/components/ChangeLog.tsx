@@ -876,8 +876,8 @@ export const ChangeLog: React.FC<ChangeLogProps> = ({ previousData, currentData 
 
   return (
     <Box>
-      <Text fontSize="lg" fontWeight="bold" mb={4}>
-        Change Log ({changes.length} changes)
+      <Text fontSize="md" fontWeight="bold" mb={4}>
+        Changes ({changes.length} changes)
       </Text>
       
       <Accordion allowMultiple>

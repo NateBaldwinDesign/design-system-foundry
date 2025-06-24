@@ -3,6 +3,7 @@ import {
   Box,
   HStack,
   IconButton,
+  Tooltip,
   useColorMode,
   Modal,
   ModalOverlay,
@@ -64,34 +65,40 @@ export const Header: React.FC<HeaderProps> = ({
         alignItems="center"
       >
         <HStack spacing={2}>
-          <IconButton
-            aria-label="Pull Request"
-            icon={<GitPullRequestArrow size={20} />}
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              // TODO: Implement pull request functionality
-              console.log('Pull request clicked');
-            }}
-          />
-          <IconButton
-            aria-label="User Profile"
-            icon={<User size={20} />}
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              // TODO: Implement user profile functionality
-              console.log('User profile clicked');
-            }}
-          />
-          <Box position="relative">
+          <Tooltip label="Pull Request" placement="bottom">
             <IconButton
-              aria-label="History"
-              icon={<History size={20} />}
+              aria-label="Pull Request"
+              icon={<GitPullRequestArrow size={16} />}
               variant="ghost"
               size="sm"
-              onClick={handleOpenModal}
+              onClick={() => {
+                // TODO: Implement pull request functionality
+                console.log('Pull request clicked');
+              }}
             />
+          </Tooltip>
+          <Tooltip label="User Profile" placement="bottom">
+            <IconButton
+              aria-label="User Profile"
+              icon={<User size={16} />}
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                // TODO: Implement user profile functionality
+                console.log('User profile clicked');
+              }}
+            />
+          </Tooltip>
+          <Box position="relative">
+            <Tooltip label="History" placement="bottom">
+              <IconButton
+                aria-label="History"
+                icon={<History size={16} />}
+                variant="ghost"
+                size="sm"
+                onClick={handleOpenModal}
+              />
+            </Tooltip>
             {hasChanges && (
               <Badge
                 position="absolute"

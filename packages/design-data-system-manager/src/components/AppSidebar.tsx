@@ -180,7 +180,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     <Box
       as="nav"
       position="relative"
-      w={isCollapsed ? '64px' : '260px'}
+      w={isCollapsed ? '64px' : '220px'}
       h="100vh"
       bg={bgColor}
       borderRight="1px"
@@ -191,7 +191,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     >
       <VStack spacing={0} align="stretch" h="full">
         {/* Logo */}
-        <Box px={4} py={3} borderBottom="1px" borderColor={borderColor} display="flex" gap={2} justifyContent="center" alignItems="center">
+        <Box px={4} py={4} borderBottom="1px" borderColor={borderColor} display="flex" gap={2} justifyContent="center" alignItems="center">
           <Logo size={28} color={colorMode === 'dark' ? 'white' : 'black'} />
           {/* Title */}
           {!isCollapsed && (
