@@ -16,7 +16,6 @@ import {
   ChevronRight,
   Settings,
   LayoutDashboard,
-  Hexagon,
   Folders,
   SquareFunction,
   Tag,
@@ -213,7 +212,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             gap={1}
             justifyContent="flex-start"
           >
-            Collapse
+            {!isCollapsed && 'Collapse'}
           </Button>
         </Box>
         {/* Navigation Items */}
