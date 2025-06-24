@@ -34,6 +34,7 @@ import { ValidationView } from './views/publishing/ValidationView';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import CoreDataView from './views/schemas/CoreDataView';
 import ThemeOverridesView from './views/schemas/ThemeOverridesView';
+import AlgorithmDataView from './views/schemas/AlgorithmDataView';
 import { Plus } from 'lucide-react';
 import { TokenEditorDialog, ExtendedToken } from './components/TokenEditorDialog';
 import { useSchema } from './hooks/useSchema';
@@ -476,6 +477,7 @@ const App = () => {
                 <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />
                 <Route path="/schemas/core-data" element={<CoreDataView />} />
                 <Route path="/schemas/theme-overrides" element={<ThemeOverridesView />} />
+                <Route path="/schemas/algorithm-data" element={<AlgorithmDataView />} />
                 <Route path="/setup" element={<Navigate to="/dimensions" replace />} />
                 <Route path="/dimensions" element={
                   <DimensionsView 

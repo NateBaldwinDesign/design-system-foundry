@@ -92,6 +92,7 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { id: 'core-data', label: 'Core Data', icon: FileCode, route: '/schemas/core-data' },
       { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode, route: '/schemas/theme-overrides' },
+      { id: 'algorithm-data', label: 'Algorithm Data', icon: FileCode, route: '/schemas/algorithm-data' },
     ],
   },
 ];

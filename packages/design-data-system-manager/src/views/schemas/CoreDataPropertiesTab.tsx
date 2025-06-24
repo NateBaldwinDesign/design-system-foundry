@@ -4,7 +4,6 @@ import {
   VStack,
   Heading,
   Text,
-  useColorMode,
   UnorderedList,
   ListItem,
   Code,
@@ -12,8 +11,6 @@ import {
 import { JsonSyntaxHighlighter } from '../../components/JsonSyntaxHighlighter';
 
 export const CoreDataPropertiesTab: React.FC = () => {
-  const { colorMode } = useColorMode();
-
   return (
     <VStack spacing={6} align="stretch">
       <Box>
@@ -43,60 +40,37 @@ export const CoreDataPropertiesTab: React.FC = () => {
             {
               version: "1.0.0",
               dimensions: ["dimension-color-scheme"],
-              date: "2024-06-01"
+              date: "2024-06-01",
+              migrationStrategy: {
+                emptyModeIds: "mapToDefaults",
+                preserveOriginalValues: true
+              }
             }
           ]
         }, null, 2)} />
       </Box>
 
       <Box>
-        <Heading size="md" mb={4}>Token Collections</Heading>
+        <Heading size="md" mb={4}>Metadata & Configuration</Heading>
         <Text mb={2}>
-          <b>tokenCollections</b> (required): Collections of tokens grouped by type.<br />
-          Each collection specifies which value types it supports using <Code colorScheme="purple">resolvedValueTypeIds</Code> (string IDs, not enums).<br />
-          <b>Technical note:</b> All reference fields use the <b>ID/Ids suffix</b> convention for clarity and validation.
+          <b>metadata</b> (optional): Additional information about the token set including maintainers and last updated date.<br />
+          <b>dimensionOrder</b> (optional): Order of dimensions to use when resolving token values.<br />
+          <b>exportConfigurations</b> (optional): Platform-specific export configuration rules.
         </Text>
         <JsonSyntaxHighlighter code={JSON.stringify({
-          tokenCollections: [
-            {
-              id: "collection-color",
-              name: "Color",
-              resolvedValueTypeIds: ["color"],
-              private: false
+          metadata: {
+            description: "Core design tokens for Acme Corp applications",
+            lastUpdated: "2024-06-01",
+            maintainers: ["design-team@acme.com"]
+          },
+          dimensionOrder: ["dimension-color-scheme", "dimension-size"],
+          exportConfigurations: {
+            "platform-web": {
+              prefix: "--",
+              delimiter: "-",
+              capitalization: "lowercase"
             }
-          ]
-        }, null, 2)} />
-      </Box>
-
-      <Box>
-        <Heading size="md" mb={4}>Dimensions</Heading>
-        <Text mb={2}>
-          <b>dimensions</b> (required): Dimensions that can modify token values.<br />
-          Each dimension contains one or more <b>modes</b> (with <Code colorScheme="purple">id</Code>, <Code colorScheme="purple">name</Code>, and <Code colorScheme="purple">dimensionId</Code>), and specifies supported value types via <Code colorScheme="purple">resolvedValueTypeIds</Code>.<br />
-          <b>Technical note:</b> All reference fields use the <b>ID/Ids suffix</b> convention. Value types are referenced by string ID only.
-        </Text>
-        <JsonSyntaxHighlighter code={JSON.stringify({
-          dimensions: [
-            {
-              id: "dimension-color-scheme",
-              displayName: "Color Scheme",
-              modes: [
-                {
-                  id: "mode-light",
-                  name: "Light",
-                  dimensionId: "dimension-color-scheme"
-                },
-                {
-                  id: "mode-dark",
-                  name: "Dark",
-                  dimensionId: "dimension-color-scheme"
-                }
-              ],
-              resolvedValueTypeIds: ["color", "dimension", "spacing"],
-              defaultMode: "mode-light",
-              required: true
-            }
-          ]
+          }
         }, null, 2)} />
       </Box>
 
@@ -134,6 +108,12 @@ export const CoreDataPropertiesTab: React.FC = () => {
               type: "DIMENSION",
               description: "A numeric value with a unit, e.g. 16px or 1.5rem."
             },
+            {
+              id: "spacing",
+              displayName: "Spacing",
+              type: "SPACING",
+              description: "A spacing value, e.g. 16px or 1rem."
+            },
             // Example of a custom value type (no 'type' field)
             {
               id: "icon",
@@ -146,8 +126,70 @@ export const CoreDataPropertiesTab: React.FC = () => {
           ]
         }, null, 2)} />
         <Text fontSize="sm" color="gray.500" mt={2}>
-          <b>Custom value type example:</b> The <Code colorScheme="purple">icon</Code> value type above is a custom type (no <Code colorScheme="purple">type</Code> field). It can be referenced by tokens, collections, dimensions, and taxonomies using <Code colorScheme="purple">resolvedValueTypeId: "icon"</Code> or <Code colorScheme="purple">resolvedValueTypeIds: ["icon"]</Code>. Custom types are validated and referenced exactly like standard types.
+          <b>Custom value type example:</b> The <Code colorScheme="purple">icon</Code> value type above is a custom type (no <Code colorScheme="purple">type</Code> field). It can be referenced by tokens, collections, dimensions, and taxonomies using <Code colorScheme="purple">resolvedValueTypeId: &quot;icon&quot;</Code> or <Code colorScheme="purple">resolvedValueTypeIds: [&quot;icon&quot;]</Code>. Custom types are validated and referenced exactly like standard types.
         </Text>
+      </Box>
+
+      <Box>
+        <Heading size="md" mb={4}>Token Collections</Heading>
+        <Text mb={2}>
+          <b>tokenCollections</b> (required): Collections of tokens grouped by type.<br />
+          Each collection specifies which value types it supports using <Code colorScheme="purple">resolvedValueTypeIds</Code> (string IDs, not enums).<br />
+          <b>Technical note:</b> All reference fields use the <b>ID/Ids suffix</b> convention for clarity and validation.
+        </Text>
+        <JsonSyntaxHighlighter code={JSON.stringify({
+          tokenCollections: [
+            {
+              id: "collection-color",
+              name: "Color",
+              description: "Color tokens for the design system",
+              resolvedValueTypeIds: ["color"],
+              private: false
+            },
+            {
+              id: "collection-typography",
+              name: "Typography",
+              description: "Typography tokens for the design system",
+              resolvedValueTypeIds: ["fontFamily", "fontSize", "fontWeight", "lineHeight"],
+              private: false
+            }
+          ]
+        }, null, 2)} />
+      </Box>
+
+      <Box>
+        <Heading size="md" mb={4}>Dimensions</Heading>
+        <Text mb={2}>
+          <b>dimensions</b> (required): Dimensions that can modify token values.<br />
+          Each dimension contains one or more <b>modes</b> (with <Code colorScheme="purple">id</Code>, <Code colorScheme="purple">name</Code>, and <Code colorScheme="purple">dimensionId</Code>), and specifies supported value types via <Code colorScheme="purple">resolvedValueTypeIds</Code>.<br />
+          <b>Technical note:</b> All reference fields use the <b>ID/Ids suffix</b> convention. Value types are referenced by string ID only.
+        </Text>
+        <JsonSyntaxHighlighter code={JSON.stringify({
+          dimensions: [
+            {
+              id: "dimension-color-scheme",
+              displayName: "Color Scheme",
+              description: "Color scheme dimension for light and dark themes",
+              modes: [
+                {
+                  id: "mode-light",
+                  name: "Light",
+                  description: "Light theme mode",
+                  dimensionId: "dimension-color-scheme"
+                },
+                {
+                  id: "mode-dark",
+                  name: "Dark",
+                  description: "Dark theme mode",
+                  dimensionId: "dimension-color-scheme"
+                }
+              ],
+              resolvedValueTypeIds: ["color", "dimension", "spacing"],
+              defaultMode: "mode-light",
+              required: true
+            }
+          ]
+        }, null, 2)} />
       </Box>
 
       <Box>
@@ -155,7 +197,7 @@ export const CoreDataPropertiesTab: React.FC = () => {
         <Text mb={2}>
           <b>tokens</b> (required): Design tokens with values that can vary by mode.<br />
           Each token references its collection and value type by ID (<Code colorScheme="purple">tokenCollectionId</Code>, <Code colorScheme="purple">resolvedValueTypeId</Code>).<br />
-          <b>valuesByMode</b>: Each entry must use <Code colorScheme="purple">modeIds</Code> (array of string IDs). Value type is determined by the token's <Code colorScheme="purple">resolvedValueTypeId</Code>.<br />
+          <b>valuesByMode</b>: Each entry must use <Code colorScheme="purple">modeIds</Code> (array of string IDs). Value type is determined by the token&apos;s <Code colorScheme="purple">resolvedValueTypeId</Code>.<br />
           <b>Technical note:</b> Never use UPPER_CASE enums for value types; always reference by string ID. Do not add <Code colorScheme="purple">resolvedValueTypeId</Code> to individual values.
         </Text>
         <JsonSyntaxHighlighter code={JSON.stringify({
@@ -163,19 +205,42 @@ export const CoreDataPropertiesTab: React.FC = () => {
             {
               id: "token-blue-500",
               displayName: "Blue 500",
+              description: "Primary blue color token",
               tokenCollectionId: "collection-color",
               resolvedValueTypeId: "color",
+              tokenTier: "PRIMITIVE",
+              private: false,
+              status: "stable",
+              themeable: true,
+              generatedByAlgorithm: false,
+              propertyTypes: ["color", "background-color"],
+              codeSyntax: [
+                {
+                  platformId: "platform-web",
+                  formattedName: "--color-blue-500"
+                },
+                {
+                  platformId: "platform-figma",
+                  formattedName: "ColorBlue500"
+                }
+              ],
               valuesByMode: [
                 {
-                  modeIds: [],
+                  modeIds: ["mode-light"],
                   value: {
-                    value: "#6afda3"
+                    value: "#3B82F6"
+                  }
+                },
+                {
+                  modeIds: ["mode-dark"],
+                  value: {
+                    value: "#60A5FA"
                   }
                 },
                 {
                   modeIds: [],
                   value: {
-                    tokenId: "token-id-000-000-000"
+                    tokenId: "token-blue-400"
                   }
                 }
               ]
@@ -188,7 +253,7 @@ export const CoreDataPropertiesTab: React.FC = () => {
         <Heading size="md" mb={4}>Platforms</Heading>
         <Text mb={2}>
           <b>platforms</b> (required): Platforms that can be used to resolve token values.<br />
-          Each platform can specify naming conventions and value formatting rules for code export using <Code colorScheme="purple">syntaxPatterns</Code>.<br />
+          Each platform can specify naming conventions and value formatting rules for code export using <Code colorScheme="purple">syntaxPatterns</Code> and <Code colorScheme="purple">valueFormatters</Code>.<br />
           <b>Technical note:</b> All platform references use <Code colorScheme="purple">id</Code> fields. Syntax patterns and value formatters follow the schema structure.
         </Text>
         <JsonSyntaxHighlighter code={JSON.stringify({
@@ -196,13 +261,120 @@ export const CoreDataPropertiesTab: React.FC = () => {
             {
               id: "platform-web",
               displayName: "Web",
+              description: "Web platform for CSS and JavaScript",
               syntaxPatterns: {
                 prefix: "--",
                 delimiter: "-",
-                capitalization: "lowercase"
+                capitalization: "lowercase",
+                formatString: "var({name})"
+              },
+              valueFormatters: {
+                color: "hex",
+                dimension: "rem",
+                numberPrecision: 2
+              }
+            },
+            {
+              id: "platform-figma",
+              displayName: "Figma",
+              description: "Figma design tool",
+              syntaxPatterns: {
+                prefix: "",
+                delimiter: "",
+                capitalization: "capitalize"
               }
             }
           ]
+        }, null, 2)} />
+      </Box>
+
+      <Box>
+        <Heading size="md" mb={4}>Themes</Heading>
+        <Text mb={2}>
+          <b>themes</b> (required): Themes that can override token values across the entire dataset.<br />
+          Each theme has an <Code colorScheme="purple">overrideFileUri</Code> that points to a theme override file.<br />
+          <b>Technical note:</b> Exactly one theme must be marked as <Code colorScheme="purple">isDefault: true</Code>.
+        </Text>
+        <JsonSyntaxHighlighter code={JSON.stringify({
+          themes: [
+            {
+              id: "theme-default",
+              displayName: "Default Theme",
+              description: "The default theme for the design system",
+              isDefault: true,
+              overrideFileUri: "themed/default-overrides.json"
+            },
+            {
+              id: "theme-brand-a",
+              displayName: "Brand A Theme",
+              description: "Brand A specific theme overrides",
+              isDefault: false,
+              overrideFileUri: "themed/brand-a-overrides.json"
+            }
+          ]
+        }, null, 2)} />
+      </Box>
+
+      <Box>
+        <Heading size="md" mb={4}>Taxonomies</Heading>
+        <Text mb={2}>
+          <b>taxonomies</b> (optional): Categorical classification system for organizing tokens.<br />
+          Each taxonomy contains terms and specifies which value types it supports via <Code colorScheme="purple">resolvedValueTypeIds</Code>.<br />
+          <b>Technical note:</b> Taxonomies provide flexible categorization beyond traditional grouping by value type.
+        </Text>
+        <JsonSyntaxHighlighter code={JSON.stringify({
+          taxonomies: [
+            {
+              id: "taxonomy-semantic",
+              name: "Semantic Classification",
+              description: "Semantic classification of tokens",
+              terms: [
+                {
+                  id: "term-primary",
+                  name: "Primary",
+                  description: "Primary brand colors and elements"
+                },
+                {
+                  id: "term-secondary",
+                  name: "Secondary",
+                  description: "Secondary brand colors and elements"
+                }
+              ],
+              resolvedValueTypeIds: ["color", "dimension", "spacing"]
+            }
+          ]
+        }, null, 2)} />
+      </Box>
+
+      <Box>
+        <Heading size="md" mb={4}>Naming Rules</Heading>
+        <Text mb={2}>
+          <b>namingRules</b> (optional): Rules for generating code syntax and naming conventions for tokens.<br />
+          <Code colorScheme="purple">taxonomyOrder</Code> determines the order of taxonomy terms when generating code syntax strings.
+        </Text>
+        <JsonSyntaxHighlighter code={JSON.stringify({
+          namingRules: {
+            taxonomyOrder: ["taxonomy-semantic", "taxonomy-component"]
+          }
+        }, null, 2)} />
+      </Box>
+
+      <Box>
+        <Heading size="md" mb={4}>Dimension Evolution</Heading>
+        <Text mb={2}>
+          <b>dimensionEvolution</b> (optional): Rules for handling dimension changes and migrations.<br />
+          Defines how to handle empty modeIds and whether to preserve default values when mapping.
+        </Text>
+        <JsonSyntaxHighlighter code={JSON.stringify({
+          dimensionEvolution: {
+            rules: [
+              {
+                whenAdding: "dimension-size",
+                mapEmptyModeIdsTo: ["mode-default"],
+                preserveDefaultValues: true
+              }
+            ]
+          }
         }, null, 2)} />
       </Box>
     </VStack>

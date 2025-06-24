@@ -1358,6 +1358,26 @@
           "id": "termId-0000-0000-0001",
           "name": "Black",
           "description": "No description provided."
+        },
+        {
+          "id": "termId-0b5bb63c-4571-405d-8019-2b927823fab5",
+          "name": "Red",
+          "description": ""
+        },
+        {
+          "id": "termId-29b90aca-f068-4a73-a06c-38958f619e4f",
+          "name": "Yellow",
+          "description": ""
+        },
+        {
+          "id": "termId-5a79d46c-45b1-4e2c-bbdc-e1fbbca1a7b4",
+          "name": "Green",
+          "description": ""
+        },
+        {
+          "id": "termId-c4200350-6982-48b0-bcba-a64e952eeaf6",
+          "name": "Fuchsia",
+          "description": ""
         }
       ],
       "resolvedValueTypeIds": [
@@ -1378,6 +1398,21 @@
           "id": "termId-1111-1111-1112",
           "name": "Button",
           "description": "Clickable elements"
+        },
+        {
+          "id": "termId-fcdf7059-afc0-423c-9aa3-397924687620",
+          "name": "Icon",
+          "description": ""
+        },
+        {
+          "id": "termId-4a4c8aec-c8e6-4674-bb24-12b7e2855116",
+          "name": "Field",
+          "description": ""
+        },
+        {
+          "id": "termId-cc62e01e-b9c3-4d37-b9d2-458aedc58fe8",
+          "name": "Container",
+          "description": ""
         }
       ],
       "resolvedValueTypeIds": [
@@ -1566,6 +1601,71 @@
         "z_index",
         "font-size"
       ]
+    },
+    {
+      "id": "taxonomyId-b6aa0844-bf72-40c7-ac70-28fa1353ee2b",
+      "name": "Attribute",
+      "description": "An attribute of a component's styling",
+      "terms": [
+        {
+          "id": "termId-8ec8e8cf-092d-44ad-81fe-c3e736b42a18",
+          "name": "Background color",
+          "description": ""
+        },
+        {
+          "id": "termId-08954c05-a026-489f-91ea-6fc08b11190b",
+          "name": "Border color",
+          "description": ""
+        },
+        {
+          "id": "termId-28da51a9-acd4-436d-bba3-edad11005a40",
+          "name": "Gap",
+          "description": ""
+        },
+        {
+          "id": "termId-20bc90bb-c649-4012-9671-6c394cdfdac8",
+          "name": "Margin",
+          "description": ""
+        },
+        {
+          "id": "termId-abe826ec-631b-4c06-b3fd-9b85a514301c",
+          "name": "Text color",
+          "description": ""
+        },
+        {
+          "id": "termId-8e484b0e-dad1-4151-9cd4-dbcd7bfe76cf",
+          "name": "Border radius",
+          "description": ""
+        },
+        {
+          "id": "termId-78678bd3-314d-41f9-a627-61c6ed935a99",
+          "name": "Shadow color",
+          "description": ""
+        },
+        {
+          "id": "termId-8b19631d-eb61-499f-84c3-9d36881da48a",
+          "name": "Text size",
+          "description": ""
+        },
+        {
+          "id": "termId-f3e2a8d6-9a8a-4eef-b99b-af6988f80fee",
+          "name": "Icon size",
+          "description": ""
+        }
+      ],
+      "resolvedValueTypeIds": [
+        "color",
+        "font_family",
+        "line_height",
+        "font_weight",
+        "spacing",
+        "opacity",
+        "shadow",
+        "border",
+        "radius",
+        "z_index",
+        "font-size"
+      ]
     }
   ],
   "resolvedValueTypes": [
@@ -1627,6 +1727,7 @@
       "taxonomyId-0000-0000-0000",
       "taxonomyId-1111-1111-1111",
       "taxonomyId-2222-2222-2222",
+      "taxonomyId-b6aa0844-bf72-40c7-ac70-28fa1353ee2b",
       "taxonomyId-3333-3333-3333"
     ]
   }
