@@ -1,0 +1,36 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# All data modeling, validation, and application logic must be based on data-model/src/schema.json as the single source of truth.
+- All application logic, data models, and UI organization must be derived from [schema.json](mdc:token-model/packages/data-model/src/schema.json)
+- [index.ts](mdc:token-model/packages/data-model/src/index.ts) must be a direct 1:1 correlate with schema.json, except for TypeScript-specific optimizations.
+- No new or alternative models, keys, or properties may be introduced if they are already defined in [schema.json](mdc:token-model/packages/data-model/src/schema.json).
+- Any prompt or code change that could affect or depend on the schema must be evaluated for schema impact, and the impact must be included in the response.
+
+# New features and UI organization must be driven by insights from @schema.json.
+- Use @schema.json to identify opportunities for new features and UI organization.
+- Favor modularity and reusability by searching for existing components before building new ones.
+- Only build custom components when necessary.
+- Always reference technical decisions listed in @technical-decisions.md
+
+# The schema must be clear, flexible, and scalable, avoiding unnecessary complexity or abstraction.
+- The schema in @schema.json should be concise and avoid unnecessary hierarchies or over-flattening.
+- Relationships between elements must be preserved and clear.
+- The schema must be stable, flexible, and scalable for future use.
+- Reference all technical decisions documented in /token-model/packages/data-model/docs/technical-decisions.md
+
+# @index.ts and @schema.json must remain synchronized, with any deviations only for TypeScript formatting or functionality.
+- Any changes to @schema.json must be reflected in @index.ts.
+- Any deviations must not fragment from the intent of @schema.json.
+
+# All editable fields and data changes must be validated against schema constraints.
+- Validate all user input and data changes using schema-defined constraints.
+- Ensure referential integrity for all IDs and relationships (e.g., modeIds, taxonomyIds).
+
+# The web app must use the schema for all data organization, relationships, and UI logic.
+- All data, UI, and features MUST BE based on schema.json.
+- Build validation for all editable fields using schema constraints.
+- Do not assume data relationships or UI organization unless directly supported by @schema.json.
+- Never make property or API changes to the web app if a corresponding property or relationship exists in the @schema.json

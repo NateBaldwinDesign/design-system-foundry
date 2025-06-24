@@ -1,0 +1,1 @@
+const e="theme-brand-b",t="core-design-system",d=[{tokenId:"token-accent-color",valuesByMode:[{modeIds:[],value:{type:"COLOR",value:"#009688"}}]},{tokenId:"token-font-primary",valuesByMode:[{modeIds:[],value:{type:"FONT_FAMILY",value:"Inter"}}]}],o={themeId:e,systemId:t,tokenOverrides:d};export{o as default,t as systemId,e as themeId,d as tokenOverrides};
