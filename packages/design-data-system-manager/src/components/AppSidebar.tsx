@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
+import TokenIcon from '../icons/TokenIcon';
 
 interface NavItem {
   id: string;
@@ -57,7 +58,7 @@ const NAV_ITEMS: NavItem[] = [
     id: 'tokens',
     label: 'Tokens',
     children: [
-      { id: 'tokens', label: 'Tokens', icon: Hexagon, route: '/tokens/tokens' },
+      { id: 'tokens', label: 'Tokens', icon: TokenIcon, route: '/tokens/tokens' },
       { id: 'collections', label: 'Collections', icon: Folders, route: '/tokens/collections' },
       { id: 'system-variables', label: 'System Variables', icon: Blend, route: '/tokens/system-variables' },
       { id: 'algorithms', label: 'Algorithms', icon: SquareFunction, route: '/tokens/algorithms' },

@@ -6,6 +6,7 @@ import type { ExtendedToken } from '../../components/TokenEditorDialog';
 import TokenTag from '../../components/TokenTag';
 import { formatValueForDisplay } from '../../utils/valueTypeUtils';
 import { getValueTypeIcon } from '../../utils/getValueTypeIcon';
+import TokenIcon from '../../icons/TokenIcon';
 
 interface TokensViewProps {
   tokens: ExtendedToken[];
@@ -534,7 +535,9 @@ export function TokensView({
 
         >
           <VStack spacing={4}>
-            <Icon as={Hexagon} boxSize={12} color="gray.400" />
+            <Box color="gray.400">
+              <Icon as={TokenIcon} size={48} />
+            </Box>
             <VStack spacing={2}>
               <Text fontSize="lg" fontWeight="medium">
                 {tokens.length === 0 
