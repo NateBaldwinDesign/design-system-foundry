@@ -7,7 +7,7 @@ export default defineConfig({
     jsxRuntime: 'automatic',
     jsxImportSource: 'react',
   })],
-  base: process.env.NODE_ENV === 'production' ? '/design-system-foundry/' : '/',
+  base: '/',
   resolve: {
     alias: {
       '@token-model/data-model': path.resolve(__dirname, '../data-model'),

@@ -37,5 +37,4 @@ jobs:
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./packages/design-data-system-manager/dist
-        cname: nbaldwin.github.io 
+        publish_dir: ./packages/design-data-system-manager/dist 
