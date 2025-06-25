@@ -37,7 +37,7 @@ import { SystemVariablesView } from './views/tokens/SystemVariablesView';
 import AlgorithmsView from './views/tokens/AlgorithmsView';
 import { PlatformsView } from './views/publishing/PlatformsView';
 import { ValidationView } from './views/publishing/ValidationView';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import CoreDataView from './views/schemas/CoreDataView';
 import ThemeOverridesView from './views/schemas/ThemeOverridesView';
 import AlgorithmDataView from './views/schemas/AlgorithmDataView';
@@ -632,7 +632,7 @@ const App = () => {
 
   return (
     <ChakraProvider theme={theme}>
-      <BrowserRouter>
+      <HashRouter>
         <Box h="100vh" display="flex" flexDirection="column">
           <Box flex="1" position="relative">
             <AppLayout
@@ -729,7 +729,7 @@ const App = () => {
             </AppLayout>
           </Box>
         </Box>
-      </BrowserRouter>
+      </HashRouter>
       <Modal 
         isOpen={isOpen} 
         onClose={onClose} 

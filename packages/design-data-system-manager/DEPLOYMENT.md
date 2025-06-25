@@ -83,4 +83,6 @@ The app will be available at: `https://designsystemfoundry.com`
 
 ### Routing Issues
 - The app uses React Router with HashRouter for GitHub Pages compatibility
-- All routes should work correctly with the root base path `/` 
+- All routes work correctly with hash-based URLs (e.g., `/#/dashboard`)
+- Direct URL access and page refreshes work properly
+- The 404.html file provides fallback support for direct URL access 
