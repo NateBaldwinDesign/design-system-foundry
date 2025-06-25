@@ -20,14 +20,14 @@ export function createSchemaJsonFromLocalStorage() {
   const dimensionOrder = JSON.parse(localStorage.getItem('token-model:dimension-order') || '[]') as string[];
 
   // Read root-level data from localStorage
-  const root = JSON.parse(localStorage.getItem('token-model:root') || '{}') as Record<string, unknown>;
+  const rootData = StorageService.getRootData();
   const {
     systemName = 'Design System',
     systemId = 'design-system',
     description = 'A comprehensive design system with tokens, dimensions, and themes',
     version = '1.0.0',
     versionHistory = []
-  } = root;
+  } = rootData;
 
   // Compose versionHistory if not present
   const normalizedVersionHistory = (Array.isArray(versionHistory) && versionHistory.length > 0) ? versionHistory : [{

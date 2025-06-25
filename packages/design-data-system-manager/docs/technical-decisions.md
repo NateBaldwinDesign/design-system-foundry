@@ -291,3 +291,156 @@ const handleUpdateTokens = (updatedTokens: ExtendedToken[]) => {
 - Centralized update handlers for all data mutations
 - Props-based component communication
 - Improved performance through elimination of periodic refresh 
+
+# GitHub Integration and Data Management Pipeline
+
+## Overview
+The design-data-system-manager project implements a comprehensive GitHub integration system that enables users to load, edit, and save design system data directly to GitHub repositories. The system supports both direct commits and pull request workflows, with robust OAuth authentication and secure token management.
+
+## Authentication Flow
+
+### OAuth Implementation
+- **PKCE Flow**: Uses Proof Key for Code Exchange (PKCE) for enhanced security
+- **State Parameter**: Implements CSRF protection with random state parameters
+- **Token Storage**: Securely stores GitHub access tokens using base64 encoding (upgradable to Web Crypto API)
+- **Token Refresh**: Monitors token validity with 30-minute intervals and automatic logout on invalidation
+
+### Security Features
+- **SecureStorage Service**: Centralized secure storage for sensitive GitHub data
+- **Token Encryption**: Basic base64 encoding for tokens (production should use Web Crypto API)
+- **State Verification**: Validates OAuth state parameters to prevent CSRF attacks
+- **Automatic Cleanup**: Clears stale OAuth state parameters and invalid tokens
+
+## Data Loading Pipeline
+
+### GitHub Repository Selection
+1. **Repository Discovery**: Fetches user's repositories via GitHub API
+2. **Branch Selection**: Loads available branches for selected repository
+3. **File Scanning**: Automatically detects valid JSON files (schema or theme-override)
+4. **File Type Detection**: Distinguishes between core data files and theme override files
+
+### Data Loading Process
+1. **File Content Retrieval**: Downloads file content via GitHub API
+2. **JSON Parsing**: Validates and parses JSON content
+3. **Storage Population**: Loads data into localStorage via StorageService
+4. **State Synchronization**: Updates React state through centralized handlers
+5. **Repository Tracking**: Stores selected repository info for future operations
+
+### File Type Handling
+- **Core Data Files**: Load complete design system data (tokens, collections, dimensions, etc.)
+- **Theme Override Files**: Load theme-specific overrides that merge with core data
+- **Algorithm Files**: Optional algorithm data loaded alongside core data using naming conventions
+
+## Data Storage Architecture
+
+### Local Storage Strategy
+- **App-Level State Management**: Single source of truth in App.tsx
+- **One-Time Initialization**: Data loaded from storage once on mount
+- **Centralized Updates**: All mutations go through centralized update handlers
+- **Props-Based Communication**: Components receive state as props and trigger updates through callbacks
+
+### Storage Keys
+- **Token Data**: `token-model:tokens`, `token-model:collections`, `token-model:dimensions`
+- **Configuration**: `token-model:value-types`, `token-model:platforms`, `token-model:themes`
+- **GitHub Data**: `github_selected_repo`, `github_token_encrypted`, `github_user`
+- **Algorithms**: `token-model:algorithms`, `token-model:algorithm-file`
+
+### Change Tracking
+- **Baseline Establishment**: Creates baseline data snapshot on initialization
+- **Change Detection**: Monitors localStorage modifications to detect changes
+- **Change Count**: Tracks number of modifications for UI feedback
+- **Unsaved Changes**: Prevents data loss by tracking modification state
+
+## Saving and Publishing Workflow
+
+### Save Options
+1. **Direct Save**: Commits changes directly to the current branch
+2. **Pull Request**: Creates a new branch and pull request for review
+
+### Branch Management
+- **Branch Creation**: Automatically generates unique branch names with timestamps
+- **Base Branch Selection**: Allows targeting specific branches (main, master, etc.)
+- **Branch Validation**: Ensures target branch exists before creating PR
+
+### Pull Request Workflow
+1. **Branch Creation**: Creates new branch from current branch
+2. **File Update**: Saves changes to the new branch
+3. **PR Creation**: Creates pull request with generated title and description
+4. **PR Opening**: Automatically opens PR in new browser tab
+5. **Metadata**: Includes change log, timestamp, and file type information
+
+### File Size Management
+- **Size Validation**: Checks file size against GitHub's 1MB limit
+- **Warning System**: Warns when approaching size limits
+- **Error Prevention**: Prevents saves that would exceed limits
+
+## Error Handling and User Feedback
+
+### Authentication Errors
+- **Token Validation**: Tests token validity before API calls
+- **Re-authentication**: Automatic logout and re-auth flow on token invalidation
+- **Error Recovery**: Clear error messages and retry options
+
+### Network and API Errors
+- **Graceful Degradation**: Handles network failures with user-friendly messages
+- **Retry Mechanisms**: Provides retry options for failed operations
+- **Toast Notifications**: Consistent error feedback via Chakra UI toasts
+
+### Data Validation
+- **Schema Compliance**: Validates all data against schema before saving
+- **File Format Validation**: Ensures JSON validity before parsing
+- **Size Limits**: Prevents oversized files from being saved
+
+## Integration Points
+
+### Component Integration
+- **Header Component**: Provides GitHub connection status and save options
+- **GitHubCallback**: Handles OAuth callback and repository selection
+- **GitHubRepoSelector**: Manages repository and file selection
+- **GitHubSaveDialog**: Provides save options and PR creation
+
+### Service Integration
+- **GitHubAuthService**: Manages OAuth flow and token handling
+- **GitHubApiService**: Handles all GitHub API interactions
+- **GitHubSaveService**: Manages save operations and PR creation
+- **StorageService**: Handles local data persistence
+- **SecureStorage**: Manages sensitive GitHub data
+
+### State Management
+- **App.tsx**: Centralized state management for all data types
+- **Props-Based Updates**: Components trigger updates through callback props
+- **Change Tracking**: Monitors data modifications for UI feedback
+- **Baseline Management**: Maintains original data for change detection
+
+## Best Practices
+
+### Security
+- Use PKCE for OAuth flows
+- Implement proper token storage and encryption
+- Validate all OAuth parameters
+- Clear sensitive data on logout
+
+### Performance
+- One-time initialization prevents infinite loops
+- Centralized state management reduces re-renders
+- Efficient change detection with baseline comparison
+- Lazy loading of repository and branch data
+
+### User Experience
+- Clear error messages and recovery options
+- Consistent toast notifications for feedback
+- Automatic file type detection and validation
+- Seamless integration between local and remote data
+
+### Data Integrity
+- Schema validation before all saves
+- File size validation and warnings
+- Proper error handling for all operations
+- Change tracking and unsaved change detection
+
+## Future Enhancements
+- Implement Web Crypto API for token encryption
+- Add support for GitHub Apps for enhanced permissions
+- Implement conflict resolution for concurrent edits
+- Add support for GitHub Actions integration
+- Enhance file size optimization and compression 

@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   ChakraProvider,
   Spinner,
   Button,
-  useToast
+  useToast,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody
 } from '@chakra-ui/react';
 import {
   TokenCollection,
@@ -23,7 +29,7 @@ import { Algorithm } from './types/algorithm';
 import ThemesView from './views/themes/ThemesView';
 import DashboardView from './views/dashboard/DashboardView';
 import './App.css';
-import { AppLayout } from './components/AppLayout';
+import { AppLayout, DATA_CHANGE_EVENT } from './components/AppLayout';
 import theme from './theme';
 import { TokensView } from './views/tokens/TokensView';
 import { CollectionsView } from './views/tokens/CollectionsView';
@@ -36,13 +42,19 @@ import CoreDataView from './views/schemas/CoreDataView';
 import ThemeOverridesView from './views/schemas/ThemeOverridesView';
 import AlgorithmDataView from './views/schemas/AlgorithmDataView';
 import { Plus } from 'lucide-react';
-import { TokenEditorDialog, ExtendedToken } from './components/TokenEditorDialog';
+import { TokenEditorDialog } from './components/TokenEditorDialog';
 import { useSchema } from './hooks/useSchema';
 import { TokenAnalysis } from './views/tokens/TokenAnalysis';
 import { DimensionsView } from './views/setup/DimensionsView';
 import { ClassificationView } from './views/setup/ClassificationView';
 import { NamingRulesView } from './views/setup/NamingRulesView';
 import { ValueTypesView } from './views/setup/ValueTypesView';
+import { GitHubCallback } from './components/GitHubCallback';
+import { GitHubAuthService } from './services/githubAuth';
+import { GitHubApiService } from './services/githubApi';
+import type { GitHubUser } from './config/github';
+import type { ExtendedToken } from './components/TokenEditorDialog';
+import { ChangeLog } from './components/ChangeLog';
 
 const App = () => {
   const { schema } = useSchema();
@@ -68,7 +80,18 @@ const App = () => {
   });
   const [selectedToken, setSelectedToken] = useState<ExtendedToken | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isGitHubConnected, setIsGitHubConnected] = useState(false);
+  const [githubUser, setGithubUser] = useState<GitHubUser | null>(null);
+  const [selectedRepoInfo, setSelectedRepoInfo] = useState<{
+    fullName: string;
+    branch: string;
+    filePath: string;
+    fileType: 'schema' | 'theme-override';
+  } | null>(null);
   const toast = useToast();
+  const [baselineData, setBaselineData] = useState<Record<string, unknown> | null>(null);
+  const [changeLogData, setChangeLogData] = useState<{ currentData: Record<string, unknown>; baselineData: Record<string, unknown> | null }>({ currentData: {}, baselineData: null });
+  const [isOpen, setIsOpen] = useState(false);
 
   // Initialize data from storage on mount
   useEffect(() => {
@@ -82,36 +105,74 @@ const App = () => {
     const storedTokens = StorageService.getTokens();
     const storedTaxonomies = StorageService.getTaxonomies();
     const storedAlgorithms = StorageService.getAlgorithms();
+    const storedNamingRules = StorageService.getNamingRules();
 
-    // Only set state if we have data and it's different from current state
-    if (storedCollections.length > 0 && JSON.stringify(storedCollections) !== JSON.stringify(collections)) {
-      setCollections(storedCollections);
-    }
-    if (storedModes.length > 0 && JSON.stringify(storedModes) !== JSON.stringify(modes)) {
-      setModes(storedModes);
-    }
-    if (storedDimensions.length > 0 && JSON.stringify(storedDimensions) !== JSON.stringify(dimensions)) {
-      setDimensions(storedDimensions);
-    }
-    if (storedResolvedValueTypes.length > 0 && JSON.stringify(storedResolvedValueTypes) !== JSON.stringify(resolvedValueTypes)) {
-      setResolvedValueTypes(storedResolvedValueTypes);
-    }
-    if (storedPlatforms.length > 0 && JSON.stringify(storedPlatforms) !== JSON.stringify(platforms)) {
-      setPlatforms(storedPlatforms);
-    }
-    if (storedThemes.length > 0 && JSON.stringify(storedThemes) !== JSON.stringify(themes)) {
-      setThemes(storedThemes);
-    }
-    if (storedTokens.length > 0 && JSON.stringify(storedTokens) !== JSON.stringify(tokens)) {
-      setTokens(storedTokens);
-    }
-    if (storedTaxonomies.length > 0 && JSON.stringify(storedTaxonomies) !== JSON.stringify(taxonomies)) {
-      setTaxonomies(storedTaxonomies);
-    }
-    if (storedAlgorithms.length > 0 && JSON.stringify(storedAlgorithms) !== JSON.stringify(algorithms)) {
-      setAlgorithms(storedAlgorithms);
-    }
+    setCollections(storedCollections);
+    setModes(storedModes);
+    setDimensions(storedDimensions);
+    setResolvedValueTypes(storedResolvedValueTypes);
+    setPlatforms(storedPlatforms);
+    setThemes(storedThemes);
+    setTokens(storedTokens);
+    setTaxonomies(storedTaxonomies);
+    setAlgorithms(storedAlgorithms);
+    setTaxonomyOrder(storedNamingRules.taxonomyOrder);
+
+    // Set baselineData to the loaded data
+    setBaselineData({
+      collections: storedCollections,
+      modes: storedModes,
+      dimensions: storedDimensions,
+      resolvedValueTypes: storedResolvedValueTypes,
+      platforms: storedPlatforms,
+      themes: storedThemes,
+      tokens: storedTokens,
+      taxonomies: storedTaxonomies,
+      algorithms: storedAlgorithms,
+      namingRules: storedNamingRules,
+    });
+
+    // Initialize GitHub state
+    const currentUser = GitHubAuthService.getCurrentUser();
+    const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+    setGithubUser(currentUser);
+    setSelectedRepoInfo(repoInfo);
+
+    setLoading(false);
   }, []); // Only run once on mount
+
+  // Check GitHub connection status
+  useEffect(() => {
+    const checkGitHubConnection = () => {
+      const isConnected = GitHubAuthService.isAuthenticated();
+      const currentUser = GitHubAuthService.getCurrentUser();
+      const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+      
+      setIsGitHubConnected(isConnected);
+      setGithubUser(currentUser);
+      setSelectedRepoInfo(repoInfo);
+    };
+
+    checkGitHubConnection();
+    
+    // Listen for storage changes to detect GitHub data updates
+    const handleStorageChange = () => {
+      checkGitHubConnection();
+    };
+
+    // Listen for GitHub file loaded events from GitHubCallback
+    const handleGitHubFileLoaded = () => {
+      checkGitHubConnection();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('github:file-loaded', handleGitHubFileLoaded);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('github:file-loaded', handleGitHubFileLoaded);
+    };
+  }, []);
 
   useEffect(() => {
     // Create data options from the package exports
@@ -124,7 +185,7 @@ const App = () => {
     setDataOptions(options);
   }, []);
 
-  const loadDataFromSource = async (dataSourceKey: string) => {
+  const loadDataFromSource = useCallback(async (dataSourceKey: string) => {
     try {
       console.log('[App] Loading data from package source:', dataSourceKey);
       
@@ -189,7 +250,15 @@ const App = () => {
       const normalizedNamingRules = {
         taxonomyOrder: d.namingRules?.taxonomyOrder ?? []
       };
-      const normalizedVersionHistory = d.versionHistory ?? [];
+      const normalizedVersionHistory = (d.versionHistory ?? []) as Array<{
+        version: string;
+        dimensions: string[];
+        date: string;
+        migrationStrategy?: {
+          emptyModeIds: string;
+          preserveOriginalValues: boolean;
+        };
+      }>;
       const systemName = d.systemName ?? 'Design System';
       const systemId = d.systemId ?? 'design-system';
       const description = d.description ?? 'A comprehensive design system with tokens, dimensions, and themes';
@@ -242,14 +311,16 @@ const App = () => {
       StorageService.setNamingRules(normalizedNamingRules);
 
       // Store root-level data in localStorage
-      const root = {
+      StorageService.setRootData({
         systemName,
         systemId,
         description,
         version,
         versionHistory: normalizedVersionHistory
-      };
-      localStorage.setItem('token-model:root', JSON.stringify(root));
+      });
+      
+      // Dispatch event to notify change detection that new data has been loaded
+      window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
     } catch (error) {
       let message = 'Error loading data:';
       if (error instanceof SyntaxError) {
@@ -261,13 +332,47 @@ const App = () => {
       alert(message);
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (dataSource) {
+    if (dataSource && !isGitHubConnected) {
+      // Always load the selected data source when not connected to GitHub
       loadDataFromSource(dataSource);
     }
-  }, [dataSource]);
+  }, [dataSource, isGitHubConnected, loadDataFromSource]);
+
+  // Function to refresh data from storage (called when GitHub data is loaded)
+  const refreshDataFromStorage = () => {
+    const storedCollections = StorageService.getCollections();
+    const storedModes = StorageService.getModes();
+    const storedDimensions = StorageService.getDimensions();
+    const storedResolvedValueTypes = StorageService.getValueTypes();
+    const storedPlatforms = StorageService.getPlatforms();
+    const storedThemes = StorageService.getThemes();
+    const storedTokens = StorageService.getTokens();
+    const storedTaxonomies = StorageService.getTaxonomies();
+    const storedAlgorithms = StorageService.getAlgorithms();
+    const storedNamingRules = StorageService.getNamingRules();
+
+    setCollections(storedCollections);
+    setModes(storedModes);
+    setDimensions(storedDimensions);
+    setResolvedValueTypes(storedResolvedValueTypes);
+    setPlatforms(storedPlatforms);
+    setThemes(storedThemes);
+    setTokens(storedTokens);
+    setTaxonomies(storedTaxonomies);
+    setAlgorithms(storedAlgorithms);
+    setTaxonomyOrder(storedNamingRules.taxonomyOrder);
+  };
+
+  // Expose refresh function globally for GitHub components to call
+  useEffect(() => {
+    (window as Window & { refreshAppData?: () => void }).refreshAppData = refreshDataFromStorage;
+    return () => {
+      delete (window as Window & { refreshAppData?: () => void }).refreshAppData;
+    };
+  }, []);
 
   const handleResetData = () => {
     // Clear all localStorage data
@@ -283,6 +388,19 @@ const App = () => {
     setThemes([]);
     setTaxonomies([]);
     setTaxonomyOrder([]);
+    setAlgorithms([]);
+    setBaselineData({
+      collections: [],
+      modes: [],
+      dimensions: [],
+      resolvedValueTypes: [],
+      platforms: [],
+      themes: [],
+      tokens: [],
+      taxonomies: [],
+      algorithms: [],
+      namingRules: { taxonomyOrder: [] },
+    });
     if ('caches' in window) {
       caches.keys().then(cacheNames => {
         cacheNames.forEach(cacheName => {
@@ -291,6 +409,72 @@ const App = () => {
       });
     }
     window.location.reload();
+  };
+
+  // GitHub state management handlers
+  const handleGitHubConnect = async () => {
+    try {
+      // Only clear OAuth state if user is already authenticated
+      // This prevents clearing valid OAuth state during the callback process
+      if (GitHubAuthService.isAuthenticated()) {
+        console.log('User already authenticated, clearing OAuth state before new auth');
+        GitHubAuthService.clearOAuthState();
+      }
+      
+      // Initiate the OAuth flow
+      await GitHubAuthService.initiateAuth();
+      
+      // Note: initiateAuth() redirects to GitHub, so code after this won't execute
+      // The state will be updated when the user returns from GitHub
+      
+    } catch (error) {
+      console.error('GitHub connection error:', error);
+      toast({
+        title: 'GitHub Connection Failed',
+        description: error instanceof Error ? error.message : 'Failed to connect to GitHub. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleGitHubDisconnect = () => {
+    GitHubAuthService.logout();
+    
+    // Clear all GitHub-related state
+    setGithubUser(null);
+    setSelectedRepoInfo(null);
+    setIsGitHubConnected(false);
+    
+    // Clear any stored repository info
+    localStorage.removeItem('github_selected_repo');
+    
+    toast({
+      title: 'Disconnected',
+      description: 'Successfully disconnected from GitHub.',
+      status: 'info',
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
+  const handleFileSelected = (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => {
+    // Get the selected repository info from localStorage
+    const repoInfoStr = localStorage.getItem('github_selected_repo');
+    if (repoInfoStr) {
+      const repoInfo = JSON.parse(repoInfoStr);
+      setSelectedRepoInfo(repoInfo);
+    }
+    
+    // Update GitHub connection state to reflect that we're now connected
+    const currentUser = GitHubAuthService.getCurrentUser();
+    if (currentUser) {
+      setGithubUser(currentUser);
+      setIsGitHubConnected(true);
+    }
+    
+    // Note: Toast message is already shown by GitHubRepoSelector with repository details
   };
 
   const handleAddToken = () => {
@@ -340,6 +524,8 @@ const App = () => {
       
       console.log('[App] Updated tokens:', updatedTokens);
       StorageService.setTokens(updatedTokens);
+      // Dispatch event to notify change detection
+      window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
       return updatedTokens;
     });
     
@@ -359,6 +545,8 @@ const App = () => {
     setTokens(prevTokens => {
       const updatedTokens = prevTokens.filter(t => t.id !== tokenId);
       StorageService.setTokens(updatedTokens);
+      // Dispatch event to notify change detection
+      window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
       return updatedTokens;
     });
     
@@ -377,46 +565,61 @@ const App = () => {
   const handleUpdateTokens = (updatedTokens: ExtendedToken[]) => {
     setTokens(updatedTokens);
     StorageService.setTokens(updatedTokens);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateCollections = (updatedCollections: TokenCollection[]) => {
     setCollections(updatedCollections);
     StorageService.setCollections(updatedCollections);
-  };
-
-  const handleUpdateModes = (updatedModes: Mode[]) => {
-    setModes(updatedModes);
-    StorageService.setModes(updatedModes);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateDimensions = (updatedDimensions: Dimension[]) => {
     setDimensions(updatedDimensions);
     StorageService.setDimensions(updatedDimensions);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateResolvedValueTypes = (updatedResolvedValueTypes: ResolvedValueType[]) => {
     setResolvedValueTypes(updatedResolvedValueTypes);
     StorageService.setValueTypes(updatedResolvedValueTypes);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdatePlatforms = (updatedPlatforms: Platform[]) => {
     setPlatforms(updatedPlatforms);
     StorageService.setPlatforms(updatedPlatforms);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateThemes = (updatedThemes: Theme[]) => {
     setThemes(updatedThemes);
     StorageService.setThemes(updatedThemes);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateTaxonomies = (updatedTaxonomies: Taxonomy[]) => {
     setTaxonomies(updatedTaxonomies);
     StorageService.setTaxonomies(updatedTaxonomies);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateAlgorithms = (updatedAlgorithms: Algorithm[]) => {
     setAlgorithms(updatedAlgorithms);
     StorageService.setAlgorithms(updatedAlgorithms);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
+  };
+
+  const onClose = () => {
+    setIsOpen(false);
   };
 
   if (loading) {
@@ -438,6 +641,12 @@ const App = () => {
               dataOptions={dataOptions}
               onResetData={handleResetData}
               onExportData={() => {}}
+              isGitHubConnected={isGitHubConnected}
+              githubUser={githubUser}
+              selectedRepoInfo={selectedRepoInfo}
+              onGitHubConnect={handleGitHubConnect}
+              onGitHubDisconnect={handleGitHubDisconnect}
+              onFileSelected={handleFileSelected}
             >
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -514,12 +723,33 @@ const App = () => {
                 <Route path="/validation" element={<ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />} />
                 <Route path="/version-history" element={<Box p={4}>Version history content coming soon...</Box>} />
                 <Route path="/access" element={<Box p={4}>Access management coming soon...</Box>} />
+                <Route path="/auth/github/callback" element={<GitHubCallback />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </AppLayout>
           </Box>
         </Box>
       </BrowserRouter>
+      <Modal 
+        isOpen={isOpen} 
+        onClose={onClose} 
+        size="xl" 
+        scrollBehavior="inside"
+        closeOnOverlayClick={true}
+        closeOnEsc={true}
+        isCentered={true}
+      >
+        <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
+        <ModalContent>
+          <ModalHeader>Change History</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <ChangeLog 
+              currentData={changeLogData?.currentData}
+            />
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </ChakraProvider>
   );
 };
