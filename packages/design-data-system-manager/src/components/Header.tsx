@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Box,
   HStack,
@@ -25,14 +25,24 @@ import {
   PopoverArrow,
   Button,
   VStack,
+  Select,
+  Spinner,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
 } from '@chakra-ui/react';
 import {
   History,
   Github,
-  RefreshCw,
   Save,
   GitPullRequest,
   BookMarked,
+  Download,
+  Undo2,
+  BookDownIcon,
 } from 'lucide-react';
 import { ChangeLog } from './ChangeLog';
 import { GitHubAuthService } from '../services/githubAuth';
@@ -47,13 +57,44 @@ interface HeaderProps {
   changeCount?: number;
   getCurrentData: () => Record<string, unknown>;
   getBaselineData: () => Record<string, unknown>;
+  // Data source control props
+  dataSource?: string;
+  setDataSource?: (source: string) => void;
+  dataOptions?: { label: string; value: string; hasAlgorithms: boolean }[];
+  onResetData?: () => void;
+  onExportData?: () => void;
+  isGitHubConnected?: boolean;
+  // GitHub state and handlers from app level
+  githubUser?: GitHubUser | null;
+  selectedRepoInfo?: {
+    fullName: string;
+    branch: string;
+    filePath: string;
+    fileType: 'schema' | 'theme-override';
+  } | null;
+  onGitHubConnect?: () => Promise<void>;
+  onGitHubDisconnect?: () => void;
+  onFileSelected?: (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
   hasChanges = false, 
   changeCount = 0,
   getCurrentData,
-  getBaselineData
+  getBaselineData,
+  // Data source control props
+  dataSource,
+  setDataSource,
+  dataOptions,
+  onResetData,
+  onExportData,
+  isGitHubConnected = false,
+  // GitHub state and handlers from app level
+  githubUser,
+  selectedRepoInfo,
+  onGitHubConnect,
+  onGitHubDisconnect,
+  onFileSelected,
 }) => {
   const { colorMode } = useColorMode();
   const borderColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
@@ -63,24 +104,27 @@ export const Header: React.FC<HeaderProps> = ({
     currentData: Record<string, unknown>;
     baselineData: Record<string, unknown>;
   } | null>(null);
-  const [githubUser, setGithubUser] = useState<GitHubUser | null>(GitHubAuthService.getCurrentUser());
   const [showRepoSelector, setShowRepoSelector] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveDialogMode, setSaveDialogMode] = useState<'direct' | 'pullRequest'>('direct');
-  const [selectedRepoInfo, setSelectedRepoInfo] = useState<{
-    fullName: string;
-    branch: string;
-    filePath: string;
-    fileType: 'schema' | 'theme-override';
-  } | null>(null);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isGitHubConnecting, setIsGitHubConnecting] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const toast = useToast();
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
-  // Load selected repository info on mount
+  // Clear GitHub connecting state when user returns from OAuth flow
   useEffect(() => {
-    const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
-    setSelectedRepoInfo(repoInfo);
-  }, []);
+    // If user is authenticated, clear the connecting state
+    if (isGitHubConnected) {
+      setIsGitHubConnecting(false);
+    }
+    
+    // Also clear if there are no stale OAuth state parameters (indicating OAuth flow completed or was cancelled)
+    if (!GitHubAuthService.hasStaleOAuthState()) {
+      setIsGitHubConnecting(false);
+    }
+  }, [isGitHubConnected]);
 
   // Get the current title and subtitle based on data context
   const getTitleAndSubtitle = () => {
@@ -131,39 +175,53 @@ export const Header: React.FC<HeaderProps> = ({
     onOpen();
   };
 
-  const handleGitHubConnect = () => {
-    GitHubAuthService.initiateAuth();
+  const handleGitHubConnect = async () => {
+    setIsGitHubConnecting(true);
+    
+    try {
+      // Add a small delay to show loading state for better UX
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Use the app-level handler
+      if (onGitHubConnect) {
+        await onGitHubConnect();
+      }
+      
+    } catch (error) {
+      console.error('GitHub connection error:', error);
+      setIsGitHubConnecting(false);
+      
+      toast({
+        title: 'GitHub Connection Failed',
+        description: error instanceof Error ? error.message : 'Failed to connect to GitHub. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
   };
 
   const handleGitHubDisconnect = () => {
-    GitHubAuthService.logout();
-    setGithubUser(null);
-    setSelectedRepoInfo(null);
-    toast({
-      title: 'Disconnected',
-      description: 'Successfully disconnected from GitHub.',
-      status: 'info',
-      duration: 3000,
-      isClosable: true,
-    });
+    // Use the app-level handler
+    if (onGitHubDisconnect) {
+      onGitHubDisconnect();
+    }
+    
+    // Clear local UI state
+    setShowRepoSelector(false);
+    setShowSaveDialog(false);
+    setIsUserMenuOpen(false);
+    setIsGitHubConnecting(false);
   };
 
-  const handleFileSelected = (_fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => {
-    // Get the selected repository info from localStorage
-    const repoInfoStr = localStorage.getItem('github_selected_repo');
-    if (repoInfoStr) {
-      const repoInfo = JSON.parse(repoInfoStr);
-      setSelectedRepoInfo(repoInfo);
+  const handleFileSelected = (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => {
+    // Use the app-level handler
+    if (onFileSelected) {
+      onFileSelected(fileContent, fileType);
     }
     
     setShowRepoSelector(false);
-    toast({
-      title: 'File Loaded',
-      description: `Successfully loaded ${fileType === 'schema' ? 'core data' : 'theme override'} from GitHub`,
-      status: 'success',
-      duration: 3000,
-      isClosable: true,
-    });
+    // Note: Toast message is already shown by GitHubRepoSelector with repository details
   };
 
   const handleReloadCurrentFile = async () => {
@@ -237,6 +295,48 @@ export const Header: React.FC<HeaderProps> = ({
     setShowSaveDialog(true);
   };
 
+  // Data source control handlers
+  const handleDataSourceChange = (newDataSource: string) => {
+    if (setDataSource) {
+      setDataSource(newDataSource);
+    }
+  };
+
+  const handleResetData = () => {
+    setIsResetDialogOpen(true);
+  };
+
+  const handleConfirmReset = () => {
+    if (onResetData) {
+      onResetData();
+      toast({
+        title: 'Data Reset',
+        description: 'Data has been reset to baseline.',
+        status: 'info',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+    setIsResetDialogOpen(false);
+  };
+
+  const handleCancelReset = () => {
+    setIsResetDialogOpen(false);
+  };
+
+  const handleExportData = () => {
+    if (onExportData) {
+      onExportData();
+      toast({
+        title: 'Data Exported',
+        description: 'Data has been exported successfully.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   return (
     <>
       <Box
@@ -255,6 +355,24 @@ export const Header: React.FC<HeaderProps> = ({
           <Text fontSize="xs">{subtitle}</Text>
         </HStack>
         <HStack spacing={2}>
+          {/* Data Source Controls - Only show when not connected to GitHub */}
+          {!isGitHubConnected && dataOptions && dataSource && setDataSource && (
+            <HStack spacing={2}>
+              <Select
+                size="sm"
+                value={dataSource}
+                onChange={(e) => handleDataSourceChange(e.target.value)}
+                minW="200px"
+              >
+                {dataOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </HStack>
+          )}
+
           {/* GitHub Connection */}
           {githubUser ? (
             <HStack spacing={2}>
@@ -337,23 +455,34 @@ export const Header: React.FC<HeaderProps> = ({
               </Tooltip>
             </HStack>
           ) : (
-            <Tooltip label="Connect GitHub">
+            <Tooltip label={isGitHubConnecting ? "Connecting to GitHub..." : "Connect GitHub"}>
               <IconButton
                 aria-label="Connect GitHub"
-                icon={<Github size={16} />}
+                icon={isGitHubConnecting ? <Spinner size="sm" /> : <Github size={16} />}
                 size="sm"
                 variant="ghost"
                 onClick={handleGitHubConnect}
+                isLoading={isGitHubConnecting}
+                isDisabled={isGitHubConnecting}
               />
             </Tooltip>
           )}
 
-            {/* GitHub Repository Actions */}
-            {selectedRepoInfo && (
+          {/* GitHub Repository Actions */}
+          {selectedRepoInfo && githubUser && (
             <HStack spacing={2}>
-              <Tooltip label="Save to GitHub">
+              <Tooltip label="Reload from GitHub">
                 <IconButton
-                  aria-label="Save to GitHub"
+                  aria-label="Reload from GitHub"
+                  icon={<BookDownIcon size={16} />}
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleReloadCurrentFile}
+                />
+              </Tooltip>
+              <Tooltip label="Commit Changes to GitHub">
+                <IconButton
+                  aria-label="Commit Changes to GitHub"
                   icon={<Save size={16} />}
                   size="sm"
                   variant="ghost"
@@ -369,18 +498,36 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={handleCreatePullRequest}
                 />
               </Tooltip>
-              <Tooltip label="Reload from GitHub">
-                <IconButton
-                  aria-label="Reload from GitHub"
-                  icon={<RefreshCw size={16} />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleReloadCurrentFile}
-                />
-              </Tooltip>
+
             </HStack>
           )}
-          
+          {/* Data Action Buttons - Always available when handlers are provided */}
+          {(onExportData || onResetData) && (
+            <HStack spacing={2}>
+              {onExportData && (
+                <Tooltip label="Export Data">
+                  <IconButton
+                    aria-label="Export Data"
+                    icon={<Download size={16} />}
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleExportData}
+                  />
+                </Tooltip>
+              )}
+              {onResetData && (
+                <Tooltip label="Reset Data">
+                  <IconButton
+                    aria-label="Reset Data"
+                    icon={<Undo2 size={16} />}
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleResetData}
+                  />
+                </Tooltip>
+              )}
+            </HStack>
+          )}
           <Box position="relative">
             <Tooltip label="History" placement="bottom">
               <IconButton
@@ -455,6 +602,29 @@ export const Header: React.FC<HeaderProps> = ({
           </ModalBody>
         </ModalContent>
       </Modal>
+
+      <AlertDialog
+        isOpen={isResetDialogOpen}
+        onClose={handleCancelReset}
+        leastDestructiveRef={cancelRef}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader>Reset data?</AlertDialogHeader>
+            <AlertDialogBody>
+              This will revert to the original state and you will lose all of your changes. This cannot be undone.
+            </AlertDialogBody>
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={handleCancelReset}>
+                Cancel
+              </Button>
+              <Button colorScheme="red" onClick={handleConfirmReset} ml={3}>
+                Reset data
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </>
   );
 }; 

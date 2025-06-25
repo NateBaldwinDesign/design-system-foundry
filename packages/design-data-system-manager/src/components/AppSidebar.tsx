@@ -6,12 +6,8 @@ import {
   useColorMode,
   Tooltip,
   Button,
-  Select,
-  HStack,
 } from '@chakra-ui/react';
 import {
-  Download,
-  RefreshCw,
   ChevronLeft,
   ChevronRight,
   Settings,
@@ -44,12 +40,7 @@ interface NavItem {
 }
 
 interface AppSidebarProps {
-  dataSource?: string;
-  setDataSource?: (source: string) => void;
-  dataOptions?: { label: string; value: string; hasAlgorithms: boolean }[];
-  onResetData?: () => void;
-  onExportData?: () => void;
-  isGitHubConnected?: boolean;
+  // Data source control props removed - now handled in Header
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -98,14 +89,7 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export const AppSidebar: React.FC<AppSidebarProps> = ({
-  dataSource,
-  setDataSource,
-  dataOptions,
-  onResetData,
-  onExportData,
-  isGitHubConnected = false,
-}: AppSidebarProps) => {
+export const AppSidebar: React.FC<AppSidebarProps> = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { colorMode } = useColorMode();
   const location = useLocation();
@@ -218,57 +202,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             return renderNavItem(item);
           })}
         </VStack>
-        {/* Data Source Controls (optional) */}
-        {!isCollapsed && dataOptions && dataSource && setDataSource && onResetData && (
-          <Box p={4} borderTop="1px" borderColor={borderColor}>
-            <VStack spacing={2} align="stretch">
-              {isGitHubConnected ? (
-                <Box p={2} bg="blue.50" borderRadius="md" border="1px" borderColor="blue.200">
-                  <Text fontSize="xs" color="blue.700" textAlign="center">
-                    GitHub data active
-                  </Text>
-                </Box>
-              ) : (
-                <Select
-                  size="sm"
-                  value={dataSource}
-                  onChange={(e) => setDataSource(e.target.value)}
-                >
-                  {dataOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </VStack>
-          </Box>
-        )}
-         {!isCollapsed && dataOptions && dataSource && setDataSource && onResetData && (
-            <HStack gap={2} p={2} borderTop="1px" borderColor={borderColor}>
-              {/* Export Button (optional) */}
-              {onExportData && (
-                  <Button
-                    size="sm"
-                    leftIcon={<Download size={16} />}
-                    onClick={onExportData}
-                    variant="outline"
-                    w="full"
-                  >
-                    {!isCollapsed && 'Export Data'}
-                  </Button>
-              )}
-              <Button
-                size="sm"
-                leftIcon={<RefreshCw size={16} />}
-                onClick={onResetData}
-                variant="outline"
-                w="full"
-              >
-                Reset Data
-              </Button>
-            </HStack>
-         )}
 
         {/* Collapse Toggle Button */}
         <Box px={4} py={2} borderBottom="1px" borderColor={borderColor}>

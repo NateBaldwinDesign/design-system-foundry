@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   ChakraProvider,
@@ -51,6 +51,8 @@ import { NamingRulesView } from './views/setup/NamingRulesView';
 import { ValueTypesView } from './views/setup/ValueTypesView';
 import { GitHubCallback } from './components/GitHubCallback';
 import { GitHubAuthService } from './services/githubAuth';
+import { GitHubApiService } from './services/githubApi';
+import type { GitHubUser } from './config/github';
 import type { ExtendedToken } from './components/TokenEditorDialog';
 import { ChangeLog } from './components/ChangeLog';
 
@@ -79,6 +81,13 @@ const App = () => {
   const [selectedToken, setSelectedToken] = useState<ExtendedToken | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isGitHubConnected, setIsGitHubConnected] = useState(false);
+  const [githubUser, setGithubUser] = useState<GitHubUser | null>(null);
+  const [selectedRepoInfo, setSelectedRepoInfo] = useState<{
+    fullName: string;
+    branch: string;
+    filePath: string;
+    fileType: 'schema' | 'theme-override';
+  } | null>(null);
   const toast = useToast();
   const [baselineData, setBaselineData] = useState<Record<string, unknown> | null>(null);
   const [changeLogData, setChangeLogData] = useState<{ currentData: Record<string, unknown>; baselineData: Record<string, unknown> | null }>({ currentData: {}, baselineData: null });
@@ -123,6 +132,12 @@ const App = () => {
       namingRules: storedNamingRules,
     });
 
+    // Initialize GitHub state
+    const currentUser = GitHubAuthService.getCurrentUser();
+    const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+    setGithubUser(currentUser);
+    setSelectedRepoInfo(repoInfo);
+
     setLoading(false);
   }, []); // Only run once on mount
 
@@ -130,7 +145,12 @@ const App = () => {
   useEffect(() => {
     const checkGitHubConnection = () => {
       const isConnected = GitHubAuthService.isAuthenticated();
+      const currentUser = GitHubAuthService.getCurrentUser();
+      const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+      
       setIsGitHubConnected(isConnected);
+      setGithubUser(currentUser);
+      setSelectedRepoInfo(repoInfo);
     };
 
     checkGitHubConnection();
@@ -155,7 +175,7 @@ const App = () => {
     setDataOptions(options);
   }, []);
 
-  const loadDataFromSource = async (dataSourceKey: string) => {
+  const loadDataFromSource = useCallback(async (dataSourceKey: string) => {
     try {
       console.log('[App] Loading data from package source:', dataSourceKey);
       
@@ -292,25 +312,14 @@ const App = () => {
       alert(message);
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (dataSource && !isGitHubConnected) {
-      // Check if we already have data in localStorage
-      const hasExistingData = StorageService.getTokens().length > 0 || 
-                             StorageService.getCollections().length > 0 || 
-                             StorageService.getDimensions().length > 0;
-      
-      // Only load example data if localStorage is empty
-      if (!hasExistingData) {
-        loadDataFromSource(dataSource);
-      } else {
-        // If we have existing data, just refresh from storage
-        refreshDataFromStorage();
-        setLoading(false);
-      }
+      // Always load the selected data source when not connected to GitHub
+      loadDataFromSource(dataSource);
     }
-  }, [dataSource, isGitHubConnected]);
+  }, [dataSource, isGitHubConnected, loadDataFromSource]);
 
   // Function to refresh data from storage (called when GitHub data is loaded)
   const refreshDataFromStorage = () => {
@@ -380,6 +389,64 @@ const App = () => {
       });
     }
     window.location.reload();
+  };
+
+  // GitHub state management handlers
+  const handleGitHubConnect = async () => {
+    try {
+      // Check if there are any stale OAuth state parameters that might cause issues
+      if (GitHubAuthService.hasStaleOAuthState()) {
+        console.log('Clearing stale OAuth state before initiating new auth');
+        GitHubAuthService.clearOAuthState();
+      }
+      
+      // Initiate the OAuth flow
+      await GitHubAuthService.initiateAuth();
+      
+      // Note: initiateAuth() redirects to GitHub, so code after this won't execute
+      // The state will be updated when the user returns from GitHub
+      
+    } catch (error) {
+      console.error('GitHub connection error:', error);
+      toast({
+        title: 'GitHub Connection Failed',
+        description: error instanceof Error ? error.message : 'Failed to connect to GitHub. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleGitHubDisconnect = () => {
+    GitHubAuthService.logout();
+    
+    // Clear all GitHub-related state
+    setGithubUser(null);
+    setSelectedRepoInfo(null);
+    setIsGitHubConnected(false);
+    
+    // Clear any stored repository info
+    localStorage.removeItem('github_selected_repo');
+    
+    toast({
+      title: 'Disconnected',
+      description: 'Successfully disconnected from GitHub.',
+      status: 'info',
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
+  const handleFileSelected = (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => {
+    // Get the selected repository info from localStorage
+    const repoInfoStr = localStorage.getItem('github_selected_repo');
+    if (repoInfoStr) {
+      const repoInfo = JSON.parse(repoInfoStr);
+      setSelectedRepoInfo(repoInfo);
+    }
+    
+    // Note: Toast message is already shown by GitHubRepoSelector with repository details
   };
 
   const handleAddToken = () => {
@@ -550,6 +617,11 @@ const App = () => {
               onResetData={handleResetData}
               onExportData={() => {}}
               isGitHubConnected={isGitHubConnected}
+              githubUser={githubUser}
+              selectedRepoInfo={selectedRepoInfo}
+              onGitHubConnect={handleGitHubConnect}
+              onGitHubDisconnect={handleGitHubDisconnect}
+              onFileSelected={handleFileSelected}
             >
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -3,6 +3,7 @@ import { Box, Flex, useColorMode } from '@chakra-ui/react';
 import { AppSidebar } from './AppSidebar';
 import { Header } from './Header';
 import { StorageService } from '../services/storage';
+import type { GitHubUser } from '../config/github';
 
 interface DataSourceOption {
   label: string;
@@ -17,6 +18,16 @@ interface AppLayoutProps {
   onResetData: () => void;
   onExportData: () => void;
   isGitHubConnected?: boolean;
+  githubUser?: GitHubUser | null;
+  selectedRepoInfo?: {
+    fullName: string;
+    branch: string;
+    filePath: string;
+    fileType: 'schema' | 'theme-override';
+  } | null;
+  onGitHubConnect?: () => Promise<void>;
+  onGitHubDisconnect?: () => void;
+  onFileSelected?: (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => void;
   children: React.ReactNode;
 }
 
@@ -27,6 +38,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onResetData,
   onExportData,
   isGitHubConnected = false,
+  githubUser,
+  selectedRepoInfo,
+  onGitHubConnect,
+  onGitHubDisconnect,
+  onFileSelected,
   children,
 }: AppLayoutProps) => {
   const { colorMode } = useColorMode();
@@ -184,20 +200,24 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
   return (
     <Flex h="100vh" overflow="hidden">
-      <AppSidebar
-        dataSource={dataSource}
-        setDataSource={setDataSource}
-        dataOptions={dataOptions}
-        onResetData={onResetData}
-        onExportData={onExportData}
-        isGitHubConnected={isGitHubConnected}
-      />
+      <AppSidebar />
       <Flex flex="1" direction="column" overflow="hidden">
         <Header 
           hasChanges={hasChanges} 
           changeCount={changeCount}
           getCurrentData={getCurrentData}
           getBaselineData={getBaselineData}
+          dataSource={dataSource}
+          setDataSource={setDataSource}
+          dataOptions={dataOptions}
+          onResetData={onResetData}
+          onExportData={onExportData}
+          isGitHubConnected={isGitHubConnected}
+          githubUser={githubUser}
+          selectedRepoInfo={selectedRepoInfo}
+          onGitHubConnect={onGitHubConnect}
+          onGitHubDisconnect={onGitHubDisconnect}
+          onFileSelected={onFileSelected}
         />
         <Box flex="1" overflow="auto" p={4} bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
           {children}
