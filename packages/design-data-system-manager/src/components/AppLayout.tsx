@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, Flex, useColorMode } from '@chakra-ui/react';
 import { AppSidebar } from './AppSidebar';
 import { Header } from './Header';
@@ -31,6 +31,9 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
+// Custom event for data changes
+const DATA_CHANGE_EVENT = 'token-model:data-change';
+
 export const AppLayout: React.FC<AppLayoutProps> = ({
   dataSource,
   setDataSource,
@@ -48,11 +51,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   const { colorMode } = useColorMode();
   const [hasChanges, setHasChanges] = useState(false);
   const [changeCount, setChangeCount] = useState(0);
+  const [currentData, setCurrentData] = useState<Record<string, unknown> | null>(null);
+  const [baselineData, setBaselineData] = useState<Record<string, unknown> | null>(null);
   const baselineRef = useRef<Record<string, unknown>>({});
   const isInitializedRef = useRef(false);
+  const lastSourceDataRef = useRef<Record<string, unknown> | null>(null);
 
-  // Helper function to get current data from StorageService
-  const getCurrentData = () => {
+  // Stable function to get current data from StorageService
+  const getCurrentData = useCallback(() => {
     return {
       tokens: StorageService.getTokens(),
       collections: StorageService.getCollections(),
@@ -67,136 +73,166 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       algorithms: StorageService.getAlgorithms(),
       algorithmFile: StorageService.getAlgorithmFile(),
     };
-  };
+  }, []);
 
-  // Helper function to convert baseline data to the format expected by ChangeLog
-  const getBaselineData = () => {
-    const baseline = baselineRef.current;
-    return {
-      tokens: baseline['token-model:tokens'] as unknown[] || [],
-      collections: baseline['token-model:collections'] as unknown[] || [],
-      modes: baseline['token-model:modes'] as unknown[] || [],
-      resolvedValueTypes: baseline['token-model:value-types'] as unknown[] || [],
-      dimensions: baseline['token-model:dimensions'] as unknown[] || [],
-      dimensionOrder: baseline['token-model:dimension-order'] as unknown[] || [],
-      platforms: baseline['token-model:platforms'] as unknown[] || [],
-      themes: baseline['token-model:themes'] as unknown[] || [],
-      taxonomies: baseline['token-model:taxonomies'] as unknown[] || [],
-      namingRules: baseline['token-model:naming-rules'] as Record<string, unknown> || {},
-      algorithms: baseline['token-model:algorithms'] as unknown[] || [],
-      algorithmFile: baseline['token-model:algorithm-file'] as Record<string, unknown> || null,
-    };
-  };
+  // Helper function to detect if data represents a new source
+  const isNewDataSource = useCallback((currentData: Record<string, unknown> | null | undefined, lastSourceData: Record<string, unknown> | null): boolean => {
+    if (!lastSourceData) return true;
+    if (!currentData) return false;
+    
+    // Compare key data arrays to detect significant changes that indicate a new source
+    const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes'];
+    
+    for (const field of keyFields) {
+      const current = currentData[field] as unknown[] | undefined;
+      const last = lastSourceData[field] as unknown[] | undefined;
+      
+      // If either is undefined but the other isn't, it's a new source
+      if ((!current && last) || (current && !last)) return true;
+      
+      // If both exist, check if they're significantly different
+      if (current && last) {
+        // If the arrays have very different lengths, it's likely a new source
+        if (Math.abs(current.length - last.length) > 5) return true;
+        
+        // If more than 50% of items are different, it's likely a new source
+        const currentIds = new Set(current.map((item: unknown) => {
+          const obj = item as Record<string, unknown>;
+          return obj?.id as string;
+        }).filter(Boolean));
+        const lastIds = new Set(last.map((item: unknown) => {
+          const obj = item as Record<string, unknown>;
+          return obj?.id as string;
+        }).filter(Boolean));
+        
+        const uniqueToCurrent = currentIds.size - Array.from(currentIds).filter(id => lastIds.has(id)).length;
+        const uniqueToLast = lastIds.size - Array.from(lastIds).filter(id => currentIds.has(id)).length;
+        const totalUnique = uniqueToCurrent + uniqueToLast;
+        const totalItems = Math.max(currentIds.size, lastIds.size);
+        
+        if (totalItems > 0 && (totalUnique / totalItems) > 0.5) return true;
+      }
+    }
+    
+    return false;
+  }, []);
 
-  // Track changes by monitoring localStorage for modifications
-  useEffect(() => {
-    const STORAGE_KEYS = [
-      'token-model:tokens',
-      'token-model:collections',
-      'token-model:modes',
-      'token-model:value-types',
-      'token-model:dimensions',
-      'token-model:dimension-order',
-      'token-model:platforms',
-      'token-model:themes',
-      'token-model:taxonomies',
-      'token-model:naming-rules',
-      'token-model:algorithms',
-      'token-model:algorithm-file'
-    ];
+  // Establish baseline and update current data
+  const establishBaseline = useCallback(() => {
+    const currentDataSnapshot = getCurrentData();
+    setCurrentData(currentDataSnapshot);
+    setBaselineData(currentDataSnapshot);
+    baselineRef.current = currentDataSnapshot;
+    isInitializedRef.current = true;
+    
+    // Reset change tracking when baseline is established
+    setHasChanges(false);
+    setChangeCount(0);
+  }, [getCurrentData]);
 
-    const establishBaseline = () => {
-      const baseline: Record<string, unknown> = {};
-      STORAGE_KEYS.forEach(key => {
-        const data = localStorage.getItem(key);
-        if (data) {
-          try {
-            baseline[key] = JSON.parse(data);
-          } catch (e) {
-            baseline[key] = data;
-          }
-        } else {
-          baseline[key] = null;
+  // Change detection function
+  const checkForChanges = useCallback(() => {
+    if (!isInitializedRef.current) {
+      establishBaseline();
+      return;
+    }
+
+    // Get current data and check if it represents a new source
+    const currentDataSnapshot = getCurrentData();
+    
+    // Check if this is a new data source
+    if (isNewDataSource(currentDataSnapshot, lastSourceDataRef.current)) {
+      // Reset baseline for new data source
+      establishBaseline();
+      lastSourceDataRef.current = currentDataSnapshot;
+      return;
+    }
+
+    // Update current data state
+    setCurrentData(currentDataSnapshot);
+
+    // Compare with baseline
+    const baselineSnapshot = baselineRef.current;
+    const hasAnyChanges = JSON.stringify(currentDataSnapshot) !== JSON.stringify(baselineSnapshot);
+    
+    if (hasAnyChanges) {
+      // Count changes by comparing arrays
+      let totalChanges = 0;
+      const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'taxonomies', 'algorithms'];
+      
+      keyFields.forEach(field => {
+        const current = (currentDataSnapshot as Record<string, unknown>)[field] as unknown[] || [];
+        const baseline = (baselineSnapshot as Record<string, unknown>)[field] as unknown[] || [];
+        
+        if (Array.isArray(current) && Array.isArray(baseline)) {
+          const currentIds = new Set(current.map((item: unknown) => {
+            const obj = item as Record<string, unknown>;
+            return obj?.id as string;
+          }).filter(Boolean));
+          const baselineIds = new Set(baseline.map((item: unknown) => {
+            const obj = item as Record<string, unknown>;
+            return obj?.id as string;
+          }).filter(Boolean));
+          
+          // Count added items
+          const added = Array.from(currentIds).filter(id => !baselineIds.has(id)).length;
+          // Count removed items
+          const removed = Array.from(baselineIds).filter(id => !currentIds.has(id)).length;
+          
+          // Count modified items (items that exist in both but have different content)
+          const commonIds = Array.from(currentIds).filter(id => baselineIds.has(id));
+          let modified = 0;
+          commonIds.forEach(id => {
+            const currentItem = current.find((item: unknown) => {
+              const obj = item as Record<string, unknown>;
+              return obj?.id === id;
+            });
+            const baselineItem = baseline.find((item: unknown) => {
+              const obj = item as Record<string, unknown>;
+              return obj?.id === id;
+            });
+            if (currentItem && baselineItem && JSON.stringify(currentItem) !== JSON.stringify(baselineItem)) {
+              modified++;
+            }
+          });
+          
+          totalChanges += added + removed + modified;
         }
       });
-      baselineRef.current = baseline;
-      isInitializedRef.current = true;
-    };
+      
+      setHasChanges(true);
+      setChangeCount(totalChanges);
+    } else {
+      setHasChanges(false);
+      setChangeCount(0);
+    }
+  }, [getCurrentData, isNewDataSource, establishBaseline]);
 
-    const checkForChanges = () => {
-      if (!isInitializedRef.current) {
-        establishBaseline();
-        return;
-      }
-
-      try {
-        let totalChanges = 0;
-        let hasAnyChanges = false;
-
-        STORAGE_KEYS.forEach(key => {
-          const currentData = localStorage.getItem(key);
-          const baselineData = baselineRef.current[key];
-
-          // Parse current data
-          let currentParsed: unknown = null;
-          if (currentData) {
-            try {
-              currentParsed = JSON.parse(currentData);
-            } catch (e) {
-              currentParsed = currentData;
-            }
-          }
-
-          // Compare with baseline
-          if (JSON.stringify(currentParsed) !== JSON.stringify(baselineData)) {
-            hasAnyChanges = true;
-            
-            // Count changes based on data type
-            if (Array.isArray(currentParsed) && Array.isArray(baselineData)) {
-              // For arrays, count added/removed items
-              const added = currentParsed.filter((item: { id?: string }) => 
-                !baselineData.some((baselineItem: { id?: string }) => 
-                  baselineItem.id === item.id
-                )
-              );
-              const removed = baselineData.filter((item: { id?: string }) => 
-                !currentParsed.some((currentItem: { id?: string }) => 
-                  currentItem.id === item.id
-                )
-              );
-              totalChanges += added.length + removed.length;
-            } else if (currentParsed !== baselineData) {
-              // For non-arrays, count as 1 change
-              totalChanges += 1;
-            }
-          }
-        });
-
-        setHasChanges(hasAnyChanges);
-        setChangeCount(totalChanges);
-      } catch (error) {
-        console.error('Error checking for changes:', error);
-      }
-    };
-
-    // Establish baseline on first load
+  // Initialize on mount only
+  useEffect(() => {
     establishBaseline();
+    lastSourceDataRef.current = getCurrentData();
+  }, [establishBaseline, getCurrentData]);
 
-    // Set up an interval to check for changes periodically
-    const interval = setInterval(checkForChanges, 2000);
+  // Listen for custom data change events
+  useEffect(() => {
+    const handleDataChange = () => {
+      checkForChanges();
+    };
 
-    // Listen for storage events (when localStorage changes in other tabs)
+    window.addEventListener(DATA_CHANGE_EVENT, handleDataChange);
+    return () => window.removeEventListener(DATA_CHANGE_EVENT, handleDataChange);
+  }, [checkForChanges]);
+
+  // Listen for storage events (when localStorage changes in other tabs)
+  useEffect(() => {
     const handleStorageChange = () => {
       checkForChanges();
     };
 
     window.addEventListener('storage', handleStorageChange);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [checkForChanges]);
 
   return (
     <Flex h="100vh" overflow="hidden">
@@ -205,8 +241,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         <Header 
           hasChanges={hasChanges} 
           changeCount={changeCount}
-          getCurrentData={getCurrentData}
-          getBaselineData={getBaselineData}
+          currentData={currentData}
+          baselineData={baselineData}
           dataSource={dataSource}
           setDataSource={setDataSource}
           dataOptions={dataOptions}
@@ -225,4 +261,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       </Flex>
     </Flex>
   );
-}; 
+};
+
+// Export the event name for use in other components
+export { DATA_CHANGE_EVENT }; 

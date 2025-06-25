@@ -29,7 +29,7 @@ import { Algorithm } from './types/algorithm';
 import ThemesView from './views/themes/ThemesView';
 import DashboardView from './views/dashboard/DashboardView';
 import './App.css';
-import { AppLayout } from './components/AppLayout';
+import { AppLayout, DATA_CHANGE_EVENT } from './components/AppLayout';
 import theme from './theme';
 import { TokensView } from './views/tokens/TokensView';
 import { CollectionsView } from './views/tokens/CollectionsView';
@@ -160,8 +160,18 @@ const App = () => {
       checkGitHubConnection();
     };
 
+    // Listen for GitHub file loaded events from GitHubCallback
+    const handleGitHubFileLoaded = () => {
+      checkGitHubConnection();
+    };
+
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('github:file-loaded', handleGitHubFileLoaded);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('github:file-loaded', handleGitHubFileLoaded);
+    };
   }, []);
 
   useEffect(() => {
@@ -301,6 +311,9 @@ const App = () => {
         versionHistory: normalizedVersionHistory
       };
       localStorage.setItem('token-model:root', JSON.stringify(root));
+      
+      // Dispatch event to notify change detection that new data has been loaded
+      window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
     } catch (error) {
       let message = 'Error loading data:';
       if (error instanceof SyntaxError) {
@@ -446,6 +459,13 @@ const App = () => {
       setSelectedRepoInfo(repoInfo);
     }
     
+    // Update GitHub connection state to reflect that we're now connected
+    const currentUser = GitHubAuthService.getCurrentUser();
+    if (currentUser) {
+      setGithubUser(currentUser);
+      setIsGitHubConnected(true);
+    }
+    
     // Note: Toast message is already shown by GitHubRepoSelector with repository details
   };
 
@@ -496,6 +516,8 @@ const App = () => {
       
       console.log('[App] Updated tokens:', updatedTokens);
       StorageService.setTokens(updatedTokens);
+      // Dispatch event to notify change detection
+      window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
       return updatedTokens;
     });
     
@@ -515,6 +537,8 @@ const App = () => {
     setTokens(prevTokens => {
       const updatedTokens = prevTokens.filter(t => t.id !== tokenId);
       StorageService.setTokens(updatedTokens);
+      // Dispatch event to notify change detection
+      window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
       return updatedTokens;
     });
     
@@ -533,46 +557,64 @@ const App = () => {
   const handleUpdateTokens = (updatedTokens: ExtendedToken[]) => {
     setTokens(updatedTokens);
     StorageService.setTokens(updatedTokens);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateCollections = (updatedCollections: TokenCollection[]) => {
     setCollections(updatedCollections);
     StorageService.setCollections(updatedCollections);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateDimensions = (updatedDimensions: Dimension[]) => {
     setDimensions(updatedDimensions);
     StorageService.setDimensions(updatedDimensions);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateResolvedValueTypes = (updatedResolvedValueTypes: ResolvedValueType[]) => {
     setResolvedValueTypes(updatedResolvedValueTypes);
     StorageService.setValueTypes(updatedResolvedValueTypes);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdatePlatforms = (updatedPlatforms: Platform[]) => {
     setPlatforms(updatedPlatforms);
     StorageService.setPlatforms(updatedPlatforms);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateThemes = (updatedThemes: Theme[]) => {
     setThemes(updatedThemes);
     StorageService.setThemes(updatedThemes);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateTaxonomies = (updatedTaxonomies: Taxonomy[]) => {
     setTaxonomies(updatedTaxonomies);
     StorageService.setTaxonomies(updatedTaxonomies);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateAlgorithms = (updatedAlgorithms: Algorithm[]) => {
     setAlgorithms(updatedAlgorithms);
     StorageService.setAlgorithms(updatedAlgorithms);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleUpdateNamingRules = (updatedNamingRules: { taxonomyOrder: string[] }) => {
     setTaxonomyOrder(updatedNamingRules.taxonomyOrder);
     StorageService.setNamingRules(updatedNamingRules);
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   // When opening the changelog modal, use baselineData and currentData
@@ -720,7 +762,6 @@ const App = () => {
           <ModalCloseButton />
           <ModalBody pb={6}>
             <ChangeLog 
-              previousData={changeLogData?.baselineData}
               currentData={changeLogData?.currentData}
             />
           </ModalBody>

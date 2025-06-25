@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 
 interface ChangeLogProps {
-  previousData: Record<string, unknown> | null | undefined;
+  previousData?: Record<string, unknown> | null | undefined;
   currentData: Record<string, unknown> | null | undefined;
 }
 
@@ -856,6 +856,7 @@ export const ChangeLog: React.FC<ChangeLogProps> = ({ previousData, currentData 
     );
   }
   
+  // Use the previousData prop directly instead of managing internal baseline
   const changes = detectChanges(previousData, currentData);
 
   if (changes.length === 0) {

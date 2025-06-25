@@ -51,12 +51,13 @@ import { StorageService } from '../services/storage';
 import type { GitHubUser } from '../config/github';
 import { GitHubRepoSelector } from './GitHubRepoSelector';
 import { GitHubSaveDialog } from './GitHubSaveDialog';
+import { DATA_CHANGE_EVENT } from './AppLayout';
 
 interface HeaderProps {
   hasChanges?: boolean;
   changeCount?: number;
-  getCurrentData: () => Record<string, unknown>;
-  getBaselineData: () => Record<string, unknown>;
+  currentData: Record<string, unknown> | null;
+  baselineData: Record<string, unknown> | null;
   // Data source control props
   dataSource?: string;
   setDataSource?: (source: string) => void;
@@ -80,8 +81,8 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ 
   hasChanges = false, 
   changeCount = 0,
-  getCurrentData,
-  getBaselineData,
+  currentData,
+  baselineData,
   // Data source control props
   dataSource,
   setDataSource,
@@ -100,10 +101,6 @@ export const Header: React.FC<HeaderProps> = ({
   const borderColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
   const bgColor = colorMode === 'dark' ? 'gray.800' : 'white';
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [changeLogData, setChangeLogData] = useState<{
-    currentData: Record<string, unknown>;
-    baselineData: Record<string, unknown>;
-  } | null>(null);
   const [showRepoSelector, setShowRepoSelector] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveDialogMode, setSaveDialogMode] = useState<'direct' | 'pullRequest'>('direct');
@@ -169,9 +166,6 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Get real data when modal opens
   const handleOpenModal = () => {
-    const currentData = getCurrentData();
-    const baselineData = getBaselineData();
-    setChangeLogData({ currentData, baselineData });
     onOpen();
   };
 
@@ -220,6 +214,9 @@ export const Header: React.FC<HeaderProps> = ({
       onFileSelected(fileContent, fileType);
     }
     
+    // Dispatch event to notify change detection that new data has been loaded
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
+    
     setShowRepoSelector(false);
     // Note: Toast message is already shown by GitHubRepoSelector with repository details
   };
@@ -257,6 +254,9 @@ export const Header: React.FC<HeaderProps> = ({
         refreshAppData();
       }
 
+      // Dispatch event to notify change detection that data has been reloaded
+      window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
+
       toast({
         title: 'Reloaded',
         description: `Successfully reloaded ${selectedRepoInfo.filePath}`,
@@ -276,13 +276,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const handleSaveSuccess = () => {
-    toast({
-      title: 'Save Successful',
-      description: 'Data saved to GitHub successfully.',
-      status: 'success',
-      duration: 3000,
-      isClosable: true,
-    });
+    // Toast already shown by GitHubSaveDialog
   };
 
   const handleSaveToGitHub = () => {
@@ -595,8 +589,8 @@ export const Header: React.FC<HeaderProps> = ({
           <ModalCloseButton />
           <ModalBody pb={6}>
             <ChangeLog 
-              previousData={changeLogData?.baselineData}
-              currentData={changeLogData?.currentData}
+              currentData={currentData}
+              previousData={baselineData}
             />
            
           </ModalBody>

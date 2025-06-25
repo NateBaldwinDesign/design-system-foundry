@@ -81,6 +81,9 @@ export const GitHubCallback: React.FC = () => {
       isClosable: true,
     });
     
+    // Dispatch event to notify the main app that GitHub data has been loaded
+    window.dispatchEvent(new CustomEvent('github:file-loaded'));
+    
     // Redirect to the main app
     navigate('/');
   };
