@@ -495,6 +495,15 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
         StorageService.setThemes(parsedData.themes || []);
         StorageService.setTaxonomies(parsedData.taxonomies || []);
         StorageService.setValueTypes(parsedData.resolvedValueTypes || []);
+        
+        // Store root-level properties
+        StorageService.setRootData({
+          systemName: parsedData.systemName,
+          systemId: parsedData.systemId,
+          description: parsedData.description,
+          version: parsedData.version,
+          versionHistory: parsedData.versionHistory
+        });
       } else if (selectedFile.type === 'theme-override') {
         // Load as theme override
         // This would need to be handled by the theme override system

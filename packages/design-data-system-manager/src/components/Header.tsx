@@ -128,16 +128,19 @@ export const Header: React.FC<HeaderProps> = ({
     let title = 'Design System Manager';
     let subtitle = '';
 
+    // Get system name from stored root data
+    const rootData = StorageService.getRootData();
+    const systemName = rootData.systemName || 'Design System';
+
     // Determine if we're editing core data or theme overrides based on selected repo info
     if (selectedRepoInfo) {
       if (selectedRepoInfo.fileType === 'schema') {
-        // Core data - use system name
-        title = 'Design System'; // Default, could be enhanced to get from actual data
+        // Core data - use system name from stored data
+        title = systemName;
       } else if (selectedRepoInfo.fileType === 'theme-override') {
         // Theme override - use "System: Theme" format
         const themes = StorageService.getThemes();
         const currentTheme = themes.find(theme => theme.isDefault) || themes[0];
-        const systemName = 'Design System'; // Default system name
         const themeName = currentTheme?.displayName || 'Default Theme';
         title = `${systemName}: ${themeName}`;
       }
@@ -150,10 +153,9 @@ export const Header: React.FC<HeaderProps> = ({
       const themes = StorageService.getThemes();
       
       if (collections && collections.length > 0) {
-        title = 'Design System';
+        title = systemName;
       } else if (themes && themes.length > 0) {
         const currentTheme = themes.find(theme => theme.isDefault) || themes[0];
-        const systemName = 'Design System';
         const themeName = currentTheme?.displayName || 'Default Theme';
         title = `${systemName}: ${themeName}`;
       }
@@ -243,6 +245,15 @@ export const Header: React.FC<HeaderProps> = ({
         StorageService.setThemes(parsedData.themes || []);
         StorageService.setTaxonomies(parsedData.taxonomies || []);
         StorageService.setValueTypes(parsedData.resolvedValueTypes || []);
+        
+        // Store root-level properties
+        StorageService.setRootData({
+          systemName: parsedData.systemName,
+          systemId: parsedData.systemId,
+          description: parsedData.description,
+          version: parsedData.version,
+          versionHistory: parsedData.versionHistory
+        });
       } else if (selectedRepoInfo.fileType === 'theme-override') {
         // Load as theme override
         console.log('Theme override data loaded:', parsedData);

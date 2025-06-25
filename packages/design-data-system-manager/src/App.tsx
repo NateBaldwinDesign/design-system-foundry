@@ -250,7 +250,15 @@ const App = () => {
       const normalizedNamingRules = {
         taxonomyOrder: d.namingRules?.taxonomyOrder ?? []
       };
-      const normalizedVersionHistory = d.versionHistory ?? [];
+      const normalizedVersionHistory = (d.versionHistory ?? []) as Array<{
+        version: string;
+        dimensions: string[];
+        date: string;
+        migrationStrategy?: {
+          emptyModeIds: string;
+          preserveOriginalValues: boolean;
+        };
+      }>;
       const systemName = d.systemName ?? 'Design System';
       const systemId = d.systemId ?? 'design-system';
       const description = d.description ?? 'A comprehensive design system with tokens, dimensions, and themes';
@@ -303,14 +311,13 @@ const App = () => {
       StorageService.setNamingRules(normalizedNamingRules);
 
       // Store root-level data in localStorage
-      const root = {
+      StorageService.setRootData({
         systemName,
         systemId,
         description,
         version,
         versionHistory: normalizedVersionHistory
-      };
-      localStorage.setItem('token-model:root', JSON.stringify(root));
+      });
       
       // Dispatch event to notify change detection that new data has been loaded
       window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
@@ -609,31 +616,6 @@ const App = () => {
     StorageService.setAlgorithms(updatedAlgorithms);
     // Dispatch event to notify change detection
     window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
-  };
-
-  const handleUpdateNamingRules = (updatedNamingRules: { taxonomyOrder: string[] }) => {
-    setTaxonomyOrder(updatedNamingRules.taxonomyOrder);
-    StorageService.setNamingRules(updatedNamingRules);
-    // Dispatch event to notify change detection
-    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
-  };
-
-  // When opening the changelog modal, use baselineData and currentData
-  const handleOpenModal = () => {
-    const currentData = {
-      collections,
-      modes,
-      dimensions,
-      resolvedValueTypes,
-      platforms,
-      themes,
-      tokens,
-      taxonomies,
-      algorithms,
-      namingRules: { taxonomyOrder },
-    };
-    setChangeLogData({ currentData, baselineData });
-    setIsOpen(true);
   };
 
   const onClose = () => {

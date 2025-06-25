@@ -138,6 +138,9 @@ export class GitHubSaveService {
    */
   private static getCurrentDataForFileType(fileType: 'schema' | 'theme-override'): Record<string, unknown> {
     if (fileType === 'schema') {
+      // Get root-level data from storage
+      const rootData = StorageService.getRootData();
+      
       // Return core data structure
       return {
         tokenCollections: StorageService.getCollections(),
@@ -150,11 +153,11 @@ export class GitHubSaveService {
         namingRules: {
           taxonomyOrder: StorageService.getNamingRules()?.taxonomyOrder || []
         },
-        versionHistory: [],
-        systemName: 'Design System',
-        systemId: 'design-system',
-        description: 'A comprehensive design system with tokens, dimensions, and themes',
-        version: '1.0.0'
+        versionHistory: rootData.versionHistory || [],
+        systemName: rootData.systemName || 'Design System',
+        systemId: rootData.systemId || 'design-system',
+        description: rootData.description || 'A comprehensive design system with tokens, dimensions, and themes',
+        version: rootData.version || '1.0.0'
       };
     } else if (fileType === 'theme-override') {
       // Return theme override structure

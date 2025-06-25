@@ -20,7 +20,8 @@ const STORAGE_KEYS = {
   TAXONOMIES: 'token-model:taxonomies',
   NAMING_RULES: 'token-model:naming-rules',
   ALGORITHMS: 'token-model:algorithms',
-  ALGORITHM_FILE: 'token-model:algorithm-file'
+  ALGORITHM_FILE: 'token-model:algorithm-file',
+  ROOT_DATA: 'token-model:root-data'
 } as const;
 
 export class StorageService {
@@ -146,6 +147,42 @@ export class StorageService {
 
   static setAlgorithmFile(algorithmFile: Record<string, unknown>): void {
     this.setItem(STORAGE_KEYS.ALGORITHM_FILE, algorithmFile);
+  }
+
+  static getRootData(): {
+    systemName?: string;
+    systemId?: string;
+    description?: string;
+    version?: string;
+    versionHistory?: Array<{
+      version: string;
+      dimensions: string[];
+      date: string;
+      migrationStrategy?: {
+        emptyModeIds: string;
+        preserveOriginalValues: boolean;
+      };
+    }>;
+  } {
+    return this.getItem(STORAGE_KEYS.ROOT_DATA, {});
+  }
+
+  static setRootData(rootData: {
+    systemName?: string;
+    systemId?: string;
+    description?: string;
+    version?: string;
+    versionHistory?: Array<{
+      version: string;
+      dimensions: string[];
+      date: string;
+      migrationStrategy?: {
+        emptyModeIds: string;
+        preserveOriginalValues: boolean;
+      };
+    }>;
+  }): void {
+    this.setItem(STORAGE_KEYS.ROOT_DATA, rootData);
   }
 
   static clearAll(): void {
