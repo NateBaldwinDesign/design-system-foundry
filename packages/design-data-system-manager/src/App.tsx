@@ -36,13 +36,16 @@ import CoreDataView from './views/schemas/CoreDataView';
 import ThemeOverridesView from './views/schemas/ThemeOverridesView';
 import AlgorithmDataView from './views/schemas/AlgorithmDataView';
 import { Plus } from 'lucide-react';
-import { TokenEditorDialog, ExtendedToken } from './components/TokenEditorDialog';
+import { TokenEditorDialog } from './components/TokenEditorDialog';
 import { useSchema } from './hooks/useSchema';
 import { TokenAnalysis } from './views/tokens/TokenAnalysis';
 import { DimensionsView } from './views/setup/DimensionsView';
 import { ClassificationView } from './views/setup/ClassificationView';
 import { NamingRulesView } from './views/setup/NamingRulesView';
 import { ValueTypesView } from './views/setup/ValueTypesView';
+import { GitHubCallback } from './components/GitHubCallback';
+import { GitHubAuthService } from './services/githubAuth';
+import type { ExtendedToken } from './components/TokenEditorDialog';
 
 const App = () => {
   const { schema } = useSchema();
@@ -68,6 +71,7 @@ const App = () => {
   });
   const [selectedToken, setSelectedToken] = useState<ExtendedToken | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isGitHubConnected, setIsGitHubConnected] = useState(false);
   const toast = useToast();
 
   // Initialize data from storage on mount
@@ -112,6 +116,24 @@ const App = () => {
       setAlgorithms(storedAlgorithms);
     }
   }, []); // Only run once on mount
+
+  // Check GitHub connection status
+  useEffect(() => {
+    const checkGitHubConnection = () => {
+      const isConnected = GitHubAuthService.isAuthenticated();
+      setIsGitHubConnected(isConnected);
+    };
+
+    checkGitHubConnection();
+    
+    // Listen for storage changes to detect GitHub data updates
+    const handleStorageChange = () => {
+      checkGitHubConnection();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   useEffect(() => {
     // Create data options from the package exports
@@ -264,10 +286,41 @@ const App = () => {
   };
 
   useEffect(() => {
-    if (dataSource) {
+    if (dataSource && !isGitHubConnected) {
       loadDataFromSource(dataSource);
     }
-  }, [dataSource]);
+  }, [dataSource, isGitHubConnected]);
+
+  // Function to refresh data from storage (called when GitHub data is loaded)
+  const refreshDataFromStorage = () => {
+    const storedCollections = StorageService.getCollections();
+    const storedModes = StorageService.getModes();
+    const storedDimensions = StorageService.getDimensions();
+    const storedResolvedValueTypes = StorageService.getValueTypes();
+    const storedPlatforms = StorageService.getPlatforms();
+    const storedThemes = StorageService.getThemes();
+    const storedTokens = StorageService.getTokens();
+    const storedTaxonomies = StorageService.getTaxonomies();
+    const storedAlgorithms = StorageService.getAlgorithms();
+
+    setCollections(storedCollections);
+    setModes(storedModes);
+    setDimensions(storedDimensions);
+    setResolvedValueTypes(storedResolvedValueTypes);
+    setPlatforms(storedPlatforms);
+    setThemes(storedThemes);
+    setTokens(storedTokens);
+    setTaxonomies(storedTaxonomies);
+    setAlgorithms(storedAlgorithms);
+  };
+
+  // Expose refresh function globally for GitHub components to call
+  useEffect(() => {
+    (window as Window & { refreshAppData?: () => void }).refreshAppData = refreshDataFromStorage;
+    return () => {
+      delete (window as Window & { refreshAppData?: () => void }).refreshAppData;
+    };
+  }, []);
 
   const handleResetData = () => {
     // Clear all localStorage data
@@ -384,11 +437,6 @@ const App = () => {
     StorageService.setCollections(updatedCollections);
   };
 
-  const handleUpdateModes = (updatedModes: Mode[]) => {
-    setModes(updatedModes);
-    StorageService.setModes(updatedModes);
-  };
-
   const handleUpdateDimensions = (updatedDimensions: Dimension[]) => {
     setDimensions(updatedDimensions);
     StorageService.setDimensions(updatedDimensions);
@@ -438,6 +486,7 @@ const App = () => {
               dataOptions={dataOptions}
               onResetData={handleResetData}
               onExportData={() => {}}
+              isGitHubConnected={isGitHubConnected}
             >
               <Routes>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -514,6 +563,7 @@ const App = () => {
                 <Route path="/validation" element={<ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />} />
                 <Route path="/version-history" element={<Box p={4}>Version history content coming soon...</Box>} />
                 <Route path="/access" element={<Box p={4}>Access management coming soon...</Box>} />
+                <Route path="/auth/github/callback" element={<GitHubCallback />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </AppLayout>

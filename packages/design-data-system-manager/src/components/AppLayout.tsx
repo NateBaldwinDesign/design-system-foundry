@@ -16,6 +16,7 @@ interface AppLayoutProps {
   dataOptions: DataSourceOption[];
   onResetData: () => void;
   onExportData: () => void;
+  isGitHubConnected?: boolean;
   children: React.ReactNode;
 }
 
@@ -25,6 +26,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   dataOptions,
   onResetData,
   onExportData,
+  isGitHubConnected = false,
   children,
 }: AppLayoutProps) => {
   const { colorMode } = useColorMode();
@@ -188,6 +190,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         dataOptions={dataOptions}
         onResetData={onResetData}
         onExportData={onExportData}
+        isGitHubConnected={isGitHubConnected}
       />
       <Flex flex="1" direction="column" overflow="hidden">
         <Header 

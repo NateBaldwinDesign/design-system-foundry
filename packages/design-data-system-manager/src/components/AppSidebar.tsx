@@ -49,6 +49,7 @@ interface AppSidebarProps {
   dataOptions?: { label: string; value: string; hasAlgorithms: boolean }[];
   onResetData?: () => void;
   onExportData?: () => void;
+  isGitHubConnected?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -103,6 +104,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   dataOptions,
   onResetData,
   onExportData,
+  isGitHubConnected = false,
 }: AppSidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { colorMode } = useColorMode();
@@ -220,17 +222,25 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         {!isCollapsed && dataOptions && dataSource && setDataSource && onResetData && (
           <Box p={4} borderTop="1px" borderColor={borderColor}>
             <VStack spacing={2} align="stretch">
-              <Select
-                size="sm"
-                value={dataSource}
-                onChange={(e) => setDataSource(e.target.value)}
-              >
-                {dataOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
+              {isGitHubConnected ? (
+                <Box p={2} bg="blue.50" borderRadius="md" border="1px" borderColor="blue.200">
+                  <Text fontSize="xs" color="blue.700" textAlign="center">
+                    GitHub data active
+                  </Text>
+                </Box>
+              ) : (
+                <Select
+                  size="sm"
+                  value={dataSource}
+                  onChange={(e) => setDataSource(e.target.value)}
+                >
+                  {dataOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              )}
             </VStack>
           </Box>
         )}
