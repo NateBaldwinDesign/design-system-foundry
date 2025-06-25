@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   HStack,
@@ -13,6 +13,8 @@ import {
   ModalCloseButton,
   useDisclosure,
   Badge,
+  Select,
+  Text,
 } from '@chakra-ui/react';
 import {
   GitPullRequestArrow,
@@ -20,6 +22,9 @@ import {
   History,
 } from 'lucide-react';
 import { ChangeLog } from './ChangeLog';
+import { StorageService } from '../services/storage';
+import type { Platform } from '@token-model/data-model';
+import { DimensionsPicker } from './DimensionsPicker';
 
 interface HeaderProps {
   hasChanges?: boolean;
@@ -42,6 +47,31 @@ export const Header: React.FC<HeaderProps> = ({
     currentData: Record<string, unknown>;
     baselineData: Record<string, unknown>;
   } | null>(null);
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [selectedPlatformId, setSelectedPlatformId] = useState<string>('');
+
+  // Load platforms from storage on mount
+  useEffect(() => {
+    const loadPlatforms = () => {
+      const storedPlatforms = StorageService.getPlatforms();
+      setPlatforms(storedPlatforms);
+      
+      // Set first platform as default if none selected
+      if (storedPlatforms.length > 0 && !selectedPlatformId) {
+        setSelectedPlatformId(storedPlatforms[0].id);
+      }
+    };
+
+    loadPlatforms();
+
+    // Listen for storage changes to update platforms
+    const handleStorageChange = () => {
+      loadPlatforms();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [selectedPlatformId]);
 
   // Get real data when modal opens
   const handleOpenModal = () => {
@@ -49,6 +79,17 @@ export const Header: React.FC<HeaderProps> = ({
     const baselineData = getBaselineData();
     setChangeLogData({ currentData, baselineData });
     onOpen();
+  };
+
+  const handlePlatformChange = (platformId: string) => {
+    setSelectedPlatformId(platformId);
+    // TODO: Implement platform-specific functionality
+    console.log('Platform selected:', platformId);
+  };
+
+  const handleDimensionModeChange = (dimensionId: string, modeId: string) => {
+    // TODO: Implement dimension mode change functionality
+    console.log('Dimension mode changed:', { dimensionId, modeId });
   };
 
   return (
@@ -61,9 +102,42 @@ export const Header: React.FC<HeaderProps> = ({
         px={4}
         py={3}
         display="flex"
-        justifyContent="flex-end"
+        justifyContent="space-between"
         alignItems="center"
       >
+        {/* Left side - Platform and Dimensions Pickers */}
+        <Box>
+          <HStack spacing={4} align="center">
+            {/* Platform Picker */}
+            <HStack spacing={2} align="center">
+              <Text fontSize="sm" fontWeight="medium" color="gray.600">
+                Platform:
+              </Text>
+              <Select
+                value={selectedPlatformId}
+                onChange={(e) => handlePlatformChange(e.target.value)}
+                size="sm"
+                width="auto"
+                minW="200px"
+                variant="outline"
+                bg={colorMode === 'dark' ? 'gray.700' : 'white'}
+                borderColor={borderColor}
+                _hover={{ borderColor: colorMode === 'dark' ? 'gray.600' : 'gray.300' }}
+              >
+                {platforms.map((platform) => (
+                  <option key={platform.id} value={platform.id}>
+                    {platform.displayName}
+                  </option>
+                ))}
+              </Select>
+            </HStack>
+
+            {/* Dimensions Picker */}
+            <DimensionsPicker onDimensionModeChange={handleDimensionModeChange} />
+          </HStack>
+        </Box>
+
+        {/* Right side - Action Buttons */}
         <HStack spacing={2}>
           <Tooltip label="Pull Request" placement="bottom">
             <IconButton
