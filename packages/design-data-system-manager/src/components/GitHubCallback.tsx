@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Box,
   Spinner,
@@ -16,14 +16,22 @@ import { useToast } from '@chakra-ui/react';
 import { GitHubRepoSelector } from './GitHubRepoSelector';
 
 export const GitHubCallback: React.FC = () => {
+  const navigate = useNavigate();
+  const toast = useToast();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState<string>('');
   const [showRepoSelector, setShowRepoSelector] = useState(false);
-  const navigate = useNavigate();
-  const toast = useToast();
+  const hasProcessedCallback = useRef(false);
 
   useEffect(() => {
     const handleCallback = async () => {
+      // Prevent multiple callback processing
+      if (hasProcessedCallback.current) {
+        return;
+      }
+      
+      hasProcessedCallback.current = true;
+      
       try {
         // Get URL parameters
         const urlParams = new URLSearchParams(window.location.search);
@@ -66,6 +74,8 @@ export const GitHubCallback: React.FC = () => {
         console.error('GitHub callback error:', error);
         setError(error instanceof Error ? error.message : 'Unknown error occurred');
         setStatus('error');
+        // Reset the flag on error so user can retry
+        hasProcessedCallback.current = false;
       }
     };
 

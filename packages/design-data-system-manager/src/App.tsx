@@ -407,9 +407,10 @@ const App = () => {
   // GitHub state management handlers
   const handleGitHubConnect = async () => {
     try {
-      // Check if there are any stale OAuth state parameters that might cause issues
-      if (GitHubAuthService.hasStaleOAuthState()) {
-        console.log('Clearing stale OAuth state before initiating new auth');
+      // Only clear OAuth state if user is already authenticated
+      // This prevents clearing valid OAuth state during the callback process
+      if (GitHubAuthService.isAuthenticated()) {
+        console.log('User already authenticated, clearing OAuth state before new auth');
         GitHubAuthService.clearOAuthState();
       }
       

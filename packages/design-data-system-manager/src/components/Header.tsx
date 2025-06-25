@@ -277,6 +277,10 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleSaveSuccess = () => {
     // Toast already shown by GitHubSaveDialog
+    
+    // Dispatch event to notify change detection that data has been saved to GitHub
+    // This will establish a new baseline and clear the change log
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   const handleSaveToGitHub = () => {
@@ -300,16 +304,41 @@ export const Header: React.FC<HeaderProps> = ({
     setIsResetDialogOpen(true);
   };
 
-  const handleConfirmReset = () => {
-    if (onResetData) {
-      onResetData();
-      toast({
-        title: 'Data Reset',
-        description: 'Data has been reset to baseline.',
-        status: 'info',
-        duration: 3000,
-        isClosable: true,
-      });
+  const handleConfirmReset = async () => {
+    // If connected to GitHub and have a selected repository, reload from GitHub
+    if (selectedRepoInfo && githubUser) {
+      try {
+        await handleReloadCurrentFile();
+        toast({
+          title: 'Data Reset',
+          description: `Data has been reset to ${selectedRepoInfo.filePath} from GitHub.`,
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+      } catch (error) {
+        toast({
+          title: 'Reset Failed',
+          description: 'Failed to reload data from GitHub. Please try again.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    } else {
+      // Use the default app-level reset handler for local data sources
+      if (onResetData) {
+        onResetData();
+        // Dispatch event to notify change detection that data has been reset
+        window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
+        toast({
+          title: 'Data Reset',
+          description: 'Data has been reset to baseline.',
+          status: 'info',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
     }
     setIsResetDialogOpen(false);
   };
@@ -604,16 +633,22 @@ export const Header: React.FC<HeaderProps> = ({
       >
         <AlertDialogOverlay>
           <AlertDialogContent>
-            <AlertDialogHeader>Reset data?</AlertDialogHeader>
+            <AlertDialogHeader>
+              {selectedRepoInfo && githubUser ? 'Reset to GitHub source?' : 'Reset data?'}
+            </AlertDialogHeader>
             <AlertDialogBody>
-              This will revert to the original state and you will lose all of your changes. This cannot be undone.
+              {selectedRepoInfo && githubUser ? (
+                `This will reload all data from ${selectedRepoInfo.filePath} on GitHub and you will lose all of your local changes. This cannot be undone.`
+              ) : (
+                'This will revert to the original state and you will lose all of your changes. This cannot be undone.'
+              )}
             </AlertDialogBody>
             <AlertDialogFooter>
               <Button ref={cancelRef} onClick={handleCancelReset}>
                 Cancel
               </Button>
               <Button colorScheme="red" onClick={handleConfirmReset} ml={3}>
-                Reset data
+                {selectedRepoInfo && githubUser ? 'Reset to GitHub' : 'Reset data'}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
