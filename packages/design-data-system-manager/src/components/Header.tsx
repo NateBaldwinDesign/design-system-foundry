@@ -15,15 +15,23 @@ import {
   Badge,
   Text,
   useToast,
+  TagLabel,
+  Tag,
+  Avatar,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverBody,
+  PopoverArrow,
+  Button,
+  VStack,
 } from '@chakra-ui/react';
 import {
   History,
   Github,
-  FolderOpen,
   RefreshCw,
   Save,
   GitPullRequest,
-  UnlinkIcon,
   BookMarked,
 } from 'lucide-react';
 import { ChangeLog } from './ChangeLog';
@@ -65,6 +73,7 @@ export const Header: React.FC<HeaderProps> = ({
     filePath: string;
     fileType: 'schema' | 'theme-override';
   } | null>(null);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const toast = useToast();
 
   // Load selected repository info on mount
@@ -249,12 +258,74 @@ export const Header: React.FC<HeaderProps> = ({
           {/* GitHub Connection */}
           {githubUser ? (
             <HStack spacing={2}>
-              <Badge colorScheme="green" variant="subtle">
-                <HStack spacing={1}>
-                  <Github size={12} />
-                  <Text fontSize="xs">{githubUser.login}</Text>
-                </HStack>
-              </Badge>
+              <Popover 
+                placement="bottom-end" 
+                isOpen={isUserMenuOpen} 
+                onClose={() => setIsUserMenuOpen(false)}
+              >
+                <PopoverTrigger>
+                  <Tag 
+                    size="md" 
+                    colorScheme="gray" 
+                    variant="subtle" 
+                    borderRadius="full" 
+                    gap={2}
+                    cursor="pointer"
+                    _hover={{ bg: 'gray.100' }}
+                    _dark={{ _hover: { bg: 'gray.700' } }}
+                    onClick={() => setIsUserMenuOpen(true)}
+                  >
+                    <Avatar size="2xs" src={githubUser.avatar_url} />
+                    <TagLabel fontSize="xs">{githubUser.login}</TagLabel>
+                  </Tag>
+                </PopoverTrigger>
+                <PopoverContent p={0} w="auto" minW="200px">
+                  <PopoverArrow />
+                  <PopoverBody p={0}>
+                    <VStack spacing={0} align="stretch">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        justifyContent="flex-start"
+                        borderRadius={0}
+                        onClick={() => {
+                          window.open(`https://github.com/${githubUser.login}`, '_blank');
+                          setIsUserMenuOpen(false);
+                        }}
+                      >
+                        View Profile
+                      </Button>
+                      {selectedRepoInfo && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          justifyContent="flex-start"
+                          borderRadius={0}
+                          onClick={() => {
+                            window.open(`https://github.com/${selectedRepoInfo.fullName}/pulls?q=author:${githubUser.login}`, '_blank');
+                            setIsUserMenuOpen(false);
+                          }}
+                        >
+                          My Pull Requests
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        justifyContent="flex-start"
+                        borderRadius={0}
+                        colorScheme="red"
+                        onClick={() => {
+                          handleGitHubDisconnect();
+                          setIsUserMenuOpen(false);
+                        }}
+                      >
+                        Disconnect from GitHub
+                      </Button>
+                    </VStack>
+                  </PopoverBody>
+                </PopoverContent>
+              </Popover>
               <Tooltip label="Select Repository">
                 <IconButton
                   aria-label="Select Repository"
@@ -262,15 +333,6 @@ export const Header: React.FC<HeaderProps> = ({
                   size="sm"
                   variant="ghost"
                   onClick={() => setShowRepoSelector(true)}
-                />
-              </Tooltip>
-              <Tooltip label="Disconnect GitHub">
-                <IconButton
-                  aria-label="Disconnect GitHub"
-                  icon={<UnlinkIcon size={16} />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleGitHubDisconnect}
                 />
               </Tooltip>
             </HStack>

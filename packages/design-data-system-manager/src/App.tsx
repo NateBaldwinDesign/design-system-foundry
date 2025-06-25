@@ -4,7 +4,13 @@ import {
   ChakraProvider,
   Spinner,
   Button,
-  useToast
+  useToast,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalCloseButton,
+  ModalBody
 } from '@chakra-ui/react';
 import {
   TokenCollection,
@@ -46,6 +52,7 @@ import { ValueTypesView } from './views/setup/ValueTypesView';
 import { GitHubCallback } from './components/GitHubCallback';
 import { GitHubAuthService } from './services/githubAuth';
 import type { ExtendedToken } from './components/TokenEditorDialog';
+import { ChangeLog } from './components/ChangeLog';
 
 const App = () => {
   const { schema } = useSchema();
@@ -73,6 +80,9 @@ const App = () => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isGitHubConnected, setIsGitHubConnected] = useState(false);
   const toast = useToast();
+  const [baselineData, setBaselineData] = useState<Record<string, unknown> | null>(null);
+  const [changeLogData, setChangeLogData] = useState<{ currentData: Record<string, unknown>; baselineData: Record<string, unknown> | null }>({ currentData: {}, baselineData: null });
+  const [isOpen, setIsOpen] = useState(false);
 
   // Initialize data from storage on mount
   useEffect(() => {
@@ -86,35 +96,34 @@ const App = () => {
     const storedTokens = StorageService.getTokens();
     const storedTaxonomies = StorageService.getTaxonomies();
     const storedAlgorithms = StorageService.getAlgorithms();
+    const storedNamingRules = StorageService.getNamingRules();
 
-    // Only set state if we have data and it's different from current state
-    if (storedCollections.length > 0 && JSON.stringify(storedCollections) !== JSON.stringify(collections)) {
-      setCollections(storedCollections);
-    }
-    if (storedModes.length > 0 && JSON.stringify(storedModes) !== JSON.stringify(modes)) {
-      setModes(storedModes);
-    }
-    if (storedDimensions.length > 0 && JSON.stringify(storedDimensions) !== JSON.stringify(dimensions)) {
-      setDimensions(storedDimensions);
-    }
-    if (storedResolvedValueTypes.length > 0 && JSON.stringify(storedResolvedValueTypes) !== JSON.stringify(resolvedValueTypes)) {
-      setResolvedValueTypes(storedResolvedValueTypes);
-    }
-    if (storedPlatforms.length > 0 && JSON.stringify(storedPlatforms) !== JSON.stringify(platforms)) {
-      setPlatforms(storedPlatforms);
-    }
-    if (storedThemes.length > 0 && JSON.stringify(storedThemes) !== JSON.stringify(themes)) {
-      setThemes(storedThemes);
-    }
-    if (storedTokens.length > 0 && JSON.stringify(storedTokens) !== JSON.stringify(tokens)) {
-      setTokens(storedTokens);
-    }
-    if (storedTaxonomies.length > 0 && JSON.stringify(storedTaxonomies) !== JSON.stringify(taxonomies)) {
-      setTaxonomies(storedTaxonomies);
-    }
-    if (storedAlgorithms.length > 0 && JSON.stringify(storedAlgorithms) !== JSON.stringify(algorithms)) {
-      setAlgorithms(storedAlgorithms);
-    }
+    setCollections(storedCollections);
+    setModes(storedModes);
+    setDimensions(storedDimensions);
+    setResolvedValueTypes(storedResolvedValueTypes);
+    setPlatforms(storedPlatforms);
+    setThemes(storedThemes);
+    setTokens(storedTokens);
+    setTaxonomies(storedTaxonomies);
+    setAlgorithms(storedAlgorithms);
+    setTaxonomyOrder(storedNamingRules.taxonomyOrder);
+
+    // Set baselineData to the loaded data
+    setBaselineData({
+      collections: storedCollections,
+      modes: storedModes,
+      dimensions: storedDimensions,
+      resolvedValueTypes: storedResolvedValueTypes,
+      platforms: storedPlatforms,
+      themes: storedThemes,
+      tokens: storedTokens,
+      taxonomies: storedTaxonomies,
+      algorithms: storedAlgorithms,
+      namingRules: storedNamingRules,
+    });
+
+    setLoading(false);
   }, []); // Only run once on mount
 
   // Check GitHub connection status
@@ -287,7 +296,19 @@ const App = () => {
 
   useEffect(() => {
     if (dataSource && !isGitHubConnected) {
-      loadDataFromSource(dataSource);
+      // Check if we already have data in localStorage
+      const hasExistingData = StorageService.getTokens().length > 0 || 
+                             StorageService.getCollections().length > 0 || 
+                             StorageService.getDimensions().length > 0;
+      
+      // Only load example data if localStorage is empty
+      if (!hasExistingData) {
+        loadDataFromSource(dataSource);
+      } else {
+        // If we have existing data, just refresh from storage
+        refreshDataFromStorage();
+        setLoading(false);
+      }
     }
   }, [dataSource, isGitHubConnected]);
 
@@ -302,6 +323,7 @@ const App = () => {
     const storedTokens = StorageService.getTokens();
     const storedTaxonomies = StorageService.getTaxonomies();
     const storedAlgorithms = StorageService.getAlgorithms();
+    const storedNamingRules = StorageService.getNamingRules();
 
     setCollections(storedCollections);
     setModes(storedModes);
@@ -312,6 +334,7 @@ const App = () => {
     setTokens(storedTokens);
     setTaxonomies(storedTaxonomies);
     setAlgorithms(storedAlgorithms);
+    setTaxonomyOrder(storedNamingRules.taxonomyOrder);
   };
 
   // Expose refresh function globally for GitHub components to call
@@ -336,6 +359,19 @@ const App = () => {
     setThemes([]);
     setTaxonomies([]);
     setTaxonomyOrder([]);
+    setAlgorithms([]);
+    setBaselineData({
+      collections: [],
+      modes: [],
+      dimensions: [],
+      resolvedValueTypes: [],
+      platforms: [],
+      themes: [],
+      tokens: [],
+      taxonomies: [],
+      algorithms: [],
+      namingRules: { taxonomyOrder: [] },
+    });
     if ('caches' in window) {
       caches.keys().then(cacheNames => {
         cacheNames.forEach(cacheName => {
@@ -467,6 +503,33 @@ const App = () => {
     StorageService.setAlgorithms(updatedAlgorithms);
   };
 
+  const handleUpdateNamingRules = (updatedNamingRules: { taxonomyOrder: string[] }) => {
+    setTaxonomyOrder(updatedNamingRules.taxonomyOrder);
+    StorageService.setNamingRules(updatedNamingRules);
+  };
+
+  // When opening the changelog modal, use baselineData and currentData
+  const handleOpenModal = () => {
+    const currentData = {
+      collections,
+      modes,
+      dimensions,
+      resolvedValueTypes,
+      platforms,
+      themes,
+      tokens,
+      taxonomies,
+      algorithms,
+      namingRules: { taxonomyOrder },
+    };
+    setChangeLogData({ currentData, baselineData });
+    setIsOpen(true);
+  };
+
+  const onClose = () => {
+    setIsOpen(false);
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -570,6 +633,27 @@ const App = () => {
           </Box>
         </Box>
       </BrowserRouter>
+      <Modal 
+        isOpen={isOpen} 
+        onClose={onClose} 
+        size="xl" 
+        scrollBehavior="inside"
+        closeOnOverlayClick={true}
+        closeOnEsc={true}
+        isCentered={true}
+      >
+        <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
+        <ModalContent>
+          <ModalHeader>Change History</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <ChangeLog 
+              previousData={changeLogData?.baselineData}
+              currentData={changeLogData?.currentData}
+            />
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </ChakraProvider>
   );
 };
