@@ -1,5 +1,5 @@
 import { GITHUB_CONFIG } from '../config/github';
-import type { GitHubRepo, GitHubBranch, GitHubFile, GitHubPR } from '../config/github';
+import type { GitHubRepo, GitHubBranch, GitHubFile, GitHubPR, GitHubOrganization } from '../config/github';
 import { GitHubAuthService } from './githubAuth';
 
 export interface ValidFile {
@@ -19,23 +19,90 @@ interface CreateFileBody {
 
 export class GitHubApiService {
   /**
-   * Get all repositories for the authenticated user
+   * Get all organizations for the authenticated user (including personal account)
    */
-  static async getRepositories(): Promise<GitHubRepo[]> {
+  static async getOrganizations(): Promise<GitHubOrganization[]> {
     const accessToken = await GitHubAuthService.getValidAccessToken();
     
-    const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/user/repos?sort=updated&per_page=100`, {
+    // Get user info first
+    const userResponse = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/user`, {
       headers: {
         'Authorization': `token ${accessToken}`,
         'Accept': 'application/vnd.github.v3+json',
       },
     });
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch repositories: ${response.statusText}`);
+    if (!userResponse.ok) {
+      throw new Error(`Failed to fetch user info: ${userResponse.statusText}`);
     }
     
-    return response.json();
+    const user = await userResponse.json();
+    
+    // Get user's organizations
+    const orgsResponse = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/user/orgs?per_page=100`, {
+      headers: {
+        'Authorization': `token ${accessToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    if (!orgsResponse.ok) {
+      throw new Error(`Failed to fetch organizations: ${orgsResponse.statusText}`);
+    }
+    
+    const orgs = await orgsResponse.json();
+    
+    // Combine user (as personal organization) with actual organizations
+    const personalOrg: GitHubOrganization = {
+      id: user.id,
+      login: user.login,
+      name: user.name || user.login,
+      avatar_url: user.avatar_url,
+      type: 'User',
+    };
+    
+    return [personalOrg, ...orgs];
+  }
+
+  /**
+   * Get all repositories for the authenticated user
+   */
+  static async getRepositories(): Promise<GitHubRepo[]> {
+    const accessToken = await GitHubAuthService.getValidAccessToken();
+    
+    let allRepos: GitHubRepo[] = [];
+    let page = 1;
+    const perPage = 100;
+    let hasMorePages = true;
+    
+    while (hasMorePages) {
+      const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/user/repos?sort=updated&per_page=${perPage}&page=${page}`, {
+        headers: {
+          'Authorization': `token ${accessToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch repositories: ${response.statusText}`);
+      }
+      
+      const repos = await response.json();
+      
+      if (repos.length === 0) {
+        hasMorePages = false;
+      } else {
+        allRepos = allRepos.concat(repos);
+        page++;
+        
+        // Safety check to prevent infinite loops
+        if (page > 10) {
+          hasMorePages = false;
+        }
+      }
+    }
+    
+    return allRepos;
   }
   
   /**

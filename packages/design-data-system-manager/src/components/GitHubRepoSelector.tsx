@@ -23,7 +23,7 @@ import {
 } from '@chakra-ui/react';
 import { GitHubApiService, ValidFile } from '../services/githubApi';
 import { StorageService } from '../services/storage';
-import type { GitHubRepo, GitHubBranch } from '../config/github';
+import type { GitHubRepo, GitHubBranch, GitHubOrganization } from '../config/github';
 
 interface GitHubRepoSelectorProps {
   isOpen: boolean;
@@ -36,39 +36,107 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
   onClose,
   onFileSelected,
 }) => {
+  const [organizations, setOrganizations] = useState<GitHubOrganization[]>([]);
+  const [selectedOrg, setSelectedOrg] = useState<GitHubOrganization | null>(null);
   const [repositories, setRepositories] = useState<GitHubRepo[]>([]);
+  const [filteredRepositories, setFilteredRepositories] = useState<GitHubRepo[]>([]);
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null);
   const [branches, setBranches] = useState<GitHubBranch[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [validFiles, setValidFiles] = useState<ValidFile[]>([]);
   const [selectedFile, setSelectedFile] = useState<ValidFile | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState<'repos' | 'branches' | 'files' | null>(null);
+  const [loadingStep, setLoadingStep] = useState<'orgs' | 'repos' | 'branches' | 'files' | null>(null);
   const [error, setError] = useState<string>('');
   const toast = useToast();
 
-  // Load repositories on mount
+  // Load organizations and repositories on mount
   useEffect(() => {
-    if (isOpen && repositories.length === 0) {
-      loadRepositories();
+    if (isOpen && organizations.length === 0) {
+      loadOrganizations();
     }
   }, [isOpen]);
 
   // Pre-load current selection when dialog opens
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && organizations.length > 0 && repositories.length > 0) {
       preloadCurrentSelection();
     }
-  }, [isOpen, repositories]);
+  }, [isOpen, organizations, repositories]);
 
-  const loadRepositories = async () => {
+  const loadOrganizations = async () => {
+    setLoading(true);
+    setLoadingStep('orgs');
+    setError('');
+    
+    // Add a timeout to show loading state for better UX
+    const loadingTimeout = setTimeout(() => {
+      if (loadingStep === 'orgs') {
+        toast({
+          title: 'Loading Organizations',
+          description: 'Fetching your GitHub organizations and repositories...',
+          status: 'info',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    }, 1000);
+    
+    try {
+      const orgs = await GitHubApiService.getOrganizations();
+      setOrganizations(orgs);
+      
+      // Auto-select the first organization (usually the user's personal account)
+      if (orgs.length > 0) {
+        setSelectedOrg(orgs[0]);
+        await loadRepositoriesForOrg(orgs[0]);
+      }
+    } catch (error) {
+      console.error('Failed to load organizations:', error);
+      setError('Failed to load organizations. Please try again.');
+      toast({
+        title: 'Error',
+        description: 'Failed to load organizations from GitHub.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      clearTimeout(loadingTimeout);
+      setLoading(false);
+      setLoadingStep(null);
+    }
+  };
+
+  const loadRepositoriesForOrg = async (org: GitHubOrganization) => {
     setLoading(true);
     setLoadingStep('repos');
     setError('');
     
+    // Add a timeout to show loading state for better UX
+    const loadingTimeout = setTimeout(() => {
+      if (loadingStep === 'repos') {
+        toast({
+          title: 'Loading Repositories',
+          description: `Fetching repositories for ${org.name || org.login}...`,
+          status: 'info',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    }, 1000);
+    
     try {
       const repos = await GitHubApiService.getRepositories();
-      setRepositories(repos);
+      
+      // Filter repositories by the selected organization
+      const orgRepos = repos.filter(repo => {
+        const repoOwner = repo.full_name.split('/')[0];
+        return repoOwner === org.login;
+      });
+      
+      setRepositories(repos); // Keep all repos for reference
+      setFilteredRepositories(orgRepos);
     } catch (error) {
       console.error('Failed to load repositories:', error);
       setError('Failed to load repositories. Please try again.');
@@ -80,9 +148,24 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
         isClosable: true,
       });
     } finally {
+      clearTimeout(loadingTimeout);
       setLoading(false);
       setLoadingStep(null);
     }
+  };
+
+  const handleOrgChange = async (orgLogin: string) => {
+    const org = organizations.find(o => o.login === orgLogin);
+    if (!org) return;
+
+    setSelectedOrg(org);
+    setSelectedRepo(null);
+    setSelectedBranch('');
+    setValidFiles([]);
+    setSelectedFile(null);
+    setError('');
+
+    await loadRepositoriesForOrg(org);
   };
 
   const preloadCurrentSelection = async () => {
@@ -93,8 +176,8 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
 
       const currentRepoInfo = JSON.parse(repoInfoStr);
       
-      // Find the current repository in the loaded repositories
-      const currentRepo = repositories.find(r => r.full_name === currentRepoInfo.fullName);
+      // Find the current repository in the filtered repositories
+      const currentRepo = filteredRepositories.find(r => r.full_name === currentRepoInfo.fullName);
       if (!currentRepo) {
         console.log('Current repository not found in available repositories');
         return;
@@ -147,7 +230,7 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
   };
 
   const handleRepoChange = async (repoFullName: string) => {
-    const repo = repositories.find(r => r.full_name === repoFullName);
+    const repo = filteredRepositories.find(r => r.full_name === repoFullName);
     if (!repo) return;
 
     const previousFile = selectedFile; // Store current file for matching
@@ -162,6 +245,19 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
     setLoading(true);
     setLoadingStep('branches');
     
+    // Add a timeout to show loading state for better UX
+    const loadingTimeout = setTimeout(() => {
+      if (loadingStep === 'branches') {
+        toast({
+          title: 'Loading Branches',
+          description: `Fetching branches for ${repo.name}...`,
+          status: 'info',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    }, 1000);
+    
     try {
       const repoBranches = await GitHubApiService.getBranches(repo.full_name);
       setBranches(repoBranches);
@@ -171,9 +267,13 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
         const defaultBranch = repoBranches.find(b => b.name === repo.default_branch) || repoBranches[0];
         setSelectedBranch(defaultBranch.name);
         
+        // Always scan for files when a repository is selected
         // If we had a previous file, try to find a matching file in the new repository
         if (previousFile) {
           await loadAndMatchFiles(repo.full_name, defaultBranch.name, previousFile);
+        } else {
+          // No previous file, just scan for available files
+          await scanRepositoryForFiles(repo.full_name, defaultBranch.name);
         }
       }
     } catch (error) {
@@ -187,6 +287,7 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
         isClosable: true,
       });
     } finally {
+      clearTimeout(loadingTimeout);
       setLoading(false);
       setLoadingStep(null);
     }
@@ -202,35 +303,12 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
 
     if (!selectedRepo) return;
 
-    // Scan for valid files in the selected branch
-    setLoading(true);
-    setLoadingStep('files');
-    
-    try {
-      const files = await GitHubApiService.scanRepositoryForValidFiles(selectedRepo.full_name, branchName);
-      setValidFiles(files);
-      
-      if (files.length === 0) {
-        setError('No valid token files found in this repository. Please ensure you have files that match the schema.json or theme-override.json format.');
-      } else {
-        // Try to find a matching file from the previous selection
-        if (previousFile) {
-          await matchAndSelectFile(files, previousFile);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to scan repository:', error);
-      setError('Failed to scan repository for valid files.');
-      toast({
-        title: 'Error',
-        description: 'Failed to scan repository for valid files.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      setLoading(false);
-      setLoadingStep(null);
+    // If we had a previous file, try to find a matching file in the new branch
+    if (previousFile) {
+      await loadAndMatchFiles(selectedRepo.full_name, branchName, previousFile);
+    } else {
+      // No previous file, just scan for available files
+      await scanRepositoryForFiles(selectedRepo.full_name, branchName);
     }
   };
 
@@ -244,6 +322,47 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
       }
     } catch (error) {
       console.error('Failed to load and match files:', error);
+    }
+  };
+
+  const scanRepositoryForFiles = async (repoFullName: string, branchName: string) => {
+    setLoading(true);
+    setLoadingStep('files');
+    
+    // Add a timeout to show loading state for better UX
+    const loadingTimeout = setTimeout(() => {
+      if (loadingStep === 'files') {
+        toast({
+          title: 'Scanning Repository',
+          description: `Scanning ${repoFullName.split('/')[1]} for valid design system files...`,
+          status: 'info',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    }, 1000);
+    
+    try {
+      const files = await GitHubApiService.scanRepositoryForValidFiles(repoFullName, branchName);
+      setValidFiles(files);
+      
+      if (files.length === 0) {
+        setError('No valid token files found in this repository. Please ensure you have files that match the schema.json or theme-override.json format.');
+      }
+    } catch (error) {
+      console.error('Failed to scan repository:', error);
+      setError('Failed to scan repository for valid files.');
+      toast({
+        title: 'Error',
+        description: 'Failed to scan repository for valid files.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      clearTimeout(loadingTimeout);
+      setLoading(false);
+      setLoadingStep(null);
     }
   };
 
@@ -469,21 +588,50 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
               </Alert>
             )}
 
-            {/* Repository Selection */}
+            {/* Organization Selection */}
             <FormControl isRequired>
+              <FormLabel>Organization</FormLabel>
+              <Select
+                value={selectedOrg?.login || ''}
+                onChange={(e) => handleOrgChange(e.target.value)}
+                placeholder="Select an organization"
+                isDisabled={loading}
+              >
+                {organizations.map((org) => (
+                  <option key={org.login} value={org.login}>
+                    {org.name || org.login} ({org.type === 'User' ? 'Personal' : 'Organization'})
+                  </option>
+                ))}
+              </Select>
+              {loadingStep === 'orgs' && (
+                <HStack mt={2}>
+                  <Spinner size="sm" />
+                  <Text fontSize="sm">Loading organizations...</Text>
+                </HStack>
+              )}
+            </FormControl>
+
+            {/* Repository Selection */}
+            <FormControl isRequired isDisabled={!selectedOrg || loading}>
               <FormLabel>Repository</FormLabel>
               <Select
                 value={selectedRepo?.full_name || ''}
                 onChange={(e) => handleRepoChange(e.target.value)}
                 placeholder="Select a repository"
-                isDisabled={loading}
+                isDisabled={!selectedOrg || loading}
               >
-                {repositories.map((repo) => (
+                {filteredRepositories.map((repo) => (
                   <option key={repo.full_name} value={repo.full_name}>
                     {repo.full_name} {repo.private ? '(Private)' : ''}
                   </option>
                 ))}
               </Select>
+              {loadingStep === 'repos' && (
+                <HStack mt={2}>
+                  <Spinner size="sm" />
+                  <Text fontSize="sm">Loading repositories...</Text>
+                </HStack>
+              )}
             </FormControl>
 
             {/* Branch Selection */}

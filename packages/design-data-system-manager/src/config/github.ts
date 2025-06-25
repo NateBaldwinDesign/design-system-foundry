@@ -16,6 +16,14 @@ export interface GitHubUser {
   avatar_url: string;
 }
 
+export interface GitHubOrganization {
+  id: number;
+  login: string;
+  name: string;
+  avatar_url: string;
+  type: 'Organization' | 'User';
+}
+
 export interface GitHubRepo {
   id: number;
   name: string;
