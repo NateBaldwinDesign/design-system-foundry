@@ -177,7 +177,6 @@ function NestedModeTable({
                   {columnCombinations.map((colCombo, colIdx) => {
                     const allModeIds = [primaryMode.id, ...secondaryCombo, ...colCombo].sort();
                     const key = allModeIds.join(',');
-                    const value = valueMap.get(key);
                     return (
                       <Td key={colIdx}>
                         <Table size="sm" variant="simple">
@@ -389,13 +388,55 @@ export function ValueByModeTable({
   onAddValue,
   isDisabled
 }: ValueByModeTableProps) {
+  // Helper function to get the actual value string for debugging
+  const getActualValueString = (value: TokenValue | string): string => {
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'object' && value) {
+      if ('value' in value) {
+        return value.value;
+      } else if ('tokenId' in value) {
+        return `alias:${value.tokenId}`;
+      }
+    }
+    return String(value);
+  };
+
+  console.log('[ValueByModeTable] Rendering with values:', {
+    valuesByMode: valuesByMode.map(vbm => ({
+      modeIds: vbm.modeIds,
+      value: vbm.value,
+      valueType: typeof vbm.value,
+      actualValue: getActualValueString(vbm.value),
+      valueString: JSON.stringify(vbm.value)
+    })),
+    dimensions: dimensions.map(d => ({ id: d.id, displayName: d.displayName })),
+    modes: modes.map(m => ({ id: m.id, name: m.name }))
+  });
+
+  // Create a map for quick value lookup
+  const valueMap = new Map<string, ValueByMode>();
+  valuesByMode.forEach(vbm => {
+    const key = vbm.modeIds.slice().sort().join(',');
+    valueMap.set(key, vbm);
+  });
+
+  console.log('[ValueByModeTable] Value map created:', {
+    valueMapEntries: Array.from(valueMap.entries()).map(([key, value]) => ({
+      key,
+      value: {
+        modeIds: value.modeIds,
+        value: value.value,
+        valueType: typeof value.value,
+        actualValue: getActualValueString(value.value),
+        valueString: JSON.stringify(value.value)
+      }
+    }))
+  });
+
   // Categorize dimensions into columns and rows
   const { columnDimensions, rowDimensions } = categorizeDimensions(dimensions);
-
-  // Create a map of mode combinations to values for quick lookup
-  const valueMap = new Map(
-    valuesByMode.map(vbm => [vbm.modeIds.slice().sort().join(','), vbm])
-  );
 
   return (
     <Box overflowX="auto">

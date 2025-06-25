@@ -83,7 +83,7 @@ function getDefaultTokenValue(resolvedValueTypeId: string, schema: { resolvedVal
     return { value: '' };
   }
   const defaultValue = getDefaultValueForType(resolvedValueTypeId, schema.resolvedValueTypes);
-  return { value: defaultValue };
+  return defaultValue;
 }
 
 export interface TokenEditorDialogProps {
@@ -226,30 +226,20 @@ function validateTokenCollectionCompatibility(
   return errors;
 }
 
-// Update schema types
-interface TokenGroup {
-  id: string;
-  name: string;
-  description?: string;
-  tokenCollectionId: string;
-  tokens: Token[];
-}
-
-interface TokenVariant {
-  id: string;
-  name: string;
-  description?: string;
-  tokenCollectionId: string;
-  tokens: Token[];
-}
-
-// Update Schema type to include namingRules
-interface Schema extends SchemaType {
-  extensions?: {
-    tokenGroups?: TokenGroup[];
-    tokenVariants?: Record<string, TokenVariant>;
-  };
-}
+// Helper function to get the actual value string for debugging
+const getActualValueString = (value: TokenValue | string): string => {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'object' && value) {
+    if ('value' in value) {
+      return value.value;
+    } else if ('tokenId' in value) {
+      return `alias:${value.tokenId}`;
+    }
+  }
+  return String(value);
+};
 
 export function TokenEditorDialog({ 
     token, 
@@ -398,170 +388,295 @@ export function TokenEditorDialog({
 
   // Add or remove a dimension from the token
   const handleToggleDimension = (dimensionId: string) => {
+    console.log('[handleToggleDimension] Starting dimension toggle:', {
+      dimensionId,
+      isActive: activeDimensionIds.includes(dimensionId),
+      currentActiveDimensions: activeDimensionIds,
+      currentValuesByMode: editedToken.valuesByMode.map(vbm => ({
+        modeIds: vbm.modeIds,
+        value: vbm.value,
+        valueType: typeof vbm.value,
+        actualValue: getActualValueString(vbm.value),
+        valueString: JSON.stringify(vbm.value)
+      }))
+    });
+
     const isActive = activeDimensionIds.includes(dimensionId);
     let newActiveDims: string[];
     
     if (isActive) {
-      const dim = dimensions.find(d => d.id === dimensionId);
-      if (!dim) return;
-      
+      // Removing a dimension - just update the active dimensions list
+      console.log('[handleToggleDimension] Removing dimension:', dimensionId);
       newActiveDims = activeDimensionIds.filter((id: string) => id !== dimensionId);
+      
+      console.log('[handleToggleDimension] After removing dimension:', {
+        newActiveDimensions: newActiveDims,
+        valuesByMode: editedToken.valuesByMode.map(vbm => ({
+          modeIds: vbm.modeIds,
+          value: vbm.value,
+          valueType: typeof vbm.value,
+          actualValue: getActualValueString(vbm.value),
+          valueString: JSON.stringify(vbm.value)
+        }))
+      });
+    } else {
+      // Adding a dimension - need to handle default mode mapping
+      console.log('[handleToggleDimension] Adding dimension:', dimensionId);
+      const dim = dimensions.find(d => d.id === dimensionId);
+      if (!dim) {
+        console.error('[handleToggleDimension] Dimension not found:', dimensionId);
+        return;
+      }
+      
+      newActiveDims = [...activeDimensionIds, dimensionId];
       const defaultModeId = dim.defaultMode;
       
+      console.log('[handleToggleDimension] Adding dimension details:', {
+        dimension: dim,
+        defaultModeId,
+        newActiveDimensions: newActiveDims
+      });
+      
       setEditedToken((prev: ExtendedToken) => {
-        // Store the original values from localStorage for this dimension
-        const originalValues = prev.valuesByMode.reduce((acc, vbm) => {
-          // Store ALL values that include any mode from this dimension
-          if (vbm.modeIds.includes(defaultModeId) || dim.modes.some((mode: Mode) => vbm.modeIds.includes(mode.id))) {
-            const key = vbm.modeIds.slice().sort().join(',');
-            acc[key] = {
-              modeIds: vbm.modeIds,
-              value: vbm.value,
-              platformOverrides: vbm.platformOverrides ? [...vbm.platformOverrides] : undefined
-            };
-          }
-          return acc;
-        }, {} as Record<string, PreservedValue>);
-
-        // Store these original values for potential restoration
-        preservedValuesByRemovedDimension.current[dimensionId] = originalValues;
-
-        // For each value that includes the removed dimension's modes,
-        // create a new value without those modes
-        const newValuesByMode = prev.valuesByMode.flatMap(vbm => {
-          // If this value doesn't include any modes from the removed dimension,
-          // keep it as is
-          if (!vbm.modeIds.includes(defaultModeId) && 
-              !dim.modes.some((mode: Mode) => vbm.modeIds.includes(mode.id))) {
-            return [vbm];
-          }
-
-          // If this value does include modes from the removed dimension,
-          // create a new value without those modes
-          const remainingModeIds = vbm.modeIds.filter(modeId => 
-            modeId !== defaultModeId && 
-            !dim.modes.some((mode: Mode) => mode.id === modeId)
-          );
-
-          // Only create the new value if there are remaining modes
-          return remainingModeIds.length > 0 ? [{
-            modeIds: remainingModeIds,
+        console.log('[handleToggleDimension] setEditedToken callback - initial state:', {
+          prevValuesByMode: prev.valuesByMode.map(vbm => ({
+            modeIds: vbm.modeIds,
             value: vbm.value,
-            platformOverrides: vbm.platformOverrides
-          }] : [];
+            valueType: typeof vbm.value,
+            actualValue: getActualValueString(vbm.value),
+            valueString: JSON.stringify(vbm.value)
+          }))
         });
 
+        // If no dimensions were previously active, create values for each mode in the new dimension
+        if (activeDimensionIds.length === 0) {
+          console.log('[handleToggleDimension] No previous dimensions active, creating mode values');
+          const globalValue = prev.valuesByMode.find(vbm => vbm.modeIds.length === 0);
+          const newValuesByMode = dim.modes.map(mode => ({
+            modeIds: [mode.id],
+            value: globalValue ? globalValue.value : getDefaultTokenValue(prev.resolvedValueTypeId, { resolvedValueTypes }),
+            platformOverrides: globalValue ? globalValue.platformOverrides : undefined
+          }));
+          
+          console.log('[handleToggleDimension] Created new values for no previous dimensions:', {
+            newValuesByMode: newValuesByMode.map(vbm => ({
+              modeIds: vbm.modeIds,
+              value: vbm.value,
+              valueType: typeof vbm.value,
+              actualValue: getActualValueString(vbm.value),
+              valueString: JSON.stringify(vbm.value)
+            }))
+          });
+          
+          return {
+            ...prev,
+            valuesByMode: [...prev.valuesByMode, ...newValuesByMode]
+          };
+        }
+        
+        // For existing dimensions, map current values to the new dimension's default mode
+        const newValuesByMode = [...prev.valuesByMode];
+        
+        // Get all current values that should be mapped to the default mode
+        const currentValues = prev.valuesByMode.filter(vbm => isValueActive(vbm.modeIds));
+        
+        console.log('[handleToggleDimension] Current active values:', {
+          currentValues: currentValues.map(vbm => ({
+            modeIds: vbm.modeIds,
+            value: vbm.value,
+            valueType: typeof vbm.value,
+            actualValue: getActualValueString(vbm.value),
+            valueString: JSON.stringify(vbm.value)
+          }))
+        });
+        
+        // For each current value, create a new combination with the default mode
+        currentValues.forEach(currentValue => {
+          const newModeIds = [...currentValue.modeIds, defaultModeId].sort();
+          const newValueKey = newModeIds.join(',');
+          
+          // Check if this combination already exists
+          const exists = newValuesByMode.some(vbm => vbm.modeIds.slice().sort().join(',') === newValueKey);
+          
+          if (!exists) {
+            console.log('[handleToggleDimension] Creating combinatory value:', {
+              newModeIds,
+              sourceValue: currentValue.value,
+              sourceValueType: typeof currentValue.value,
+              sourceActualValue: getActualValueString(currentValue.value),
+              sourceValueString: JSON.stringify(currentValue.value)
+            });
+            
+            newValuesByMode.push({
+              modeIds: newModeIds,
+              value: currentValue.value,
+              platformOverrides: currentValue.platformOverrides
+            });
+          }
+        });
+        
+        // ALSO create non-combinatory values for each mode in the new dimension
+        // These should be synchronized with the default mode values
+        dim.modes.forEach(mode => {
+          const modeValueKey = [mode.id].join(',');
+          const exists = newValuesByMode.some(vbm => vbm.modeIds.slice().sort().join(',') === modeValueKey);
+          
+          if (!exists) {
+            // For the default mode, use the same value as the combinatory default combinations
+            if (mode.id === defaultModeId) {
+              // Find a combinatory value with this default mode to use as the base
+              const combinatoryValue = newValuesByMode.find(vbm => 
+                vbm.modeIds.includes(defaultModeId) && vbm.modeIds.length > 1
+              );
+              
+              if (combinatoryValue) {
+                console.log('[handleToggleDimension] Creating default mode value from combinatory:', {
+                  modeId: mode.id,
+                  sourceValue: combinatoryValue.value,
+                  sourceValueType: typeof combinatoryValue.value,
+                  sourceActualValue: getActualValueString(combinatoryValue.value),
+                  sourceValueString: JSON.stringify(combinatoryValue.value)
+                });
+                
+                newValuesByMode.push({
+                  modeIds: [mode.id],
+                  value: combinatoryValue.value,
+                  platformOverrides: combinatoryValue.platformOverrides
+                });
+              } else {
+                // Fallback to a current value or default
+                const fallbackValue = currentValues.length > 0 ? currentValues[0].value : getDefaultTokenValue(prev.resolvedValueTypeId, { resolvedValueTypes });
+                console.log('[handleToggleDimension] Creating default mode value with fallback:', {
+                  modeId: mode.id,
+                  fallbackValue,
+                  fallbackValueType: typeof fallbackValue,
+                  fallbackActualValue: getActualValueString(fallbackValue),
+                  fallbackValueString: JSON.stringify(fallbackValue)
+                });
+                
+                newValuesByMode.push({
+                  modeIds: [mode.id],
+                  value: fallbackValue,
+                  platformOverrides: currentValues.length > 0 ? currentValues[0].platformOverrides : undefined
+                });
+              }
+            } else {
+              // For non-default modes, start with default value (will be empty with "Add value" button)
+              const defaultValue = getDefaultTokenValue(prev.resolvedValueTypeId, { resolvedValueTypes });
+              console.log('[handleToggleDimension] Creating non-default mode value:', {
+                modeId: mode.id,
+                defaultValue,
+                defaultValueType: typeof defaultValue,
+                defaultActualValue: getActualValueString(defaultValue),
+                defaultValueString: JSON.stringify(defaultValue)
+              });
+              
+              newValuesByMode.push({
+                modeIds: [mode.id],
+                value: defaultValue,
+                platformOverrides: undefined
+              });
+            }
+          }
+        });
+        
+        console.log('[handleToggleDimension] Final valuesByMode after adding dimension:', {
+          finalValuesByMode: newValuesByMode.map(vbm => ({
+            modeIds: vbm.modeIds,
+            value: vbm.value,
+            valueType: typeof vbm.value,
+            actualValue: getActualValueString(vbm.value),
+            valueString: JSON.stringify(vbm.value)
+          }))
+        });
+        
         return {
           ...prev,
           valuesByMode: newValuesByMode
         };
       });
-    } else {
-      const dim = dimensions.find(d => d.id === dimensionId);
-      if (!dim) return;
-      
-      newActiveDims = [...activeDimensionIds, dimensionId];
-      const defaultModeId = dim.defaultMode;
-      
-      setEditedToken((prev: ExtendedToken) => {
-        // First, restore any preserved values for this dimension
-        const preservedValues = preservedValuesByRemovedDimension.current[dimensionId] || {};
-        
-        // Create new combinations with the default mode
-        const newCombinations = prev.valuesByMode.flatMap(vbm => {
-          const combinations = [];
-          
-          // Check if we have a preserved value for this combination
-          const preservedKey = [...vbm.modeIds, defaultModeId].sort().join(',');
-          const preservedValue = preservedValues[preservedKey];
-          
-          if (preservedValue) {
-            // If we have a preserved value, use it
-            combinations.push({
-              modeIds: [...vbm.modeIds, defaultModeId].sort(),
-              value: preservedValue.value,
-              platformOverrides: preservedValue.platformOverrides
-            });
-          } else {
-            // Check if we have an original value from the initial token
-            const originalValue = originalTokenRef.current?.valuesByMode.find(ovbm => 
-              ovbm.modeIds.slice().sort().join(',') === [...vbm.modeIds, defaultModeId].sort().join(',')
-            );
-            
-            if (originalValue) {
-              // If we have an original value, use it
-              combinations.push({
-                modeIds: [...vbm.modeIds, defaultModeId].sort(),
-                value: originalValue.value,
-                platformOverrides: originalValue.platformOverrides
-              });
-            } else {
-              // Otherwise, use the current value
-              combinations.push({
-                modeIds: [...vbm.modeIds, defaultModeId].sort(),
-                value: vbm.value,
-                platformOverrides: vbm.platformOverrides
-              });
-            }
-          }
-          
-          // Find parent combinations and create new ones with the default mode
-          const parentCombinations = vbm.modeIds.map((_, index) => {
-            const parentModeIds = vbm.modeIds.filter((_, i) => i !== index);
-            const preservedKey = [...parentModeIds, defaultModeId].sort().join(',');
-            const preservedValue = preservedValues[preservedKey];
-            
-            if (preservedValue) {
-              // If we have a preserved value, use it
-              return {
-                modeIds: [...parentModeIds, defaultModeId].sort(),
-                value: preservedValue.value,
-                platformOverrides: preservedValue.platformOverrides
-              };
-            } else {
-              // Check if we have an original value from the initial token
-              const originalValue = originalTokenRef.current?.valuesByMode.find(ovbm => 
-                ovbm.modeIds.slice().sort().join(',') === [...parentModeIds, defaultModeId].sort().join(',')
-              );
-              
-              if (originalValue) {
-                // If we have an original value, use it
-                return {
-                  modeIds: [...parentModeIds, defaultModeId].sort(),
-                  value: originalValue.value,
-                  platformOverrides: originalValue.platformOverrides
-                };
-              } else {
-                // Otherwise, use the current value
-                return {
-                  modeIds: [...parentModeIds, defaultModeId].sort(),
-                  value: vbm.value,
-                  platformOverrides: vbm.platformOverrides
-                };
-              }
-            }
-          });
-          
-          return [...combinations, ...parentCombinations];
-        });
-
-        // Combine all values, removing duplicates
-        const uniqueValues = newCombinations.reduce((acc, curr) => {
-          const key = curr.modeIds.sort().join(',');
-          if (!acc[key]) {
-            acc[key] = curr;
-          }
-          return acc;
-        }, {} as Record<string, ValueByMode>);
-
-        return {
-          ...prev,
-          valuesByMode: Object.values(uniqueValues)
-        };
-      });
     }
+    
     setActiveDimensionIds(newActiveDims);
   };
+
+  // Helper to check if a value's modeIds are valid for the current active dimensions
+  const isValueActive = (modeIds: string[]): boolean => {
+    console.log('[isValueActive] Checking value:', {
+      modeIds,
+      activeDimensionIds,
+      dimensions: dimensions.map(d => ({ id: d.id, modes: d.modes.map(m => m.id) }))
+    });
+    
+    if (activeDimensionIds.length === 0) {
+      const result = modeIds.length === 0;
+      console.log('[isValueActive] No active dimensions, result:', result);
+      return result;
+    }
+    const activeModeIds = dimensions
+      .filter(d => activeDimensionIds.includes(d.id))
+      .flatMap(d => d.modes.map(m => m.id));
+    const result = modeIds.every(id => activeModeIds.includes(id)) &&
+      modeIds.length === activeDimensionIds.length;
+    
+    console.log('[isValueActive] Result:', {
+      activeModeIds,
+      modeIds,
+      everyIdActive: modeIds.every(id => activeModeIds.includes(id)),
+      lengthMatch: modeIds.length === activeDimensionIds.length,
+      finalResult: result
+    });
+    
+    return result;
+  };
+
+  // When adding a value, always add to the superset
+  const handleAddValue = (modeIds: string[], value: TokenValue) => {
+    setEditedToken((prev: ExtendedToken) => {
+      // If a value for this modeIds already exists, replace it
+      const exists = prev.valuesByMode.some(vbm => vbm.modeIds.slice().sort().join(',') === modeIds.slice().sort().join(','));
+      let newValuesByMode;
+      if (exists) {
+        newValuesByMode = prev.valuesByMode.map(vbm =>
+          vbm.modeIds.slice().sort().join(',') === modeIds.slice().sort().join(',')
+            ? { ...vbm, value }
+            : vbm
+        );
+      } else {
+        newValuesByMode = [...prev.valuesByMode, { modeIds, value }];
+      }
+      return { ...prev, valuesByMode: newValuesByMode };
+    });
+  };
+
+  // When deleting a value, only remove from the superset if it matches the current active dimensions
+  const handleDeleteValue = (modeIds: string[]) => {
+    setEditedToken((prev: ExtendedToken) => ({
+      ...prev,
+      valuesByMode: prev.valuesByMode.filter(vbm => vbm.modeIds.slice().sort().join(',') !== modeIds.slice().sort().join(','))
+    }));
+  };
+
+  // Filter values for display based on active dimensions
+  const displayedValuesByMode = editedToken.valuesByMode.filter(vbm => isValueActive(vbm.modeIds));
+
+  console.log('[TokenEditorDialog] Displayed values calculation:', {
+    allValuesByMode: editedToken.valuesByMode.map(vbm => ({
+      modeIds: vbm.modeIds,
+      value: vbm.value,
+      valueType: typeof vbm.value,
+      actualValue: getActualValueString(vbm.value),
+      valueString: JSON.stringify(vbm.value),
+      isActive: isValueActive(vbm.modeIds)
+    })),
+    displayedValuesByMode: displayedValuesByMode.map(vbm => ({
+      modeIds: vbm.modeIds,
+      value: vbm.value,
+      valueType: typeof vbm.value,
+      actualValue: getActualValueString(vbm.value),
+      valueString: JSON.stringify(vbm.value)
+    }))
+  });
 
   // Update getValueEditor to use schema-driven value handling
   const getValueEditor = (
@@ -570,9 +685,26 @@ export function TokenEditorDialog({
     isOverride?: boolean,
     onChange?: (newValue: TokenValue) => void
   ): React.ReactNode => {
+    console.log('[getValueEditor] Processing value:', {
+      value,
+      valueType: typeof value,
+      actualValue: typeof value === 'string' ? value : getActualValueString(value),
+      valueString: JSON.stringify(value),
+      modeIds,
+      isOverride
+    });
+    
     if (typeof value === 'string') {
+      console.log('[getValueEditor] Value is string, displaying as text:', value);
       return <Text fontSize="sm" color="gray.500">{value}</Text>;
     }
+    
+    console.log('[getValueEditor] Value is object, using TokenValuePicker:', {
+      value,
+      valueType: typeof value,
+      actualValue: getActualValueString(value),
+      valueKeys: value ? Object.keys(value) : 'null/undefined'
+    });
     
     return (
       <TokenValuePicker
@@ -583,6 +715,13 @@ export function TokenEditorDialog({
         resolvedValueTypeId={editedToken.resolvedValueTypeId}
         resolvedValueTypes={resolvedValueTypes}
         onChange={(newValue: TokenValue) => {
+          console.log('[getValueEditor] TokenValuePicker onChange:', {
+            newValue,
+            newValueType: typeof newValue,
+            newActualValue: getActualValueString(newValue),
+            newValueString: JSON.stringify(newValue)
+          });
+          
           if (onChange) {
             onChange(newValue);
           } else {
@@ -651,7 +790,6 @@ export function TokenEditorDialog({
     );
   };
 
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [collectionErrors, setCollectionErrors] = useState<string[]>([]);
 
   // Add effect to validate collection compatibility when tokenCollectionId or resolvedValueTypeId changes
@@ -683,11 +821,10 @@ export function TokenEditorDialog({
     return compatibleCollections;
   };
 
-  // Update handleSave to use schema validation
+  // On save, filter valuesByMode to only include those matching the current active dimensions/modes
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('[TokenEditorDialog] handleSave called with editedToken:', editedToken);
-    setFormErrors({});
 
     // Validate collection compatibility only if a collection is selected
     if (editedToken.tokenCollectionId) {
@@ -715,12 +852,15 @@ export function TokenEditorDialog({
     const finalToken = editedToken.tokenCollectionId 
       ? editedToken 
       : (() => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { tokenCollectionId, ...rest } = editedToken;
           return rest;
         })();
 
+    const filteredValuesByMode = editedToken.valuesByMode.filter(vbm => isValueActive(vbm.modeIds));
     const updatedToken = {
       ...finalToken,
+      valuesByMode: filteredValuesByMode,
       taxonomies: taxonomyEdits,
       codeSyntax: CodeSyntaxService.generateAllCodeSyntaxes(
         finalToken,
@@ -731,18 +871,16 @@ export function TokenEditorDialog({
     // Debug validation variables after code syntax generation
     const codeSyntaxArray = ensureCodeSyntaxArrayFormat(updatedToken.codeSyntax);
     const hasTaxonomyError = codeSyntaxArray.some(name => name === undefined);
-    const hasRequiredFieldError = !updatedToken.displayName || !updatedToken.resolvedValueTypeId;
     
     console.log('[TokenEditorDialog] Validation debug after code syntax generation:', {
       codeSyntaxArray,
       hasTaxonomyError,
-      hasRequiredFieldError,
       displayName: updatedToken.displayName,
       resolvedValueTypeId: updatedToken.resolvedValueTypeId
     });
 
     // Check for validation errors after code syntax generation
-    if (hasRequiredFieldError) {
+    if (hasTaxonomyError) {
       console.log('[TokenEditorDialog] Required field validation failed');
       return;
     }
@@ -775,7 +913,6 @@ export function TokenEditorDialog({
   // Validation: required fields and taxonomy error
   const codeSyntaxArray = ensureCodeSyntaxArrayFormat(editedToken.codeSyntax);
   const hasTaxonomyError = codeSyntaxArray.some(name => name === undefined);
-  const hasRequiredFieldError = !editedToken.displayName || !editedToken.resolvedValueTypeId;
 
   // Check for duplicate taxonomy assignments
   function taxonomySet(arr: TokenTaxonomyRef[]) {
@@ -790,8 +927,6 @@ export function TokenEditorDialog({
     Array.from(currentTaxonomySet).every(pair => taxonomySet(t.taxonomies).has(pair))
   );
   const hasDuplicateTaxonomy = !!duplicateTaxonomyToken;
-
-  const hasError = hasTaxonomyError || hasRequiredFieldError || hasDuplicateTaxonomy;
 
   const handleStatusChange = (newStatus: TokenStatus) => {
     setEditedToken((prev: ExtendedToken) => ({
@@ -858,10 +993,6 @@ export function TokenEditorDialog({
     return references;
   };
 
-  const handleDeleteClick = () => {
-    setIsDeleteDialogOpen(true);
-  };
-
   const handleDeleteConfirm = () => {
     onDeleteToken(token.id);
     setIsDeleteDialogOpen(false);
@@ -870,6 +1001,14 @@ export function TokenEditorDialog({
 
   const references = findTokenReferences();
   const hasReferences = Object.values(references).some(arr => arr.length > 0);
+
+  // Clear preserved values and original token ref when dialog opens for a new token
+  useEffect(() => {
+    if (open) {
+      preservedValuesByRemovedDimension.current = {};
+      originalTokenRef.current = null;
+    }
+  }, [open, token.id]);
 
   return (
     <>
@@ -968,6 +1107,7 @@ export function TokenEditorDialog({
                           const newValue = e.target.value;
                           setEditedToken(prev => {
                             if (!newValue) {
+                              // eslint-disable-next-line @typescript-eslint/no-unused-vars
                               const { tokenCollectionId, ...rest } = prev;
                               return rest as ExtendedToken;
                             }
@@ -1198,29 +1338,14 @@ export function TokenEditorDialog({
                     })()
                   ) : (
                     <ValueByModeTable
-                      valuesByMode={editedToken.valuesByMode}
+                      valuesByMode={displayedValuesByMode}
                       modes={modes}
                       dimensions={dimensions.filter(d => activeDimensionIds.includes(d.id))}
                       getValueEditor={getValueEditor}
-                      onDeleteValue={(modeIds: string[]) => {
-                        setEditedToken((prev: ExtendedToken) => ({
-                          ...prev,
-                          valuesByMode: prev.valuesByMode.filter(vbm => 
-                            vbm.modeIds.slice().sort().join(',') !== modeIds.slice().sort().join(',')
-                          )
-                        }));
-                      }}
+                      onDeleteValue={handleDeleteValue}
                       resolvedValueTypeId={editedToken.resolvedValueTypeId}
                       resolvedValueTypes={resolvedValueTypes}
-                      onAddValue={(modeIds: string[], value: TokenValue) => {
-                        setEditedToken((prev: ExtendedToken) => ({
-                          ...prev,
-                          valuesByMode: [
-                            ...prev.valuesByMode,
-                            { modeIds, value }
-                          ]
-                        }));
-                      }}
+                      onAddValue={handleAddValue}
                       isDisabled={token.generatedByAlgorithm}
                     />
                   )}

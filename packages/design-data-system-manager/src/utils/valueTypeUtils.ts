@@ -1,6 +1,4 @@
-import { ResolvedValueType } from '@token-model/data-model';
-
-type TokenValue = string | number | { value: string | number } | { tokenId: string };
+import { ResolvedValueType, TokenValue } from '@token-model/data-model';
 
 /**
  * Get the type of a resolved value type from its ID
@@ -107,10 +105,26 @@ export function formatValueForDisplay(
     return String(value);
   }
 
+  // Extract the actual value from TokenValue
+  let actualValue: string | number;
+  if (typeof value === 'string') {
+    actualValue = value;
+  } else if (typeof value === 'object' && value) {
+    if ('value' in value) {
+      actualValue = value.value;
+    } else if ('tokenId' in value) {
+      return `alias:${value.tokenId}`;
+    } else {
+      return String(value);
+    }
+  } else {
+    return String(value);
+  }
+
   // Use type for formatting
   switch (valueType.type) {
     case 'COLOR':
-      return typeof value === 'string' ? value : String(value);
+      return typeof actualValue === 'string' ? actualValue : String(actualValue);
     case 'DIMENSION':
     case 'SPACING':
     case 'FONT_SIZE':
@@ -120,13 +134,13 @@ export function formatValueForDisplay(
     case 'BLUR':
     case 'SPREAD':
     case 'RADIUS':
-      return `${typeof value === 'number' ? value : Number(value)}px`;
+      return `${typeof actualValue === 'number' ? actualValue : Number(actualValue)}px`;
     case 'FONT_WEIGHT':
-      return typeof value === 'number' ? value.toString() : String(value);
+      return typeof actualValue === 'number' ? actualValue.toString() : String(actualValue);
     case 'FONT_FAMILY':
     case 'CUBIC_BEZIER':
-      return typeof value === 'string' ? value : String(value);
+      return typeof actualValue === 'string' ? actualValue : String(actualValue);
     default:
-      return typeof value === 'string' ? value : String(value);
+      return typeof actualValue === 'string' ? actualValue : String(actualValue);
   }
 } 
