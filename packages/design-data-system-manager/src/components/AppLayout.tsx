@@ -216,6 +216,19 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     }
   }, [getCurrentData, isNewDataSource]);
 
+  // Function to reset baseline for new data source
+  const resetBaselineForNewSource = useCallback(() => {
+    const currentDataSnapshot = getCurrentData();
+    setCurrentData(currentDataSnapshot);
+    setBaselineData(currentDataSnapshot);
+    baselineRef.current = currentDataSnapshot;
+    lastSourceDataRef.current = currentDataSnapshot;
+    
+    // Reset change tracking when baseline is established
+    setHasChanges(false);
+    setChangeCount(0);
+  }, [getCurrentData]);
+
   // Initialize on mount only
   useEffect(() => {
     checkForChanges();
@@ -224,12 +237,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   // Listen for custom data change events
   useEffect(() => {
     const handleDataChange = () => {
-      checkForChanges();
+      // Check if this is a new data source by comparing with last known source
+      const currentDataSnapshot = getCurrentData();
+      if (isNewDataSource(currentDataSnapshot, lastSourceDataRef.current)) {
+        // New data source - reset baseline
+        resetBaselineForNewSource();
+      } else {
+        // Same data source - check for changes
+        checkForChanges();
+      }
     };
 
     window.addEventListener(DATA_CHANGE_EVENT, handleDataChange);
     return () => window.removeEventListener(DATA_CHANGE_EVENT, handleDataChange);
-  }, [checkForChanges]);
+  }, [checkForChanges, resetBaselineForNewSource, getCurrentData, isNewDataSource]);
 
   // Listen for storage events (when localStorage changes in other tabs)
   useEffect(() => {

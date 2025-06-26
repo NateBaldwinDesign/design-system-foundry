@@ -307,6 +307,21 @@ const App = () => {
         versionHistory: normalizedVersionHistory
       });
       
+      // Reset change tracking baseline for new data source
+      const newBaselineData = {
+        collections: normalizedCollections,
+        modes: allModes,
+        dimensions: normalizedDimensions,
+        resolvedValueTypes: normalizedResolvedValueTypes,
+        platforms: normalizedPlatforms,
+        themes: normalizedThemes,
+        tokens: normalizedTokens,
+        taxonomies: normalizedTaxonomies,
+        algorithms: loadedAlgorithms || [],
+        namingRules: normalizedNamingRules,
+      };
+      setBaselineData(newBaselineData);
+      
       // Dispatch event to notify change detection that new data has been loaded
       window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
     } catch (error) {
@@ -352,6 +367,25 @@ const App = () => {
     setTaxonomies(storedTaxonomies);
     setAlgorithms(storedAlgorithms);
     setTaxonomyOrder(storedNamingRules.taxonomyOrder);
+
+    // Reset change tracking baseline for new data source
+    const newBaselineData = {
+      collections: storedCollections,
+      modes: storedModes,
+      dimensions: storedDimensions,
+      resolvedValueTypes: storedResolvedValueTypes,
+      platforms: storedPlatforms,
+      themes: storedThemes,
+      tokens: storedTokens,
+      taxonomies: storedTaxonomies,
+      algorithms: storedAlgorithms,
+      namingRules: storedNamingRules,
+    };
+    setBaselineData(newBaselineData);
+
+    // Dispatch event to notify change detection that new data has been loaded
+    // This will reset the change tracking baseline in AppLayout
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
   // Expose refresh function globally for GitHub components to call

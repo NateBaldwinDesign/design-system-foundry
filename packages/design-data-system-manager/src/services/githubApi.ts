@@ -1,6 +1,7 @@
 import { GITHUB_CONFIG } from '../config/github';
 import type { GitHubRepo, GitHubBranch, GitHubFile, GitHubPR, GitHubOrganization } from '../config/github';
 import { GitHubAuthService } from './githubAuth';
+import { GitHubCacheService } from './githubCache';
 
 export interface ValidFile {
   path: string;
@@ -19,9 +20,17 @@ interface CreateFileBody {
 
 export class GitHubApiService {
   /**
-   * Get all organizations for the authenticated user (including personal account)
+   * Get all organizations for the authenticated user
    */
   static async getOrganizations(): Promise<GitHubOrganization[]> {
+    // Check cache first
+    const cachedOrgs = GitHubCacheService.getOrganizations();
+    if (cachedOrgs) {
+      console.log('[GitHubApiService] Using cached organizations');
+      return cachedOrgs;
+    }
+
+    console.log('[GitHubApiService] Fetching organizations from GitHub API');
     const accessToken = await GitHubAuthService.getValidAccessToken();
     
     // Get user info first
@@ -33,13 +42,13 @@ export class GitHubApiService {
     });
     
     if (!userResponse.ok) {
-      throw new Error(`Failed to fetch user info: ${userResponse.statusText}`);
+      throw new Error(`Failed to fetch user: ${userResponse.statusText}`);
     }
     
     const user = await userResponse.json();
     
-    // Get user's organizations
-    const orgsResponse = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/user/orgs?per_page=100`, {
+    // Get organizations
+    const orgsResponse = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/user/orgs`, {
       headers: {
         'Authorization': `token ${accessToken}`,
         'Accept': 'application/vnd.github.v3+json',
@@ -61,13 +70,26 @@ export class GitHubApiService {
       type: 'User',
     };
     
-    return [personalOrg, ...orgs];
+    const allOrgs = [personalOrg, ...orgs];
+    
+    // Cache the organizations
+    GitHubCacheService.setOrganizations(allOrgs);
+    
+    return allOrgs;
   }
 
   /**
    * Get all repositories for the authenticated user
    */
   static async getRepositories(): Promise<GitHubRepo[]> {
+    // Check cache first
+    const cachedRepos = GitHubCacheService.getRepositories();
+    if (cachedRepos) {
+      console.log('[GitHubApiService] Using cached repositories');
+      return cachedRepos;
+    }
+
+    console.log('[GitHubApiService] Fetching repositories from GitHub API');
     const accessToken = await GitHubAuthService.getValidAccessToken();
     
     let allRepos: GitHubRepo[] = [];
@@ -102,6 +124,9 @@ export class GitHubApiService {
       }
     }
     
+    // Cache the repositories
+    GitHubCacheService.setRepositories(allRepos);
+    
     return allRepos;
   }
   
@@ -109,6 +134,14 @@ export class GitHubApiService {
    * Get all branches for a repository
    */
   static async getBranches(repo: string): Promise<GitHubBranch[]> {
+    // Check cache first
+    const cachedBranches = GitHubCacheService.getBranches(repo);
+    if (cachedBranches) {
+      console.log(`[GitHubApiService] Using cached branches for ${repo}`);
+      return cachedBranches;
+    }
+
+    console.log(`[GitHubApiService] Fetching branches for ${repo} from GitHub API`);
     const accessToken = await GitHubAuthService.getValidAccessToken();
     
     const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}/branches`, {
@@ -122,7 +155,12 @@ export class GitHubApiService {
       throw new Error(`Failed to fetch branches: ${response.statusText}`);
     }
     
-    return response.json();
+    const branches = await response.json();
+    
+    // Cache the branches
+    GitHubCacheService.setBranches(repo, branches);
+    
+    return branches;
   }
   
   /**
