@@ -1,7 +1,9 @@
 export const GITHUB_CONFIG = {
   clientId: 'Ov23li4XeOJKztYd3mkd',
   clientSecret: '656ec47fd3d79e8d5e22af6e8b75322032fa3b92',
-  redirectUri: 'http://localhost:4001/auth/github/callback',
+  redirectUri: process.env.NODE_ENV === 'production' 
+    ? 'https://designsystemfoundry.com/auth/github/callback'
+    : 'http://localhost:4001/auth/github/callback',
   scope: 'repo', // Full repository access
   apiBaseUrl: 'https://api.github.com',
   authUrl: 'https://github.com/login/oauth/authorize',

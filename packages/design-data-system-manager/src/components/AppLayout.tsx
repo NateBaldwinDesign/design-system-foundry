@@ -4,6 +4,7 @@ import { AppSidebar } from './AppSidebar';
 import { Header } from './Header';
 import { StorageService } from '../services/storage';
 import type { GitHubUser } from '../config/github';
+import type { ViewId } from '../hooks/useViewState';
 
 interface DataSourceOption {
   label: string;
@@ -28,6 +29,8 @@ interface AppLayoutProps {
   onGitHubConnect?: () => Promise<void>;
   onGitHubDisconnect?: () => void;
   onFileSelected?: (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => void;
+  currentView: ViewId;
+  onNavigate: (viewId: ViewId) => void;
   children: React.ReactNode;
 }
 
@@ -46,6 +49,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onGitHubConnect,
   onGitHubDisconnect,
   onFileSelected,
+  currentView,
+  onNavigate,
   children,
 }: AppLayoutProps) => {
   const { colorMode } = useColorMode();
@@ -117,23 +122,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     return false;
   }, []);
 
-  // Establish baseline and update current data
-  const establishBaseline = useCallback(() => {
-    const currentDataSnapshot = getCurrentData();
-    setCurrentData(currentDataSnapshot);
-    setBaselineData(currentDataSnapshot);
-    baselineRef.current = currentDataSnapshot;
-    isInitializedRef.current = true;
-    
-    // Reset change tracking when baseline is established
-    setHasChanges(false);
-    setChangeCount(0);
-  }, [getCurrentData]);
-
   // Change detection function
   const checkForChanges = useCallback(() => {
     if (!isInitializedRef.current) {
-      establishBaseline();
+      // Initialize on first call
+      const currentDataSnapshot = getCurrentData();
+      setCurrentData(currentDataSnapshot);
+      setBaselineData(currentDataSnapshot);
+      baselineRef.current = currentDataSnapshot;
+      isInitializedRef.current = true;
+      lastSourceDataRef.current = currentDataSnapshot;
+      
+      // Reset change tracking when baseline is established
+      setHasChanges(false);
+      setChangeCount(0);
       return;
     }
 
@@ -143,8 +145,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     // Check if this is a new data source
     if (isNewDataSource(currentDataSnapshot, lastSourceDataRef.current)) {
       // Reset baseline for new data source
-      establishBaseline();
+      setCurrentData(currentDataSnapshot);
+      setBaselineData(currentDataSnapshot);
+      baselineRef.current = currentDataSnapshot;
       lastSourceDataRef.current = currentDataSnapshot;
+      
+      // Reset change tracking when baseline is established
+      setHasChanges(false);
+      setChangeCount(0);
       return;
     }
 
@@ -206,13 +214,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       setHasChanges(false);
       setChangeCount(0);
     }
-  }, [getCurrentData, isNewDataSource, establishBaseline]);
+  }, [getCurrentData, isNewDataSource]);
 
   // Initialize on mount only
   useEffect(() => {
-    establishBaseline();
-    lastSourceDataRef.current = getCurrentData();
-  }, [establishBaseline, getCurrentData]);
+    checkForChanges();
+  }, []); // Empty dependency array - only run once on mount
 
   // Listen for custom data change events
   useEffect(() => {
@@ -236,7 +243,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
 
   return (
     <Flex h="100vh" overflow="hidden">
-      <AppSidebar />
+      <AppSidebar currentView={currentView} onNavigate={onNavigate} />
       <Flex flex="1" direction="column" overflow="hidden">
         <Header 
           hasChanges={hasChanges} 

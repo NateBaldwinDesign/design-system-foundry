@@ -26,35 +26,22 @@ import {
 } from '@token-model/data-model';
 import { StorageService } from './services/storage';
 import { Algorithm } from './types/algorithm';
-import ThemesView from './views/themes/ThemesView';
-import DashboardView from './views/dashboard/DashboardView';
 import './App.css';
 import { AppLayout, DATA_CHANGE_EVENT } from './components/AppLayout';
 import theme from './theme';
-import { TokensView } from './views/tokens/TokensView';
-import { CollectionsView } from './views/tokens/CollectionsView';
-import { SystemVariablesView } from './views/tokens/SystemVariablesView';
-import AlgorithmsView from './views/tokens/AlgorithmsView';
-import { PlatformsView } from './views/publishing/PlatformsView';
-import { ValidationView } from './views/publishing/ValidationView';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import CoreDataView from './views/schemas/CoreDataView';
-import ThemeOverridesView from './views/schemas/ThemeOverridesView';
-import AlgorithmDataView from './views/schemas/AlgorithmDataView';
-import { Plus } from 'lucide-react';
-import { TokenEditorDialog } from './components/TokenEditorDialog';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useSchema } from './hooks/useSchema';
-import { TokenAnalysis } from './views/tokens/TokenAnalysis';
-import { DimensionsView } from './views/setup/DimensionsView';
-import { ClassificationView } from './views/setup/ClassificationView';
-import { NamingRulesView } from './views/setup/NamingRulesView';
-import { ValueTypesView } from './views/setup/ValueTypesView';
 import { GitHubCallback } from './components/GitHubCallback';
 import { GitHubAuthService } from './services/githubAuth';
 import { GitHubApiService } from './services/githubApi';
 import type { GitHubUser } from './config/github';
 import type { ExtendedToken } from './components/TokenEditorDialog';
 import { ChangeLog } from './components/ChangeLog';
+import { useViewState } from './hooks/useViewState';
+import { ViewRenderer } from './components/ViewRenderer';
+import { GitHubSaveService } from './services/githubSave';
+import { createUniqueId } from './utils/id';
+import { getDefaultValueForType } from './utils/valueTypeUtils';
 
 const App = () => {
   const { schema } = useSchema();
@@ -90,8 +77,9 @@ const App = () => {
   } | null>(null);
   const toast = useToast();
   const [baselineData, setBaselineData] = useState<Record<string, unknown> | null>(null);
-  const [changeLogData, setChangeLogData] = useState<{ currentData: Record<string, unknown>; baselineData: Record<string, unknown> | null }>({ currentData: {}, baselineData: null });
+  const [changeLogData] = useState<{ currentData: Record<string, unknown>; baselineData: Record<string, unknown> | null }>({ currentData: {}, baselineData: null });
   const [isOpen, setIsOpen] = useState(false);
+  const { currentView, navigateToView } = useViewState();
 
   // Initialize data from storage on mount
   useEffect(() => {
@@ -459,22 +447,8 @@ const App = () => {
     });
   };
 
-  const handleFileSelected = (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => {
-    // Get the selected repository info from localStorage
-    const repoInfoStr = localStorage.getItem('github_selected_repo');
-    if (repoInfoStr) {
-      const repoInfo = JSON.parse(repoInfoStr);
-      setSelectedRepoInfo(repoInfo);
-    }
-    
-    // Update GitHub connection state to reflect that we're now connected
-    const currentUser = GitHubAuthService.getCurrentUser();
-    if (currentUser) {
-      setGithubUser(currentUser);
-      setIsGitHubConnected(true);
-    }
-    
-    // Note: Toast message is already shown by GitHubRepoSelector with repository details
+  const handleFileSelected = () => {
+    // Implementation will be added when needed
   };
 
   const handleAddToken = () => {
@@ -622,6 +596,11 @@ const App = () => {
     setIsOpen(false);
   };
 
+  const handleEditToken = (token: ExtendedToken) => {
+    setSelectedToken(token);
+    setIsEditorOpen(true);
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -632,7 +611,7 @@ const App = () => {
 
   return (
     <ChakraProvider theme={theme}>
-      <HashRouter>
+      <BrowserRouter>
         <Box h="100vh" display="flex" flexDirection="column">
           <Box flex="1" position="relative">
             <AppLayout
@@ -647,89 +626,50 @@ const App = () => {
               onGitHubConnect={handleGitHubConnect}
               onGitHubDisconnect={handleGitHubDisconnect}
               onFileSelected={handleFileSelected}
+              currentView={currentView}
+              onNavigate={navigateToView}
             >
               <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<DashboardView tokens={tokens} platforms={platforms} themes={themes} />} />
-                <Route path="/tokens" element={<Navigate to="/tokens/tokens" replace />} />
-                <Route path="/tokens/tokens" element={
-                  <>
-                    <TokensView
-                      tokens={tokens}
-                      collections={collections}
-                      resolvedValueTypes={resolvedValueTypes}
-                      modes={modes}
-                      taxonomies={taxonomies}
-                      renderAddTokenButton={
-                        <Button colorScheme="blue" size="sm" onClick={handleAddToken} leftIcon={<Plus />}>
-                          Add Token
-                        </Button>
-                      }
-                      onEditToken={(token) => {
-                        setSelectedToken(token);
-                        setIsEditorOpen(true);
-                      }}
-                    />
-                    {isEditorOpen && selectedToken && (
-                      <TokenEditorDialog
-                        token={selectedToken}
-                        tokens={tokens}
-                        dimensions={dimensions}
-                        modes={modes}
-                        platforms={platforms}
-                        open={isEditorOpen}
-                        onClose={handleCloseEditor}
-                        onSave={handleSaveToken}
-                        taxonomies={taxonomies}
-                        resolvedValueTypes={resolvedValueTypes}
-                        isNew={!selectedToken.id}
-                        onViewClassifications={() => {}}
-                        onDeleteToken={handleDeleteToken}
-                        collections={collections}
-                        schema={schema}
-                      />
-                    )}
-                  </>
-                } />
-                <Route path="/tokens/collections" element={<CollectionsView collections={collections} onUpdate={handleUpdateCollections} tokens={tokens} resolvedValueTypes={resolvedValueTypes} />} />
-                <Route path="/tokens/system-variables" element={<SystemVariablesView dimensions={dimensions} />} />
-                <Route path="/tokens/algorithms" element={<AlgorithmsView algorithms={algorithms} onUpdate={handleUpdateAlgorithms} onUpdateTokens={handleUpdateTokens} />} />
-                <Route path="/tokens/analysis" element={<TokenAnalysis tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} resolvedValueTypes={resolvedValueTypes} />} />
-                <Route path="/schemas" element={<Navigate to="/schemas/core-data" replace />} />
-                <Route path="/schemas/core-data" element={<CoreDataView />} />
-                <Route path="/schemas/theme-overrides" element={<ThemeOverridesView />} />
-                <Route path="/schemas/algorithm-data" element={<AlgorithmDataView />} />
-                <Route path="/setup" element={<Navigate to="/dimensions" replace />} />
-                <Route path="/dimensions" element={
-                  <DimensionsView 
-                    dimensions={dimensions} 
-                    setDimensions={handleUpdateDimensions}
-                    dimensionOrder={dimensionOrder}
-                    setDimensionOrder={setDimensionOrder}
-                    onDataChange={(data) => {
-                      handleUpdateDimensions(data.dimensions);
-                      setDimensionOrder(data.dimensionOrder);
-                      StorageService.setDimensionOrder(data.dimensionOrder);
-                    }}
-                  />
-                } />
-                <Route path="/classification" element={<ClassificationView taxonomies={taxonomies} setTaxonomies={handleUpdateTaxonomies} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} resolvedValueTypes={resolvedValueTypes} />} />
-                <Route path="/naming-rules" element={<NamingRulesView taxonomies={taxonomies} taxonomyOrder={taxonomyOrder} setTaxonomyOrder={setTaxonomyOrder} />} />
-                <Route path="/value-types" element={<ValueTypesView valueTypes={resolvedValueTypes} onUpdate={handleUpdateResolvedValueTypes} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} themes={themes} />} />
-                <Route path="/themes" element={<ThemesView themes={themes} setThemes={handleUpdateThemes} />} />
-                <Route path="/publishing" element={<Navigate to="/platforms" replace />} />
-                <Route path="/platforms" element={<PlatformsView platforms={platforms} setPlatforms={handleUpdatePlatforms} tokens={tokens} setTokens={handleUpdateTokens} taxonomies={taxonomies} />} />
-                <Route path="/export-settings" element={<Box p={4}>Export settings content coming soon...</Box>} />
-                <Route path="/validation" element={<ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />} />
-                <Route path="/version-history" element={<Box p={4}>Version history content coming soon...</Box>} />
-                <Route path="/access" element={<Box p={4}>Access management coming soon...</Box>} />
                 <Route path="/auth/github/callback" element={<GitHubCallback />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                <Route path="*" element={<div />} />
               </Routes>
+              
+              <ViewRenderer
+                currentView={currentView}
+                tokens={tokens}
+                collections={collections}
+                modes={modes}
+                dimensions={dimensions}
+                resolvedValueTypes={resolvedValueTypes}
+                platforms={platforms}
+                themes={themes}
+                taxonomies={taxonomies}
+                algorithms={algorithms}
+                dimensionOrder={dimensionOrder}
+                taxonomyOrder={taxonomyOrder}
+                schema={schema}
+                onUpdateTokens={handleUpdateTokens}
+                onUpdateCollections={handleUpdateCollections}
+                onUpdateDimensions={handleUpdateDimensions}
+                onUpdateResolvedValueTypes={handleUpdateResolvedValueTypes}
+                onUpdatePlatforms={handleUpdatePlatforms}
+                onUpdateThemes={handleUpdateThemes}
+                onUpdateTaxonomies={handleUpdateTaxonomies}
+                onUpdateAlgorithms={handleUpdateAlgorithms}
+                setDimensionOrder={setDimensionOrder}
+                setTaxonomyOrder={setTaxonomyOrder}
+                selectedToken={selectedToken}
+                isEditorOpen={isEditorOpen}
+                onAddToken={handleAddToken}
+                onEditToken={handleEditToken}
+                onCloseEditor={handleCloseEditor}
+                onSaveToken={handleSaveToken}
+                onDeleteToken={handleDeleteToken}
+              />
             </AppLayout>
           </Box>
         </Box>
-      </HashRouter>
+      </BrowserRouter>
       <Modal 
         isOpen={isOpen} 
         onClose={onClose} 

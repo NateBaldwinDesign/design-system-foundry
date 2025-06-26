@@ -27,77 +27,76 @@ import {
   ChartNetwork,
   Blend
 } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
 import Logo from './Logo';
 import TokenIcon from '../icons/TokenIcon';
+import type { ViewId } from '../hooks/useViewState';
 
 interface NavItem {
-  id: string;
+  id: ViewId;
   label: string;
   icon?: React.ElementType;
-  route?: string;
   children?: NavItem[];
 }
 
 interface AppSidebarProps {
-  // Data source control props removed - now handled in Header
+  currentView: ViewId;
+  onNavigate: (viewId: ViewId) => void;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, route: '/dashboard' },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   {
     id: 'tokens',
     label: 'Tokens',
     children: [
-      { id: 'tokens', label: 'Tokens', icon: TokenIcon, route: '/tokens/tokens' },
-      { id: 'collections', label: 'Collections', icon: Folders, route: '/tokens/collections' },
-      { id: 'system-variables', label: 'System Variables', icon: Blend, route: '/tokens/system-variables' },
-      { id: 'algorithms', label: 'Algorithms', icon: SquareFunction, route: '/tokens/algorithms' },
-      { id: 'analysis', label: 'Analysis', icon: ChartNetwork, route: '/tokens/analysis' },
+      { id: 'tokens', label: 'Tokens', icon: TokenIcon },
+      { id: 'collections', label: 'Collections', icon: Folders },
+      { id: 'system-variables', label: 'System Variables', icon: Blend },
+      { id: 'algorithms', label: 'Algorithms', icon: SquareFunction },
+      { id: 'analysis', label: 'Analysis', icon: ChartNetwork },
     ],
   },
   {
-    id: 'setup',
+    id: 'dimensions',
     label: 'Setup',
     children: [
-      { id: 'dimensions', label: 'Dimensions', icon: SquareStack, route: '/dimensions' },
-      { id: 'classification', label: 'Classification', icon: Tag, route: '/classification' },
-      { id: 'naming-rules', label: 'Naming Rules', icon: ListOrdered, route: '/naming-rules' },
-      { id: 'value-types', label: 'Value Types', icon: PencilRuler, route: '/value-types' },
+      { id: 'dimensions', label: 'Dimensions', icon: SquareStack },
+      { id: 'classification', label: 'Classification', icon: Tag },
+      { id: 'naming-rules', label: 'Naming Rules', icon: ListOrdered },
+      { id: 'value-types', label: 'Value Types', icon: PencilRuler },
     ],
   },
-  { id: 'themes', label: 'Themes', icon: Palette, route: '/themes' },
+  { id: 'themes', label: 'Themes', icon: Palette },
   {
-    id: 'publishing',
+    id: 'platforms',
     label: 'Publishing',
     children: [
-      { id: 'platforms', label: 'Platforms', icon: MonitorSmartphone, route: '/platforms' },
-      { id: 'export-settings', label: 'Export Settings', icon: Settings, route: '/export-settings' },
-      { id: 'validation', label: 'Validation', icon: CircleCheckBig, route: '/validation' },
-      { id: 'version-history', label: 'Version History', icon: History, route: '/version-history' },
+      { id: 'platforms', label: 'Platforms', icon: MonitorSmartphone },
+      { id: 'export-settings', label: 'Export Settings', icon: Settings },
+      { id: 'validation', label: 'Validation', icon: CircleCheckBig },
+      { id: 'version-history', label: 'Version History', icon: History },
     ],
   },
-  { id: 'access', label: 'Access', icon: Users, route: '/access' },
+  { id: 'access', label: 'Access', icon: Users },
   {
-    id: 'schemas',
+    id: 'core-data',
     label: 'Schemas',
     children: [
-      { id: 'core-data', label: 'Core Data', icon: FileCode, route: '/schemas/core-data' },
-      { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode, route: '/schemas/theme-overrides' },
-      { id: 'algorithm-data', label: 'Algorithm Data', icon: FileCode, route: '/schemas/algorithm-data' },
+      { id: 'core-data', label: 'Core Data', icon: FileCode },
+      { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode },
+      { id: 'algorithm-data', label: 'Algorithm Data', icon: FileCode },
     ],
   },
 ];
 
-export const AppSidebar: React.FC<AppSidebarProps> = () => {
+export const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, onNavigate }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { colorMode } = useColorMode();
-  const location = useLocation();
   const bgColor = colorMode === 'dark' ? 'gray.800' : 'white';
   const borderColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
 
   const renderNavItem = (item: NavItem, isChild: boolean = false) => {
-    const isActive = location.pathname === item.route;
+    const isActive = currentView === item.id;
     const Icon = item.icon;
 
     // If it's a parent item (has children), render it as a header
@@ -126,8 +125,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = () => {
     const content = (
       <Box
         key={item.id}
-        as={Link}
-        to={item.route}
         display="flex"
         alignItems="center"
         p={2}
@@ -142,6 +139,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = () => {
         aria-current={isActive ? 'page' : undefined}
         tabIndex={0}
         textDecoration="none"
+        onClick={() => onNavigate(item.id)}
       >
         {Icon && <Icon size={20} />}
         {!isCollapsed && (
