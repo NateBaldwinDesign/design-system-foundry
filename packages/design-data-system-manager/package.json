@@ -25,6 +25,7 @@
     "@emotion/styled": "^11.11.0",
     "@hello-pangea/dnd": "^18.0.1",
     "@token-model/data-model": "workspace:*",
+    "@token-model/data-transformations": "workspace:*",
     "@types/acorn": "^6.0.4",
     "acorn": "^8.15.0",
     "colorjs.io": "^0.5.2",

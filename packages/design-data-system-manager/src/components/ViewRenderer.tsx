@@ -9,11 +9,13 @@ import type {
   Platform, 
   Taxonomy, 
   Theme, 
-  ResolvedValueType
+  ResolvedValueType,
+  TokenSystem
 } from '@token-model/data-model';
 import type { ExtendedToken } from './TokenEditorDialog';
 import type { Algorithm } from '../types/algorithm';
 import type { Schema } from '../hooks/useSchema';
+import { createSchemaJsonFromLocalStorage } from '../services/createJson';
 
 // Import all view components
 import DashboardView from '../views/dashboard/DashboardView';
@@ -29,6 +31,7 @@ import { ValueTypesView } from '../views/setup/ValueTypesView';
 import ThemesView from '../views/themes/ThemesView';
 import { PlatformsView } from '../views/publishing/PlatformsView';
 import { ValidationView } from '../views/publishing/ValidationView';
+import { FigmaExportSettings } from '../views/publishing/FigmaExportSettings';
 import CoreDataView from '../views/schemas/CoreDataView';
 import ThemeOverridesView from '../views/schemas/ThemeOverridesView';
 import AlgorithmDataView from '../views/schemas/AlgorithmDataView';
@@ -187,7 +190,11 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} tokens={tokens} setTokens={onUpdateTokens} taxonomies={taxonomies} />;
       
       case 'export-settings':
-        return <Box p={4}>Export settings content coming soon...</Box>;
+        return (
+          <FigmaExportSettings 
+            tokenSystem={createSchemaJsonFromLocalStorage() as TokenSystem}
+          />
+        );
       
       case 'validation':
         return <ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />;

@@ -30,7 +30,15 @@ export function createSchemaJsonFromLocalStorage() {
   } = rootData;
 
   // Compose versionHistory if not present
-  const normalizedVersionHistory = (Array.isArray(versionHistory) && versionHistory.length > 0) ? versionHistory : [{
+  const normalizedVersionHistory = (Array.isArray(versionHistory) && versionHistory.length > 0) ? versionHistory.map(vh => ({
+    ...vh,
+    migrationStrategy: vh.migrationStrategy ? {
+      ...vh.migrationStrategy,
+      emptyModeIds: ['mapToDefaults', 'preserveEmpty', 'requireExplicit'].includes(vh.migrationStrategy.emptyModeIds)
+        ? vh.migrationStrategy.emptyModeIds
+        : 'mapToDefaults'
+    } : undefined
+  })) : [{
     version,
     dimensions: Array.isArray(dimensions) ? dimensions.map((d) => d.id) : [],
     date: new Date().toISOString().slice(0, 10),

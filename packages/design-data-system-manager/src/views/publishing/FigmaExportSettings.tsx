@@ -1,0 +1,485 @@
+import React, { useState } from 'react';
+import {
+  VStack,
+  HStack,
+  Text,
+  Input,
+  Button,
+  Box,
+  useToast,
+  FormControl,
+  FormLabel,
+  Alert,
+  AlertIcon,
+  AlertDescription,
+  useColorMode,
+  Badge
+} from '@chakra-ui/react';
+import { Download, Copy, ExternalLink, Eye, EyeOff } from 'lucide-react';
+import type { TokenSystem } from '@token-model/data-model';
+import { FigmaExportService, FigmaExportResult } from '../../services/figmaExport';
+import { FigmaPrePublishDialog } from '../../components/FigmaPrePublishDialog';
+import { createSchemaJsonFromLocalStorage } from '../../services/createJson';
+
+interface FigmaExportSettingsProps {
+  tokenSystem: TokenSystem;
+}
+
+export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenSystem }) => {
+  const { colorMode } = useColorMode();
+  const toast = useToast();
+  
+  const [accessToken, setAccessToken] = useState('');
+  const [fileId, setFileId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [exportResult, setExportResult] = useState<FigmaExportResult | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [showPrePublishDialog, setShowPrePublishDialog] = useState(false);
+
+  // Generate the export JSON
+  const handleExport = async () => {
+    console.log('[FigmaExportSettings] Starting export...');
+    // Always use the canonical, schema-compliant token system from local storage
+    let canonicalTokenSystem;
+    try {
+      canonicalTokenSystem = createSchemaJsonFromLocalStorage();
+    } catch (err) {
+      toast({
+        title: 'Export failed',
+        description: 'Could not load complete design system from local storage. Please check your data.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      setLoading(false);
+      return;
+    }
+    console.log('[FigmaExportSettings] Canonical token system:', canonicalTokenSystem);
+    setLoading(true);
+    setExportResult(null);
+    const figmaExportService = new FigmaExportService();
+    
+    try {
+      const result = await figmaExportService.exportToFigma(canonicalTokenSystem, {
+        accessToken,
+        fileId
+      });
+      
+      console.log('[FigmaExportSettings] Export result:', result);
+      setExportResult(result);
+      
+      if (result.success && result.data) {
+        toast({
+          title: 'Export successful',
+          description: `Generated ${result.data.variables.length} variables and ${result.data.collections.length} collections`,
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+      } else {
+        toast({
+          title: 'Export failed',
+          description: result.error?.message || 'Unknown error occurred',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    } catch (error) {
+      console.error('[FigmaExportSettings] Export failed:', error);
+      toast({
+        title: 'Export failed',
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Download the export JSON
+  const handleDownload = () => {
+    if (!exportResult?.data) return;
+    
+    const blob = new Blob([JSON.stringify(exportResult.data, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'figma-variables-export.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: 'Download started',
+      description: 'Figma variables export downloaded',
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
+  // Copy the export JSON to clipboard
+  const handleCopy = async () => {
+    if (!exportResult?.data) return;
+    
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(exportResult.data, null, 2));
+      toast({
+        title: 'Copied to clipboard',
+        description: 'Figma variables export copied to clipboard',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Copy failed',
+        description: 'Failed to copy to clipboard',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Manual token test function for debugging
+  const testTokenManually = async () => {
+    if (!accessToken || !fileId) {
+      toast({
+        title: 'Missing credentials',
+        description: 'Please enter both access token and file ID',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    console.log('[FigmaExportSettings] Manual token test starting...');
+    console.log('[FigmaExportSettings] Token:', accessToken.substring(0, 10) + '...');
+    console.log('[FigmaExportSettings] File ID:', fileId);
+
+    try {
+      // Test 1: Get file info
+      console.log('[FigmaExportSettings] Test 1: Getting file info...');
+      const fileResponse = await fetch(`https://api.figma.com/v1/files/${fileId}`, {
+        method: 'GET',
+        headers: {
+          'X-Figma-Token': `${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('[FigmaExportSettings] File response status:', fileResponse.status);
+      if (fileResponse.ok) {
+        const fileData = await fileResponse.json();
+        console.log('[FigmaExportSettings] File data:', fileData);
+        toast({
+          title: 'Token test successful',
+          description: `File: ${fileData.name}`,
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+      } else {
+        const errorText = await fileResponse.text();
+        console.error('[FigmaExportSettings] File test failed:', fileResponse.status, errorText);
+        toast({
+          title: 'Token test failed',
+          description: `File access failed: ${fileResponse.status}`,
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+
+      // Test 2: Get variables (this is what the pre-publish dialog does)
+      console.log('[FigmaExportSettings] Test 2: Getting variables...');
+      const variablesResponse = await fetch(`https://api.figma.com/v1/files/${fileId}/variables`, {
+        method: 'GET',
+        headers: {
+            'X-Figma-Token': `${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+      });
+
+      console.log('[FigmaExportSettings] Variables response status:', variablesResponse.status);
+      if (variablesResponse.ok) {
+        const variablesData = await variablesResponse.json();
+        console.log('[FigmaExportSettings] Variables data:', variablesData);
+      } else {
+        const errorText = await variablesResponse.text();
+        console.error('[FigmaExportSettings] Variables test failed:', variablesResponse.status, errorText);
+      }
+
+    } catch (error) {
+      console.error('[FigmaExportSettings] Manual token test failed:', error);
+      toast({
+        title: 'Token test failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Handle publishing to Figma
+  const handlePublish = async (selectedVariables: string[], selectedCollections: string[]) => {
+    if (!exportResult?.data || !accessToken || !fileId) return;
+    
+    setLoading(true);
+    try {
+      // Filter the export result to only include selected items
+      const filteredResult = {
+        ...exportResult.data,
+        variables: exportResult.data.variables.filter(v => selectedVariables.includes(v.id)),
+        collections: exportResult.data.collections.filter(c => selectedCollections.includes(c.id)),
+        variableModes: exportResult.data.variableModes.filter(m => 
+          selectedCollections.includes(m.variableCollectionId)
+        ),
+        variableModeValues: exportResult.data.variableModeValues.filter(v => 
+          selectedVariables.includes(v.variableId)
+        )
+      };
+
+      console.log('[FigmaExportSettings] Starting Figma API publishing with filtered result:', {
+        variablesCount: filteredResult.variables.length,
+        collectionsCount: filteredResult.collections.length,
+        modesCount: filteredResult.variableModes.length,
+        modeValuesCount: filteredResult.variableModeValues.length
+      });
+
+      // Construct the POST payload with only the required fields
+      const { variables, collections, variableModes, variableModeValues } = filteredResult;
+      // Validate that all required fields are present
+      const validActions = ['CREATE', 'UPDATE', 'DELETE'];
+      const missingActionInCollections = collections.some(c => !c.action || !validActions.includes(c.action));
+      const missingActionInVariables = variables.some(v => !v.action || !validActions.includes(v.action));
+      if (missingActionInCollections || missingActionInVariables) {
+        console.error('[FigmaExportSettings] One or more collections/variables are missing a valid action field!', {
+          collections: collections.filter(c => !c.action),
+          variables: variables.filter(v => !v.action)
+        });
+        throw new Error('Figma export payload is missing required action fields.');
+      }
+      const bulkPayload = {
+        variables,
+        variableCollections: collections,
+        variableModes,
+        variableModeValues
+      };
+      console.log('[FigmaExportSettings] Sending payload to Figma API:', JSON.stringify(bulkPayload, null, 2));
+      
+      const bulkResponse = await fetch(`https://api.figma.com/v1/files/${fileId}/variables`, {
+        method: 'POST',
+        headers: {
+          'X-Figma-Token': `${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(bulkPayload)
+      });
+
+      console.log('[FigmaExportSettings] Bulk API response status:', bulkResponse.status);
+      console.log('[FigmaExportSettings] Bulk API response headers:', Object.fromEntries(bulkResponse.headers.entries()));
+
+      if (bulkResponse.ok) {
+        const responseData = await bulkResponse.json();
+        console.log('[FigmaExportSettings] Bulk API response:', responseData);
+        
+        console.log('[FigmaExportSettings] Figma API publishing completed successfully');
+        
+        toast({
+          title: 'Published successfully',
+          description: `Published ${selectedVariables.length} variables and ${selectedCollections.length} collections to Figma`,
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+        
+        setShowPrePublishDialog(false);
+      } else {
+        const errorText = await bulkResponse.text();
+        console.error('[FigmaExportSettings] Bulk API failed:', bulkResponse.status, errorText);
+        
+        // Try to get more details about the error
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error('[FigmaExportSettings] Error details:', errorJson);
+        } catch (e) {
+          console.error('[FigmaExportSettings] Raw error text:', errorText);
+        }
+        
+        throw new Error(`Failed to publish to Figma: ${bulkResponse.status} ${errorText}`);
+      }
+    } catch (error) {
+      console.error('[FigmaExportSettings] Publishing failed:', error);
+      toast({
+        title: 'Publishing failed',
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <VStack spacing={6} align="stretch">
+      <Box>
+        <Text fontSize="xl" fontWeight="bold" mb={2}>
+          Figma Variables Export
+        </Text>
+        <Text fontSize="sm" color="gray.500">
+          Export your design system tokens to Figma Variables format
+        </Text>
+      </Box>
+
+      {/* Configuration */}
+      <VStack spacing={4} align="stretch">
+        <FormControl>
+          <FormLabel>Figma Access Token</FormLabel>
+          <Input
+            type="password"
+            value={accessToken}
+            onChange={(e) => setAccessToken(e.target.value)}
+            placeholder="figd_..."
+            fontFamily="mono"
+          />
+        </FormControl>
+
+        <FormControl>
+          <FormLabel>Figma File ID</FormLabel>
+          <Input
+            value={fileId}
+            onChange={(e) => setFileId(e.target.value)}
+            placeholder="yTy5ytxeFPRiGou5Poed8a"
+            fontFamily="mono"
+          />
+        </FormControl>
+
+        <Alert status="info" borderRadius="md">
+          <AlertIcon />
+          <AlertDescription>
+            Access token and file ID are only required for publishing. You can generate exports without them.
+          </AlertDescription>
+        </Alert>
+      </VStack>
+
+      {/* Export Actions */}
+      <VStack spacing={4} align="stretch">
+        <Button
+          colorScheme="blue"
+          onClick={handleExport}
+          isLoading={loading}
+          loadingText="Generating Export..."
+          leftIcon={<Download size={16} />}
+        >
+          Generate Export
+        </Button>
+
+        {exportResult?.data && (
+          <Box p={4} bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'} borderRadius="md">
+            <VStack spacing={3} align="stretch">
+              <HStack justify="space-between">
+                <Text fontWeight="bold">Export Summary</Text>
+                <HStack spacing={2}>
+                  <Badge colorScheme="green">{exportResult.data.variables.length} variables</Badge>
+                  <Badge colorScheme="blue">{exportResult.data.collections.length} collections</Badge>
+                  <Badge colorScheme="purple">{exportResult.data.variableModes.length} modes</Badge>
+                </HStack>
+              </HStack>
+              
+              <HStack spacing={2}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowPreview(!showPreview)}
+                  leftIcon={showPreview ? <EyeOff size={14} /> : <Eye size={14} />}
+                >
+                  {showPreview ? 'Hide' : 'Show'} Preview
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDownload}
+                  leftIcon={<Download size={14} />}
+                >
+                  Download JSON
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCopy}
+                  leftIcon={<Copy size={14} />}
+                >
+                  Copy JSON
+                </Button>
+
+                {accessToken && fileId && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={testTokenManually}
+                    leftIcon={<ExternalLink size={14} />}
+                  >
+                    Test Token
+                  </Button>
+                )}
+                
+                {accessToken && fileId && (
+                  <Button
+                    size="sm"
+                    colorScheme="green"
+                    onClick={() => setShowPrePublishDialog(true)}
+                    leftIcon={<ExternalLink size={14} />}
+                  >
+                    Publish to Figma
+                  </Button>
+                )}
+              </HStack>
+
+              {showPreview && (
+                <Box
+                  p={3}
+                  bg={colorMode === 'dark' ? 'gray.900' : 'white'}
+                  borderWidth={1}
+                  borderRadius="md"
+                  maxH="400px"
+                  overflowY="auto"
+                >
+                  <pre style={{ fontSize: '12px', margin: 0 }}>
+                    {JSON.stringify(exportResult.data, null, 2)}
+                  </pre>
+                </Box>
+              )}
+            </VStack>
+          </Box>
+        )}
+      </VStack>
+
+      {/* Pre-Publish Dialog */}
+      {exportResult?.data && (
+        <FigmaPrePublishDialog
+          isOpen={showPrePublishDialog}
+          onClose={() => setShowPrePublishDialog(false)}
+          onPublish={handlePublish}
+          transformationResult={exportResult.data}
+          tokenSystem={tokenSystem}
+          figmaFileId={fileId}
+          accessToken={accessToken}
+        />
+      )}
+    </VStack>
+  );
+}; 
