@@ -99,6 +99,11 @@ When making any change, explicitly state:
 - **REFACTORING**: Never delete original files until new location is verified and working
 - **MIGRATION**: Complete content transfer before cleanup
 
+### Secrets
+- Document secrets in a modular and abstract way that will not be interpreted as a secret in git
+- In documentation, use placeholders like <YOUR_FIGMA_ACCESS_TOKEN>
+- If hints are helpful for users or the system to know if they have the correct secret, it's ok to document things like "prefixed by `figd_` and 64 characters long"
+
 ### Code Quality Standards
 - Write modular, well-commented code
 - Add inline comments for human comprehension
@@ -132,6 +137,8 @@ For every response involving code changes, include:
 - **Inlining UI mapping logic in JSX (use constants above return)**
 - **Creating migration UI with arbitrary mapping or value reset options**
 - **Making mutations without schema validation via ValidationService**
+- Creating secrets in code, documentation, or commit messages (which would be flagged by git)
+- Creating "dummy" secrets in code, documentation, or commit messages
 
 ## Quick Reference Checklist
 Before suggesting any code:
