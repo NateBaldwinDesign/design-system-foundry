@@ -78,11 +78,9 @@ export const FigmaTransformerOptionsSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
   fileKey: z.string(),
   accessToken: z.string(),
-  collectionName: z.string().optional(),
-  createNewCollection: z.boolean().optional(),
-  existingCollectionId: z.string().optional(),
   updateExisting: z.boolean().optional(),
-  deleteUnused: z.boolean().optional()
+  existingFigmaData: z.any().optional(), // Using any for complex FigmaFileVariablesResponse type
+  tempToRealId: z.record(z.string(), z.string()).optional()
 });
 
 /**

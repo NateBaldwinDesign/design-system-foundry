@@ -68,18 +68,12 @@ export interface FigmaTransformerOptions extends BaseTransformerOptions {
   fileKey: string;
   /** Personal access token for Figma API */
   accessToken: string;
-  /** Name for the variable collection */
-  collectionName?: string;
-  /** Whether to create a new collection or use existing */
-  createNewCollection?: boolean;
-  /** Existing collection ID to use */
-  existingCollectionId?: string;
-  /** Whether to update existing variables */
+  /** Whether to update existing variables (default: true) */
   updateExisting?: boolean;
-  /** Whether to delete variables not in the current set */
-  deleteUnused?: boolean;
   /** Existing Figma file data for determining CREATE vs UPDATE actions */
   existingFigmaData?: FigmaFileVariablesResponse;
+  /** Mapping of temporary IDs to real Figma IDs from mappings/{fileKey}.json */
+  tempToRealId?: Record<string, string>;
 }
 
 /**

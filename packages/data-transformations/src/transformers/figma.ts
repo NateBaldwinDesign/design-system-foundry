@@ -117,7 +117,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     }
 
     // Build token ID to Figma variable ID mapping from existing data
-    this.buildTokenIdMapping(input, options?.existingFigmaData);
+    this.buildTokenIdMapping(input, options);
 
     const collections: FigmaVariableCollection[] = [];
     const allVariables: FigmaVariable[] = [];
@@ -131,19 +131,24 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     };
 
     // Phase 1: Create collections for each dimension with modes
-    const dimensionCollections = this.createDimensionCollections(input, options?.existingFigmaData);
+    const dimensionCollections = this.createDimensionCollections(input, options);
     collections.push(...dimensionCollections);
     stats.collectionsCreated += dimensionCollections.filter(c => c.action === 'CREATE').length;
     stats.collectionsUpdated += dimensionCollections.filter(c => c.action === 'UPDATE').length;
 
     // Phase 2: Create modeless collections for each token collection
-    const modelessCollections = this.createModelessCollections(input, options?.existingFigmaData);
+    const modelessCollections = this.createModelessCollections(input, options);
     collections.push(...modelessCollections);
     stats.collectionsCreated += modelessCollections.filter(c => c.action === 'CREATE').length;
     stats.collectionsUpdated += modelessCollections.filter(c => c.action === 'UPDATE').length;
 
     // Phase 3: Implement daisy-chaining algorithm for variables
-    const { variables, modeValues } = this.createDaisyChainedVariables(input, dimensionCollections, modelessCollections, options?.existingFigmaData);
+    const { variables, modeValues } = this.createDaisyChainedVariables(
+      input,
+      dimensionCollections,
+      modelessCollections,
+      options
+    );
     allVariables.push(...variables);
     allModeValues.push(...modeValues);
     stats.created += variables.filter(v => v.action === 'CREATE').length;
@@ -169,27 +174,17 @@ export class FigmaTransformer extends AbstractBaseTransformer<
   }
 
   /**
-   * Build mapping between token IDs and existing Figma variable IDs based on name matching
+   * Build mapping between token IDs and existing Figma variable IDs based on tempToRealId mapping
    * This is used to determine CREATE vs UPDATE actions and proper alias references
    */
-  private buildTokenIdMapping(tokenSystem: TokenSystem, existingData?: FigmaFileVariablesResponse): void {
+  private buildTokenIdMapping(tokenSystem: TokenSystem, options?: FigmaTransformerOptions): void {
     this.tokenIdToFigmaIdMap.clear();
     
-    if (!existingData?.variables) return;
+    if (!options?.tempToRealId) return;
 
-    // For each token, try to find a matching Figma variable by name
-    for (const token of tokenSystem.tokens || []) {
-      const figmaCodeSyntax = this.getFigmaCodeSyntax(token, tokenSystem);
-      if (!figmaCodeSyntax) continue;
-
-      // Look for exact name match in existing Figma variables
-      const matchingVariable = Object.values(existingData.variables).find(
-        variable => variable.name === figmaCodeSyntax.formattedName
-      );
-
-      if (matchingVariable) {
-        this.tokenIdToFigmaIdMap.set(token.id, matchingVariable.id);
-      }
+    // Use the tempToRealId mapping to map token IDs to Figma variable IDs
+    for (const [tempId, realFigmaId] of Object.entries(options.tempToRealId)) {
+      this.tokenIdToFigmaIdMap.set(tempId, realFigmaId);
     }
   }
 
@@ -201,7 +196,23 @@ export class FigmaTransformer extends AbstractBaseTransformer<
   }
 
   /**
-   * Determine if an item exists in the Figma file by matching name
+   * Determine if an item exists in the Figma file by checking if its ID is in the tempToRealId mapping
+   */
+  private itemExistsById(itemId: string, options?: FigmaTransformerOptions): boolean {
+    if (!options?.tempToRealId) return false;
+    return itemId in options.tempToRealId;
+  }
+
+  /**
+   * Get the real Figma ID for an item if it exists in the mapping, otherwise return the original ID
+   */
+  private getRealFigmaId(itemId: string, options?: FigmaTransformerOptions): string {
+    if (!options?.tempToRealId) return itemId;
+    return options.tempToRealId[itemId] || itemId;
+  }
+
+  /**
+   * Determine if an item exists in the Figma file by matching name (fallback method)
    */
   private findExistingItemByName<T extends { name: string; id: string }>(
     items: Record<string, T> | undefined,
@@ -236,22 +247,23 @@ export class FigmaTransformer extends AbstractBaseTransformer<
    */
   private createDimensionCollections(
     tokenSystem: TokenSystem, 
-    existingData?: FigmaFileVariablesResponse
+    options?: FigmaTransformerOptions
   ): FigmaVariableCollection[] {
     const collections: FigmaVariableCollection[] = [];
 
     for (const dimension of tokenSystem.dimensions || []) {
-      // Check if collection already exists
-      const existingCollection = this.findExistingItemByName(existingData?.variableCollections, dimension.displayName);
+      // Check if collection already exists by ID using tempToRealId mapping
+      const exists = this.itemExistsById(dimension.id, options);
+      const realFigmaId = this.getRealFigmaId(dimension.id, options);
       
       // Ensure action is explicitly set to a valid string
-      const action = existingCollection ? 'UPDATE' : 'CREATE';
-      console.log(`[FigmaTransformer] Collection "${dimension.displayName}" action: ${action} (existing: ${!!existingCollection})`);
+      const action = exists ? 'UPDATE' : 'CREATE';
+      console.log(`[FigmaTransformer] Collection "${dimension.displayName}" action: ${action} (exists: ${exists})`);
       console.log(`[FigmaTransformer] Action type: ${typeof action}, value: "${action}"`);
       
       const collection: FigmaVariableCollection = {
         action: action,
-        id: existingCollection?.id || dimension.id,
+        id: realFigmaId,
         name: dimension.displayName,
         initialModeId: dimension.defaultMode,
         hiddenFromPublishing: true
@@ -289,22 +301,23 @@ export class FigmaTransformer extends AbstractBaseTransformer<
    */
   private createModelessCollections(
     tokenSystem: TokenSystem,
-    existingData?: FigmaFileVariablesResponse
+    options?: FigmaTransformerOptions
   ): FigmaVariableCollection[] {
     const collections: FigmaVariableCollection[] = [];
 
     for (const collection of tokenSystem.tokenCollections || []) {
-      // Check if collection already exists
-      const existingCollection = this.findExistingItemByName(existingData?.variableCollections, collection.name);
+      // Check if collection already exists by ID using tempToRealId mapping
+      const exists = this.itemExistsById(collection.id, options);
+      const realFigmaId = this.getRealFigmaId(collection.id, options);
       
       // Ensure action is explicitly set to a valid string
-      const modelessAction = existingCollection ? 'UPDATE' : 'CREATE';
-      console.log(`[FigmaTransformer] Modeless collection "${collection.name}" action: ${modelessAction} (existing: ${!!existingCollection})`);
+      const modelessAction = exists ? 'UPDATE' : 'CREATE';
+      console.log(`[FigmaTransformer] Modeless collection "${collection.name}" action: ${modelessAction} (exists: ${exists})`);
       console.log(`[FigmaTransformer] Modeless action type: ${typeof modelessAction}, value: "${modelessAction}"`);
       
       const modelessCollection: FigmaVariableCollection = {
         action: modelessAction,
-        id: existingCollection?.id || collection.id,
+        id: realFigmaId,
         name: collection.name,
         initialModeId: `mode-${collection.id}`
       };
@@ -326,7 +339,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     tokenSystem: TokenSystem,
     dimensionCollections: FigmaVariableCollection[],
     modelessCollections: FigmaVariableCollection[],
-    existingData?: FigmaFileVariablesResponse
+    options?: FigmaTransformerOptions
   ): { variables: FigmaVariable[], modeValues: FigmaVariableModeValue[] } {
     const variables: FigmaVariable[] = [];
     const modeValues: FigmaVariableModeValue[] = [];
@@ -334,7 +347,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     // Validate dimensionOrder exists
     if (!tokenSystem.dimensionOrder || tokenSystem.dimensionOrder.length === 0) {
       console.warn('[FigmaTransformer] No dimensionOrder specified, falling back to simple variable creation');
-      return this.createSimpleVariables(tokenSystem, existingData);
+      return this.createSimpleVariables(tokenSystem, options);
     }
 
     console.log('[FigmaTransformer] Processing tokens with dimensionOrder:', tokenSystem.dimensionOrder);
@@ -354,7 +367,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
         const { variables: tokenVariables, modeValues: tokenModeValues } = this.transformTokenWithDaisyChaining(
           token, 
           tokenSystem, 
-          existingData
+          options
         );
         variables.push(...tokenVariables);
         modeValues.push(...tokenModeValues);
@@ -362,7 +375,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
         // Create simple variable without daisy-chaining
         const figmaCodeSyntax = token.codeSyntax?.find((cs: { platformId: string; formattedName: string }) => cs.platformId === 'platform-figma');
         if (figmaCodeSyntax) {
-          const variable = this.createDirectVariable(token, tokenSystem, figmaCodeSyntax, existingData);
+          const variable = this.createDirectVariable(token, tokenSystem, figmaCodeSyntax, options);
           variables.push(variable);
         }
       }
@@ -377,7 +390,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
   private transformTokenWithDaisyChaining(
     token: Token,
     tokenSystem: TokenSystem,
-    existingData?: FigmaFileVariablesResponse
+    options?: FigmaTransformerOptions
   ): { variables: FigmaVariable[], modeValues: FigmaVariableModeValue[] } {
     const variables: FigmaVariable[] = [];
     const modeValues: FigmaVariableModeValue[] = [];
@@ -396,7 +409,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     if (usedDimensions.length === 0) {
       console.log(`[FigmaTransformer] Token ${token.id} has no dimension dependencies, creating direct variable`);
       // Create a simple variable without daisy-chaining
-      const variable = this.createDirectVariable(token, tokenSystem, figmaCodeSyntax, existingData);
+      const variable = this.createDirectVariable(token, tokenSystem, figmaCodeSyntax, options);
       variables.push(variable);
       return { variables, modeValues };
     }
@@ -410,7 +423,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       tokenSystem,
       figmaCodeSyntax,
       firstDimension,
-      existingData
+      options
     );
     variables.push(...intermediaryResult.dimensionVariables);
     modeValues.push(...intermediaryResult.dimensionModeValues);
@@ -427,7 +440,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
         figmaCodeSyntax,
         dimension,
         lastVariableId,
-        existingData
+        options
       );
       variables.push(...referenceResult.referenceVariables);
       modeValues.push(...referenceResult.referenceModeValues);
@@ -441,7 +454,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       tokenSystem,
       figmaCodeSyntax,
       lastVariableId,
-      existingData
+      options
     );
     variables.push(finalVariable);
 
@@ -522,7 +535,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     tokenSystem: TokenSystem,
     figmaCodeSyntax: { platformId: string; formattedName: string },
     dimension: any,
-    existingData?: FigmaFileVariablesResponse
+    options?: FigmaTransformerOptions
   ): { dimensionVariables: FigmaVariable[], dimensionModeValues: FigmaVariableModeValue[], lastVariableId: string } {
     const variables: FigmaVariable[] = [];
     const modeValues: FigmaVariableModeValue[] = [];
@@ -543,17 +556,19 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     
     // Create ONE variable for this dimension (not one per mode)
     const variableName = `${figmaCodeSyntax.formattedName} (${dimension.displayName})`;
-    const existingVariable = this.findExistingItemByName(existingData?.variables, variableName);
+    const variableId = generateUniqueId(`intermediary-${token.id}-${dimension.id}`);
     
-    const variableId = existingVariable?.id || generateUniqueId(`intermediary-${token.id}-${dimension.id}`);
-    const action = existingVariable ? 'UPDATE' : 'CREATE';
+    // Check if variable already exists by ID using tempToRealId mapping
+    const exists = this.itemExistsById(variableId, options);
+    const realFigmaId = this.getRealFigmaId(variableId, options);
+    const action = exists ? 'UPDATE' : 'CREATE';
     
     console.log(`[FigmaTransformer] Creating intermediary variable "${variableName}" action: ${action}`);
     console.log(`[FigmaTransformer] Variable action type: ${typeof action}, value: "${action}"`);
 
     const variable: FigmaVariable = {
       action: action,
-      id: variableId,
+      id: realFigmaId,
       name: variableName,
       variableCollectionId: dimension.id,
       resolvedType: this.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
@@ -586,7 +601,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
 
         const figmaValue = this.convertValueToFigmaFormat(resolvedValue, variable.resolvedType);
         modeValues.push({
-          variableId: variableId,
+          variableId: realFigmaId,
           modeId: modeId,
           value: figmaValue
         });
@@ -594,29 +609,96 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     }
 
     // Track the last variable ID for the next stage
-    lastVariableId = variableId;
+    lastVariableId = realFigmaId;
 
     return { dimensionVariables: variables, dimensionModeValues: modeValues, lastVariableId };
   }
 
   /**
-   * Create a direct variable for tokens without mode dependencies
+   * Create simple variables for tokens without dimensionOrder (fallback)
+   */
+  private createSimpleVariables(
+    tokenSystem: TokenSystem,
+    options?: FigmaTransformerOptions
+  ): { variables: FigmaVariable[], modeValues: FigmaVariableModeValue[] } {
+    const variables: FigmaVariable[] = [];
+    const modeValues: FigmaVariableModeValue[] = [];
+
+    for (const token of tokenSystem.tokens || []) {
+      const figmaCodeSyntax = this.getFigmaCodeSyntax(token, tokenSystem);
+      if (!figmaCodeSyntax) continue;
+
+      const tokenCollection = this.findTokenCollection(token, tokenSystem);
+      if (!tokenCollection) continue;
+
+      // Check if variable already exists by ID using tempToRealId mapping
+      const exists = this.itemExistsById(token.id, options);
+      const realFigmaId = this.getRealFigmaId(token.id, options);
+      const action = exists ? 'UPDATE' : 'CREATE';
+
+      const variable: FigmaVariable = {
+        action: action,
+        id: realFigmaId,
+        name: figmaCodeSyntax.formattedName,
+        variableCollectionId: tokenCollection.id,
+        resolvedType: this.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
+        scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
+        hiddenFromPublishing: token.private || false,
+        codeSyntax: this.extractCodeSyntax(token)
+      };
+      variables.push(variable);
+
+      // Create mode value
+      const globalValueByMode = token.valuesByMode?.find((vbm: any) => vbm.modeIds.length === 0);
+      if (globalValueByMode) {
+        let resolvedValue: any;
+        if ('tokenId' in globalValueByMode.value) {
+          const referencedTokenId = globalValueByMode.value.tokenId;
+          const referencedFigmaId = this.getTokenFigmaId(referencedTokenId);
+          resolvedValue = {
+            type: 'VARIABLE_ALIAS',
+            id: referencedFigmaId
+          };
+        } else {
+          resolvedValue = globalValueByMode.value.value;
+        }
+
+        const figmaValue = this.convertValueToFigmaFormat(resolvedValue, variable.resolvedType);
+        modeValues.push({
+          variableId: realFigmaId,
+          modeId: `mode-${tokenCollection.id}`,
+          value: figmaValue
+        });
+      }
+    }
+
+    return { variables, modeValues };
+  }
+
+  /**
+   * Create a direct variable for a token (fallback method)
    */
   private createDirectVariable(
     token: Token,
     tokenSystem: TokenSystem,
     figmaCodeSyntax: { platformId: string; formattedName: string },
-    existingData?: FigmaFileVariablesResponse
+    options?: FigmaTransformerOptions
   ): FigmaVariable {
-    const existingVariable = this.findExistingItemByName(existingData?.variables, figmaCodeSyntax.formattedName);
-    const variableId = existingVariable?.id || token.id;
-    const action = existingVariable ? 'UPDATE' : 'CREATE';
+    const tokenCollection = this.findTokenCollection(token, tokenSystem);
+    if (!tokenCollection) {
+      throw new Error(`No token collection found for token ${token.id}`);
+    }
+
+    // Check if variable already exists by ID using tempToRealId mapping
+    const exists = this.itemExistsById(token.id, options);
+    const realFigmaId = this.getRealFigmaId(token.id, options);
+    const action = exists ? 'UPDATE' : 'CREATE';
 
     return {
       action: action,
-      id: variableId,
+      id: realFigmaId,
       name: figmaCodeSyntax.formattedName,
-      variableCollectionId: this.getTokenCollectionId(token, tokenSystem),
+      variableCollectionId: tokenCollection.id,
       resolvedType: this.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
       scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
       hiddenFromPublishing: token.private || false,
@@ -632,17 +714,18 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     tokenSystem: TokenSystem,
     figmaCodeSyntax: { platformId: string; formattedName: string },
     lastVariableId: string,
-    existingData?: FigmaFileVariablesResponse
+    options?: FigmaTransformerOptions
   ): FigmaVariable {
-    const existingVariable = this.findExistingItemByName(existingData?.variables, figmaCodeSyntax.formattedName);
-    const variableId = existingVariable?.id || token.id;
-    const action = existingVariable ? 'UPDATE' : 'CREATE';
+    // Check if variable already exists by ID using tempToRealId mapping
+    const exists = this.itemExistsById(token.id, options);
+    const realFigmaId = this.getRealFigmaId(token.id, options);
+    const action = exists ? 'UPDATE' : 'CREATE';
 
     console.log(`[FigmaTransformer] Creating final token variable "${figmaCodeSyntax.formattedName}" action: ${action}`);
 
     return {
       action: action,
-      id: variableId,
+      id: realFigmaId,
       name: figmaCodeSyntax.formattedName,
       variableCollectionId: this.getTokenCollectionId(token, tokenSystem),
       resolvedType: this.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
@@ -650,6 +733,71 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       hiddenFromPublishing: token.private || false,
       codeSyntax: this.buildCodeSyntax(token, tokenSystem)
     };
+  }
+
+  /**
+   * Create reference variables that alias to previous dimension variables
+   */
+  private createReferenceVariables(
+    token: Token,
+    tokenSystem: TokenSystem,
+    figmaCodeSyntax: { platformId: string; formattedName: string },
+    dimension: any,
+    previousVariableId: string,
+    options?: FigmaTransformerOptions
+  ): { referenceVariables: FigmaVariable[], referenceModeValues: FigmaVariableModeValue[] } {
+    const variables: FigmaVariable[] = [];
+    const modeValues: FigmaVariableModeValue[] = [];
+
+    // Get the modes in this dimension that the token actually has values for
+    const usedModeIds = new Set<string>();
+    for (const valueByMode of token.valuesByMode || []) {
+      for (const modeId of valueByMode.modeIds) {
+        // Check if this mode belongs to the current dimension
+        if (dimension.modes?.some((mode: any) => mode.id === modeId)) {
+          usedModeIds.add(modeId);
+        }
+      }
+    }
+
+    console.log(`[FigmaTransformer] Creating reference variable for dimension "${dimension.displayName}" with used modes:`, Array.from(usedModeIds));
+    
+    // Create ONE reference variable for this dimension
+    const variableName = `${figmaCodeSyntax.formattedName} (${dimension.displayName})`;
+    const variableId = generateUniqueId(`reference-${token.id}-${dimension.id}`);
+    
+    // Check if variable already exists by ID using tempToRealId mapping
+    const exists = this.itemExistsById(variableId, options);
+    const realFigmaId = this.getRealFigmaId(variableId, options);
+    const action = exists ? 'UPDATE' : 'CREATE';
+    
+    console.log(`[FigmaTransformer] Creating reference variable "${variableName}" action: ${action}`);
+
+    const variable: FigmaVariable = {
+      action: action,
+      id: realFigmaId,
+      name: variableName,
+      variableCollectionId: dimension.id,
+      resolvedType: this.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
+      scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
+      hiddenFromPublishing: true
+    };
+    variables.push(variable);
+
+    // Create mode values for each used mode in this dimension
+    for (const modeId of usedModeIds) {
+      const modeValue: FigmaVariableModeValue = {
+        variableId: realFigmaId,
+        modeId: modeId,
+        value: {
+          type: 'VARIABLE_ALIAS',
+          id: previousVariableId
+        }
+      };
+      modeValues.push(modeValue);
+    }
+
+    return { referenceVariables: variables, referenceModeValues: modeValues };
   }
 
   /**
@@ -686,198 +834,6 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     }
     
     return codeSyntax;
-  }
-
-  /**
-   * Create reference variables that alias to previous dimension variables
-   */
-  private createReferenceVariables(
-    token: Token,
-    tokenSystem: TokenSystem,
-    figmaCodeSyntax: { platformId: string; formattedName: string },
-    dimension: any,
-    previousVariableId: string,
-    existingData?: FigmaFileVariablesResponse
-  ): { referenceVariables: FigmaVariable[], referenceModeValues: FigmaVariableModeValue[] } {
-    const variables: FigmaVariable[] = [];
-    const modeValues: FigmaVariableModeValue[] = [];
-
-    // Get the modes in this dimension that the token actually has values for
-    const usedModeIds = new Set<string>();
-    for (const valueByMode of token.valuesByMode || []) {
-      for (const modeId of valueByMode.modeIds) {
-        // Check if this mode belongs to the current dimension
-        if (dimension.modes?.some((mode: any) => mode.id === modeId)) {
-          usedModeIds.add(modeId);
-        }
-      }
-    }
-
-    console.log(`[FigmaTransformer] Creating reference variable for dimension "${dimension.displayName}" with used modes:`, Array.from(usedModeIds));
-    
-    // Create ONE reference variable for this dimension
-    const variableName = `${figmaCodeSyntax.formattedName} (${dimension.displayName})`;
-    const existingVariable = this.findExistingItemByName(existingData?.variables, variableName);
-    
-    const variableId = existingVariable?.id || generateUniqueId(`reference-${token.id}-${dimension.id}`);
-    const action = existingVariable ? 'UPDATE' : 'CREATE';
-    
-    console.log(`[FigmaTransformer] Creating reference variable "${variableName}" action: ${action}`);
-
-    const variable: FigmaVariable = {
-      action: action,
-      id: variableId,
-      name: variableName,
-      variableCollectionId: dimension.id,
-      resolvedType: this.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
-      scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
-      hiddenFromPublishing: true
-    };
-    variables.push(variable);
-
-    // Create mode values that reference the previous dimension's variable
-    for (const modeId of usedModeIds) {
-      modeValues.push({
-        variableId: variableId,
-        modeId: modeId,
-        value: {
-          type: 'VARIABLE_ALIAS',
-          id: previousVariableId
-        }
-      });
-    }
-
-    return { referenceVariables: variables, referenceModeValues: modeValues };
-  }
-
-  /**
-   * Create simple variables for tokens without dimensionOrder (fallback)
-   */
-  private createSimpleVariables(
-    tokenSystem: TokenSystem,
-    existingData?: FigmaFileVariablesResponse
-  ): { variables: FigmaVariable[], modeValues: FigmaVariableModeValue[] } {
-    const variables: FigmaVariable[] = [];
-    const modeValues: FigmaVariableModeValue[] = [];
-
-    for (const token of tokenSystem.tokens || []) {
-      const figmaCodeSyntax = this.getFigmaCodeSyntax(token, tokenSystem);
-      if (!figmaCodeSyntax) continue;
-
-      const tokenCollection = this.findTokenCollection(token, tokenSystem);
-      if (!tokenCollection) continue;
-
-      const existingVariable = this.findExistingItemByName(existingData?.variables, figmaCodeSyntax.formattedName);
-      const variableId = existingVariable?.id || this.getTokenFigmaId(token.id);
-      const action = existingVariable ? 'UPDATE' : 'CREATE';
-
-      const variable: FigmaVariable = {
-        action: action,
-        id: variableId,
-        name: figmaCodeSyntax.formattedName,
-        variableCollectionId: tokenCollection.id,
-        resolvedType: this.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
-        scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
-        hiddenFromPublishing: token.private || false,
-        codeSyntax: this.extractCodeSyntax(token)
-      };
-      variables.push(variable);
-
-      // Create mode value
-      const globalValueByMode = token.valuesByMode?.find((vbm: any) => vbm.modeIds.length === 0);
-      if (globalValueByMode) {
-        let resolvedValue: any;
-        if ('tokenId' in globalValueByMode.value) {
-          const referencedTokenId = globalValueByMode.value.tokenId;
-          const referencedFigmaId = this.getTokenFigmaId(referencedTokenId);
-          resolvedValue = {
-            type: 'VARIABLE_ALIAS',
-            id: referencedFigmaId
-          };
-        } else {
-          resolvedValue = globalValueByMode.value.value;
-        }
-
-        const figmaValue = this.convertValueToFigmaFormat(resolvedValue, variable.resolvedType);
-        modeValues.push({
-          variableId: variableId,
-          modeId: `mode-${tokenCollection.id}`,
-          value: figmaValue
-        });
-      }
-    }
-
-    return { variables, modeValues };
-  }
-
-  /**
-   * Create global token variables (tokens without mode-specific values)
-   */
-  private createGlobalTokenVariables(
-    token: Token,
-    tokenSystem: TokenSystem,
-    figmaCodeSyntax: { platformId: string; formattedName: string },
-    existingData?: FigmaFileVariablesResponse
-  ): { globalVariables: FigmaVariable[], globalModeValues: FigmaVariableModeValue[] } {
-    const variables: FigmaVariable[] = [];
-    const modeValues: FigmaVariableModeValue[] = [];
-
-    const tokenCollection = this.findTokenCollection(token, tokenSystem);
-    if (!tokenCollection) {
-      return { globalVariables: [], globalModeValues: [] };
-    }
-
-    const existingVariable = this.findExistingItemByName(existingData?.variables, figmaCodeSyntax.formattedName);
-    const variableId = existingVariable?.id || this.getTokenFigmaId(token.id);
-    const action = existingVariable ? 'UPDATE' : 'CREATE';
-
-    console.log(`[FigmaTransformer] Creating global token variable "${figmaCodeSyntax.formattedName}" action: ${action}`);
-
-    const variable: FigmaVariable = {
-      action: action,
-      id: variableId,
-      name: figmaCodeSyntax.formattedName,
-      variableCollectionId: tokenCollection.id,
-      resolvedType: this.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
-      scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
-      hiddenFromPublishing: token.private || false,
-      codeSyntax: this.extractCodeSyntax(token)
-    };
-    variables.push(variable);
-
-    // Create mode value for global token
-    const globalValueByMode = token.valuesByMode?.find((vbm: any) => vbm.modeIds.length === 0);
-    if (globalValueByMode) {
-      let resolvedValue: any;
-      if ('tokenId' in globalValueByMode.value) {
-        const referencedTokenId = globalValueByMode.value.tokenId;
-        const referencedFigmaId = this.getTokenFigmaId(referencedTokenId);
-        resolvedValue = {
-          type: 'VARIABLE_ALIAS',
-          id: referencedFigmaId
-        };
-      } else {
-        resolvedValue = globalValueByMode.value.value;
-      }
-
-      const figmaValue = this.convertValueToFigmaFormat(resolvedValue, variable.resolvedType);
-      modeValues.push({
-        variableId: variableId,
-        modeId: `mode-${tokenCollection.id}`,
-        value: figmaValue
-      });
-    }
-
-    return { globalVariables: variables, globalModeValues: modeValues };
-  }
-
-  /**
-   * Find which token collection a token belongs to based on its resolvedValueTypeId
-   */
-  private findTokenCollection(token: Token, tokenSystem: TokenSystem): any {
-    return tokenSystem.tokenCollections?.find((collection: any) => 
-      collection.resolvedValueTypeIds.includes(token.resolvedValueTypeId)
-    ) || null;
   }
 
   /**
@@ -1303,6 +1259,15 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     return dimensionStages + finalStage;
   }
 
+  /**
+   * Find which token collection a token belongs to based on its resolvedValueTypeId
+   */
+  private findTokenCollection(token: Token, tokenSystem: TokenSystem): any {
+    return tokenSystem.tokenCollections?.find((collection: any) => 
+      collection.resolvedValueTypeIds.includes(token.resolvedValueTypeId)
+    ) || null;
+  }
+
   protected getSupportedInputTypes(): string[] {
     return ['TokenSystem'];
   }
@@ -1320,11 +1285,9 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     return [
       'id', 
       'metadata', 
-      'collectionName', 
-      'createNewCollection', 
-      'existingCollectionId', 
-      'updateExisting', 
-      'deleteUnused'
+      'updateExisting',
+      'existingFigmaData',
+      'tempToRealId'
     ];
   }
 } 

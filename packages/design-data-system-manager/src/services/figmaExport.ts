@@ -83,10 +83,7 @@ export class FigmaExportService {
     try {
       // Convert FigmaExportOptions to FigmaTransformerOptions
       const transformerOptions = {
-        collectionName: options.fileName,
-        createNewCollection: options.createNewFile,
-        updateExisting: true,
-        deleteUnused: false
+        updateExisting: true
       } as Partial<FigmaTransformerOptions>;
       if (options.fileId) transformerOptions.fileKey = options.fileId;
       if (options.accessToken) transformerOptions.accessToken = options.accessToken;

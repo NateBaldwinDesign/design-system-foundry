@@ -45,7 +45,9 @@ import { FigmaTransformer } from '@token-model/data-transformations';
 const transformer = new FigmaTransformer();
 const figmaVariables = await transformer.transform(tokenData, {
   fileKey: 'your-figma-file-key',
-  collectionName: 'Design Tokens'
+  accessToken: 'your-figma-access-token',
+  updateExisting: true, // Optional: defaults to true
+  existingFigmaData: existingData // Optional: for determining CREATE vs UPDATE actions
 });
 ```
 
