@@ -33,6 +33,7 @@ import {
 import { ExternalLink, Check, AlertTriangle } from 'lucide-react';
 import type { FigmaTransformationResult } from '@token-model/data-transformations';
 import type { TokenSystem } from '@token-model/data-model';
+import { FigmaMappingService } from '../services/figmaMappingService';
 
 interface FigmaPrePublishDialogProps {
   isOpen: boolean;
@@ -124,9 +125,16 @@ export const FigmaPrePublishDialog: React.FC<FigmaPrePublishDialogProps> = ({
   const generateComparison = () => {
     const items: ComparisonItem[] = [];
 
+    // Get tempToRealId mapping for this file
+    const mappingData = FigmaMappingService.getMapping(figmaFileId);
+    const tempToRealId = mappingData?.tempToRealId || {};
+
     // Compare collections
     transformationResult.collections.forEach(collection => {
-      const existing = existingVariables?.variableCollections?.[collection.id];
+      // Check if collection exists by looking up its real Figma ID in existing variables
+      const realFigmaId = tempToRealId[collection.id] || collection.id;
+      const existing = existingVariables?.variableCollections?.[realFigmaId];
+      
       const item: ComparisonItem = {
         id: collection.id,
         name: collection.name,
@@ -141,7 +149,10 @@ export const FigmaPrePublishDialog: React.FC<FigmaPrePublishDialogProps> = ({
 
     // Compare variables
     transformationResult.variables.forEach(variable => {
-      const existing = existingVariables?.variables?.[variable.id];
+      // Check if variable exists by looking up its real Figma ID in existing variables
+      const realFigmaId = tempToRealId[variable.id] || variable.id;
+      const existing = existingVariables?.variables?.[realFigmaId];
+      
       const item: ComparisonItem = {
         id: variable.id,
         name: variable.name,

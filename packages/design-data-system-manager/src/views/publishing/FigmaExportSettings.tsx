@@ -22,6 +22,7 @@ import { FigmaExportService, FigmaExportResult } from '../../services/figmaExpor
 import { FigmaPrePublishDialog } from '../../components/FigmaPrePublishDialog';
 import { createSchemaJsonFromLocalStorage } from '../../services/createJson';
 import { ChangeTrackingService, ChangeTrackingState } from '../../services/changeTrackingService';
+import { FigmaMappingService } from '../../services/figmaMappingService';
 
 interface FigmaExportSettingsProps {
   tokenSystem: TokenSystem;
@@ -342,6 +343,11 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
       if (bulkResponse.ok) {
         const responseData = await bulkResponse.json();
         console.log('[FigmaExportSettings] Bulk API response:', responseData);
+        
+        // Process the API response to update tempToRealId mapping
+        if (fileId) {
+          FigmaMappingService.updateMappingFromApiResponse(fileId, responseData);
+        }
         
         console.log('[FigmaExportSettings] Figma API publishing completed successfully');
         

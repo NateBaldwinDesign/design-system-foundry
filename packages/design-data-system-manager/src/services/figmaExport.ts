@@ -8,6 +8,7 @@ import {
   FigmaVariableModeValue,
   FigmaTransformerOptions
 } from '@token-model/data-transformations';
+import { FigmaMappingService } from './figmaMappingService';
 
 export interface FigmaExportOptions {
   fileId?: string;
@@ -87,6 +88,16 @@ export class FigmaExportService {
       } as Partial<FigmaTransformerOptions>;
       if (options.fileId) transformerOptions.fileKey = options.fileId;
       if (options.accessToken) transformerOptions.accessToken = options.accessToken;
+      
+      // Get existing tempToRealId mapping if available
+      if (options.fileId) {
+        const mappingOptions = FigmaMappingService.getTransformerOptions(options.fileId);
+        if (mappingOptions.tempToRealId) {
+          transformerOptions.tempToRealId = mappingOptions.tempToRealId;
+          console.log('[FigmaExportService] Using existing tempToRealId mapping:', mappingOptions.tempToRealId);
+        }
+      }
+      
       // Type assertion to satisfy the transformer
       const finalTransformerOptions = transformerOptions as FigmaTransformerOptions;
       
