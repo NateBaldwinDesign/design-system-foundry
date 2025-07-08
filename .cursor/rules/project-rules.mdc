@@ -1,8 +1,3 @@
----
-description: 
-globs: 
-alwaysApply: true
----
 # AI Assistant Rules for Token Design System
 
 ## CRITICAL: Schema as Single Source of Truth
@@ -57,6 +52,69 @@ When making any change, explicitly state:
 - **PRESERVE VALUES**: Always preserve original values during migration - never reset or discard
 - **NO MIGRATION OPTIONS**: Don't create UI for "Map Empty modeIds To" or "Preserve Original Values" toggles
 
+## GitHub Integration Rules (MANDATORY)
+
+### Authentication & Security
+- **OAUTH FLOW**: Use PKCE (Proof Key for Code Exchange) for secure OAuth 2.0 authentication
+- **TOKEN STORAGE**: Store GitHub tokens in `SecureStorage` service, never in localStorage directly
+- **STATE VALIDATION**: Always validate OAuth state parameter to prevent CSRF attacks
+- **TOKEN REFRESH**: Implement automatic token refresh monitoring with exponential backoff
+- **SCOPE MANAGEMENT**: Request minimal required scopes (`repo`, `user`) for GitHub API access
+- **ERROR HANDLING**: Provide clear error messages for authentication failures with retry options
+
+### API Service Architecture
+- **SERVICE LAYER**: Use `GitHubApiService` as the single point for all GitHub API operations
+- **REPOSITORY NAMES**: Always use full repository names (`owner/repo`) in API calls, never just repo names
+- **HEADERS**: Include required headers: `Authorization: token ${accessToken}`, `Accept: application/vnd.github.v3+json`
+- **ERROR HANDLING**: Wrap all API calls with try-catch and provide meaningful error messages
+- **RATE LIMITING**: Respect GitHub API rate limits and implement appropriate retry logic
+- **PAGINATION**: Handle paginated responses for repositories and other list endpoints
+
+### Caching Strategy
+- **CACHE SERVICE**: Use `GitHubCacheService` for caching organizations, repositories, and branches
+- **TTL CONFIGURATION**: Set appropriate TTL values (organizations: 10min, repositories: 5min, branches: 2min)
+- **CACHE VALIDATION**: Always check cache validity before using cached data
+- **CACHE INVALIDATION**: Clear cache when data is updated or when user requests refresh
+- **STORAGE MANAGEMENT**: Handle localStorage quota limits with automatic cleanup of expired entries
+
+### Data Loading & Storage Workflows
+- **REPOSITORY SELECTION**: Use `GitHubRepoSelector` component for repository and file selection
+- **FILE VALIDATION**: Validate JSON files against schema before loading into application
+- **STORAGE INTEGRATION**: Load GitHub data into `StorageService` and update application state
+- **ROOT DATA PRESERVATION**: Always preserve root-level metadata (systemName, systemId, description, version)
+- **EVENT DISPATCH**: Dispatch `github:file-loaded` event when GitHub data is successfully loaded
+- **STATE MANAGEMENT**: Update GitHub connection state in main App component after data loading
+
+### Save & Commit Workflows
+- **SAVE SERVICE**: Use `GitHubSaveService` for all save operations with support for direct commits and pull requests
+- **FILE SIZE VALIDATION**: Check file size against GitHub's 1MB limit before saving
+- **BRANCH MANAGEMENT**: Support both direct saves to current branch and pull request workflows
+- **COMMIT MESSAGES**: Generate descriptive commit messages with timestamps and context
+- **PULL REQUEST CREATION**: Create feature branches with unique names and comprehensive PR descriptions
+- **CONFLICT HANDLING**: Implement retry logic with fresh SHA fetches for 409 conflicts
+
+### Repository Structure & File Management
+- **FILE TYPES**: Support both schema files (core data) and theme-override files
+- **DIRECTORY SCANNING**: Recursively scan repositories for valid JSON files
+- **FILE IDENTIFICATION**: Use schema validation to identify file types (schema vs theme-override)
+- **MAPPING FILES**: Store external service mappings (e.g., Figma) in `.figma/mappings/{fileKey}.json`
+- **DIRECTORY CREATION**: Scaffold directories as needed when creating new files
+
+### Error Handling & User Experience
+- **LOADING STATES**: Show appropriate loading indicators for each step of GitHub operations
+- **TOAST NOTIFICATIONS**: Use Chakra UI toast notifications for success, error, and warning messages
+- **RETRY MECHANISMS**: Provide retry options for failed operations with clear error context
+- **CACHE REFRESH**: Allow users to manually refresh cached data when needed
+- **CONNECTION STATUS**: Display current GitHub connection status and selected repository info
+- **FILE SIZE WARNINGS**: Warn users when files approach GitHub's size limits
+
+### Integration Patterns
+- **SERVICE COMPOSITION**: Compose services (Auth → API → Cache → Save) for complex workflows
+- **EVENT-DRIVEN UPDATES**: Use custom events to notify components of GitHub state changes
+- **LOCALSTORAGE PERSISTENCE**: Store repository selection and connection state in localStorage
+- **COMPONENT REUSE**: Reuse existing GitHub components (`GitHubRepoSelector`, `GitHubSaveDialog`) for new features
+- **CONFIGURATION**: Use centralized GitHub configuration from `config/github.ts`
+
 ### Component Development
 - **FIRST**: Search `/src/packages/design-system-data-manager/` for existing components
 - **USE**: Existing components like `@TokenTag.tsx` before creating new ones
@@ -104,6 +162,14 @@ When making any change, explicitly state:
 - In documentation, use placeholders like <YOUR_FIGMA_ACCESS_TOKEN>
 - If hints are helpful for users or the system to know if they have the correct secret, it's ok to document things like "prefixed by `figd_` and 64 characters long"
 
+### Figma transformation and API
+- **TROUBLESHOOTING**: Reference `/packages/design-data-system-manager/docs/figma-troubleshooting.md ` for common Figma transformation and API errors
+
+### Repository scaffolding
+- **SCRIPT-BASED FILE AND DIRECTORY CREATION**: Reference `/packages/design-data-system-manager/docs/repository-scaffolding.md` for repository and directory structure
+- Always ask to confirm directories and file names or locations before creating them
+
+
 ### Code Quality Standards
 - Write modular, well-commented code
 - Add inline comments for human comprehension
@@ -139,6 +205,12 @@ For every response involving code changes, include:
 - **Making mutations without schema validation via ValidationService**
 - Creating secrets in code, documentation, or commit messages (which would be flagged by git)
 - Creating "dummy" secrets in code, documentation, or commit messages
+- **Using repository names without owner prefix in GitHub API calls**
+- **Storing GitHub tokens directly in localStorage instead of SecureStorage**
+- **Skipping OAuth state validation in authentication flows**
+- **Making GitHub API calls without proper error handling and retry logic**
+- **Ignoring file size limits when saving to GitHub**
+- **Creating GitHub integration features without considering caching strategy**
 
 ## Quick Reference Checklist
 Before suggesting any code:
@@ -152,6 +224,14 @@ Before suggesting any code:
 - [ ] **Checked token value structure (direct value vs alias)**
 - [ ] **Validated platform code syntax uses array structure**
 - [ ] **Ensured UI controls use Chakra UI components**
+- [ ] **Planned UI mapping logic as constants, not inline JSX**
+- [ ] **Included ValidationService for all mutations**
+- [ ] **Considered toast notifications for user feedback**
+- [ ] **Verified GitHub API calls use full repository names (owner/repo)**
+- [ ] **Ensured GitHub tokens are stored in SecureStorage**
+- [ ] **Implemented proper error handling and retry logic for GitHub operations**
+- [ ] **Checked file size limits before GitHub saves**
+- [ ] **Planned caching strategy for GitHub data**
 - [ ] **Planned UI mapping logic as constants, not inline JSX**
 - [ ] **Included ValidationService for all mutations**
 - [ ] **Considered toast notifications for user feedback**
