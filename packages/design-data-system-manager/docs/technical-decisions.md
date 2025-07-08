@@ -443,4 +443,238 @@ The design-data-system-manager project implements a comprehensive GitHub integra
 - Add support for GitHub Apps for enhanced permissions
 - Implement conflict resolution for concurrent edits
 - Add support for GitHub Actions integration
-- Enhance file size optimization and compression 
+- Enhance file size optimization and compression
+
+# Centralized Data Management with DataManager Service
+
+## Context
+The application previously suffered from race conditions and synchronization issues when loading data from different sources (GitHub, example data, local storage). The main problems were:
+- Race conditions between App component initialization and GitHub data loading
+- Inconsistent data management patterns across different loading paths
+- Storage vs React state synchronization gaps
+- Complex and unreliable event handling for data updates
+
+## Decision
+Implement a **centralized DataManager service** that provides a single source of truth for all data operations, eliminating race conditions and ensuring consistent state synchronization.
+
+### DataManager Architecture
+
+#### Singleton Pattern
+- **Single Instance**: DataManager uses a singleton pattern to ensure consistent data management across the application
+- **Centralized Operations**: All data loading, storage, and state synchronization happens through this service
+- **Callback System**: Notifies the App component when data changes, ensuring React state stays synchronized
+
+#### Core Methods
+- **`initialize(callbacks)`**: Loads initial data from storage and sets up callbacks for data changes
+- **`loadFromGitHub(fileContent, fileType)`**: Handles GitHub data loading with proper error handling and state updates
+- **`loadFromExampleSource(dataSourceKey, exampleData, algorithmData)`**: Handles example data loading
+- **`updateData(updates)`**: Updates specific data and notifies listeners
+- **`clearAllData()`**: Clears all data and resets state
+- **`hasExistingData()`**: Checks if there's existing data in storage
+
+#### Data Flow
+```
+GitHub Data Load → DataManager.loadFromGitHub() → StorageService → Callbacks → React State Update
+Example Data Load → DataManager.loadFromExampleSource() → StorageService → Callbacks → React State Update
+User Edits → DataManager.updateData() → StorageService → Callbacks → React State Update
+```
+
+### App Component Integration
+
+#### Simplified Initialization
+- **Single useEffect**: One-time initialization that sets up DataManager with callbacks
+- **Automatic State Updates**: React state is automatically updated when data changes via callbacks
+- **Consistent Data Flow**: All data operations go through the DataManager, ensuring consistency
+
+#### Callback Pattern
+```tsx
+const callbacks = {
+  onDataLoaded: (snapshot: DataSnapshot) => {
+    // Update React state with loaded data
+    setCollections(snapshot.collections);
+    setTokens(snapshot.tokens);
+    // ... update other state
+  },
+  onDataChanged: (snapshot: DataSnapshot) => {
+    // Update React state when data changes
+    setCollections(snapshot.collections);
+    setTokens(snapshot.tokens);
+    // ... update other state
+  },
+  onBaselineUpdated: (snapshot: DataSnapshot) => {
+    // Update change tracking baseline
+    setChangeLogData({
+      currentData: snapshot as unknown as Record<string, unknown>,
+      baselineData: snapshot as unknown as Record<string, unknown>
+    });
+  }
+};
+```
+
+### Benefits
+
+#### Eliminates Race Conditions
+- **Sequential Operations**: DataManager ensures proper sequencing of operations
+- **No Timing Issues**: Callbacks ensure React state updates happen immediately after data changes
+- **Consistent State**: App component state always reflects current storage state
+
+#### Improves Reliability
+- **Single Point of Control**: All data operations go through one service
+- **Error Handling**: Centralized error handling for all data operations
+- **Type Safety**: Proper TypeScript interfaces for all data operations
+
+#### Enhances Maintainability
+- **Centralized Logic**: Easier to debug and modify data operations
+- **Consistent Patterns**: All data loading follows the same pattern
+- **Clear Separation**: Data management logic is separated from UI logic
+
+#### Prevents Future Issues
+- **Consistent Patterns**: Standardized approach prevents similar problems
+- **Scalable Architecture**: Easy to add new data sources or operations
+- **Robust Error Handling**: Comprehensive error handling prevents data corruption
+
+### Migration from Previous Approach
+
+#### Removed Patterns
+- **Direct StorageService calls in components**: All storage operations now go through DataManager
+- **Complex event listeners**: Replaced with simple callback system
+- **Manual state synchronization**: Automatic via callbacks
+- **Multiple data loading paths**: Unified through DataManager
+
+#### Preserved Patterns
+- **Props-based component communication**: Components still receive state as props
+- **Centralized update handlers**: Still used for user-initiated changes
+- **Change tracking**: Maintained through DataManager callbacks
+
+### Implementation Details
+
+#### Type Safety
+- **DataSnapshot Interface**: Comprehensive TypeScript interface for all data types
+- **Callback Interfaces**: Properly typed callback functions
+- **Error Handling**: Typed error responses and validation
+
+#### Performance Considerations
+- **One-time Initialization**: Prevents unnecessary re-initialization
+- **Efficient Callbacks**: Only update state when data actually changes
+- **Memory Management**: Singleton pattern prevents memory leaks
+
+#### Error Handling
+- **Comprehensive Validation**: All data is validated before storage
+- **Graceful Degradation**: Clear error messages and recovery options
+- **State Consistency**: Ensures state remains consistent even on errors
+
+### Outcome
+- **Eliminated Race Conditions**: GitHub data loading now works reliably without timing issues
+- **Improved Data Persistence**: Data properly persists across page refreshes
+- **Enhanced Change Tracking**: ChangeLog shows correct information without false positives
+- **Simplified Architecture**: Single, consistent pattern for all data operations
+- **Better Developer Experience**: Easier to debug and maintain data-related code
+- **Future-Proof Design**: Scalable architecture supports new data sources and operations
+
+This solution provides a **stable, maintainable, and scalable** approach to data management that prevents similar issues in the future while making the codebase easier to understand and extend.
+
+# ChangeLog Baseline Reset Implementation
+
+## Context
+The ChangeLog component was showing incorrect changes when users loaded new data sources (GitHub repositories, sample data) or performed save operations. The issue was that the baseline data wasn't being properly reset in these scenarios, causing the ChangeLog to compare the old baseline with the new data.
+
+## Decision
+Implement proper baseline reset functionality that ensures the ChangeLog shows no changes (0 changes) when:
+1. Loading a new GitHub repository
+2. Changing sample data sources
+3. Resetting data to repository's original state
+4. Committing changes to GitHub (direct commit or PR creation)
+
+## Implementation
+
+### DataManager Baseline Reset
+```typescript
+/**
+ * Reset baseline to current data (used after GitHub save operations)
+ */
+resetBaselineToCurrent(): void {
+  console.log('[DataManager] Resetting baseline to current data');
+  
+  const currentSnapshot = this.getCurrentSnapshot();
+  
+  // Set new baseline to current data
+  this.setBaseline(currentSnapshot);
+  
+  // Notify that baseline has been updated
+  this.callbacks.onBaselineUpdated?.(currentSnapshot);
+}
+```
+
+### GitHub Save Service Integration
+```typescript
+// After successful direct save
+await GitHubApiService.createFile(/* ... */);
+
+// Reset baseline to current data after successful save
+const dataManager = DataManager.getInstance();
+dataManager.resetBaselineToCurrent();
+
+// After successful PR creation
+const pr = await GitHubApiService.createPullRequest(/* ... */);
+
+// Reset baseline to current data after successful PR creation
+const dataManager = DataManager.getInstance();
+dataManager.resetBaselineToCurrent();
+```
+
+### App Component Baseline Update Handler
+```typescript
+onBaselineUpdated: (snapshot: DataSnapshot) => {
+  console.log('[App] Baseline updated via DataManager');
+  // When baseline is updated (new data source loaded), set both current and baseline to the same data
+  // This ensures the ChangeLog shows no changes
+  const snapshotData = snapshot as unknown as Record<string, unknown>;
+  setChangeLogData({
+    currentData: snapshotData,
+    baselineData: snapshotData
+  });
+}
+```
+
+### Data Loading Baseline Reset
+```typescript
+// In loadFromGitHub and loadFromExampleSource methods
+// Set new baseline for change tracking - this establishes the new "original" state
+this.setBaseline(snapshot);
+
+// Notify that data has been loaded with new baseline
+this.callbacks.onDataLoaded?.(snapshot);
+this.callbacks.onBaselineUpdated?.(snapshot);
+```
+
+## Use Cases Covered
+
+1. **GitHub Repository Loading**: When a user loads a repository, the baseline is set to the loaded data
+2. **Sample Data Source Changes**: When switching between example data sources, the baseline is reset
+3. **Data Reset Operations**: When resetting to GitHub source or baseline, the baseline is updated
+4. **GitHub Save Operations**: After successful commits or PR creation, the baseline is reset to current state
+
+## Benefits
+1. **Accurate Change Detection**: ChangeLog only shows actual user changes, not data source changes
+2. **Consistent User Experience**: Users see 0 changes when loading new data sources
+3. **Proper Baseline Management**: Baseline always reflects the "original" state for comparison
+4. **Clear Change History**: Users can distinguish between data source changes and their own edits
+
+## Technical Details
+
+### Baseline Reset Triggers
+- `DataManager.loadFromGitHub()` - New repository loaded
+- `DataManager.loadFromExampleSource()` - Sample data source changed
+- `DataManager.resetBaselineToCurrent()` - After save operations
+- `Header.handleReloadCurrentFile()` - Reset to GitHub source
+
+### ChangeLog Behavior
+- **0 Changes**: When baseline and current data are identical
+- **N Changes**: When user has made modifications to the baseline data
+- **Reset**: Automatically resets to 0 changes when new data sources are loaded
+
+## Outcome
+1. **Fixed ChangeLog Issues**: No more incorrect change counts when loading new data
+2. **Improved User Experience**: Clear indication of when changes exist vs. when data is "clean"
+3. **Consistent Behavior**: All data loading scenarios properly reset the baseline
+4. **Maintainable Solution**: Centralized baseline management through DataManager 

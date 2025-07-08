@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   VStack,
   HStack,
@@ -13,13 +13,15 @@ import {
   AlertIcon,
   AlertDescription,
   useColorMode,
-  Badge
+  Badge,
+  Spinner
 } from '@chakra-ui/react';
-import { Download, Copy, ExternalLink, Eye, EyeOff } from 'lucide-react';
+import { Download, Copy, ExternalLink, Eye, EyeOff, AlertTriangle, CheckCircle } from 'lucide-react';
 import type { TokenSystem } from '@token-model/data-model';
 import { FigmaExportService, FigmaExportResult } from '../../services/figmaExport';
 import { FigmaPrePublishDialog } from '../../components/FigmaPrePublishDialog';
 import { createSchemaJsonFromLocalStorage } from '../../services/createJson';
+import { ChangeTrackingService, ChangeTrackingState } from '../../services/changeTrackingService';
 
 interface FigmaExportSettingsProps {
   tokenSystem: TokenSystem;
@@ -35,9 +37,57 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
   const [exportResult, setExportResult] = useState<FigmaExportResult | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showPrePublishDialog, setShowPrePublishDialog] = useState(false);
+  const [changeTrackingState, setChangeTrackingState] = useState<ChangeTrackingState | null>(null);
+  const [checkingChanges, setCheckingChanges] = useState(true);
+
+  // Check change tracking state on mount and when data changes
+  useEffect(() => {
+    const checkChangeTracking = async () => {
+      setCheckingChanges(true);
+      try {
+        const state = await ChangeTrackingService.getChangeTrackingState();
+        setChangeTrackingState(state);
+      } catch (error) {
+        console.error('[FigmaExportSettings] Error checking change tracking:', error);
+        // Default to allowing export if we can't check
+        setChangeTrackingState({
+          hasLocalChanges: false,
+          hasGitHubDivergence: false,
+          canExport: true,
+          changeCount: 0
+        });
+      } finally {
+        setCheckingChanges(false);
+      }
+    };
+
+    checkChangeTracking();
+
+    // Listen for data change events to re-check
+    const handleDataChange = () => {
+      checkChangeTracking();
+    };
+
+    window.addEventListener('token-model:data-change', handleDataChange);
+    return () => {
+      window.removeEventListener('token-model:data-change', handleDataChange);
+    };
+  }, []);
 
   // Generate the export JSON
   const handleExport = async () => {
+    // Check if export is allowed
+    if (changeTrackingState && !changeTrackingState.canExport) {
+      toast({
+        title: 'Export blocked',
+        description: 'Cannot export due to local changes or GitHub divergence. Please save your changes first.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
     console.log('[FigmaExportSettings] Starting export...');
     // Always use the canonical, schema-compliant token system from local storage
     let canonicalTokenSystem;
@@ -332,6 +382,59 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
     }
   };
 
+  // Render change tracking status
+  const renderChangeTrackingStatus = () => {
+    if (checkingChanges) {
+      return (
+        <Alert status="info" borderRadius="md">
+          <Spinner size="sm" mr={2} />
+          <AlertDescription>
+            Checking for changes...
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    if (!changeTrackingState) {
+      return (
+        <Alert status="warning" borderRadius="md">
+          <AlertIcon />
+          <AlertDescription>
+            Unable to check change status. Export may be limited.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    if (changeTrackingState.canExport) {
+      return (
+        <Alert status="success" borderRadius="md">
+          <AlertIcon as={CheckCircle} />
+          <AlertDescription>
+            Ready to export. {changeTrackingState.changeCount > 0 
+              ? `${changeTrackingState.changeCount} local changes detected, but GitHub is in sync.`
+              : 'No changes detected.'
+            }
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    return (
+      <Alert status="error" borderRadius="md">
+        <AlertIcon as={AlertTriangle} />
+        <AlertDescription>
+          {changeTrackingState.hasLocalChanges && changeTrackingState.hasGitHubDivergence
+            ? `Export blocked: ${changeTrackingState.changeCount} local changes detected AND data has diverged from baseline. Please save your changes first.`
+            : changeTrackingState.hasLocalChanges
+            ? `Export blocked: ${changeTrackingState.changeCount} local changes detected. Please save your changes first.`
+            : 'Export blocked: Local data has diverged from baseline. Please sync with GitHub first.'
+          }
+        </AlertDescription>
+      </Alert>
+    );
+  };
+
   return (
     <VStack spacing={6} align="stretch">
       <Box>
@@ -342,6 +445,9 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
           Export your design system tokens to Figma Variables format
         </Text>
       </Box>
+
+      {/* Change Tracking Status */}
+      {renderChangeTrackingStatus()}
 
       {/* Configuration */}
       <VStack spacing={4} align="stretch">
@@ -382,6 +488,7 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
           isLoading={loading}
           loadingText="Generating Export..."
           leftIcon={<Download size={16} />}
+          isDisabled={changeTrackingState ? !changeTrackingState.canExport : false}
         >
           Generate Export
         </Button>
@@ -437,7 +544,7 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
                   </Button>
                 )}
                 
-                {accessToken && fileId && (
+                {accessToken && fileId && changeTrackingState?.canExport && (
                   <Button
                     size="sm"
                     colorScheme="green"
