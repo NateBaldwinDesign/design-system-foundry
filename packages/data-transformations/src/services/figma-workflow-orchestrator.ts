@@ -5,7 +5,7 @@ import type {
   FigmaFileVariablesResponse,
   FigmaCreateVariablesResponse
 } from '../types/figma';
-import { FigmaTransformerOptimized } from '../transformers/figma-optimized';
+import { FigmaTransformer } from '../transformers/figma';
 import { FigmaIdManager } from './figma-id-manager';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -15,11 +15,11 @@ import * as path from 'path';
  * Implements the 8-step process as specified in the requirements
  */
 export class FigmaWorkflowOrchestrator {
-  private transformer: FigmaTransformerOptimized;
+  private transformer: FigmaTransformer;
   private idManager: FigmaIdManager;
 
   constructor() {
-    this.transformer = new FigmaTransformerOptimized();
+    this.transformer = new FigmaTransformer();
     this.idManager = new FigmaIdManager();
   }
 

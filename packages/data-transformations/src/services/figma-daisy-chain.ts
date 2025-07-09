@@ -40,6 +40,8 @@ export class FigmaDaisyChainService {
       console.log(`[FigmaDaisyChain] Token ${token.id} has no dimension dependencies, creating direct variable`);
       const variable = this.createDirectVariable(token, tokenSystem, figmaCodeSyntax);
       variables.push(variable);
+      
+      // Direct variables don't need mode values - they have direct values
       return { variables, modeValues };
     }
 
@@ -99,6 +101,7 @@ export class FigmaDaisyChainService {
       const targetVariableId = modeToVariableMap[defaultModeKey];
       
       if (targetVariableId) {
+        // Use the token collection's mode ID
         const finalModeValue: FigmaVariableModeValue = {
           variableId: finalVariable.id,
           modeId: `mode-${tokenCollection.id}`,
@@ -173,27 +176,17 @@ export class FigmaDaisyChainService {
     
     console.log(`[FigmaDaisyChain] Creating intermediaries for dimension "${firstDimension.displayName}" with mode combinations:`, modeCombinations);
 
-    // Create a separate variable for each mode combination
-    for (const modeCombination of modeCombinations) {
-      const modeNames = modeCombination.map(modeId => {
-        const dimension = allUsedDimensions.find(d => d.modes?.some((m: any) => m.id === modeId));
-        const mode = dimension?.modes?.find((m: any) => m.id === modeId);
-        return mode?.name || modeId;
-      });
-      
-      // Create variable name - if there are additional modes beyond the first dimension, include them
-      let variableName: string;
-      if (modeNames.length > 1) {
-        variableName = `${figmaCodeSyntax.formattedName} (${firstDimension.displayName} - ${modeNames.slice(1).join(', ')})`;
-      } else {
-        variableName = `${figmaCodeSyntax.formattedName} (${firstDimension.displayName})`;
-      }
-      
-      const variableId = generateUniqueId(`intermediary-${token.id}-${firstDimension.id}-${modeCombination.join('-')}`);
+    // Check if this is a single-dimensional token (only one dimension used)
+    const isSingleDimensional = allUsedDimensions.length === 1;
+    
+    if (isSingleDimensional) {
+      // For single-dimensional tokens: create ONE variable with multiple mode values
+      const variableName = `${figmaCodeSyntax.formattedName} (${firstDimension.displayName})`;
+      const variableId = `intermediary-${token.id}-${firstDimension.id}`;
       const figmaId = this.idManager.getOrCreateVariableId(variableId, variableName);
       const action = this.idManager.determineActionByName(variableName);
       
-      console.log(`[FigmaDaisyChain] Creating intermediary variable "${variableName}" action: ${action}`);
+      console.log(`[FigmaDaisyChain] Creating single-dimensional intermediary variable "${variableName}" action: ${action}`);
 
       const variable: FigmaVariable = {
         action: action,
@@ -206,35 +199,107 @@ export class FigmaDaisyChainService {
       };
       variables.push(variable);
 
-      // Create mode value for this combination
-      const valueByMode = this.findValueByModeForModeCombination(token, modeCombination);
-      if (valueByMode) {
-        let resolvedValue: any;
-        if ('tokenId' in valueByMode.value) {
-          // Handle token references - use the mapped Figma ID
-          const referencedTokenId = valueByMode.value.tokenId;
-          const referencedFigmaId = this.idManager.getFigmaId(referencedTokenId);
-          resolvedValue = {
-            type: 'VARIABLE_ALIAS',
-            id: referencedFigmaId
+      // Create mode values for each mode in the first dimension
+      for (const mode of firstDimension.modes || []) {
+        const valueByMode = this.findValueByModeForModeCombination(token, [mode.id]);
+        if (valueByMode) {
+          let resolvedValue: any;
+          if ('tokenId' in valueByMode.value) {
+            // Handle token references - use the mapped Figma ID
+            const referencedTokenId = valueByMode.value.tokenId;
+            const referencedFigmaId = this.idManager.getFigmaId(referencedTokenId);
+            resolvedValue = {
+              type: 'VARIABLE_ALIAS',
+              id: referencedFigmaId
+            };
+          } else {
+            // Handle direct values - convert to Figma format
+            resolvedValue = this.valueConverter.convertValue(
+              valueByMode.value.value, 
+              token.resolvedValueTypeId, 
+              tokenSystem
+            );
+          }
+          const modeValue: FigmaVariableModeValue = {
+            variableId: figmaId,
+            modeId: mode.id,
+            value: resolvedValue
           };
-        } else {
-          // Handle direct values - convert to Figma format
-          resolvedValue = this.valueConverter.convertValue(
-            valueByMode.value.value, 
-            token.resolvedValueTypeId, 
-            tokenSystem
-          );
+          modeValues.push(modeValue);
+          
+          // Store the mapping for this mode
+          modeToVariableMap[mode.id] = figmaId;
         }
+      }
+    } else {
+      // For multi-dimensional tokens: create separate variables for each mode combination
+      const createdVariableIds = new Set<string>();
+      for (const modeCombination of modeCombinations) {
+        const modeNames = modeCombination.map(modeId => {
+          const dimension = allUsedDimensions.find(d => d.modes?.some((m: any) => m.id === modeId));
+          const mode = dimension?.modes?.find((m: any) => m.id === modeId);
+          return mode?.name || modeId;
+        });
+        
+        // Create variable name following the expected pattern
+        const additionalModes = modeNames.slice(1);
+        const variableName = `${figmaCodeSyntax.formattedName} (${firstDimension.displayName} - ${additionalModes.join(', ')})`;
+        
+        // Create variable ID following the expected pattern
+        // Include the first dimension's mode to ensure uniqueness
+        const firstDimModeIdForId = modeCombination.find(id => firstDimension.modes?.some((m: any) => m.id === id));
+        const additionalModesForId = modeCombination.filter(id => !firstDimension.modes?.some((m: any) => m.id === id));
+        const modeSuffix = additionalModesForId.length > 0 ? `-${additionalModesForId.join('-')}` : '';
+        const variableId = `intermediary-${token.id}-${firstDimension.id}-${firstDimModeIdForId}${modeSuffix}`;
+        if (createdVariableIds.has(variableId)) continue;
+        createdVariableIds.add(variableId);
+        const figmaId = this.idManager.getOrCreateVariableId(variableId, variableName);
+        const action = this.idManager.determineActionByName(variableName);
+        
+        console.log(`[FigmaDaisyChain] Creating multi-dimensional intermediary variable "${variableName}" action: ${action}`);
 
-        // Use the first mode from the combination as the mode for this variable
-        const modeValue: FigmaVariableModeValue = {
-          variableId: figmaId,
-          modeId: modeCombination[0],
-          value: resolvedValue
+        const variable: FigmaVariable = {
+          action: action,
+          id: figmaId,
+          name: variableName,
+          variableCollectionId: firstDimension.id,
+          resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
+          scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
+          hiddenFromPublishing: true // Intermediary variables are hidden
         };
-        modeValues.push(modeValue);
+        variables.push(variable);
 
+        // Create mode value for this specific mode combination (1:1 mapping)
+        // Find the mode from the first dimension in this combination
+        const firstDimModeId = modeCombination.find(id => firstDimension.modes?.some((m: any) => m.id === id));
+        if (firstDimModeId) {
+          const valueByMode = this.findValueByModeForModeCombination(token, modeCombination);
+          if (valueByMode) {
+            let resolvedValue: any;
+            if ('tokenId' in valueByMode.value) {
+              // Handle token references - use the mapped Figma ID
+              const referencedTokenId = valueByMode.value.tokenId;
+              const referencedFigmaId = this.idManager.getFigmaId(referencedTokenId);
+              resolvedValue = {
+                type: 'VARIABLE_ALIAS',
+                id: referencedFigmaId
+              };
+            } else {
+              // Handle direct values - convert to Figma format
+              resolvedValue = this.valueConverter.convertValue(
+                valueByMode.value.value, 
+                token.resolvedValueTypeId, 
+                tokenSystem
+              );
+            }
+            const modeValue: FigmaVariableModeValue = {
+              variableId: figmaId,
+              modeId: firstDimModeId,
+              value: resolvedValue
+            };
+            modeValues.push(modeValue);
+          }
+        }
         // Store the mapping for this mode combination
         const modeKey = this.createModeKey(modeCombination);
         modeToVariableMap[modeKey] = figmaId;
@@ -275,7 +340,7 @@ export class FigmaDaisyChainService {
 
     // Create ONE reference variable for this dimension (not one per mode combination)
     const variableName = `${figmaCodeSyntax.formattedName} (${dimension.displayName})`;
-    const variableId = generateUniqueId(`reference-${token.id}-${dimension.id}`);
+    const variableId = `reference-${token.id}-${dimension.id}`;
     const figmaId = this.idManager.getOrCreateVariableId(variableId, variableName);
     const action = this.idManager.determineActionByName(variableName);
     
@@ -292,21 +357,12 @@ export class FigmaDaisyChainService {
     };
     variables.push(variable);
 
-    // Create mode values for each mode in this dimension that's part of any combination
-    const usedModeIds = new Set<string>();
-    for (const modeCombination of modeCombinations) {
-      for (const modeId of modeCombination) {
-        if (dimension.modes?.some((m: any) => m.id === modeId)) {
-          usedModeIds.add(modeId);
-        }
-      }
-    }
-
-    // For each used mode, find the appropriate target variable to alias to
-    for (const modeId of Array.from(usedModeIds)) {
-      // Find a mode combination that includes this mode and has a target variable
+    // Create mode values for each mode in this dimension
+    for (const mode of dimension.modes || []) {
+      // Find the appropriate target variable to alias to for this mode
+      // We need to find a mode combination that includes this mode and has a target variable
       const targetModeCombination = modeCombinations.find(combination => 
-        combination.includes(modeId) && modeToVariableMap[this.createModeKey(combination)]
+        combination.includes(mode.id) && modeToVariableMap[this.createModeKey(combination)]
       );
       
       if (targetModeCombination) {
@@ -316,7 +372,7 @@ export class FigmaDaisyChainService {
         if (targetVariableId) {
           const modeValue: FigmaVariableModeValue = {
             variableId: figmaId,
-            modeId: modeId,
+            modeId: mode.id,
             value: {
               type: 'VARIABLE_ALIAS',
               id: targetVariableId

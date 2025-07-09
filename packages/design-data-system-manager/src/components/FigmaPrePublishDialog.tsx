@@ -94,9 +94,9 @@ export const FigmaPrePublishDialog: React.FC<FigmaPrePublishDialogProps> = ({
     try {
       // This would call the Figma API to get existing variables
       // For now, we'll simulate this with empty data
-      const response = await fetch(`https://api.figma.com/v1/files/${figmaFileId}/variables`, {
+      const response = await fetch(`https://api.figma.com/v1/files/${figmaFileId}/variables/local`, {
         headers: {
-          'Authorization': `Bearer ${accessToken}`,
+          'X-Figma-Token': `${accessToken}`,
           'Content-Type': 'application/json'
         }
       });
