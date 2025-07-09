@@ -124,6 +124,8 @@ export interface FigmaCreateVariablesResponse {
   variables: Record<string, FigmaVariable>;
   /** Created collections */
   variableCollections: Record<string, FigmaVariableCollection>;
+  /** Mapping of temporary IDs to real Figma IDs */
+  tempToRealId?: Record<string, string>;
 }
 
 export interface FigmaVariableMode {

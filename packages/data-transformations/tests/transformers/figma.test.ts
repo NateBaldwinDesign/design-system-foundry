@@ -197,11 +197,28 @@ describe('FigmaTransformer', () => {
       // Set up tempToRealId mapping for the mapped token
       const tempToRealId = { 'token-8888-88888-88888': 'VariableID:123:456' };
       
+      // Set up existing Figma data to indicate the mapped variable exists
+      const existingFigmaData = {
+        variables: {
+          'VariableID:123:456': {
+            id: 'VariableID:123:456',
+            name: mappedToken.displayName
+          } as any
+        },
+        variableCollections: {
+          'collection-1': {
+            id: 'collection-1',
+            name: 'Color'
+          } as any
+        }
+      };
+      
       // Run the transformer
       const result = await transformer.transform(testData, {
         fileKey: 'test-file-key',
         accessToken: 'test-token',
-        tempToRealId
+        tempToRealId,
+        existingFigmaData
       });
       
       if (!result.success) {
@@ -284,13 +301,25 @@ describe('FigmaTransformer', () => {
         aliasToken.valuesByMode[0].value = { tokenId: baseToken.id };
       }
       
+      // Set up existing Figma data to indicate the referenced variable exists
+      const existingFigmaData = {
+        variables: {
+          'figma-var-123': {
+            id: 'figma-var-123',
+            name: baseToken.displayName
+          } as any
+        },
+        variableCollections: {}
+      };
+      
       // Use tempToRealId mapping to indicate existing Figma variable ID for the referenced token
       const result = await transformer.transform(testData, {
         fileKey: 'test-file-key',
         accessToken: 'test-token',
         tempToRealId: {
           [baseToken.id]: 'figma-var-123'
-        }
+        },
+        existingFigmaData
       });
       
       expect(result.success).toBe(true);
