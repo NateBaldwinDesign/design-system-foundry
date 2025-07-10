@@ -122,37 +122,37 @@
             }
         },
         {
-            "variableId": "token-7777-7777-7777",
+            "variableId": "intermediary-token-8888-88888-88888-dimensionId-colorScheme",
             "modeId": "modeId-color-scheme-light",
             "value": {
-                "r": 0,
-                "g": 0,
-                "b": 1
+                "r": 0.152,
+                "g": 0.302,
+                "b": 0.918
             }
         },
         {
-            "variableId": "token-7777-7777-7777",
+            "variableId": "intermediary-token-8888-88888-88888-dimensionId-colorScheme",
             "modeId": "modeId-color-scheme-dark",
             "value": {
-                "r": 0,
-                "g": 0.5,
-                "b": 1
+                "r": 0.412,
+                "g": 0.584",
+                "b": 0.996
             }
         },
         // Text Accent example has multiple intermediary values
-        // First, published token/variable points to the first dimension (contrast) with modes
+        // First, published token/variable points to the reference variable (contrast dimension)
         {
             "variableId": "token-9999-9999-9999",
             "modeId": "id-published-collection-mode",
             "value": {
                 "type": "VARIABLE_ALIAS",
-                "id": "intermediary-token-9999-9999-9999-dimensionId-contrast"
+                "id": "reference-token-9999-9999-9999-dimensionId-contrast"
             }
         },
-        // Then, the intermediary with modes has values per mode pointing to
+        // Then, the reference variable with modes has values per mode pointing to
         // unique intermediaries from the color scheme collection.
         {
-            "variableId": "intermediary-token-9999-9999-9999-dimensionId-contrast",
+            "variableId": "reference-token-9999-9999-9999-dimensionId-contrast",
             "modeId": "modeId-contrast-low",
             "value": {
                 "type": "VARIABLE_ALIAS",
@@ -160,7 +160,7 @@
             }
         },
         {
-            "variableId": "intermediary-token-9999-9999-9999-dimensionId-contrast",
+            "variableId": "reference-token-9999-9999-9999-dimensionId-contrast",
             "modeId": "modeId-contrast-regular",
             "value": {
                 "type": "VARIABLE_ALIAS",
@@ -168,7 +168,7 @@
             }
         },
         {
-            "variableId": "intermediary-token-9999-9999-9999-dimensionId-contrast",
+            "variableId": "reference-token-9999-9999-9999-dimensionId-contrast",
             "modeId": "modeId-contrast-high",
             "value": {
                 "type": "VARIABLE_ALIAS",
@@ -180,54 +180,52 @@
             "variableId": "intermediary-token-9999-9999-9999-dimensionId-colorScheme-modeId-contrast-low",
             "modeId": "modeId-color-scheme-light",
             "value": {
-                "r": 0,
-                "g": 0,
-                "b": 0
+                "type": "VARIABLE_ALIAS",
+                "id": "token-8888-88888-88888"
             }
         },
         {
             "variableId": "intermediary-token-9999-9999-9999-dimensionId-colorScheme-modeId-contrast-low",
             "modeId": "modeId-color-scheme-dark",
             "value": {
-                "r": 0,
-                "g": 0,
-                "b": 0
+                "type": "VARIABLE_ALIAS",
+                "id": "token-8888-88888-88888"
             }
         },
         {
             "variableId": "intermediary-token-9999-9999-9999-dimensionId-colorScheme-modeId-contrast-regular",
             "modeId": "modeId-color-scheme-light",
             "value": {
-                "r": 0,
-                "g": 0,
-                "b": 0
+                "r": 0.298,
+                "g": 0.435,
+                "b": 0.996
             }
         },
         {
             "variableId": "intermediary-token-9999-9999-9999-dimensionId-colorScheme-modeId-contrast-regular",
             "modeId": "modeId-color-scheme-dark",
             "value": {
-                "r": 0,
-                "g": 0,
-                "b": 0
+                "r": 0.204,
+                "g": 0.431,
+                "b": 0.976
             }
         },
         {
             "variableId": "intermediary-token-9999-9999-9999-dimensionId-colorScheme-modeId-contrast-high",
             "modeId": "modeId-color-scheme-light",
             "value": {
-                "r": 0,
-                "g": 0,
-                "b": 0
+                "r": 0.035,
+                "g": 0.184,
+                "b": 0.800
             }
         },
         {
             "variableId": "intermediary-token-9999-9999-9999-dimensionId-colorScheme-modeId-contrast-high",
             "modeId": "modeId-color-scheme-dark",
             "value": {
-                "r": 0,
-                "g": 0,
-                "b": 0
+                "r": 0.655",
+                "g": 0.757",
+                "b": 1.000"
             }
         }
     ]

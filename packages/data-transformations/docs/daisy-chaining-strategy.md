@@ -51,9 +51,11 @@ The Figma daisy-chaining strategy implements a three-stage decomposition process
 **When**: `usedDimensions.length > 1`
 
 **Process**:
-1. **First Dimension**: Create intermediaries with actual values
+1. **First Dimension**: Create intermediaries with actual values for each mode in the next dimension
 2. **Subsequent Dimensions**: Create reference variables that alias to previous intermediaries
-3. **Final Stage**: Create final token variable that references the last intermediary
+3. **Final Stage**: Create final token variable that references the last reference variable
+
+**Key Decision**: For multi-dimensional tokens, reference variables are only created for dimensions after the first one
 
 ### 4. Intermediary Variable Creation
 
@@ -62,12 +64,18 @@ The Figma daisy-chaining strategy implements a three-stage decomposition process
 **For Multi-Dimensional Tokens**:
 - Create one variable per mode in the next dimension
 - Variable ID: `intermediary-${token.id}-${dimension.id}-${nextMode.id}`
+- Variable Name: `${tokenName} (${dimension.displayName} - ${nextMode.name})`
 - Map by next dimension's mode ID: `modeToVariableMap[nextMode.id] = variableId`
+- **Mode Values**: Create mode values for each mode in the current dimension
+- **Token References**: Handle token references by aliasing to appropriate variables based on referenced token dimensionality
 
 **For Single-Dimensional Tokens**:
 - Create one variable for the entire collection
 - Variable ID: `intermediary-${token.id}-${dimension.id}`
-- Map by dimension ID: `modeToVariableMap[dimension.id] = finalTokenVariableId`
+- Variable Name: `${tokenName} (${dimension.displayName})`
+- Map by dimension ID: `modeToVariableMap[dimension.id] = variableId`
+- **Mode Values**: Create mode values for each mode in the dimension
+- **Token References**: Handle token references by aliasing to final token variables or intermediaries
 
 ### 5. Token Reference Handling
 
@@ -76,7 +84,7 @@ The Figma daisy-chaining strategy implements a three-stage decomposition process
 **Process**:
 1. Extract `referencedTokenId` from `valueByMode.value.tokenId`
 2. Find the referenced token in `tokenSystem.tokens`
-3. Determine if referenced token is single or multi-dimensional
+3. Determine if referenced token is single or multi-dimensional using `getUsedDimensionsForToken()`
 4. Create appropriate `VARIABLE_ALIAS`:
 
 **For Single-Dimension Referenced Tokens**:
@@ -91,17 +99,25 @@ const referencedVariableId = `intermediary-${referencedTokenId}-${dimension.id}-
 // Alias to appropriate intermediary
 ```
 
+**Fallback Handling**:
+- If referenced token not found: Use placeholder value from `getAliasPlaceholderValue()`
+- If referenced token has no value for current mode: Use placeholder value
+
 ### 6. Reference Variable Creation
 
 **Method**: `createReferenceVariablesForDimension()`
 
+**When**: Only for multi-dimensional tokens (not single-dimensional)
+
 **Process**:
-1. Create one reference variable per dimension
+1. Create one reference variable per dimension (except the first dimension)
 2. Variable ID: `reference-${token.id}-${dimension.id}`
-3. For each mode in the dimension:
-   - Look up target variable by `mode.id` or `dimension.id`
+3. Variable Name: `${tokenName} (${dimension.displayName})`
+4. For each mode in the dimension:
+   - Look up target variable by `mode.id` or `dimension.id` from `modeToVariableMap`
    - If target is a token ID, convert using `idManager.getFigmaId()`
    - Create `VARIABLE_ALIAS` to target variable
+5. Update `modeToVariableMap` with new mappings for subsequent dimensions
 
 ### 7. Final Token Variable Creation
 
@@ -130,6 +146,10 @@ const referencedVariableId = `intermediary-${referencedTokenId}-${dimension.id}-
 **For Dimension Collections (Fallback)**:
 - Use dimension modes directly
 - Create aliases for each mode in the last dimension
+
+**Collection Detection**:
+- `findTokenCollection()` searches `tokenSystem.tokenCollections` for matching `resolvedValueTypeIds`
+- If found, assigns to token collection; otherwise, uses dimension collection
 
 ## ID Management Strategy
 
@@ -223,22 +243,25 @@ const referencedVariableId = `intermediary-${referencedTokenId}-${dimension.id}-
 ### Single-Dimension Color Token
 ```
 Token: Blue 500 (uses Color Scheme dimension)
-→ Intermediary: intermediary-token-8888-88888-88888-dimensionId-0000-0000-0000
-→ Final: token-8888-88888-88888 (in Color collection, "Value" mode)
+→ Intermediary: intermediary-token-8888-88888-88888-dimensionId-colorScheme
+→ Final: token-8888-88888-88888 (in Color collection, "Value" mode) with VARIABLE_ALIAS to intermediary
 ```
 
 ### Multi-Dimensional Text Token
 ```
 Token: Accent Text (uses Color Scheme + Contrast dimensions)
-→ Intermediary 1: intermediary-token-9999-9999-9999-dimensionId-0000-0000-0000-modeId-low
-→ Reference: reference-token-9999-9999-9999-dimensionId-1111-1111-1111
+→ Intermediary 1: intermediary-token-9999-9999-9999-dimensionId-colorScheme-modeId-contrast-low
+→ Intermediary 2: intermediary-token-9999-9999-9999-dimensionId-colorScheme-modeId-contrast-regular
+→ Intermediary 3: intermediary-token-9999-9999-9999-dimensionId-colorScheme-modeId-contrast-high
+→ Reference: reference-token-9999-9999-9999-dimensionId-contrast (aliases to intermediaries)
 → Final: token-9999-9999-9999 (in Typography collection, "Value" mode) with VARIABLE_ALIAS to reference
 ```
 
 ### Token Reference Pattern
 ```
 Token A references Token B
-→ Token A creates VARIABLE_ALIAS to Token B's final variable
+→ Token A creates VARIABLE_ALIAS to Token B's final variable (if single-dimensional)
+→ Token A creates VARIABLE_ALIAS to Token B's intermediary (if multi-dimensional)
 → Uses idManager.getFigmaId() for correct ID resolution
 ```
 
