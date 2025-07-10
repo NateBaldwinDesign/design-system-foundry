@@ -328,6 +328,7 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
       };
       console.log('[FigmaExportSettings] Sending payload to Figma API:', JSON.stringify(bulkPayload, null, 2));
       
+      // Step 1: Publish variables to Figma
       const bulkResponse = await fetch(`https://api.figma.com/v1/files/${fileId}/variables`, {
         method: 'POST',
         headers: {
@@ -353,7 +354,7 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
         
         toast({
           title: 'Published successfully',
-          description: `Published ${selectedVariables.length} variables and ${selectedCollections.length} collections to Figma`,
+          description: `Tokens published to Figma as variables`,
           status: 'success',
           duration: 5000,
           isClosable: true,

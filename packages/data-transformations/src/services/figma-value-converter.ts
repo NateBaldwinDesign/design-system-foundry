@@ -212,6 +212,18 @@ export class FigmaValueConverter {
       return result;
     }
 
+    // Handle token value format: {value: "#4C6FFE"}
+    if (colorObj.value && typeof colorObj.value === 'string') {
+      return this.convertStringToFigmaColor(colorObj.value);
+    }
+
+    // Handle token reference format: {tokenId: "token-id"}
+    if (colorObj.tokenId) {
+      // Return a placeholder color - the actual value will be resolved by daisy-chain logic
+      console.log(`[FigmaValueConverter] Token reference detected: ${colorObj.tokenId}, using placeholder color`);
+      return { r: 0.5, g: 0.5, b: 0.5 }; // Gray placeholder
+    }
+
     throw new Error(`Unsupported color object format: ${JSON.stringify(colorObj)}`);
   }
 

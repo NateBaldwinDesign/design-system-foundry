@@ -291,12 +291,12 @@ describe('FigmaTransformer', () => {
       const testData: TokenSystem = JSON.parse(JSON.stringify(exampleMinimalData));
       
       // Find two tokens to work with
-      const baseToken = testData.tokens[0];
-      const aliasToken = testData.tokens[1];
+      const baseToken = testData.tokens[1]; // token-8888-88888-88888 (Blue 500)
+      const aliasToken = testData.tokens[2]; // token-9999-9999-9999 (Accent text color)
       expect(baseToken).toBeDefined();
       expect(aliasToken).toBeDefined();
       
-      // Make the second token an alias to the first
+      // Make the third token an alias to the second
       if (aliasToken.valuesByMode[0]) {
         aliasToken.valuesByMode[0].value = { tokenId: baseToken.id };
       }
@@ -326,9 +326,10 @@ describe('FigmaTransformer', () => {
       expect(result.data).toBeDefined();
       
       if (result.data) {
-        // Find the alias mode value
+        // Find the alias mode value that references the mapped Figma ID
         const aliasModeValue = result.data.variableModeValues.find(mv => 
-          typeof mv.value === 'object' && mv.value !== null && 'type' in mv.value && mv.value.type === 'VARIABLE_ALIAS'
+          typeof mv.value === 'object' && mv.value !== null && 'type' in mv.value && mv.value.type === 'VARIABLE_ALIAS' &&
+          (mv.value as any).id === 'figma-var-123'
         );
         expect(aliasModeValue).toBeDefined();
         
