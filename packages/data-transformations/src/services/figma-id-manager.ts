@@ -106,6 +106,85 @@ export class FigmaIdManager {
   }
 
   /**
+   * Generate a deterministic ID for UUIDs that come from canonical data
+   * This ensures consistent ID generation across transformations
+   */
+  generateDeterministicId(itemId: string, type: 'collection' | 'mode' | 'variable'): string {
+    // If it's already a deterministic ID, return as is
+    if (this.isDeterministicId(itemId)) {
+      return itemId;
+    }
+
+    // If it's a UUID, generate a deterministic ID based on the type
+    if (this.isUuid(itemId)) {
+      return this.createDeterministicId(itemId, type);
+    }
+
+    // Otherwise, return the original ID
+    return itemId;
+  }
+
+  /**
+   * Check if an ID is already deterministic (follows our patterns)
+   */
+  private isDeterministicId(id: string): boolean {
+    // Check for our deterministic patterns
+    const deterministicPatterns = [
+      /^mode-tokenCollection-/,
+      /^intermediary-/,
+      /^reference-/,
+      /^collection-/,
+      /^dimension-/,
+      /^token-/,
+      /^mode-/
+    ];
+    
+    return deterministicPatterns.some(pattern => pattern.test(id));
+  }
+
+  /**
+   * Check if an ID is a UUID
+   */
+  private isUuid(id: string): boolean {
+    // UUID v4 pattern: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidPattern.test(id);
+  }
+
+  /**
+   * Create a deterministic ID from a UUID
+   */
+  private createDeterministicId(uuid: string, type: 'collection' | 'mode' | 'variable'): string {
+    // Use a hash of the UUID to create a consistent but shorter ID
+    const hash = this.hashString(uuid);
+    const shortId = hash.toString(36).substring(0, 8);
+    
+    switch (type) {
+      case 'collection':
+        return `collection-${shortId}`;
+      case 'mode':
+        return `mode-${shortId}`;
+      case 'variable':
+        return `variable-${shortId}`;
+      default:
+        return `${type}-${shortId}`;
+    }
+  }
+
+  /**
+   * Simple hash function for consistent ID generation
+   */
+  private hashString(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash);
+  }
+
+  /**
    * Check if an item exists in Figma by ID
    */
   itemExists(itemId: string): boolean {

@@ -347,7 +347,13 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
         
         // Process the API response to update tempToRealId mapping
         if (fileId) {
-          FigmaMappingService.updateMappingFromApiResponse(fileId, responseData);
+          try {
+            await FigmaMappingService.updateMappingFromApiResponse(fileId, responseData);
+            console.log('[FigmaExportSettings] Successfully updated tempToRealId mapping');
+          } catch (error) {
+            console.error('[FigmaExportSettings] Failed to update tempToRealId mapping:', error);
+            // Continue with the success flow even if mapping update fails
+          }
         }
         
         console.log('[FigmaExportSettings] Figma API publishing completed successfully');

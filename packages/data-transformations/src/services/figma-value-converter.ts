@@ -262,6 +262,18 @@ export class FigmaValueConverter {
     }
 
     if (typeof value === 'object' && value !== null) {
+      const obj = value as any;
+      // Handle token value format: {value: "Inter Han"}
+      if (typeof obj.value === 'string') {
+        return obj.value;
+      }
+      // Handle token reference format: {tokenId: "token-id"}
+      if (obj.tokenId) {
+        // Return a placeholder string - the actual value will be resolved by daisy-chain logic
+        console.log(`[FigmaValueConverter] Token reference detected: ${obj.tokenId}, using placeholder string`);
+        return 'placeholder';
+      }
+      // For other objects, stringify as fallback
       return JSON.stringify(value);
     }
 

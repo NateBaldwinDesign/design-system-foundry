@@ -169,8 +169,10 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     const collections: FigmaVariableCollection[] = [];
 
     for (const dimension of tokenSystem.dimensions || []) {
-      const figmaId = this.idManager.getFigmaId(dimension.id);
-      const action = this.idManager.determineAction(dimension.id);
+      // Generate deterministic ID for the dimension collection
+      const deterministicId = this.idManager.generateDeterministicId(dimension.id, 'collection');
+      const figmaId = this.idManager.getFigmaId(deterministicId);
+      const action = this.idManager.determineAction(deterministicId);
       
       console.log(`[FigmaTransformer] Creating dimension collection "${dimension.displayName}" action: ${action}`);
       
@@ -196,8 +198,10 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     const collections: FigmaVariableCollection[] = [];
 
     for (const collection of tokenSystem.tokenCollections || []) {
-      const figmaId = this.idManager.getFigmaId(collection.id);
-      const action = this.idManager.determineAction(collection.id);
+      // Generate deterministic ID for the token collection
+      const deterministicId = this.idManager.generateDeterministicId(collection.id, 'collection');
+      const figmaId = this.idManager.getFigmaId(deterministicId);
+      const action = this.idManager.determineAction(deterministicId);
       
       console.log(`[FigmaTransformer] Creating modeless collection "${collection.name}" action: ${action}`);
       
@@ -205,7 +209,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
         action: action,
         id: figmaId,
         name: collection.name,
-        initialModeId: `mode-${collection.id}`
+        initialModeId: `mode-tokenCollection-${deterministicId}`
       };
       
       collections.push(modelessCollection);
@@ -306,11 +310,16 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     const action = this.idManager.determineAction(token.id);
     const tokenCollection = this.findTokenCollection(token, tokenSystem);
 
+    // Generate deterministic ID for the token collection
+    const deterministicCollectionId = tokenCollection 
+      ? this.idManager.generateDeterministicId(tokenCollection.id, 'collection')
+      : 'default-collection';
+
     return {
       action: action,
       id: figmaId,
       name: figmaCodeSyntax.formattedName,
-      variableCollectionId: tokenCollection?.id || 'default-collection',
+      variableCollectionId: deterministicCollectionId,
       resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
       scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
       hiddenFromPublishing: token.private || false,
@@ -328,6 +337,9 @@ export class FigmaTransformer extends AbstractBaseTransformer<
   ): FigmaVariableModeValue | null {
     const tokenCollection = this.findTokenCollection(token, tokenSystem);
     if (!tokenCollection) return null;
+
+    // Generate deterministic ID for the token collection
+    const deterministicCollectionId = this.idManager.generateDeterministicId(tokenCollection.id, 'collection');
 
     let resolvedValue: any;
     if ('tokenId' in valueByMode.value) {
@@ -351,7 +363,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
 
     return {
       variableId: this.idManager.getFigmaId(token.id),
-      modeId: `mode-${tokenCollection.id}`,
+      modeId: `mode-tokenCollection-${deterministicCollectionId}`,
       value: figmaValue
     };
   }
@@ -367,29 +379,39 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     const modes: FigmaVariableMode[] = [];
 
     // Create "Value" modes for token collections
+    // Use deterministic ID generation: mode-tokenCollection-{collection.id}
+    // This ensures the same ID is always generated for the same collection
     for (const collection of tokenSystem.tokenCollections || []) {
-      const modeId = `mode-${collection.id}`;
+      // Generate deterministic ID for the token collection
+      const deterministicCollectionId = this.idManager.generateDeterministicId(collection.id, 'collection');
+      const modeId = `mode-tokenCollection-${deterministicCollectionId}`;
       const isInitialMode = this.idManager.isInitialMode(modeId, collections);
       
       modes.push({
         action: isInitialMode ? 'UPDATE' : 'CREATE',
         id: modeId,
         name: 'Value',
-        variableCollectionId: collection.id
+        variableCollectionId: deterministicCollectionId
       });
     }
 
     // Create modes for dimensions
+    // These use canonical mode IDs from the schema, so they're already persistent
     for (const dimension of tokenSystem.dimensions || []) {
+      // Generate deterministic ID for the dimension collection
+      const deterministicDimensionId = this.idManager.generateDeterministicId(dimension.id, 'collection');
+      
       for (const mode of dimension.modes || []) {
-        const isDefaultMode = mode.id === dimension.defaultMode;
-        const isInitialMode = this.idManager.isInitialMode(mode.id, collections);
+        // Generate deterministic ID for the mode
+        const deterministicModeId = this.idManager.generateDeterministicId(mode.id, 'mode');
+        const isDefaultMode = deterministicModeId === this.idManager.generateDeterministicId(dimension.defaultMode, 'mode');
+        const isInitialMode = this.idManager.isInitialMode(deterministicModeId, collections);
         
         modes.push({
           action: (isDefaultMode || isInitialMode) ? 'UPDATE' : 'CREATE',
-          id: mode.id,
+          id: deterministicModeId,
           name: mode.name,
-          variableCollectionId: dimension.id
+          variableCollectionId: deterministicDimensionId
         });
       }
     }

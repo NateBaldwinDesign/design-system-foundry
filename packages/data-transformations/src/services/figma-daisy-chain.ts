@@ -54,11 +54,12 @@ export class FigmaDaisyChainService {
       const dimension = usedDimensions[i];
       const isFirstDimension = i === 0;
       const isLastDimension = i === usedDimensions.length - 1;
+      const isSingleDimension = usedDimensions.length === 1;
       
       console.log(`[FigmaDaisyChain] Stage ${i + 1}: Creating intermediaries for dimension "${dimension.displayName}"`);
       
-      if (isFirstDimension) {
-        // First dimension: create intermediaries with actual values
+      if (isFirstDimension && !isSingleDimension) {
+        // First dimension (multi-dimensional tokens): create intermediaries with actual values
         const intermediaryResult = this.createIntermediaryVariablesForDimension(
           token,
           tokenSystem,
@@ -71,7 +72,7 @@ export class FigmaDaisyChainService {
         modeValues.push(...intermediaryResult.dimensionModeValues);
         Object.assign(modeToVariableMap, intermediaryResult.modeToVariableMap);
       } else {
-        // Subsequent dimensions: create reference variables that alias to previous intermediaries
+        // Subsequent dimensions OR single dimension: create reference variables that alias to previous intermediaries
         const referenceResult = this.createReferenceVariablesForDimension(
           token,
           tokenSystem,
@@ -150,7 +151,7 @@ export class FigmaDaisyChainService {
 
   /**
    * Create intermediary variables for a dimension
-   * Creates one variable per collection with multiple mode values
+   * These contain the actual values for each mode combination
    */
   private createIntermediaryVariablesForDimension(
     token: Token,
@@ -168,38 +169,43 @@ export class FigmaDaisyChainService {
     const modeValues: FigmaVariableModeValue[] = [];
     const modeToVariableMap: Record<string, string> = {};
 
-    // Determine the next dimension (if any)
-    const currentDimIndex = allUsedDimensions.findIndex((d: any) => d.id === dimension.id);
-    const nextDimension = allUsedDimensions[currentDimIndex + 1];
+    // Generate deterministic ID for the dimension
+    const deterministicDimensionId = this.idManager.generateDeterministicId(dimension.id, 'collection');
 
-    if (nextDimension) {
-      // For multi-dimensional tokens: create one variable per mode in the next dimension
-      for (const nextMode of nextDimension.modes) {
-        const variableId = `intermediary-${token.id}-${dimension.id}-${nextMode.id}`;
-        const variableName = `${figmaCodeSyntax.formattedName} (${dimension.displayName} - ${nextMode.name})`;
-        
-        const variable: FigmaVariable = {
-          action: 'CREATE',
-          id: variableId,
-          name: variableName,
-          variableCollectionId: dimension.id,
-          resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
-          scopes: ['ALL_SCOPES'],
-          hiddenFromPublishing: true
-        };
-        variables.push(variable);
-        
-        // Map by next dimension's mode ID
-        modeToVariableMap[nextMode.id] = variableId;
-        
-        // Create mode values for each mode in this dimension
-        for (const mode of dimension.modes) {
-          // Find the value for this mode combination
-          const valueByMode = token.valuesByMode?.find(vbm => 
-            vbm.modeIds.includes(mode.id) && vbm.modeIds.includes(nextMode.id)
-          );
+    if (isFirstDimension) {
+      // For the first dimension, create one variable per mode in the next dimension
+      const nextDimension = allUsedDimensions[1];
+      if (nextDimension) {
+        for (const nextMode of nextDimension.modes || []) {
+          // Generate deterministic ID for the next mode
+          const deterministicNextModeId = this.idManager.generateDeterministicId(nextMode.id, 'mode');
           
-          if (valueByMode) {
+          const variableId = `intermediary-${token.id}-${deterministicDimensionId}-${deterministicNextModeId}`;
+          const variableName = `${figmaCodeSyntax.formattedName} (${dimension.displayName} - ${nextMode.name})`;
+          
+          console.log(`[FigmaDaisyChain] Creating intermediary variable "${variableName}" action: CREATE`);
+          
+          const variable: FigmaVariable = {
+            action: 'CREATE',
+            id: variableId,
+            name: variableName,
+            variableCollectionId: deterministicDimensionId,
+            resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
+            scopes: ['ALL_SCOPES'],
+            hiddenFromPublishing: true
+          };
+          
+          variables.push(variable);
+          modeToVariableMap[deterministicNextModeId] = variableId;
+
+          // Create mode values for each mode in the current dimension
+          for (const mode of dimension.modes || []) {
+            // Generate deterministic ID for the mode
+            const deterministicModeId = this.idManager.generateDeterministicId(mode.id, 'mode');
+            
+            // Find the value for this mode combination
+            const valueByMode = this.findValueByModeForModeCombination(token, [deterministicModeId, deterministicNextModeId]);
+            
             let modeValue: FigmaVariableModeValue;
             
             // Check if this is a token reference
@@ -223,7 +229,7 @@ export class FigmaDaisyChainService {
                     const referencedVariableId = this.idManager.getFigmaId(referencedTokenId);
                     modeValue = {
                       variableId,
-                      modeId: mode.id,
+                      modeId: deterministicModeId,
                       value: {
                         type: 'VARIABLE_ALIAS',
                         id: referencedVariableId
@@ -231,10 +237,10 @@ export class FigmaDaisyChainService {
                     };
                   } else {
                     // Multi-dimensional token: alias to the appropriate intermediary
-                    const referencedVariableId = `intermediary-${referencedTokenId}-${dimension.id}-${mode.id}`;
+                    const referencedVariableId = `intermediary-${referencedTokenId}-${deterministicDimensionId}-${deterministicModeId}`;
                     modeValue = {
                       variableId,
-                      modeId: mode.id,
+                      modeId: deterministicModeId,
                       value: {
                         type: 'VARIABLE_ALIAS',
                         id: referencedVariableId
@@ -245,7 +251,7 @@ export class FigmaDaisyChainService {
                   // Fallback: use placeholder
                   modeValue = {
                     variableId,
-                    modeId: mode.id,
+                    modeId: deterministicModeId,
                     value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
                   };
                 }
@@ -253,7 +259,7 @@ export class FigmaDaisyChainService {
                 // Fallback: use placeholder
                 modeValue = {
                   variableId,
-                  modeId: mode.id,
+                  modeId: deterministicModeId,
                   value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
                 };
               }
@@ -262,7 +268,7 @@ export class FigmaDaisyChainService {
               const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem);
               modeValue = {
                 variableId,
-                modeId: mode.id,
+                modeId: deterministicModeId,
                 value: convertedValue
               };
             }
@@ -272,100 +278,101 @@ export class FigmaDaisyChainService {
         }
       }
     } else {
-      // Single-dimension: create one variable for the entire collection
-      const variableId = `intermediary-${token.id}-${dimension.id}`;
+      // For subsequent dimensions, create one variable for the entire collection
+      const variableId = `intermediary-${token.id}-${deterministicDimensionId}`;
       const variableName = `${figmaCodeSyntax.formattedName} (${dimension.displayName})`;
+      
+      console.log(`[FigmaDaisyChain] Creating intermediary variable "${variableName}" action: CREATE`);
       
       const variable: FigmaVariable = {
         action: 'CREATE',
         id: variableId,
         name: variableName,
-        variableCollectionId: dimension.id,
+        variableCollectionId: deterministicDimensionId,
         resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
         scopes: ['ALL_SCOPES'],
         hiddenFromPublishing: true
       };
+      
       variables.push(variable);
-      
-      // Map by dimension ID for single-dimension tokens
-      // For single-dimension tokens, map to the intermediary variable ID (not the final token variable)
-      modeToVariableMap[dimension.id] = variableId;
-      
+      modeToVariableMap[deterministicDimensionId] = variableId;
+
       // Create mode values for each mode in this dimension
-      for (const mode of dimension.modes) {
-        // Find the value for this mode
-        const valueByMode = token.valuesByMode?.find(vbm => vbm.modeIds.includes(mode.id));
+      for (const mode of dimension.modes || []) {
+        // Generate deterministic ID for the mode
+        const deterministicModeId = this.idManager.generateDeterministicId(mode.id, 'mode');
         
-        if (valueByMode) {
-          let modeValue: FigmaVariableModeValue;
+        // Find the value for this mode
+        const valueByMode = this.findValueByModeForModeCombination(token, [deterministicModeId]);
+        
+        let modeValue: FigmaVariableModeValue;
+        
+        // Check if this is a token reference
+        if (valueByMode.value && typeof valueByMode.value === 'object' && 'tokenId' in valueByMode.value) {
+          // Create VARIABLE_ALIAS to the referenced token
+          const referencedTokenId = (valueByMode.value as any).tokenId;
+          const referencedToken = tokenSystem.tokens?.find(t => t.id === referencedTokenId);
           
-                      // Check if this is a token reference
-            if (valueByMode.value && typeof valueByMode.value === 'object' && 'tokenId' in valueByMode.value) {
-              // Create VARIABLE_ALIAS to the referenced token
-              const referencedTokenId = (valueByMode.value as any).tokenId;
-              const referencedToken = tokenSystem.tokens?.find(t => t.id === referencedTokenId);
+          if (referencedToken) {
+            // Find the referenced token's value for this mode
+            const referencedValueByMode = referencedToken.valuesByMode?.find(vbm => 
+              vbm.modeIds.includes(mode.id)
+            );
+            
+            if (referencedValueByMode) {
+              // Check if the referenced token is single-dimension or multi-dimensional
+              const referencedTokenDimensions = this.getUsedDimensionsForToken(referencedToken, tokenSystem);
               
-              if (referencedToken) {
-                // Find the referenced token's value for this mode
-                const referencedValueByMode = referencedToken.valuesByMode?.find(vbm => 
-                  vbm.modeIds.includes(mode.id)
-                );
-                
-                if (referencedValueByMode) {
-                  // Check if the referenced token is single-dimension or multi-dimensional
-                  const referencedTokenDimensions = this.getUsedDimensionsForToken(referencedToken, tokenSystem);
-                  
-                  if (referencedTokenDimensions.length === 1) {
-                    // Single-dimension token: alias to the final token variable (always use mapped Figma ID)
-                    const referencedVariableId = this.idManager.getFigmaId(referencedTokenId);
-                    modeValue = {
-                      variableId,
-                      modeId: mode.id,
-                      value: {
-                        type: 'VARIABLE_ALIAS',
-                        id: referencedVariableId
-                      }
-                    };
-                  } else {
-                    // Multi-dimensional token: alias to the appropriate intermediary
-                    const referencedVariableId = `intermediary-${referencedTokenId}-${dimension.id}-${mode.id}`;
-                    modeValue = {
-                      variableId,
-                      modeId: mode.id,
-                      value: {
-                        type: 'VARIABLE_ALIAS',
-                        id: referencedVariableId
-                      }
-                    };
-                  }
-                } else {
-                  // Fallback: use placeholder
-                  modeValue = {
-                    variableId,
-                    modeId: mode.id,
-                    value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
-                  };
-                }
-              } else {
-                // Fallback: use placeholder
+              if (referencedTokenDimensions.length === 1) {
+                // Single-dimension token: alias to the final token variable (always use mapped Figma ID)
+                const referencedVariableId = this.idManager.getFigmaId(referencedTokenId);
                 modeValue = {
                   variableId,
-                  modeId: mode.id,
-                  value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
+                  modeId: deterministicModeId,
+                  value: {
+                    type: 'VARIABLE_ALIAS',
+                    id: referencedVariableId
+                  }
+                };
+              } else {
+                // Multi-dimensional token: alias to the appropriate intermediary
+                const referencedVariableId = `intermediary-${referencedTokenId}-${deterministicDimensionId}-${deterministicModeId}`;
+                modeValue = {
+                  variableId,
+                  modeId: deterministicModeId,
+                  value: {
+                    type: 'VARIABLE_ALIAS',
+                    id: referencedVariableId
+                  }
                 };
               }
+            } else {
+              // Fallback: use placeholder
+              modeValue = {
+                variableId,
+                modeId: deterministicModeId,
+                value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
+              };
+            }
           } else {
-            // Direct value - convert normally
-            const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem);
+            // Fallback: use placeholder
             modeValue = {
               variableId,
-              modeId: mode.id,
-              value: convertedValue
+              modeId: deterministicModeId,
+              value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
             };
           }
-          
-          modeValues.push(modeValue);
+        } else {
+          // Direct value - convert normally
+          const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem);
+          modeValue = {
+            variableId,
+            modeId: deterministicModeId,
+            value: convertedValue
+          };
         }
+        
+        modeValues.push(modeValue);
       }
     }
 
@@ -379,6 +386,7 @@ export class FigmaDaisyChainService {
   /**
    * Create reference variables for subsequent dimensions
    * These alias to the appropriate intermediaries from previous dimensions
+   * For single-dimensional tokens, this creates intermediaries with actual values
    */
   private createReferenceVariablesForDimension(
     token: Token,
@@ -396,44 +404,152 @@ export class FigmaDaisyChainService {
     const modeValues: FigmaVariableModeValue[] = [];
     const newModeToVariableMap: Record<string, string> = {};
 
-    // Create one reference variable for this dimension
-    const referenceVariableId = `reference-${token.id}-${dimension.id}`;
-    const referenceVariableName = `${figmaCodeSyntax.formattedName} (${dimension.displayName})`;
-    
-    console.log(`[FigmaDaisyChain] Creating reference variable "${referenceVariableName}" action: CREATE`);
-    
-    const referenceVariable: FigmaVariable = {
-      action: 'CREATE',
-      id: referenceVariableId,
-      name: referenceVariableName,
-      variableCollectionId: dimension.id,
-      resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
-      scopes: ['ALL_SCOPES'],
-      hiddenFromPublishing: true
-    };
-    
-    variables.push(referenceVariable);
+    // Generate deterministic ID for the dimension
+    const deterministicDimensionId = this.idManager.generateDeterministicId(dimension.id, 'collection');
 
-    // Create mode values for each mode in this dimension
-    for (const mode of dimension.modes || []) {
-      // For multi-dimensional tokens, look up by mode ID
-      // For single-dimension tokens, look up by dimension ID
-      let targetVariableId = modeToVariableMap[mode.id] || modeToVariableMap[dimension.id];
-      if (targetVariableId && targetVariableId.startsWith('token-')) {
-        targetVariableId = this.idManager.getFigmaId(targetVariableId);
-      }
+    // Check if this is a single-dimensional token (no previous intermediaries)
+    const isSingleDimension = Object.keys(modeToVariableMap).length === 0;
+
+    if (isSingleDimension) {
+      // For single-dimensional tokens, create intermediaries with actual values
+      const variableId = `intermediary-${token.id}-${deterministicDimensionId}`;
+      const variableName = `${figmaCodeSyntax.formattedName} (${dimension.displayName})`;
       
-      if (targetVariableId) {
-        const modeValue: FigmaVariableModeValue = {
-          variableId: referenceVariableId,
-          modeId: mode.id,
-          value: {
-            type: 'VARIABLE_ALIAS',
-            id: targetVariableId
+      console.log(`[FigmaDaisyChain] Creating single-dimension intermediary variable "${variableName}" action: CREATE`);
+      
+      const variable: FigmaVariable = {
+        action: 'CREATE',
+        id: variableId,
+        name: variableName,
+        variableCollectionId: deterministicDimensionId,
+        resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
+        scopes: ['ALL_SCOPES'],
+        hiddenFromPublishing: true
+      };
+      
+      variables.push(variable);
+      newModeToVariableMap[deterministicDimensionId] = variableId;
+
+      // Create mode values for each mode in this dimension
+      for (const mode of dimension.modes || []) {
+        // Generate deterministic ID for the mode
+        const deterministicModeId = this.idManager.generateDeterministicId(mode.id, 'mode');
+        
+        // Find the value for this mode
+        const valueByMode = this.findValueByModeForModeCombination(token, [deterministicModeId]);
+        
+        let modeValue: FigmaVariableModeValue;
+        
+        // Check if this is a token reference
+        if (valueByMode.value && typeof valueByMode.value === 'object' && 'tokenId' in valueByMode.value) {
+          // Create VARIABLE_ALIAS to the referenced token
+          const referencedTokenId = (valueByMode.value as any).tokenId;
+          const referencedToken = tokenSystem.tokens?.find(t => t.id === referencedTokenId);
+          
+          if (referencedToken) {
+            // Find the referenced token's value for this mode
+            const referencedValueByMode = referencedToken.valuesByMode?.find(vbm => 
+              vbm.modeIds.includes(mode.id)
+            );
+            
+            if (referencedValueByMode) {
+              // Check if the referenced token is single-dimension or multi-dimensional
+              const referencedTokenDimensions = this.getUsedDimensionsForToken(referencedToken, tokenSystem);
+              
+              if (referencedTokenDimensions.length === 1) {
+                // Single-dimension token: alias to the final token variable (always use mapped Figma ID)
+                const referencedVariableId = this.idManager.getFigmaId(referencedTokenId);
+                modeValue = {
+                  variableId,
+                  modeId: deterministicModeId,
+                  value: {
+                    type: 'VARIABLE_ALIAS',
+                    id: referencedVariableId
+                  }
+                };
+              } else {
+                // Multi-dimensional token: alias to the appropriate intermediary
+                const referencedVariableId = `intermediary-${referencedTokenId}-${deterministicDimensionId}-${deterministicModeId}`;
+                modeValue = {
+                  variableId,
+                  modeId: deterministicModeId,
+                  value: {
+                    type: 'VARIABLE_ALIAS',
+                    id: referencedVariableId
+                  }
+                };
+              }
+            } else {
+              // Fallback: use placeholder
+              modeValue = {
+                variableId,
+                modeId: deterministicModeId,
+                value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
+              };
+            }
+          } else {
+            // Fallback: use placeholder
+            modeValue = {
+              variableId,
+              modeId: deterministicModeId,
+              value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
+            };
           }
-        };
+        } else {
+          // Direct value - convert normally
+          const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem);
+          modeValue = {
+            variableId,
+            modeId: deterministicModeId,
+            value: convertedValue
+          };
+        }
+        
         modeValues.push(modeValue);
-        newModeToVariableMap[mode.id] = referenceVariableId;
+      }
+    } else {
+      // For multi-dimensional tokens, create reference variables that alias to previous intermediaries
+      const referenceVariableId = `reference-${token.id}-${deterministicDimensionId}`;
+      const referenceVariableName = `${figmaCodeSyntax.formattedName} (${dimension.displayName})`;
+      
+      console.log(`[FigmaDaisyChain] Creating reference variable "${referenceVariableName}" action: CREATE`);
+      
+      const referenceVariable: FigmaVariable = {
+        action: 'CREATE',
+        id: referenceVariableId,
+        name: referenceVariableName,
+        variableCollectionId: deterministicDimensionId,
+        resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
+        scopes: ['ALL_SCOPES'],
+        hiddenFromPublishing: true
+      };
+      
+      variables.push(referenceVariable);
+
+      // Create mode values for each mode in this dimension
+      for (const mode of dimension.modes || []) {
+        // Generate deterministic ID for the mode
+        const deterministicModeId = this.idManager.generateDeterministicId(mode.id, 'mode');
+        
+        // For multi-dimensional tokens, look up by mode ID
+        // For single-dimension tokens, look up by dimension ID
+        let targetVariableId = modeToVariableMap[deterministicModeId] || modeToVariableMap[deterministicDimensionId];
+        if (targetVariableId && targetVariableId.startsWith('token-')) {
+          targetVariableId = this.idManager.getFigmaId(targetVariableId);
+        }
+        
+        if (targetVariableId) {
+          const modeValue: FigmaVariableModeValue = {
+            variableId: referenceVariableId,
+            modeId: deterministicModeId,
+            value: {
+              type: 'VARIABLE_ALIAS',
+              id: targetVariableId
+            }
+          };
+          modeValues.push(modeValue);
+          newModeToVariableMap[deterministicModeId] = referenceVariableId;
+        }
       }
     }
 
@@ -528,28 +644,12 @@ export class FigmaDaisyChainService {
   }
 
   /**
-   * Find a valueByMode entry for a specific mode combination
+   * Find the value for a specific mode combination
    */
-  private findValueByModeForModeCombination(token: Token, modeCombination: string[]): any {
-    // First try to find an exact match
-    let exactMatch = token.valuesByMode?.find((vbm: any) => 
-      vbm.modeIds.length === modeCombination.length &&
-      vbm.modeIds.every((id: string, index: number) => id === modeCombination[index])
-    );
-    
-    if (exactMatch) {
-      return exactMatch;
-    }
-    
-    // If no exact match, try to find a partial match and use defaults for missing modes
-    for (const valueByMode of token.valuesByMode || []) {
-      const isSubset = valueByMode.modeIds.every((id: string) => modeCombination.includes(id));
-      if (isSubset) {
-        return valueByMode;
-      }
-    }
-    
-    return null;
+  private findValueByModeForModeCombination(token: Token, modeIds: string[]): any {
+    return token.valuesByMode?.find(vbm => 
+      modeIds.every(modeId => vbm.modeIds.includes(modeId))
+    ) || { value: null };
   }
 
   /**
@@ -609,8 +709,12 @@ export class FigmaDaisyChainService {
     const tokenCollection = this.findTokenCollection(token, tokenSystem);
     
     if (tokenCollection) {
+      // Generate deterministic ID for the token collection
+      const deterministicCollectionId = this.idManager.generateDeterministicId(tokenCollection.id, 'collection');
+      
       // Token collections have a single "Value" mode
-      const valueModeId = `mode-${tokenCollection.id}`;
+      // Use deterministic ID generation: mode-tokenCollection-{collection.id}
+      const valueModeId = `mode-tokenCollection-${deterministicCollectionId}`;
       
       // For multi-dimensional tokens, we need to find the reference variable that was created for the last dimension
       // The reference variable ID follows the pattern: reference-${token.id}-${lastDimension.id}
@@ -638,38 +742,34 @@ export class FigmaDaisyChainService {
       }
       
       if (targetVariableId) {
-        // Always create a VARIABLE_ALIAS to the target variable
-        // For multi-dimensional tokens: aliases to the reference variable
-        // For single-dimensional tokens: aliases to the intermediary variable
-        modeValues.push({
+        const modeValue: FigmaVariableModeValue = {
           variableId: finalVariableId,
           modeId: valueModeId,
           value: {
             type: 'VARIABLE_ALIAS',
             id: targetVariableId
           }
-        });
+        };
+        modeValues.push(modeValue);
       }
     } else {
-      // Fallback: use dimension modes (for backward compatibility)
-      for (const mode of lastDimension.modes) {
-        let targetVariableId = modeToVariableMap[mode.id] || modeToVariableMap[lastDimension.id];
-        if (targetVariableId && targetVariableId.startsWith('token-')) {
-          targetVariableId = this.idManager.getFigmaId(targetVariableId);
-        }
+      // Fallback: use dimension modes directly
+      for (const mode of lastDimension.modes || []) {
+        const targetVariableId = modeToVariableMap[mode.id];
         if (targetVariableId) {
-          modeValues.push({
+          const modeValue: FigmaVariableModeValue = {
             variableId: finalVariableId,
             modeId: mode.id,
             value: {
               type: 'VARIABLE_ALIAS',
               id: targetVariableId
             }
-          });
+          };
+          modeValues.push(modeValue);
         }
       }
     }
-    
+
     return modeValues;
   }
 
@@ -701,7 +801,12 @@ export class FigmaDaisyChainService {
    */
   private getTokenCollectionId(token: Token, tokenSystem: TokenSystem): string {
     const tokenCollection = this.findTokenCollection(token, tokenSystem);
-    return tokenCollection?.id || 'default-collection';
+    if (!tokenCollection) {
+      return 'default-collection';
+    }
+    
+    // Generate deterministic ID for the token collection
+    return this.idManager.generateDeterministicId(tokenCollection.id, 'collection');
   }
 
   /**
