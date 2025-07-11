@@ -201,18 +201,18 @@ export class GitHubApiService {
   }
   
   /**
-   * Create or update a file in a repository
+   * Create or update a file in the repository (idempotent)
    */
-  static async createFile(
-    repo: string, 
-    path: string, 
-    content: string, 
-    branch: string, 
+  static async createOrUpdateFile(
+    repo: string,
+    path: string,
+    content: string,
+    branch: string,
     message: string = 'Update token data'
   ): Promise<void> {
     const accessToken = await GitHubAuthService.getValidAccessToken();
-    
-    // First, try to get the current file to get its SHA
+
+    // Try to get the current file to get its SHA (if it exists)
     let sha: string | undefined;
     try {
       const currentFile = await this.getFileContent(repo, path, branch);
@@ -220,17 +220,17 @@ export class GitHubApiService {
     } catch (error) {
       // File doesn't exist, which is fine for creating new files
     }
-    
+
     const body: CreateFileBody = {
       message,
       content: btoa(content), // Base64 encode content
       branch,
     };
-    
+
     if (sha) {
       body.sha = sha; // Include SHA for updates
     }
-    
+
     const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}/contents/${path}`, {
       method: 'PUT',
       headers: {
@@ -240,10 +240,21 @@ export class GitHubApiService {
       },
       body: JSON.stringify(body),
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to create/update file: ${response.statusText}`);
     }
+  }
+
+  // For backward compatibility, alias createFile to createOrUpdateFile
+  static async createFile(
+    repo: string,
+    path: string,
+    content: string,
+    branch: string,
+    message: string = 'Update token data'
+  ): Promise<void> {
+    return this.createOrUpdateFile(repo, path, content, branch, message);
   }
   
   /**

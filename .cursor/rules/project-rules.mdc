@@ -163,6 +163,10 @@ When making any change, explicitly state:
 - If hints are helpful for users or the system to know if they have the correct secret, it's ok to document things like "prefixed by `figd_` and 64 characters long"
 
 ### Figma transformation and API
+- **DAISY-CHAINING**: Reference `/packages/data-transformations/docs/daisy-chaining-strategy.md` when daisy-chaining single and multi-dimensional tokens
+- **MODE ID PERSISTENCE**: Reference `/packages/data-transformations/docs/mode-id-persistence-solution.md` for mode ID creation and management
+- **VARIABLE COLLECTION IDS**: Reference `/packages/data-transformations/docs/variable-collection-id-fix.md` for how to handle collection ids.
+- **TEMP TO REAL / FIGMA IDS**: When creating, referencing, or managing IDs for Figma API always reference `/packages/data-transformations/docs/temp-to-real-id-workflow-fix.md`
 - **TROUBLESHOOTING**: Reference `/packages/design-data-system-manager/docs/figma-troubleshooting.md ` for common Figma transformation and API errors
 
 ### Repository scaffolding

@@ -109,7 +109,22 @@ export class FigmaTransformer extends AbstractBaseTransformer<
 
     // Initialize ID manager with existing data and tempToRealId mapping
     // This handles steps 1-3 of the intended workflow
+    console.log('[FigmaTransformer] 🔍 INITIALIZING ID MANAGER...');
+    console.log('[FigmaTransformer] Options passed to ID manager:', {
+      hasExistingFigmaData: !!options?.existingFigmaData,
+      existingFigmaDataKeys: options?.existingFigmaData ? Object.keys(options.existingFigmaData) : [],
+      hasTempToRealId: !!options?.tempToRealId,
+      tempToRealIdCount: options?.tempToRealId ? Object.keys(options.tempToRealId).length : 0,
+      tempToRealIdSample: options?.tempToRealId ? Object.entries(options.tempToRealId).slice(0, 5) : []
+    });
+    
     this.idManager.initialize(options?.existingFigmaData, options?.tempToRealId);
+    
+    console.log('[FigmaTransformer] ✅ ID MANAGER INITIALIZED');
+    console.log('[FigmaTransformer] ID Manager state after initialization:', {
+      tempToRealIdMappingCount: Object.keys(this.idManager.getTempToRealIdMapping()).length,
+      tempToRealIdMappingSample: Object.entries(this.idManager.getTempToRealIdMapping()).slice(0, 5)
+    });
 
     const collections: FigmaVariableCollection[] = [];
     const allVariables: FigmaVariable[] = [];
@@ -209,7 +224,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
         action: action,
         id: figmaId,
         name: collection.name,
-        initialModeId: `mode-tokenCollection-${deterministicId}`
+        initialModeId: this.idManager.getFigmaId(`mode-tokenCollection-${deterministicId}`)
       };
       
       collections.push(modelessCollection);
@@ -363,7 +378,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
 
     return {
       variableId: this.idManager.getFigmaId(token.id),
-      modeId: `mode-tokenCollection-${deterministicCollectionId}`,
+      modeId: this.idManager.getFigmaId(`mode-tokenCollection-${deterministicCollectionId}`),
       value: figmaValue
     };
   }
@@ -384,14 +399,15 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     for (const collection of tokenSystem.tokenCollections || []) {
       // Generate deterministic ID for the token collection
       const deterministicCollectionId = this.idManager.generateDeterministicId(collection.id, 'collection');
-      const modeId = `mode-tokenCollection-${deterministicCollectionId}`;
+      const deterministicModeId = `mode-tokenCollection-${deterministicCollectionId}`;
+      const modeId = this.idManager.getFigmaId(deterministicModeId);
       const isInitialMode = this.idManager.isInitialMode(modeId, collections);
       
       modes.push({
         action: isInitialMode ? 'UPDATE' : 'CREATE',
         id: modeId,
         name: 'Value',
-        variableCollectionId: deterministicCollectionId
+        variableCollectionId: this.idManager.getFigmaId(deterministicCollectionId)
       });
     }
 

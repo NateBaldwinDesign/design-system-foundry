@@ -144,7 +144,6 @@ const App = () => {
             setLoading(false);
           },
           onDataChanged: (snapshot: DataSnapshot) => {
-            console.log('[App] Data changed via DataManager');
             // Update React state when data changes
             setCollections(snapshot.collections);
             setModes(snapshot.modes);
@@ -159,7 +158,6 @@ const App = () => {
             setDimensionOrder(snapshot.dimensionOrder);
           },
           onBaselineUpdated: (snapshot: DataSnapshot) => {
-            console.log('[App] Baseline updated via DataManager');
             // When baseline is updated (new data source loaded), set both current and baseline to the same data
             // This ensures the ChangeLog shows no changes
             const snapshotData = snapshot as unknown as Record<string, unknown>;

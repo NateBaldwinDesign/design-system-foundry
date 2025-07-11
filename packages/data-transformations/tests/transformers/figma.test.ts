@@ -309,18 +309,41 @@ describe('FigmaTransformer', () => {
             name: baseToken.displayName
           } as any
         },
-        variableCollections: {}
+        variableCollections: {
+          'figma-collection-123': {
+            id: 'figma-collection-123',
+            name: 'Test Collection',
+            initialModeId: 'figma-mode-123',
+            action: 'UPDATE' as const,
+            modes: {
+              'figma-mode-123': {
+                name: 'Value',
+                modeId: 'figma-mode-123'
+              }
+            }
+          }
+        }
       };
       
       // Use tempToRealId mapping to indicate existing Figma variable ID for the referenced token
+      // Also map the collection ID to the Figma collection ID so initial mode IDs can be found
       const result = await transformer.transform(testData, {
         fileKey: 'test-file-key',
         accessToken: 'test-token',
         tempToRealId: {
-          [baseToken.id]: 'figma-var-123'
+          [baseToken.id]: 'figma-var-123',
+          'collection-66wmnw': 'figma-collection-123'  // Map collection ID to Figma collection ID
         },
         existingFigmaData
       });
+
+      // Debug: Print the tempToRealId mapping from the idManager after initialization
+      // @ts-ignore: Accessing private property for debugging
+      if (transformer.idManager && typeof transformer.idManager.getTempToRealIdMapping === 'function') {
+        // @ts-ignore
+        const tempToRealIdDebug = transformer.idManager.getTempToRealIdMapping();
+        console.log('DEBUG tempToRealId mapping after initialization:', tempToRealIdDebug);
+      }
       
       expect(result.success).toBe(true);
       expect(result.data).toBeDefined();

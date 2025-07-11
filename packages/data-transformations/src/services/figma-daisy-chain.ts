@@ -186,7 +186,7 @@ export class FigmaDaisyChainService {
           console.log(`[FigmaDaisyChain] Creating intermediary variable "${variableName}" action: CREATE`);
           
           const variable: FigmaVariable = {
-            action: 'CREATE',
+            action: this.idManager.determineAction(variableId),
             id: variableId,
             name: variableName,
             variableCollectionId: deterministicDimensionId,
@@ -285,7 +285,7 @@ export class FigmaDaisyChainService {
       console.log(`[FigmaDaisyChain] Creating intermediary variable "${variableName}" action: CREATE`);
       
       const variable: FigmaVariable = {
-        action: 'CREATE',
+        action: this.idManager.determineAction(variableId),
         id: variableId,
         name: variableName,
         variableCollectionId: deterministicDimensionId,
@@ -418,7 +418,7 @@ export class FigmaDaisyChainService {
       console.log(`[FigmaDaisyChain] Creating single-dimension intermediary variable "${variableName}" action: CREATE`);
       
       const variable: FigmaVariable = {
-        action: 'CREATE',
+        action: this.idManager.determineAction(variableId),
         id: variableId,
         name: variableName,
         variableCollectionId: deterministicDimensionId,
@@ -515,7 +515,7 @@ export class FigmaDaisyChainService {
       console.log(`[FigmaDaisyChain] Creating reference variable "${referenceVariableName}" action: CREATE`);
       
       const referenceVariable: FigmaVariable = {
-        action: 'CREATE',
+        action: this.idManager.determineAction(referenceVariableId),
         id: referenceVariableId,
         name: referenceVariableName,
         variableCollectionId: deterministicDimensionId,
@@ -714,7 +714,8 @@ export class FigmaDaisyChainService {
       
       // Token collections have a single "Value" mode
       // Use deterministic ID generation: mode-tokenCollection-{collection.id}
-      const valueModeId = `mode-tokenCollection-${deterministicCollectionId}`;
+      const deterministicModeId = `mode-tokenCollection-${deterministicCollectionId}`;
+      const valueModeId = this.idManager.getFigmaId(deterministicModeId);
       
       // For multi-dimensional tokens, we need to find the reference variable that was created for the last dimension
       // The reference variable ID follows the pattern: reference-${token.id}-${lastDimension.id}
@@ -805,8 +806,9 @@ export class FigmaDaisyChainService {
       return 'default-collection';
     }
     
-    // Generate deterministic ID for the token collection
-    return this.idManager.generateDeterministicId(tokenCollection.id, 'collection');
+    // Generate deterministic ID for the token collection and get the mapped Figma ID
+    const deterministicId = this.idManager.generateDeterministicId(tokenCollection.id, 'collection');
+    return this.idManager.getFigmaId(deterministicId);
   }
 
   /**

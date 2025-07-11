@@ -561,10 +561,52 @@ export class FigmaMappingService {
   /**
    * Get tempToRealId mapping for transformer options
    */
-  static getTransformerOptions(fileKey: string): { tempToRealId?: Record<string, string> } {
-    const mapping = this.getMapping(fileKey);
+  static async getTransformerOptions(fileKey: string): Promise<{ tempToRealId?: Record<string, string> }> {
+    console.log(`[FigmaMappingService] Getting transformer options for fileKey: ${fileKey}`);
+    
+    // First try to get from localStorage
+    const localMapping = this.getMapping(fileKey);
+    if (localMapping?.tempToRealId) {
+      console.log(`[FigmaMappingService] ✅ Found mapping in localStorage for ${fileKey}:`, {
+        mappingCount: Object.keys(localMapping.tempToRealId).length,
+        sampleMappings: Object.entries(localMapping.tempToRealId).slice(0, 5)
+      });
+      return {
+        tempToRealId: localMapping.tempToRealId
+      };
+    }
+    
+    // If not found in localStorage, try to load from GitHub
+    console.log(`[FigmaMappingService] No mapping found in localStorage, trying GitHub...`);
+    const repoInfo = this.getCurrentRepositoryInfo();
+    if (repoInfo && this.isGitHubIntegrationAvailable()) {
+      try {
+        const githubMapping = await this.getMappingFromGitHub(fileKey, repoInfo);
+        if (githubMapping?.tempToRealId) {
+          console.log(`[FigmaMappingService] ✅ Found mapping in GitHub for ${fileKey}:`, {
+            mappingCount: Object.keys(githubMapping.tempToRealId).length,
+            sampleMappings: Object.entries(githubMapping.tempToRealId).slice(0, 5)
+          });
+          
+          // Save to localStorage for future use
+          this.saveMapping(fileKey, githubMapping);
+          
+          return {
+            tempToRealId: githubMapping.tempToRealId
+          };
+        } else {
+          console.log(`[FigmaMappingService] ❌ No mapping found in GitHub for ${fileKey}`);
+        }
+      } catch (error) {
+        console.error(`[FigmaMappingService] Error loading mapping from GitHub for ${fileKey}:`, error);
+      }
+    } else {
+      console.log(`[FigmaMappingService] GitHub integration not available for ${fileKey}`);
+    }
+    
+    console.log(`[FigmaMappingService] ❌ No mapping found anywhere for ${fileKey}`);
     return {
-      tempToRealId: mapping?.tempToRealId
+      tempToRealId: undefined
     };
   }
 } 

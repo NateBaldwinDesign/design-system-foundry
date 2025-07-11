@@ -48,6 +48,8 @@ export interface FigmaVariableCollection {
   name: string;
   initialModeId: string;
   hiddenFromPublishing?: boolean;
+  /** Modes within this collection */
+  modes?: Record<string, { name: string; modeId: string }>;
 }
 
 /**
@@ -58,6 +60,8 @@ export interface FigmaFileVariablesResponse {
   variables: Record<string, FigmaVariable>;
   /** Variable collections in the file */
   variableCollections: Record<string, FigmaVariableCollection>;
+  /** Variable modes in the file */
+  variableModes?: Record<string, FigmaVariableMode>;
 }
 
 /**

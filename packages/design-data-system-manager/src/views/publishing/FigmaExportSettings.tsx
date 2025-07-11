@@ -22,7 +22,7 @@ import { FigmaExportService, FigmaExportResult } from '../../services/figmaExpor
 import { FigmaPrePublishDialog } from '../../components/FigmaPrePublishDialog';
 import { createSchemaJsonFromLocalStorage } from '../../services/createJson';
 import { ChangeTrackingService, ChangeTrackingState } from '../../services/changeTrackingService';
-import { FigmaMappingService } from '../../services/figmaMappingService';
+// FigmaMappingService is no longer used in this component as we now use the workflow orchestrator
 
 interface FigmaExportSettingsProps {
   tokenSystem: TokenSystem;
@@ -283,112 +283,67 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
 
   // Handle publishing to Figma
   const handlePublish = async (selectedVariables: string[], selectedCollections: string[]) => {
-    if (!exportResult?.data || !accessToken || !fileId) return;
+    if (!accessToken || !fileId) return;
     
     setLoading(true);
     try {
-      // Filter the export result to only include selected items
-      const filteredResult = {
-        ...exportResult.data,
-        variables: exportResult.data.variables.filter(v => selectedVariables.includes(v.id)),
-        collections: exportResult.data.collections.filter(c => selectedCollections.includes(c.id)),
-        variableModes: exportResult.data.variableModes.filter(m => 
-          selectedCollections.includes(m.variableCollectionId)
-        ),
-        variableModeValues: exportResult.data.variableModeValues.filter(v => 
-          selectedVariables.includes(v.variableId)
-        )
-      };
-
-      console.log('[FigmaExportSettings] Starting Figma API publishing with filtered result:', {
-        variablesCount: filteredResult.variables.length,
-        collectionsCount: filteredResult.collections.length,
-        modesCount: filteredResult.variableModes.length,
-        modeValuesCount: filteredResult.variableModeValues.length
-      });
-
-      // Construct the POST payload with only the required fields
-      const { variables, collections, variableModes, variableModeValues } = filteredResult;
-      // Validate that all required fields are present
-      const validActions = ['CREATE', 'UPDATE', 'DELETE'];
-      const missingActionInCollections = collections.some(c => !c.action || !validActions.includes(c.action));
-      const missingActionInVariables = variables.some(v => !v.action || !validActions.includes(v.action));
-      if (missingActionInCollections || missingActionInVariables) {
-        console.error('[FigmaExportSettings] One or more collections/variables are missing a valid action field!', {
-          collections: collections.filter(c => !c.action),
-          variables: variables.filter(v => !v.action)
-        });
-        throw new Error('Figma export payload is missing required action fields.');
-      }
-      const bulkPayload = {
-        variables,
-        variableCollections: collections,
-        variableModes,
-        variableModeValues
-      };
-      console.log('[FigmaExportSettings] Sending payload to Figma API:', JSON.stringify(bulkPayload, null, 2));
+      console.log('[FigmaExportSettings] Starting Figma publishing...');
       
-      // Step 1: Publish variables to Figma
-      const bulkResponse = await fetch(`https://api.figma.com/v1/files/${fileId}/variables`, {
-        method: 'POST',
-        headers: {
-          'X-Figma-Token': `${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(bulkPayload)
+      // Always use the canonical, schema-compliant token system from local storage
+      let canonicalTokenSystem;
+      try {
+        canonicalTokenSystem = createSchemaJsonFromLocalStorage();
+      } catch (err) {
+        toast({
+          title: 'Publishing failed',
+          description: 'Could not load complete design system from local storage. Please check your data.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true
+        });
+        return;
+      }
+
+      console.log('[FigmaExportSettings] Using complete token system for publishing');
+      console.log('[FigmaExportSettings] Token system stats:', {
+        tokensCount: canonicalTokenSystem.tokens?.length || 0,
+        collectionsCount: canonicalTokenSystem.tokenCollections?.length || 0,
+        dimensionsCount: canonicalTokenSystem.dimensions?.length || 0,
+        modesCount: canonicalTokenSystem.modes?.length || 0
       });
 
-      console.log('[FigmaExportSettings] Bulk API response status:', bulkResponse.status);
-      console.log('[FigmaExportSettings] Bulk API response headers:', Object.fromEntries(bulkResponse.headers.entries()));
+      // Use the FigmaExportService for the complete publishing workflow
+      const figmaExportService = new FigmaExportService();
+      const result = await figmaExportService.publishToFigma(canonicalTokenSystem as any, {
+        accessToken,
+        fileId
+      });
 
-      if (bulkResponse.ok) {
-        const responseData = await bulkResponse.json();
-        console.log('[FigmaExportSettings] Bulk API response:', responseData);
-        
-        // Process the API response to update tempToRealId mapping
-        if (fileId) {
-          try {
-            await FigmaMappingService.updateMappingFromApiResponse(fileId, responseData);
-            console.log('[FigmaExportSettings] Successfully updated tempToRealId mapping');
-          } catch (error) {
-            console.error('[FigmaExportSettings] Failed to update tempToRealId mapping:', error);
-            // Continue with the success flow even if mapping update fails
-          }
-        }
-        
-        console.log('[FigmaExportSettings] Figma API publishing completed successfully');
-        
+      if (result.success) {
         toast({
           title: 'Published successfully',
-          description: `Tokens published to Figma as variables`,
+          description: 'Your design tokens have been published to Figma.',
           status: 'success',
           duration: 5000,
-          isClosable: true,
+          isClosable: true
         });
-        
-        setShowPrePublishDialog(false);
       } else {
-        const errorText = await bulkResponse.text();
-        console.error('[FigmaExportSettings] Bulk API failed:', bulkResponse.status, errorText);
-        
-        // Try to get more details about the error
-        try {
-          const errorJson = JSON.parse(errorText);
-          console.error('[FigmaExportSettings] Error details:', errorJson);
-        } catch (e) {
-          console.error('[FigmaExportSettings] Raw error text:', errorText);
-        }
-        
-        throw new Error(`Failed to publish to Figma: ${bulkResponse.status} ${errorText}`);
+        toast({
+          title: 'Publishing failed',
+          description: result.error?.message || 'An unknown error occurred during publishing.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true
+        });
       }
     } catch (error) {
       console.error('[FigmaExportSettings] Publishing failed:', error);
       toast({
         title: 'Publishing failed',
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        description: error instanceof Error ? error.message : 'An unknown error occurred during publishing.',
         status: 'error',
         duration: 5000,
-        isClosable: true,
+        isClosable: true
       });
     } finally {
       setLoading(false);
