@@ -2,7 +2,6 @@ import React from 'react';
 import {
   VStack,
   HStack,
-  Text,
   Checkbox,
   CheckboxGroup,
   FormControl,
