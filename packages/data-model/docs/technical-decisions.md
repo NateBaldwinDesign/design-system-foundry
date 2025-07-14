@@ -302,4 +302,122 @@ The validation logic now:
 1. For direct values: Validates that the value conforms to the type specified by the token's `resolvedValueTypeId`
 2. For aliases: Validates that the referenced token exists and has a compatible `resolvedValueTypeId`
 
-This change aligns better with schema-driven development principles and reduces the potential for errors while maintaining all necessary functionality. 
+This change aligns better with schema-driven development principles and reduces the potential for errors while maintaining all necessary functionality.
+
+# Technical Decisions: Property Types Constraint System
+
+## Context
+The token system needs to support a constrained set of property types that are semantically meaningful and interoperable across platforms (Figma, CSS, iOS, Android, etc.). Unlike resolved value types which are user-modifiable, property types are system-defined and should be strictly constrained.
+
+## Decision
+Property types are defined as a UPPER_CASE enum in the schema, following the same pattern as other system-defined constraints like `tokenTier` and `status`. The schema defines `propertyTypes` as an array of constrained enum values rather than free-form strings.
+
+## Rationale
+- **Consistency**: Follows existing UPPER_CASE enum pattern for system-defined constraints
+- **Strictness**: Unlike `resolvedValueTypes` which are user-modifiable, property types are system-defined and should be strictly constrained
+- **Extensibility**: New property types can be added to the enum without breaking existing data
+- **Validation**: Clear enum constraints enable robust validation and code generation
+- **Documentation**: Enum descriptions provide clear guidance for each property type
+- **Default Behavior**: Implicit "ALL" support maintains backward compatibility
+
+## Property Type Categories
+Property types are organized into semantic categories:
+- **Color Properties**: BACKGROUND_COLOR, TEXT_COLOR, BORDER_COLOR, SHADOW_COLOR
+- **Spacing & Dimensions**: WIDTH_HEIGHT, PADDING, MARGIN, GAP_SPACING, BORDER_RADIUS
+- **Typography**: FONT_FAMILY, FONT_SIZE, FONT_WEIGHT, FONT_STYLE, LINE_HEIGHT, LETTER_SPACING, TEXT_ALIGNMENT, TEXT_TRANSFORM
+- **Effects & Appearance**: OPACITY, SHADOW, BLUR, BORDER_WIDTH
+- **Layout & Positioning**: POSITION, Z_INDEX, FLEX_PROPERTIES
+- **Animation & Motion**: DURATION, EASING, DELAY
+- **General**: ALL
+
+## Default Behavior
+- When `propertyTypes` array is empty or undefined, treat as "ALL" properties implicitly
+- This provides backward compatibility and sensible defaults
+- Validation logic handles this implicitly
+
+## Implementation
+- Schema defines constrained enum values with descriptions
+- TypeScript types mirror the schema constraints
+- UI components use constrained dropdowns instead of free text input
+- Validation ensures only valid property types are accepted
+- Code generation and data transformation can rely on the constrained set
+
+## Example
+```json
+{
+  "propertyTypes": [
+    "BACKGROUND_COLOR",
+    "TEXT_COLOR",
+    "PADDING"
+  ]
+}
+```
+
+This approach ensures that property types are consistent, validated, and suitable for automated code generation and platform-specific transformations.
+
+# Technical Decisions: Standard Property Types with Cross-Platform Mappings
+
+## Context
+The token system needs to provide comprehensive cross-platform property mappings to ensure consistency and reduce manual work for users. The cross-platform property types documentation contains essential mappings for CSS, Figma, iOS/SwiftUI, and Android that should be standardized across all implementations.
+
+## Decision
+The schema now includes a `standardPropertyTypes` array that contains all the cross-platform property mappings from the documentation as default values. This provides:
+
+1. **Standard Property Types**: A comprehensive set of 30+ property types with complete platform mappings
+2. **Custom Property Types**: A separate `propertyTypes` array for user-defined custom property types
+3. **Default Availability**: Standard property types are always available and provide consistent mappings
+4. **Extensibility**: Users can add custom property types while maintaining access to standards
+
+## Rationale
+- **Consistency**: All users get the same standard mappings, ensuring consistency across projects
+- **Reduced Errors**: No manual entry of complex platform mappings reduces errors and inconsistencies
+- **Stability**: Standards are versioned with the schema and provide a stable foundation
+- **Flexibility**: Users can still add custom property types for project-specific needs
+- **Documentation**: The mappings become part of the authoritative schema rather than separate documentation
+- **Automation**: Tools can rely on standard mappings for code generation and transformations
+
+## Schema Structure
+```json
+{
+  "standardPropertyTypes": [
+    {
+      "id": "background-color",
+      "displayName": "Background Color",
+      "category": "color",
+      "compatibleValueTypes": ["color"],
+      "platformMappings": {
+        "css": ["background", "background-color"],
+        "figma": ["FRAME_FILL", "SHAPE_FILL"],
+        "ios": [".background()", ".backgroundColor"],
+        "android": ["background", "colorBackground"]
+      },
+      "inheritance": true
+    }
+    // ... all 30+ standard types
+  ],
+  "propertyTypes": [
+    // User-defined custom property types (extends standards)
+  ]
+}
+```
+
+## Implementation Benefits
+- **Immediate Availability**: Standard property types are available as soon as the schema is loaded
+- **Validation**: Schema validation ensures all standard property types have complete mappings
+- **UI Integration**: Property type pickers can show both standard and custom types
+- **Code Generation**: Transformers can rely on standard mappings for platform-specific code
+- **Migration**: Existing data can reference standard property types without changes
+
+## Usage Patterns
+1. **Token Creation**: Users can select from standard property types or create custom ones
+2. **Platform Export**: Export tools use standard mappings for consistent platform-specific code
+3. **Validation**: System validates that referenced property types exist (standard or custom)
+4. **UI Display**: Property type pickers show standard types prominently with custom types as options
+
+## Migration Strategy
+- Existing data continues to work unchanged
+- New implementations automatically get access to standard property types
+- Users can gradually migrate to standard property types or continue using custom ones
+- No breaking changes to existing property type references
+
+This approach ensures that the schema serves as the single source of truth for cross-platform property mappings while maintaining flexibility for project-specific needs. 

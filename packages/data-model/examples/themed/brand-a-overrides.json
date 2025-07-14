@@ -7,7 +7,10 @@
       "valuesByMode": [
         {
           "modeIds": [],
-          "value": { "type": "COLOR", "value": "#FF6F61" }
+          "value": {
+            "type": "COLOR",
+            "value": "#FF6F61"
+          }
         }
       ]
     },
@@ -16,9 +19,196 @@
       "valuesByMode": [
         {
           "modeIds": [],
-          "value": { "type": "FONT_FAMILY", "value": "Roboto" }
+          "value": {
+            "type": "FONT_FAMILY",
+            "value": "Roboto"
+          }
         }
       ]
     }
+  ],
+  "standardPropertyTypes": [
+    {
+      "id": "ALL",
+      "displayName": "All Properties",
+      "category": "layout",
+      "compatibleValueTypes": [
+        "color",
+        "dimension",
+        "font-family",
+        "font-weight",
+        "font-size",
+        "line-height",
+        "letter-spacing",
+        "duration",
+        "cubic-bezier",
+        "blur",
+        "radius"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "BACKGROUND_COLOR",
+      "displayName": "Background Color",
+      "category": "color",
+      "compatibleValueTypes": [
+        "color"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "TEXT_COLOR",
+      "displayName": "Text Color",
+      "category": "color",
+      "compatibleValueTypes": [
+        "color"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "BORDER_COLOR",
+      "displayName": "Border Color",
+      "category": "color",
+      "compatibleValueTypes": [
+        "color"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "SHADOW_COLOR",
+      "displayName": "Shadow Color",
+      "category": "color",
+      "compatibleValueTypes": [
+        "color"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "WIDTH_HEIGHT",
+      "displayName": "Width/Height",
+      "category": "dimension",
+      "compatibleValueTypes": [
+        "dimension"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "PADDING",
+      "displayName": "Padding",
+      "category": "spacing",
+      "compatibleValueTypes": [
+        "dimension"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "MARGIN",
+      "displayName": "Margin",
+      "category": "spacing",
+      "compatibleValueTypes": [
+        "dimension"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "GAP_SPACING",
+      "displayName": "Gap/Spacing",
+      "category": "spacing",
+      "compatibleValueTypes": [
+        "dimension"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "BORDER_RADIUS",
+      "displayName": "Border Radius",
+      "category": "border",
+      "compatibleValueTypes": [
+        "dimension",
+        "radius"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "BORDER_WIDTH",
+      "displayName": "Border Width",
+      "category": "border",
+      "compatibleValueTypes": [
+        "dimension"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "FONT_FAMILY",
+      "displayName": "Font Family",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "font-family"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "FONT_WEIGHT",
+      "displayName": "Font Weight",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "font-weight"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "FONT_SIZE",
+      "displayName": "Font Size",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "font-size"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "LINE_HEIGHT",
+      "displayName": "Line Height",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "line-height"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "LETTER_SPACING",
+      "displayName": "Letter Spacing",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "letter-spacing"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "DURATION",
+      "displayName": "Duration",
+      "category": "animation",
+      "compatibleValueTypes": [
+        "duration"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "EASING",
+      "displayName": "Easing",
+      "category": "animation",
+      "compatibleValueTypes": [
+        "cubic-bezier"
+      ],
+      "inheritance": false
+    },
+    {
+      "id": "BLUR",
+      "displayName": "Blur",
+      "category": "effect",
+      "compatibleValueTypes": [
+        "blur"
+      ],
+      "inheritance": false
+    }
   ]
-} 
+}

@@ -172,7 +172,7 @@
           }
         ],
         "propertyTypes": [
-          "ALL_PROPERTY_TYPES"
+          "ALL"
         ],
         "codeSyntax": [
           {
@@ -222,7 +222,7 @@
           }
         ],
         "propertyTypes": [
-          "ALL_PROPERTY_TYPES"
+          "ALL"
         ],
         "codeSyntax": [
           {
@@ -292,7 +292,7 @@
           }
         ],
         "propertyTypes": [
-          "ALL_PROPERTY_TYPES"
+          "ALL"
         ],
         "codeSyntax": [
           {

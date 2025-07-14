@@ -15,12 +15,62 @@ import {
   Checkbox,
   useToast
 } from '@chakra-ui/react';
-import { Token, TokenCollection, Taxonomy, TokenTaxonomyRef } from '@token-model/data-model';
-import { Token as TokenSchema } from '../../../data-model/src/schema';
+import { Token, TokenCollection, Taxonomy, TokenTaxonomyRef, ResolvedValueType } from '@token-model/data-model';
+import { Token as TokenSchema, PropertyType } from '../../../data-model/src/schema';
 import { ZodError } from 'zod';
 import { TaxonomyPicker } from '../components/TaxonomyPicker';
+import { PropertyTypePicker } from '../components/PropertyTypePicker';
 import { useSchema } from '../hooks/useSchema';
 import { CodeSyntaxService } from '../services/codeSyntax';
+
+// Add utility function to filter property types based on resolved value type
+const getFilteredPropertyTypes = (resolvedValueTypeId: string, resolvedValueTypes: ResolvedValueType[], standardPropertyTypes: PropertyType[]): PropertyType[] => {
+  const resolvedValueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
+  if (!resolvedValueType || !resolvedValueType.type) {
+    // If no type is specified, return all standard property types
+    return standardPropertyTypes;
+  }
+
+  const standardType = resolvedValueType.type;
+  
+  // Filter standard property types based on compatible value types
+  return standardPropertyTypes.filter(pt => 
+    pt.compatibleValueTypes.includes(resolvedValueTypeId)
+  );
+};
+
+// Add utility function to get default property types for a resolved value type
+const getDefaultPropertyTypes = (resolvedValueTypeId: string, resolvedValueTypes: ResolvedValueType[], standardPropertyTypes: PropertyType[]): PropertyType[] => {
+  const resolvedValueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
+  if (!resolvedValueType || !resolvedValueType.type) {
+    // If no type is specified, return empty array (no defaults)
+    return [];
+  }
+
+  // Get filtered property types for this value type
+  const filteredPropertyTypes = getFilteredPropertyTypes(resolvedValueTypeId, resolvedValueTypes, standardPropertyTypes);
+  
+  // For single-option types, return the first compatible property type
+  // For multi-option types, return empty array (let user choose)
+  const standardType = resolvedValueType.type;
+  
+  switch (standardType) {
+    case 'FONT_FAMILY':
+    case 'FONT_WEIGHT':
+    case 'FONT_SIZE':
+    case 'LINE_HEIGHT':
+    case 'LETTER_SPACING':
+    case 'DURATION':
+    case 'CUBIC_BEZIER':
+    case 'BLUR':
+    case 'RADIUS':
+      // For 1:1 relationships, return the first compatible property type
+      return filteredPropertyTypes.slice(0, 1);
+    default:
+      // For multi-option types like COLOR and DIMENSION, return empty array
+      return [];
+  }
+};
 
 interface TokensWorkflowProps {
   tokens: Token[];
@@ -35,19 +85,45 @@ export default function TokensWorkflow({
   tokenCollections,
   taxonomies,
 }: TokensWorkflowProps) {
-  const [newToken, setNewToken] = useState<Partial<Token>>({
+  const [newToken, setNewToken] = useState<Partial<Token> & { propertyTypes: PropertyType[] }>({
     displayName: '',
     description: '',
     tokenCollectionId: '',
     resolvedValueTypeId: 'color',
     private: false,
     taxonomies: [] as TokenTaxonomyRef[],
-    propertyTypes: [],
+    propertyTypes: [] as PropertyType[],
     codeSyntax: [],
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { schema } = useSchema();
   const toast = useToast();
+
+  // Update property types when resolvedValueTypeId changes
+  React.useEffect(() => {
+    if (newToken.resolvedValueTypeId && schema?.resolvedValueTypes) {
+      const currentPropertyTypes = (newToken.propertyTypes || []) as PropertyType[];
+      const filteredPropertyTypes = getFilteredPropertyTypes(newToken.resolvedValueTypeId, schema.resolvedValueTypes, schema.standardPropertyTypes);
+      
+      // Check if current property types are still valid for the new value type
+      const validPropertyTypes = currentPropertyTypes.filter(pt => filteredPropertyTypes.includes(pt));
+      
+      // If no valid property types remain, set to default
+      if (validPropertyTypes.length === 0) {
+        const defaultPropertyTypes = getDefaultPropertyTypes(newToken.resolvedValueTypeId, schema.resolvedValueTypes, schema.standardPropertyTypes);
+        setNewToken(prev => ({
+          ...prev,
+          propertyTypes: defaultPropertyTypes
+        }));
+      } else if (validPropertyTypes.length !== currentPropertyTypes.length) {
+        // If some property types were filtered out, update to only valid ones
+        setNewToken(prev => ({
+          ...prev,
+          propertyTypes: validPropertyTypes
+        }));
+      }
+    }
+  }, [newToken.resolvedValueTypeId, schema?.resolvedValueTypes]);
 
   const handleAddToken = () => {
     setFieldErrors({});
@@ -57,7 +133,7 @@ export default function TokensWorkflow({
       );
       const codeSyntax = CodeSyntaxService.generateAllCodeSyntaxes(
         { ...newToken, taxonomies: validTaxonomies } as Token,
-        schema
+        schema || { platforms: [], namingRules: { taxonomyOrder: [] }, taxonomies: [], standardPropertyTypes: [] }
       );
       const token = TokenSchema.parse({
         id: crypto.randomUUID(),
@@ -166,14 +242,11 @@ export default function TokensWorkflow({
               </Checkbox>
             </FormControl>
 
-            <FormControl isInvalid={Boolean(fieldErrors.propertyTypes)}>
-              <FormLabel>Property Types (comma separated)</FormLabel>
-              <Input
-                value={(newToken.propertyTypes || []).join(',')}
-                onChange={(e) => setNewToken({ ...newToken, propertyTypes: e.target.value.split(',').map((v) => v.trim()) })}
-              />
-              <FormErrorMessage>{fieldErrors.propertyTypes}</FormErrorMessage>
-            </FormControl>
+            <PropertyTypePicker
+              value={newToken.propertyTypes || []}
+              onChange={(propertyTypes) => setNewToken({ ...newToken, propertyTypes })}
+              availablePropertyTypes={schema?.resolvedValueTypes ? getFilteredPropertyTypes(newToken.resolvedValueTypeId || 'color', schema.resolvedValueTypes, schema.standardPropertyTypes) : undefined}
+            />
 
             <Text fontSize="lg" fontWeight="medium">Taxonomies</Text>
             <TaxonomyPicker
@@ -185,9 +258,9 @@ export default function TokensWorkflow({
 
             <Text fontSize="lg" fontWeight="medium">Code Syntax (auto-generated)</Text>
             <VStack spacing={2} align="stretch">
-              {Object.entries(CodeSyntaxService.generateAllCodeSyntaxes(newToken as Token, schema)).map(([key, value]) => (
+              {Object.entries(CodeSyntaxService.generateAllCodeSyntaxes(newToken as Token, schema || { platforms: [], namingRules: { taxonomyOrder: [] }, taxonomies: [], standardPropertyTypes: [] })).map(([key, value]) => (
                 <HStack key={key} spacing={2}>
-                  <Text fontSize="sm">{key}: {value}</Text>
+                  <Text fontSize="sm">{key}: {typeof value === 'string' ? value : JSON.stringify(value)}</Text>
                 </HStack>
               ))}
             </VStack>

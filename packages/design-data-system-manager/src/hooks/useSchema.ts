@@ -17,7 +17,8 @@ import type {
   TokenVariant,
   TokenStatus,
   TokenTier,
-  TokenValue
+  TokenValue,
+  PropertyType
 } from '@token-model/data-model';
 
 export interface Schema {
@@ -44,7 +45,7 @@ export interface Schema {
       taxonomyId: string;
       termId: string;
     }>;
-    propertyTypes: string[];
+    propertyTypes: PropertyType[];
     codeSyntax: Array<{
       platformId: string;
       formattedName: string;
@@ -62,6 +63,7 @@ export interface Schema {
   }>;
   namingRules: { taxonomyOrder: string[] };
   resolvedValueTypes: ResolvedValueType[];
+  standardPropertyTypes: PropertyType[];
   versionHistory: Array<{
     version: string;
     dimensions: string[];
@@ -107,22 +109,79 @@ export const useSchema = () => {
     };
   };
 
+  // Helper function to migrate old string-based propertyTypes to new object-based format
+  const migratePropertyTypes = (tokens: unknown[]): unknown[] => {
+    return tokens.map(token => {
+      const tokenObj = token as { propertyTypes?: unknown[] };
+      if (tokenObj.propertyTypes && Array.isArray(tokenObj.propertyTypes)) {
+        const migratedPropertyTypes = tokenObj.propertyTypes.map((pt: unknown) => {
+          if (typeof pt === 'string') {
+            // Convert string to PropertyType object
+            const ptString = pt as string;
+            return {
+              id: ptString,
+              displayName: ptString.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (l: string) => l.toUpperCase()),
+              category: 'layout' as const,
+              compatibleValueTypes: [],
+              inheritance: false
+            };
+          }
+          return pt; // Already an object
+        });
+        return { ...tokenObj, propertyTypes: migratedPropertyTypes };
+      }
+      return token;
+    });
+  };
+
+  // Helper function to ensure standardPropertyTypes is present
+  const ensureStandardPropertyTypes = (data: { standardPropertyTypes?: PropertyType[] }): { standardPropertyTypes: PropertyType[] } => {
+    if (!data.standardPropertyTypes) {
+      data.standardPropertyTypes = [
+        {
+          id: "ALL",
+          displayName: "All Properties",
+          category: "layout",
+          compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+          inheritance: false
+        }
+      ];
+    }
+    return data as { standardPropertyTypes: PropertyType[] };
+  };
+
   const [schema, setSchema] = useState<Schema | null>(() => {
     // Try to load from local storage first
     const stored = getItem('schema');
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
+        
+        // Check if this is an old schema version that needs migration
+        if (!parsed.standardPropertyTypes || (parsed.tokens && parsed.tokens.length > 0 && typeof parsed.tokens[0].propertyTypes?.[0] === 'string')) {
+          console.log('[useSchema] Detected old schema format, clearing storage to load new data');
+          // Clear the old schema from storage
+          setItem('schema', '');
+          return null; // This will trigger loading of new example data
+        }
+        
         // Ensure naming rules are included from storage
         const namingRules = StorageService.getNamingRules();
         const taxonomies = StorageService.getTaxonomies();
         const cleanedNamingRules = cleanNamingRules(namingRules, taxonomies);
-        const schemaWithNamingRules = { ...parsed, namingRules: cleanedNamingRules };
+        
+        // Apply migrations to stored schema
+        const migratedSchema = {
+          ...parsed,
+          namingRules: cleanedNamingRules,
+          tokens: migratePropertyTypes(parsed.tokens || []),
+          ...ensureStandardPropertyTypes(parsed)
+        };
         
         // Validate schema before setting
-        const validationResult = ValidationService.validateData(schemaWithNamingRules);
+        const validationResult = ValidationService.validateData(migratedSchema);
         if (validationResult.isValid) {
-          return schemaWithNamingRules;
+          return migratedSchema;
         } else {
           console.error('Invalid schema in storage:', validationResult.errors);
           toast({
@@ -168,7 +227,7 @@ export const useSchema = () => {
           systemId: 'design-system',
           description: 'A comprehensive design system with tokens, dimensions, and themes',
           tokenCollections,
-          tokens,
+          tokens: migratePropertyTypes(tokens), // Apply migration here
           dimensions,
           platforms,
           themes,
@@ -266,11 +325,32 @@ export const useSchema = () => {
               ...type,
               type: type.type as 'COLOR' | 'DIMENSION' | 'SPACING' | 'FONT_FAMILY' | 'FONT_WEIGHT' | 'FONT_SIZE' | 'LINE_HEIGHT' | 'LETTER_SPACING' | 'DURATION' | 'CUBIC_BEZIER' | 'BLUR' | 'SPREAD' | 'RADIUS' | undefined
             })),
-            // Ensure tokens are properly typed
+            // Add standard property types if not present
+            standardPropertyTypes: (coreData.standardPropertyTypes || []).map(pt => ({
+              ...pt,
+              category: pt.category as 'color' | 'typography' | 'spacing' | 'dimension' | 'effect' | 'border' | 'layout' | 'animation'
+            })),
+            // Ensure tokens are properly typed and convert propertyTypes if needed
             tokens: (coreData.tokens || []).map(token => ({
               ...token,
               status: token.status as TokenStatus | undefined,
               tokenTier: token.tokenTier as TokenTier,
+              // Convert old string-based propertyTypes to new object-based format
+              propertyTypes: Array.isArray(token.propertyTypes) 
+                ? token.propertyTypes.map(pt => {
+                    if (typeof pt === 'string') {
+                      // Convert string to PropertyType object
+                      return {
+                        id: pt,
+                        displayName: pt.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
+                        category: 'color' as const, // Default category, will be overridden by standard types
+                        compatibleValueTypes: [],
+                        inheritance: false
+                      };
+                    }
+                    return pt as PropertyType;
+                  })
+                : [],
               valuesByMode: token.valuesByMode.map(mode => ({
                 ...mode,
                 value: mode.value as TokenValue

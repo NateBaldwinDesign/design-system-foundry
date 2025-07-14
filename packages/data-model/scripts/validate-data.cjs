@@ -148,6 +148,60 @@ ajv.addKeyword({
   }
 });
 
+// Add custom validation for property types
+ajv.addKeyword({
+  keyword: 'validatePropertyTypes',
+  validate: function validatePropertyTypes(schema, data, parentSchema, dataPath, parentData, propertyName, rootData) {
+    // If propertyTypes is empty or undefined, treat as "ALL" (implicit default)
+    if (!data || data.length === 0) return true;
+    
+    const validPropertyTypes = [
+      'BACKGROUND_COLOR',
+      'TEXT_COLOR', 
+      'BORDER_COLOR',
+      'SHADOW_COLOR',
+      'WIDTH_HEIGHT',
+      'PADDING',
+      'MARGIN',
+      'GAP_SPACING',
+      'BORDER_RADIUS',
+      'FONT_FAMILY',
+      'FONT_SIZE',
+      'FONT_WEIGHT',
+      'FONT_STYLE',
+      'LINE_HEIGHT',
+      'LETTER_SPACING',
+      'TEXT_ALIGNMENT',
+      'TEXT_TRANSFORM',
+      'OPACITY',
+      'SHADOW',
+      'BLUR',
+      'BORDER_WIDTH',
+      'POSITION',
+      'Z_INDEX',
+      'FLEX_PROPERTIES',
+      'DURATION',
+      'EASING',
+      'DELAY',
+      'ALL'
+    ];
+    
+    // Check if all property types are valid
+    for (const propertyType of data) {
+      if (!validPropertyTypes.includes(propertyType)) {
+        validatePropertyTypes.errors = [{
+          keyword: 'validatePropertyTypes',
+          message: `Invalid property type: ${propertyType}`,
+          params: { propertyType: propertyType }
+        }];
+        return false;
+      }
+    }
+    
+    return true;
+  }
+});
+
 // Helper function to validate value against type
 function validateValueAgainstType(value, resolvedValueType) {
   // Add type-specific validation logic here

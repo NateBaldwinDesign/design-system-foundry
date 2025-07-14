@@ -51,7 +51,9 @@ import {
 import { ValueByModeTable } from './ValueByModeTable';
 import { TokenValuePicker } from './TokenValuePicker';
 import { TaxonomyPicker } from './TaxonomyPicker';
+import { PropertyTypePicker } from './PropertyTypePicker';
 import { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef, ResolvedValueType, TokenValue, TokenCollection, Taxonomy } from '@token-model/data-model';
+import type { PropertyType } from '@token-model/data-model/src/schema';
 import { createUniqueId } from '../utils/id';
 import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
 import { getDefaultValueForType, getValueTypeFromId } from '../utils/valueTypeUtils';
@@ -205,6 +207,53 @@ type PreservedValue = {
 // Add type for the preserved values ref
 type PreservedValuesRef = Record<string, Record<string, PreservedValue>>;
 
+// Add utility function to filter property types based on resolved value type
+const getFilteredPropertyTypes = (resolvedValueTypeId: string, resolvedValueTypes: ResolvedValueType[], standardPropertyTypes: PropertyType[]): PropertyType[] => {
+  const resolvedValueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
+  if (!resolvedValueType || !resolvedValueType.type) {
+    // If no type is specified, return all standard property types
+    return standardPropertyTypes;
+  }
+
+  // Filter standard property types based on compatible value types
+  return standardPropertyTypes.filter(pt => 
+    pt.compatibleValueTypes.includes(resolvedValueTypeId)
+  );
+};
+
+// Add utility function to get default property types for a resolved value type
+const getDefaultPropertyTypes = (resolvedValueTypeId: string, resolvedValueTypes: ResolvedValueType[], standardPropertyTypes: PropertyType[]): PropertyType[] => {
+  const resolvedValueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
+  if (!resolvedValueType || !resolvedValueType.type) {
+    // If no type is specified, return empty array (no defaults)
+    return [];
+  }
+
+  // Get filtered property types for this value type
+  const filteredPropertyTypes = getFilteredPropertyTypes(resolvedValueTypeId, resolvedValueTypes, standardPropertyTypes);
+  
+  // For single-option types, return the first compatible property type
+  // For multi-option types, return empty array (let user choose)
+  const standardType = resolvedValueType.type;
+  
+  switch (standardType) {
+    case 'FONT_FAMILY':
+    case 'FONT_WEIGHT':
+    case 'FONT_SIZE':
+    case 'LINE_HEIGHT':
+    case 'LETTER_SPACING':
+    case 'DURATION':
+    case 'CUBIC_BEZIER':
+    case 'BLUR':
+    case 'RADIUS':
+      // For 1:1 relationships, return the first compatible property type
+      return filteredPropertyTypes.slice(0, 1);
+    default:
+      // For multi-option types like COLOR and DIMENSION, return empty array
+      return [];
+  }
+};
+
 // Add validation functions since they're not exported from data-model
 function validateTokenCollectionCompatibility(
   token: Token,
@@ -314,6 +363,30 @@ export function TokenEditorDialog({
       setTaxonomyEdits(validTaxonomyEdits);
     }
   }, [editedToken.resolvedValueTypeId, taxonomies]);
+
+  // Update property types when resolvedValueTypeId changes
+  useEffect(() => {
+    const currentPropertyTypes = (editedToken.propertyTypes || []) as PropertyType[];
+    const filteredPropertyTypes = getFilteredPropertyTypes(editedToken.resolvedValueTypeId, resolvedValueTypes, schema?.standardPropertyTypes || []);
+    
+    // Check if current property types are still valid for the new value type
+    const validPropertyTypes = currentPropertyTypes.filter(pt => filteredPropertyTypes.includes(pt));
+    
+    // If no valid property types remain, set to default
+    if (validPropertyTypes.length === 0) {
+      const defaultPropertyTypes = getDefaultPropertyTypes(editedToken.resolvedValueTypeId, resolvedValueTypes, schema?.standardPropertyTypes || []);
+      setEditedToken(prev => ({
+        ...prev,
+        propertyTypes: defaultPropertyTypes
+      }));
+    } else if (validPropertyTypes.length !== currentPropertyTypes.length) {
+      // If some property types were filtered out, update to only valid ones
+      setEditedToken(prev => ({
+        ...prev,
+        propertyTypes: validPropertyTypes
+      }));
+    }
+  }, [editedToken.resolvedValueTypeId, resolvedValueTypes]);
 
   // Reset internal state when dialog opens with new token
   useEffect(() => {
@@ -1195,6 +1268,14 @@ export function TokenEditorDialog({
                         </Alert>
                       )}
                     </FormControl>
+                  </Box>
+                  {/* Property Types */}
+                  <Box flex={1} minW={0}>
+                    <PropertyTypePicker
+                      value={(editedToken.propertyTypes || []) as PropertyType[]}
+                      onChange={(propertyTypes) => setEditedToken((prev: ExtendedToken) => ({ ...prev, propertyTypes }))}
+                      availablePropertyTypes={getFilteredPropertyTypes(editedToken.resolvedValueTypeId, resolvedValueTypes, schema?.standardPropertyTypes || [])}
+                    />
                   </Box>
                   {/* Generated names by platform (right column) */}
                   <Box flex={1} minW={0}>

@@ -215,7 +215,25 @@
         }
       ],
       "propertyTypes": [
-        "ALL_PROPERTY_TYPES"
+        {
+          "id": "ALL",
+          "displayName": "All Properties",
+          "category": "layout",
+          "compatibleValueTypes": [
+            "color",
+            "dimension",
+            "font-family",
+            "font-weight",
+            "font-size",
+            "line-height",
+            "letter-spacing",
+            "duration",
+            "cubic-bezier",
+            "blur",
+            "radius"
+          ],
+          "inheritance": false
+        }
       ],
       "codeSyntax": [
         {
@@ -282,7 +300,25 @@
         }
       ],
       "propertyTypes": [
-        "ALL_PROPERTY_TYPES"
+        {
+          "id": "ALL",
+          "displayName": "All Properties",
+          "category": "layout",
+          "compatibleValueTypes": [
+            "color",
+            "dimension",
+            "font-family",
+            "font-weight",
+            "font-size",
+            "line-height",
+            "letter-spacing",
+            "duration",
+            "cubic-bezier",
+            "blur",
+            "radius"
+          ],
+          "inheritance": false
+        }
       ],
       "codeSyntax": [
         {
@@ -351,7 +387,25 @@
         }
       ],
       "propertyTypes": [
-        "ALL_PROPERTY_TYPES"
+        {
+          "id": "ALL",
+          "displayName": "All Properties",
+          "category": "layout",
+          "compatibleValueTypes": [
+            "color",
+            "dimension",
+            "font-family",
+            "font-weight",
+            "font-size",
+            "line-height",
+            "letter-spacing",
+            "duration",
+            "cubic-bezier",
+            "blur",
+            "radius"
+          ],
+          "inheritance": false
+        }
       ],
       "codeSyntax": [
         {
@@ -1669,6 +1723,713 @@
       ]
     }
   ],
+  "standardPropertyTypes": [
+    {
+      "id": "background-color",
+      "displayName": "Background Color",
+      "category": "color",
+      "compatibleValueTypes": [
+        "color"
+      ],
+      "platformMappings": {
+        "css": [
+          "background",
+          "background-color"
+        ],
+        "figma": [
+          "FRAME_FILL",
+          "SHAPE_FILL"
+        ],
+        "ios": [
+          ".background()",
+          ".backgroundColor"
+        ],
+        "android": [
+          "background",
+          "colorBackground"
+        ]
+      },
+      "inheritance": true
+    },
+    {
+      "id": "text-color",
+      "displayName": "Text Color",
+      "category": "color",
+      "compatibleValueTypes": [
+        "color"
+      ],
+      "platformMappings": {
+        "css": [
+          "color"
+        ],
+        "figma": [
+          "TEXT_FILL"
+        ],
+        "ios": [
+          ".foregroundColor()",
+          ".foregroundStyle()"
+        ],
+        "android": [
+          "textColor",
+          "colorOnSurface"
+        ]
+      },
+      "inheritance": true
+    },
+    {
+      "id": "border-color",
+      "displayName": "Border Color",
+      "category": "color",
+      "compatibleValueTypes": [
+        "color"
+      ],
+      "platformMappings": {
+        "css": [
+          "border-color",
+          "border-*-color"
+        ],
+        "figma": [
+          "STROKE_COLOR"
+        ],
+        "ios": [
+          ".border()",
+          ".strokeColor"
+        ],
+        "android": [
+          "strokeColor",
+          "colorOutline"
+        ]
+      },
+      "inheritance": false
+    },
+    {
+      "id": "shadow-color",
+      "displayName": "Shadow Color",
+      "category": "color",
+      "compatibleValueTypes": [
+        "color"
+      ],
+      "platformMappings": {
+        "css": [
+          "box-shadow",
+          "text-shadow"
+        ],
+        "figma": [
+          "EFFECT_COLOR"
+        ],
+        "ios": [
+          ".shadow()",
+          ".shadowColor"
+        ],
+        "android": [
+          "shadowColor",
+          "elevation"
+        ]
+      },
+      "inheritance": false
+    },
+    {
+      "id": "width-height",
+      "displayName": "Width/Height",
+      "category": "dimension",
+      "compatibleValueTypes": [
+        "dimension"
+      ],
+      "platformMappings": {
+        "css": [
+          "width",
+          "height",
+          "min-width",
+          "max-width",
+          "min-height",
+          "max-height"
+        ],
+        "figma": [
+          "WIDTH_HEIGHT"
+        ],
+        "ios": [
+          ".frame()",
+          ".width()",
+          ".height()"
+        ],
+        "android": [
+          "layout_width",
+          "layout_height"
+        ]
+      },
+      "defaultUnit": "px",
+      "inheritance": false
+    },
+    {
+      "id": "padding",
+      "displayName": "Padding",
+      "category": "spacing",
+      "compatibleValueTypes": [
+        "dimension"
+      ],
+      "platformMappings": {
+        "css": [
+          "padding",
+          "padding-*"
+        ],
+        "figma": [
+          "GAP"
+        ],
+        "ios": [
+          ".padding()"
+        ],
+        "android": [
+          "padding",
+          "paddingStart",
+          "paddingEnd"
+        ]
+      },
+      "defaultUnit": "px",
+      "inheritance": false
+    },
+    {
+      "id": "margin",
+      "displayName": "Margin",
+      "category": "spacing",
+      "compatibleValueTypes": [
+        "dimension"
+      ],
+      "platformMappings": {
+        "css": [
+          "margin",
+          "margin-*"
+        ],
+        "figma": [
+          "GAP"
+        ],
+        "ios": [
+          ".offset()"
+        ],
+        "android": [
+          "layout_margin",
+          "marginStart",
+          "marginEnd"
+        ]
+      },
+      "defaultUnit": "px",
+      "inheritance": false
+    },
+    {
+      "id": "gap-spacing",
+      "displayName": "Gap/Spacing",
+      "category": "spacing",
+      "compatibleValueTypes": [
+        "dimension"
+      ],
+      "platformMappings": {
+        "css": [
+          "gap",
+          "row-gap",
+          "column-gap"
+        ],
+        "figma": [
+          "GAP"
+        ],
+        "ios": [
+          ".spacing()"
+        ],
+        "android": [
+          "layout_spaceBetween",
+          "space"
+        ]
+      },
+      "defaultUnit": "px",
+      "inheritance": false
+    },
+    {
+      "id": "border-radius",
+      "displayName": "Border Radius",
+      "category": "border",
+      "compatibleValueTypes": [
+        "dimension",
+        "radius"
+      ],
+      "platformMappings": {
+        "css": [
+          "border-radius",
+          "border-*-radius"
+        ],
+        "figma": [
+          "CORNER_RADIUS"
+        ],
+        "ios": [
+          ".cornerRadius()",
+          ".clipShape()"
+        ],
+        "android": [
+          "cornerRadius",
+          "shapeAppearance"
+        ]
+      },
+      "defaultUnit": "px",
+      "inheritance": false
+    },
+    {
+      "id": "font-family",
+      "displayName": "Font Family",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "font-family"
+      ],
+      "platformMappings": {
+        "css": [
+          "font-family"
+        ],
+        "figma": [
+          "FONT_FAMILY"
+        ],
+        "ios": [
+          ".font()",
+          ".fontFamily()"
+        ],
+        "android": [
+          "fontFamily",
+          "typeface"
+        ]
+      },
+      "inheritance": true
+    },
+    {
+      "id": "font-size",
+      "displayName": "Font Size",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "font-size"
+      ],
+      "platformMappings": {
+        "css": [
+          "font-size"
+        ],
+        "figma": [
+          "FONT_SIZE"
+        ],
+        "ios": [
+          ".font()",
+          ".fontSize()"
+        ],
+        "android": [
+          "textSize",
+          "fontSize"
+        ]
+      },
+      "defaultUnit": "px",
+      "inheritance": true
+    },
+    {
+      "id": "font-weight",
+      "displayName": "Font Weight",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "font-weight"
+      ],
+      "platformMappings": {
+        "css": [
+          "font-weight"
+        ],
+        "figma": [
+          "FONT_WEIGHT"
+        ],
+        "ios": [
+          ".fontWeight()",
+          ".font()"
+        ],
+        "android": [
+          "textStyle",
+          "fontWeight"
+        ]
+      },
+      "inheritance": true
+    },
+    {
+      "id": "font-style",
+      "displayName": "Font Style",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "font-style"
+      ],
+      "platformMappings": {
+        "css": [
+          "font-style"
+        ],
+        "figma": [
+          "FONT_STYLE"
+        ],
+        "ios": [
+          ".italic()",
+          ".font()"
+        ],
+        "android": [
+          "textStyle",
+          "fontStyle"
+        ]
+      },
+      "inheritance": true
+    },
+    {
+      "id": "line-height",
+      "displayName": "Line Height",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "line-height"
+      ],
+      "platformMappings": {
+        "css": [
+          "line-height"
+        ],
+        "figma": [
+          "LINE_HEIGHT"
+        ],
+        "ios": [
+          ".lineSpacing()",
+          ".lineHeight()"
+        ],
+        "android": [
+          "lineHeight",
+          "lineSpacingMultiplier"
+        ]
+      },
+      "inheritance": true
+    },
+    {
+      "id": "letter-spacing",
+      "displayName": "Letter Spacing",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "letter-spacing"
+      ],
+      "platformMappings": {
+        "css": [
+          "letter-spacing"
+        ],
+        "figma": [
+          "LETTER_SPACING"
+        ],
+        "ios": [
+          ".kerning()",
+          ".tracking()"
+        ],
+        "android": [
+          "letterSpacing",
+          "textLetterSpacing"
+        ]
+      },
+      "defaultUnit": "px",
+      "inheritance": true
+    },
+    {
+      "id": "text-alignment",
+      "displayName": "Text Alignment",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "text-alignment"
+      ],
+      "platformMappings": {
+        "css": [
+          "text-align"
+        ],
+        "figma": [
+          "TEXT_CONTENT"
+        ],
+        "ios": [
+          ".multilineTextAlignment()"
+        ],
+        "android": [
+          "textAlignment",
+          "gravity"
+        ]
+      },
+      "inheritance": true
+    },
+    {
+      "id": "text-transform",
+      "displayName": "Text Transform",
+      "category": "typography",
+      "compatibleValueTypes": [
+        "text-transform"
+      ],
+      "platformMappings": {
+        "css": [
+          "text-transform"
+        ],
+        "figma": [
+          "TEXT_CONTENT"
+        ],
+        "ios": [
+          ".textCase()"
+        ],
+        "android": [
+          "textAllCaps",
+          "textTransform"
+        ]
+      },
+      "inheritance": true
+    },
+    {
+      "id": "opacity",
+      "displayName": "Opacity",
+      "category": "effect",
+      "compatibleValueTypes": [
+        "opacity"
+      ],
+      "platformMappings": {
+        "css": [
+          "opacity"
+        ],
+        "figma": [
+          "OPACITY"
+        ],
+        "ios": [
+          ".opacity()"
+        ],
+        "android": [
+          "alpha",
+          "opacity"
+        ]
+      },
+      "inheritance": false
+    },
+    {
+      "id": "shadow",
+      "displayName": "Shadow",
+      "category": "effect",
+      "compatibleValueTypes": [
+        "shadow"
+      ],
+      "platformMappings": {
+        "css": [
+          "box-shadow",
+          "filter: drop-shadow()"
+        ],
+        "figma": [
+          "EFFECT_FLOAT"
+        ],
+        "ios": [
+          ".shadow()"
+        ],
+        "android": [
+          "elevation",
+          "shadowDx",
+          "shadowDy"
+        ]
+      },
+      "inheritance": false
+    },
+    {
+      "id": "blur",
+      "displayName": "Blur",
+      "category": "effect",
+      "compatibleValueTypes": [
+        "blur"
+      ],
+      "platformMappings": {
+        "css": [
+          "filter: blur()"
+        ],
+        "figma": [
+          "EFFECT_FLOAT"
+        ],
+        "ios": [
+          ".blur()"
+        ],
+        "android": [
+          "renderEffect",
+          "blurRadius"
+        ]
+      },
+      "defaultUnit": "px",
+      "inheritance": false
+    },
+    {
+      "id": "border-width",
+      "displayName": "Border Width",
+      "category": "border",
+      "compatibleValueTypes": [
+        "dimension"
+      ],
+      "platformMappings": {
+        "css": [
+          "border-width",
+          "border-*-width"
+        ],
+        "figma": [
+          "STROKE_FLOAT"
+        ],
+        "ios": [
+          ".border()"
+        ],
+        "android": [
+          "strokeWidth",
+          "borderWidth"
+        ]
+      },
+      "defaultUnit": "px",
+      "inheritance": false
+    },
+    {
+      "id": "position",
+      "displayName": "Position",
+      "category": "layout",
+      "compatibleValueTypes": [
+        "dimension"
+      ],
+      "platformMappings": {
+        "css": [
+          "position",
+          "top",
+          "right",
+          "bottom",
+          "left"
+        ],
+        "figma": [
+          "ALL_SCOPES"
+        ],
+        "ios": [
+          ".position()",
+          ".offset()"
+        ],
+        "android": [
+          "layout_marginTop",
+          "layout_marginStart"
+        ]
+      },
+      "defaultUnit": "px",
+      "inheritance": false
+    },
+    {
+      "id": "z-index",
+      "displayName": "Z-Index",
+      "category": "layout",
+      "compatibleValueTypes": [
+        "z-index"
+      ],
+      "platformMappings": {
+        "css": [
+          "z-index"
+        ],
+        "figma": [
+          "ALL_SCOPES"
+        ],
+        "ios": [
+          ".zIndex()"
+        ],
+        "android": [
+          "elevation",
+          "translationZ"
+        ]
+      },
+      "inheritance": false
+    },
+    {
+      "id": "flex-properties",
+      "displayName": "Flex Properties",
+      "category": "layout",
+      "compatibleValueTypes": [
+        "flex"
+      ],
+      "platformMappings": {
+        "css": [
+          "flex",
+          "flex-grow",
+          "flex-shrink",
+          "flex-basis"
+        ],
+        "figma": [
+          "ALL_SCOPES"
+        ],
+        "ios": [
+          ".layoutPriority()"
+        ],
+        "android": [
+          "layout_weight",
+          "flex"
+        ]
+      },
+      "inheritance": false
+    },
+    {
+      "id": "duration",
+      "displayName": "Duration",
+      "category": "animation",
+      "compatibleValueTypes": [
+        "duration"
+      ],
+      "platformMappings": {
+        "css": [
+          "animation-duration",
+          "transition-duration"
+        ],
+        "figma": [
+          "EFFECT_FLOAT"
+        ],
+        "ios": [
+          ".animation()"
+        ],
+        "android": [
+          "duration",
+          "animationDuration"
+        ]
+      },
+      "defaultUnit": "ms",
+      "inheritance": false
+    },
+    {
+      "id": "easing",
+      "displayName": "Easing",
+      "category": "animation",
+      "compatibleValueTypes": [
+        "cubic-bezier"
+      ],
+      "platformMappings": {
+        "css": [
+          "animation-timing-function",
+          "transition-timing-function"
+        ],
+        "figma": [
+          "ALL_SCOPES"
+        ],
+        "ios": [
+          ".animation()"
+        ],
+        "android": [
+          "interpolator",
+          "animationInterpolator"
+        ]
+      },
+      "inheritance": false
+    },
+    {
+      "id": "delay",
+      "displayName": "Delay",
+      "category": "animation",
+      "compatibleValueTypes": [
+        "duration"
+      ],
+      "platformMappings": {
+        "css": [
+          "animation-delay",
+          "transition-delay"
+        ],
+        "figma": [
+          "EFFECT_FLOAT"
+        ],
+        "ios": [
+          ".animation()"
+        ],
+        "android": [
+          "startDelay",
+          "animationDelay"
+        ]
+      },
+      "defaultUnit": "ms",
+      "inheritance": false
+    }
+  ],
+  "propertyTypes": [],
   "resolvedValueTypes": [
     {
       "id": "color",
