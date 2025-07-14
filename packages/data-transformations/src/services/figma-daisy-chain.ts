@@ -680,7 +680,7 @@ export class FigmaDaisyChainService {
 
     console.log(`[FigmaDaisyChain] Creating final token variable "${figmaCodeSyntax.formattedName}" action: ${action}`);
 
-    return {
+    const variable: FigmaVariable = {
       action: action,
       id: figmaId,
       name: figmaCodeSyntax.formattedName,
@@ -690,6 +690,16 @@ export class FigmaDaisyChainService {
       hiddenFromPublishing: token.private || false,
       codeSyntax: this.buildCodeSyntax(token, tokenSystem)
     };
+
+    // Add description if it exists and is not empty
+    if (token.description && token.description.trim() !== '') {
+      variable.description = token.description;
+      console.log(`[FigmaDaisyChain] Added description to final variable ${token.id}: "${token.description}"`);
+    } else {
+      console.log(`[FigmaDaisyChain] No valid description for final token ${token.id}`);
+    }
+
+    return variable;
   }
 
   /**
@@ -787,7 +797,7 @@ export class FigmaDaisyChainService {
     const figmaId = this.idManager.getFigmaId(token.id);
     const action = this.idManager.determineAction(token.id);
 
-    return {
+    const variable: FigmaVariable = {
       action: action,
       id: figmaId,
       name: figmaCodeSyntax.formattedName,
@@ -797,6 +807,16 @@ export class FigmaDaisyChainService {
       hiddenFromPublishing: token.private || false,
       codeSyntax: this.buildCodeSyntax(token, tokenSystem)
     };
+
+    // Add description if it exists and is not empty
+    if (token.description && token.description.trim() !== '') {
+      variable.description = token.description;
+      console.log(`[FigmaDaisyChain] Added description to direct variable ${token.id}: "${token.description}"`);
+    } else {
+      console.log(`[FigmaDaisyChain] No valid description for direct token ${token.id}`);
+    }
+
+    return variable;
   }
 
   /**

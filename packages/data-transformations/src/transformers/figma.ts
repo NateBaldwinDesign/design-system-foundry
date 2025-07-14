@@ -334,7 +334,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       ? this.idManager.generateDeterministicId(tokenCollection.id, 'collection')
       : 'default-collection';
 
-    return {
+    const variable: FigmaVariable = {
       action: action,
       id: figmaId,
       name: figmaCodeSyntax.formattedName,
@@ -344,6 +344,13 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       hiddenFromPublishing: token.private || false,
       codeSyntax: this.buildCodeSyntax(token, tokenSystem)
     };
+
+    // Add description if it exists and is not empty
+    if (token.description && token.description.trim() !== '') {
+      variable.description = token.description;
+    } 
+
+    return variable;
   }
 
   /**

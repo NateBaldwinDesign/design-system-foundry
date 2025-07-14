@@ -32,6 +32,7 @@ export interface FigmaVariable {
   action: 'CREATE' | 'UPDATE' | 'DELETE';
   id: string;
   name: string;
+  description?: string;
   variableCollectionId: string;
   resolvedType: FigmaVariableType;
   scopes: string[];
