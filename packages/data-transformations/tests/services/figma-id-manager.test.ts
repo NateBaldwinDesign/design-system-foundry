@@ -56,7 +56,7 @@ describe('FigmaIdManager', () => {
       };
 
       // Initialize the ID manager
-      idManager.initialize(existingFigmaData, tempToRealId);
+      idManager.initialize(existingFigmaData, tempToRealId, undefined);
 
       // Test ID resolution
       expect(idManager.getFigmaId('collection-colors')).toBe('figma-collection-456');
@@ -110,7 +110,7 @@ describe('FigmaIdManager', () => {
       const tempToRealId = {};
 
       // Initialize the ID manager
-      idManager.initialize(existingFigmaData, tempToRealId);
+      idManager.initialize(existingFigmaData, tempToRealId, undefined);
 
       // Test action determination for items that exist in current data
       expect(idManager.determineAction('figma-var-manual')).toBe('UPDATE');
@@ -181,7 +181,7 @@ describe('FigmaIdManager', () => {
       };
 
       // Initialize the ID manager
-      idManager.initialize(existingFigmaData, tempToRealId);
+      idManager.initialize(existingFigmaData, tempToRealId, undefined);
 
       // Test mapped items (should be UPDATE)
       expect(idManager.determineAction('collection-existing')).toBe('UPDATE');
@@ -235,7 +235,7 @@ describe('FigmaIdManager', () => {
       };
 
       // Initialize the ID manager
-      idManager.initialize(existingFigmaData, tempToRealId);
+      idManager.initialize(existingFigmaData, tempToRealId, undefined);
 
       // Test that valid mappings are preserved
       expect(idManager.getFigmaId('collection-valid')).toBe('figma-collection-valid');
@@ -320,7 +320,7 @@ describe('FigmaIdManager', () => {
       };
 
       // Initialize the ID manager
-      idManager.initialize(existingFigmaData, tempToRealId);
+      idManager.initialize(existingFigmaData, tempToRealId, undefined);
 
       // Test that the mappings work correctly
       expect(idManager.determineAction('collection-colors')).toBe('UPDATE');

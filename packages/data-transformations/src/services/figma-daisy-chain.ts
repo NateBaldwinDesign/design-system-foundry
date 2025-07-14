@@ -187,16 +187,16 @@ export class FigmaDaisyChainService {
           
           const variable: FigmaVariable = {
             action: this.idManager.determineAction(variableId),
-            id: variableId,
+            id: this.idManager.getFigmaId(variableId),
             name: variableName,
-            variableCollectionId: deterministicDimensionId,
+            variableCollectionId: this.idManager.getFigmaId(deterministicDimensionId),
             resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
             scopes: ['ALL_SCOPES'],
             hiddenFromPublishing: true
           };
           
           variables.push(variable);
-          modeToVariableMap[deterministicNextModeId] = variableId;
+          modeToVariableMap[deterministicNextModeId] = this.idManager.getFigmaId(variableId);
 
           // Create mode values for each mode in the current dimension
           for (const mode of dimension.modes || []) {
@@ -228,8 +228,8 @@ export class FigmaDaisyChainService {
                     // Single-dimension token: alias to the final token variable (always use mapped Figma ID)
                     const referencedVariableId = this.idManager.getFigmaId(referencedTokenId);
                     modeValue = {
-                      variableId,
-                      modeId: deterministicModeId,
+                      variableId: this.idManager.getFigmaId(variableId),
+                      modeId: this.idManager.getFigmaId(deterministicModeId),
                       value: {
                         type: 'VARIABLE_ALIAS',
                         id: referencedVariableId
@@ -239,27 +239,27 @@ export class FigmaDaisyChainService {
                     // Multi-dimensional token: alias to the appropriate intermediary
                     const referencedVariableId = `intermediary-${referencedTokenId}-${deterministicDimensionId}-${deterministicModeId}`;
                     modeValue = {
-                      variableId,
-                      modeId: deterministicModeId,
+                      variableId: this.idManager.getFigmaId(variableId),
+                      modeId: this.idManager.getFigmaId(deterministicModeId),
                       value: {
                         type: 'VARIABLE_ALIAS',
-                        id: referencedVariableId
+                        id: this.idManager.getFigmaId(referencedVariableId)
                       }
                     };
                   }
                 } else {
                   // Fallback: use placeholder
                   modeValue = {
-                    variableId,
-                    modeId: deterministicModeId,
+                    variableId: this.idManager.getFigmaId(variableId),
+                    modeId: this.idManager.getFigmaId(deterministicModeId),
                     value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
                   };
                 }
               } else {
                 // Fallback: use placeholder
                 modeValue = {
-                  variableId,
-                  modeId: deterministicModeId,
+                  variableId: this.idManager.getFigmaId(variableId),
+                  modeId: this.idManager.getFigmaId(deterministicModeId),
                   value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
                 };
               }
@@ -267,8 +267,8 @@ export class FigmaDaisyChainService {
               // Direct value - convert normally
               const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem);
               modeValue = {
-                variableId,
-                modeId: deterministicModeId,
+                variableId: this.idManager.getFigmaId(variableId),
+                modeId: this.idManager.getFigmaId(deterministicModeId),
                 value: convertedValue
               };
             }
@@ -286,16 +286,16 @@ export class FigmaDaisyChainService {
       
       const variable: FigmaVariable = {
         action: this.idManager.determineAction(variableId),
-        id: variableId,
+        id: this.idManager.getFigmaId(variableId),
         name: variableName,
-        variableCollectionId: deterministicDimensionId,
+        variableCollectionId: this.idManager.getFigmaId(deterministicDimensionId),
         resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
         scopes: ['ALL_SCOPES'],
         hiddenFromPublishing: true
       };
       
       variables.push(variable);
-      modeToVariableMap[deterministicDimensionId] = variableId;
+      modeToVariableMap[deterministicDimensionId] = this.idManager.getFigmaId(variableId);
 
       // Create mode values for each mode in this dimension
       for (const mode of dimension.modes || []) {
@@ -327,8 +327,8 @@ export class FigmaDaisyChainService {
                 // Single-dimension token: alias to the final token variable (always use mapped Figma ID)
                 const referencedVariableId = this.idManager.getFigmaId(referencedTokenId);
                 modeValue = {
-                  variableId,
-                  modeId: deterministicModeId,
+                  variableId: this.idManager.getFigmaId(variableId),
+                  modeId: this.idManager.getFigmaId(deterministicModeId),
                   value: {
                     type: 'VARIABLE_ALIAS',
                     id: referencedVariableId
@@ -338,27 +338,27 @@ export class FigmaDaisyChainService {
                 // Multi-dimensional token: alias to the appropriate intermediary
                 const referencedVariableId = `intermediary-${referencedTokenId}-${deterministicDimensionId}-${deterministicModeId}`;
                 modeValue = {
-                  variableId,
-                  modeId: deterministicModeId,
+                  variableId: this.idManager.getFigmaId(variableId),
+                  modeId: this.idManager.getFigmaId(deterministicModeId),
                   value: {
                     type: 'VARIABLE_ALIAS',
-                    id: referencedVariableId
+                    id: this.idManager.getFigmaId(referencedVariableId)
                   }
                 };
               }
             } else {
               // Fallback: use placeholder
               modeValue = {
-                variableId,
-                modeId: deterministicModeId,
+                variableId: this.idManager.getFigmaId(variableId),
+                modeId: this.idManager.getFigmaId(deterministicModeId),
                 value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
               };
             }
           } else {
             // Fallback: use placeholder
             modeValue = {
-              variableId,
-              modeId: deterministicModeId,
+              variableId: this.idManager.getFigmaId(variableId),
+              modeId: this.idManager.getFigmaId(deterministicModeId),
               value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
             };
           }
@@ -366,8 +366,8 @@ export class FigmaDaisyChainService {
           // Direct value - convert normally
           const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem);
           modeValue = {
-            variableId,
-            modeId: deterministicModeId,
+            variableId: this.idManager.getFigmaId(variableId),
+            modeId: this.idManager.getFigmaId(deterministicModeId),
             value: convertedValue
           };
         }
@@ -419,16 +419,16 @@ export class FigmaDaisyChainService {
       
       const variable: FigmaVariable = {
         action: this.idManager.determineAction(variableId),
-        id: variableId,
+        id: this.idManager.getFigmaId(variableId),
         name: variableName,
-        variableCollectionId: deterministicDimensionId,
+        variableCollectionId: this.idManager.getFigmaId(deterministicDimensionId),
         resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
         scopes: ['ALL_SCOPES'],
         hiddenFromPublishing: true
       };
       
       variables.push(variable);
-      newModeToVariableMap[deterministicDimensionId] = variableId;
+      newModeToVariableMap[deterministicDimensionId] = this.idManager.getFigmaId(variableId);
 
       // Create mode values for each mode in this dimension
       for (const mode of dimension.modes || []) {
@@ -460,8 +460,8 @@ export class FigmaDaisyChainService {
                 // Single-dimension token: alias to the final token variable (always use mapped Figma ID)
                 const referencedVariableId = this.idManager.getFigmaId(referencedTokenId);
                 modeValue = {
-                  variableId,
-                  modeId: deterministicModeId,
+                  variableId: this.idManager.getFigmaId(variableId),
+                  modeId: this.idManager.getFigmaId(deterministicModeId),
                   value: {
                     type: 'VARIABLE_ALIAS',
                     id: referencedVariableId
@@ -471,27 +471,27 @@ export class FigmaDaisyChainService {
                 // Multi-dimensional token: alias to the appropriate intermediary
                 const referencedVariableId = `intermediary-${referencedTokenId}-${deterministicDimensionId}-${deterministicModeId}`;
                 modeValue = {
-                  variableId,
-                  modeId: deterministicModeId,
+                  variableId: this.idManager.getFigmaId(variableId),
+                  modeId: this.idManager.getFigmaId(deterministicModeId),
                   value: {
                     type: 'VARIABLE_ALIAS',
-                    id: referencedVariableId
+                    id: this.idManager.getFigmaId(referencedVariableId)
                   }
                 };
               }
             } else {
               // Fallback: use placeholder
               modeValue = {
-                variableId,
-                modeId: deterministicModeId,
+                variableId: this.idManager.getFigmaId(variableId),
+                modeId: this.idManager.getFigmaId(deterministicModeId),
                 value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
               };
             }
           } else {
             // Fallback: use placeholder
             modeValue = {
-              variableId,
-              modeId: deterministicModeId,
+              variableId: this.idManager.getFigmaId(variableId),
+              modeId: this.idManager.getFigmaId(deterministicModeId),
               value: this.valueConverter.getAliasPlaceholderValue(tokenSystem, token.resolvedValueTypeId)
             };
           }
@@ -499,8 +499,8 @@ export class FigmaDaisyChainService {
           // Direct value - convert normally
           const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem);
           modeValue = {
-            variableId,
-            modeId: deterministicModeId,
+            variableId: this.idManager.getFigmaId(variableId),
+            modeId: this.idManager.getFigmaId(deterministicModeId),
             value: convertedValue
           };
         }
@@ -516,9 +516,9 @@ export class FigmaDaisyChainService {
       
       const referenceVariable: FigmaVariable = {
         action: this.idManager.determineAction(referenceVariableId),
-        id: referenceVariableId,
+        id: this.idManager.getFigmaId(referenceVariableId),
         name: referenceVariableName,
-        variableCollectionId: deterministicDimensionId,
+        variableCollectionId: this.idManager.getFigmaId(deterministicDimensionId),
         resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
         scopes: ['ALL_SCOPES'],
         hiddenFromPublishing: true
@@ -540,15 +540,15 @@ export class FigmaDaisyChainService {
         
         if (targetVariableId) {
           const modeValue: FigmaVariableModeValue = {
-            variableId: referenceVariableId,
-            modeId: deterministicModeId,
+            variableId: this.idManager.getFigmaId(referenceVariableId),
+            modeId: this.idManager.getFigmaId(deterministicModeId),
             value: {
               type: 'VARIABLE_ALIAS',
               id: targetVariableId
             }
           };
           modeValues.push(modeValue);
-          newModeToVariableMap[deterministicModeId] = referenceVariableId;
+          newModeToVariableMap[deterministicModeId] = this.idManager.getFigmaId(referenceVariableId);
         }
       }
     }
@@ -726,15 +726,17 @@ export class FigmaDaisyChainService {
       
       // First, try to find the reference variable by looking for any mode ID that maps to it
       for (const mode of lastDimension.modes || []) {
-        if (modeToVariableMap[mode.id] === referenceVariableId) {
-          targetVariableId = referenceVariableId;
+        const deterministicModeId = this.idManager.generateDeterministicId(mode.id, 'mode');
+        if (modeToVariableMap[deterministicModeId] === this.idManager.getFigmaId(referenceVariableId)) {
+          targetVariableId = this.idManager.getFigmaId(referenceVariableId);
           break;
         }
       }
       
       // If not found by mode ID, check if it's mapped by dimension ID (for single-dimensional tokens)
       if (!targetVariableId) {
-        targetVariableId = modeToVariableMap[lastDimension.id];
+        const deterministicDimensionId = this.idManager.generateDeterministicId(lastDimension.id, 'collection');
+        targetVariableId = modeToVariableMap[deterministicDimensionId];
       }
       
       // If the target is a token ID (starts with 'token-'), convert it to the mapped Figma ID

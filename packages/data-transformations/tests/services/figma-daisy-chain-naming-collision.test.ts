@@ -90,7 +90,7 @@ describe('FigmaDaisyChainService - Naming Collision Prevention', () => {
       };
 
       // Initialize the ID manager with existing data
-      idManager.initialize(existingFigmaData, {});
+      idManager.initialize(existingFigmaData, {}, undefined);
 
       // Transform the token
       const result = service.transformTokenWithDaisyChaining(
@@ -153,7 +153,7 @@ describe('FigmaDaisyChainService - Naming Collision Prevention', () => {
       };
 
       // Initialize the ID manager with existing data
-      idManager.initialize(existingFigmaData, {});
+      idManager.initialize(existingFigmaData, {}, undefined);
 
       // Transform the token
       const result = service.transformTokenWithDaisyChaining(

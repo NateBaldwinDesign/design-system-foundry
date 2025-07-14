@@ -118,7 +118,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       tempToRealIdSample: options?.tempToRealId ? Object.entries(options.tempToRealId).slice(0, 5) : []
     });
     
-    this.idManager.initialize(options?.existingFigmaData, options?.tempToRealId);
+    this.idManager.initialize(options?.existingFigmaData, options?.tempToRealId, input);
     
     console.log('[FigmaTransformer] ✅ ID MANAGER INITIALIZED');
     console.log('[FigmaTransformer] ID Manager state after initialization:', {
@@ -191,11 +191,15 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       
       console.log(`[FigmaTransformer] Creating dimension collection "${dimension.displayName}" action: ${action}`);
       
+      // Generate deterministic ID for the default mode and get the mapped Figma ID
+      const deterministicDefaultModeId = this.idManager.generateDeterministicId(dimension.defaultMode, 'mode');
+      const figmaDefaultModeId = this.idManager.getFigmaId(deterministicDefaultModeId);
+      
       const collection: FigmaVariableCollection = {
         action: action,
         id: figmaId,
         name: dimension.displayName,
-        initialModeId: dimension.defaultMode,
+        initialModeId: figmaDefaultModeId,
         hiddenFromPublishing: true // Dimensional collections are hidden
       };
       
@@ -334,7 +338,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       action: action,
       id: figmaId,
       name: figmaCodeSyntax.formattedName,
-      variableCollectionId: deterministicCollectionId,
+      variableCollectionId: this.idManager.getFigmaId(deterministicCollectionId),
       resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
       scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
       hiddenFromPublishing: token.private || false,
@@ -425,9 +429,9 @@ export class FigmaTransformer extends AbstractBaseTransformer<
         
         modes.push({
           action: (isDefaultMode || isInitialMode) ? 'UPDATE' : 'CREATE',
-          id: deterministicModeId,
+          id: this.idManager.getFigmaId(deterministicModeId),
           name: mode.name,
-          variableCollectionId: deterministicDimensionId
+          variableCollectionId: this.idManager.getFigmaId(deterministicDimensionId)
         });
       }
     }
