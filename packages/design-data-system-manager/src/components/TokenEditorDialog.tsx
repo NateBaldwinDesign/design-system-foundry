@@ -1092,9 +1092,9 @@ export function TokenEditorDialog({
 
   return (
     <>
-      <Modal isOpen={open} onClose={onClose} isCentered size="xl">
+      <Modal isOpen={open} onClose={onClose} size="xl">
         <ModalOverlay />
-        <ModalContent maxW="900px">
+        <ModalContent maxW="1200px">
           <ModalHeader>
             {isNew ? 'Create Token' : `Edit Token: ${editedToken.displayName}`}
           </ModalHeader>
@@ -1640,19 +1640,19 @@ export function TokenEditorDialog({
           </ModalBody>
           <ModalFooter>
             <Flex width="100%" justify="space-between">
-              <Button variant="ghost" mr={3} onClick={onClose}>
-                Cancel
-              </Button>
+              {!isNew && (
+                <Button
+                  colorScheme="red"
+                  variant="outline"
+                  onClick={() => setIsDeleteDialogOpen(true)}
+                >
+                  Delete
+                </Button>
+              )}
               <HStack spacing={3}>
-                {!isNew && (
-                  <Button
-                    colorScheme="red"
-                    variant="outline"
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                  >
-                    Delete
-                  </Button>
-                )}
+                <Button variant="ghost" onClick={onClose}>
+                  Cancel
+                </Button>
                 <Button colorScheme="blue" onClick={handleSave}>
                   {isNew ? 'Create' : 'Save'}
                 </Button>
