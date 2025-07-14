@@ -407,8 +407,12 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       const modeId = this.idManager.getFigmaId(deterministicModeId);
       const isInitialMode = this.idManager.isInitialMode(modeId, collections);
       
+      // Check if the final mapped ID is a Figma ID (should be UPDATE) or canonical ID (should be CREATE)
+      const isFigmaId = this.idManager.isFigmaId(modeId);
+      const finalAction = (isInitialMode || isFigmaId) ? 'UPDATE' : 'CREATE';
+      
       modes.push({
-        action: isInitialMode ? 'UPDATE' : 'CREATE',
+        action: finalAction,
         id: modeId,
         name: 'Value',
         variableCollectionId: this.idManager.getFigmaId(deterministicCollectionId)
@@ -427,9 +431,16 @@ export class FigmaTransformer extends AbstractBaseTransformer<
         const isDefaultMode = deterministicModeId === this.idManager.generateDeterministicId(dimension.defaultMode, 'mode');
         const isInitialMode = this.idManager.isInitialMode(deterministicModeId, collections);
         
+        // Get the final mapped ID
+        const modeId = this.idManager.getFigmaId(deterministicModeId);
+        
+        // Check if the final mapped ID is a Figma ID (should be UPDATE) or canonical ID (should be CREATE)
+        const isFigmaId = this.idManager.isFigmaId(modeId);
+        const finalAction = (isDefaultMode || isInitialMode || isFigmaId) ? 'UPDATE' : 'CREATE';
+        
         modes.push({
-          action: (isDefaultMode || isInitialMode) ? 'UPDATE' : 'CREATE',
-          id: this.idManager.getFigmaId(deterministicModeId),
+          action: finalAction,
+          id: modeId,
           name: mode.name,
           variableCollectionId: this.idManager.getFigmaId(deterministicDimensionId)
         });

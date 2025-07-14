@@ -535,6 +535,17 @@ export class FigmaIdManager {
   }
 
   /**
+   * Check if an ID is a Figma ID pattern (e.g., "250:13", "VariableCollectionId:250:8")
+   */
+  isFigmaId(id: string): boolean {
+    // Figma ID patterns:
+    // - Simple: "250:13" (number:number)
+    // - With prefix: "VariableCollectionId:250:8" (prefix:number:number)
+    const figmaIdPattern = /^([A-Za-z]+:)?\d+:\d+$/;
+    return figmaIdPattern.test(id);
+  }
+
+  /**
    * Create a deterministic ID from a UUID
    */
   private createDeterministicId(uuid: string, type: 'collection' | 'mode' | 'variable'): string {

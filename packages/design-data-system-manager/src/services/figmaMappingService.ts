@@ -59,7 +59,7 @@ export class FigmaMappingService {
   }
 
   /**
-   * Save tempToRealId mapping to GitHub repository
+   * Save mapping data to GitHub repository
    */
   static async saveMappingToGitHub(
     fileKey: string, 
@@ -71,7 +71,9 @@ export class FigmaMappingService {
       await this.ensureFigmaDirectory(repoInfo.owner, repoInfo.repo);
       
       const filename = `${this.MAPPINGS_DIR}/${fileKey}.json`;
-      const enhancedMappingData = {
+      
+      // Enhance mapping data with repository context
+      const enhancedMappingData: FigmaMappingData = {
         ...mappingData,
         repositoryContext: {
           owner: repoInfo.owner,
@@ -84,11 +86,26 @@ export class FigmaMappingService {
       };
       
       const content = JSON.stringify(enhancedMappingData, null, 2);
-      const commitMessage = `Update Figma mapping for ${fileKey} - ${new Date().toLocaleString()}`;
+      const commitMessage = `AUTOCOMMIT: Update Figma mapping for ${fileKey} - ${new Date().toLocaleString()}`;
+      
+      // Get the current file SHA if it exists
+      let currentSha: string | undefined;
+      try {
+        const existingFile = await GitHubApiService.getFileContent(
+          `${repoInfo.owner}/${repoInfo.repo}`,
+          filename,
+          'main'
+        );
+        currentSha = existingFile.sha;
+        console.log(`[FigmaMappingService] Found existing file with SHA: ${currentSha}`);
+      } catch (error) {
+        // File doesn't exist, which is fine for creating new files
+        console.log(`[FigmaMappingService] File doesn't exist, will create new: ${filename}`);
+      }
       
       // Try to update existing file, create if doesn't exist
       try {
-        await GitHubApiService.createFile(
+        await GitHubApiService.createOrUpdateFile(
           `${repoInfo.owner}/${repoInfo.repo}`,
           filename,
           content,
@@ -97,8 +114,30 @@ export class FigmaMappingService {
         );
         console.log(`[FigmaMappingService] Successfully saved mapping to GitHub: ${filename}`);
       } catch (error) {
-        console.error(`[FigmaMappingService] Failed to save mapping to GitHub:`, error);
-        throw error;
+        // If we get a 409 conflict, it means the file was modified by someone else
+        // Try to get the latest SHA and retry once
+        if (error instanceof Error && error.message.includes('409')) {
+          console.log(`[FigmaMappingService] Got 409 conflict, retrying with latest SHA...`);
+          try {
+            // Wait a moment for any concurrent updates to complete
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            await GitHubApiService.createOrUpdateFile(
+              `${repoInfo.owner}/${repoInfo.repo}`,
+              filename,
+              content,
+              'main',
+              commitMessage
+            );
+            console.log(`[FigmaMappingService] Successfully saved mapping to GitHub after retry: ${filename}`);
+          } catch (retryError) {
+            console.error(`[FigmaMappingService] Failed to save mapping to GitHub after retry:`, retryError);
+            throw retryError;
+          }
+        } else {
+          console.error(`[FigmaMappingService] Failed to save mapping to GitHub:`, error);
+          throw error;
+        }
       }
     } catch (error) {
       console.error(`[FigmaMappingService] Failed to save mapping to GitHub for file ${fileKey}:`, error);
