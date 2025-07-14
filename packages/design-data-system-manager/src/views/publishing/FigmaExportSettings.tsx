@@ -30,7 +30,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogContent,
-  AlertDialogOverlay
+  AlertDialogOverlay,
+  Checkbox,
+  RadioGroup,
+  Radio,
+  FormHelperText
 } from '@chakra-ui/react';
 import { Download, Copy, Eye, EyeOff, AlertTriangle, Pencil } from 'lucide-react';
 import type { TokenSystem } from '@token-model/data-model';
@@ -62,6 +66,9 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
   const [modalExportResult, setModalExportResult] = useState<FigmaExportResult | null>(null);
   const [modalShowPreview, setModalShowPreview] = useState(false);
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
+  const [autoPublish, setAutoPublish] = useState(false);
+  const [publishStrategy, setPublishStrategy] = useState<'merge' | 'commit'>('merge');
+  const [branchFileId, setBranchFileId] = useState('');
   const cancelRef = React.useRef<HTMLButtonElement>(null);
 
   // Check change tracking state on mount and when data changes
@@ -541,12 +548,62 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
                 />
               </FormControl>
 
-              <Alert status="info" borderRadius="md">
-                <AlertIcon />
-                <AlertDescription>
-                  Access token and file ID are required for publishing and exporting.
-                </AlertDescription>
-              </Alert>
+              {(!tempAccessToken || !tempFileId) && (
+                <Alert status="info" borderRadius="md">
+                  <AlertIcon />
+                  <AlertDescription>
+                    Access token and file ID are required for publishing and exporting.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <Box 
+                p={3} 
+                borderWidth={1} 
+                borderRadius="md" 
+                bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+              >
+                <FormControl>
+                  <Checkbox
+                    isChecked={autoPublish}
+                    onChange={(e) => setAutoPublish(e.target.checked)}
+                  >
+                    Auto publish
+                  </Checkbox>
+                  <FormHelperText ml={6}>If you have Github actions enabled, this will publish your changes to Figma automatically when you commit or merge.</FormHelperText>
+                  </FormControl>
+
+                {autoPublish && (
+                  <VStack spacing={3} align="stretch" pt={2} ml={6} mr={16} mt={3}>
+                    <FormControl>
+                      <FormLabel>Publish Strategy</FormLabel>
+                      <RadioGroup value={publishStrategy} onChange={(value: 'merge' | 'commit') => setPublishStrategy(value)}>
+                        <VStack align="start" spacing={2}>
+                          <Radio value="merge">Publish on merge with main</Radio>
+                          <Radio value="commit">Publish every commit</Radio>
+                        </VStack>
+                      </RadioGroup>
+                    </FormControl>
+
+                    {publishStrategy === 'commit' && (
+                      <FormControl ml={6}>
+                        <FormLabel>Figma File ID for current branch</FormLabel>
+                        <Input
+                          value={branchFileId}
+                          onChange={(e) => setBranchFileId(e.target.value)}
+                          placeholder="yTy5ytxeFPRiGou5Poed8a"
+                          fontFamily="mono"
+                        />
+                        <FormHelperText>
+                          Must be a unique file ID for a branch of the main Figma file that corresponds with this Github branch
+                        </FormHelperText>
+                      </FormControl>
+                    )}
+                  </VStack>
+                )}
+              </Box>
+
 
               {/* Action Buttons - Always visible but disabled when no data */}
               <HStack spacing={2} justify="center">
