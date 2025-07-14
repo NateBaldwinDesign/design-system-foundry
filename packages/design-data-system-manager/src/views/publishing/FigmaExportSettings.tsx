@@ -24,9 +24,15 @@ import {
   ModalFooter,
   ModalCloseButton,
   InputGroup,
-  InputRightElement
+  InputRightElement,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay
 } from '@chakra-ui/react';
-import { Download, Copy, Eye, EyeOff, AlertTriangle, CheckCircle, Pencil } from 'lucide-react';
+import { Download, Copy, Eye, EyeOff, AlertTriangle, Pencil } from 'lucide-react';
 import type { TokenSystem } from '@token-model/data-model';
 import { FigmaExportService, FigmaExportResult } from '../../services/figmaExport';
 import { FigmaPrePublishDialog } from '../../components/FigmaPrePublishDialog';
@@ -44,7 +50,8 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
   
   const [accessToken, setAccessToken] = useState('');
   const [fileId, setFileId] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [publishLoading, setPublishLoading] = useState(false);
   const [showPrePublishDialog, setShowPrePublishDialog] = useState(false);
   const [changeTrackingState, setChangeTrackingState] = useState<ChangeTrackingState | null>(null);
   const [checkingChanges, setCheckingChanges] = useState(true);
@@ -54,6 +61,8 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [modalExportResult, setModalExportResult] = useState<FigmaExportResult | null>(null);
   const [modalShowPreview, setModalShowPreview] = useState(false);
+  const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false);
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
 
   // Check change tracking state on mount and when data changes
   useEffect(() => {
@@ -119,11 +128,27 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
 
   // Cancel modal changes
   const handleCancelModal = () => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedChangesDialog(true);
+    } else {
+      handleDiscardChanges();
+    }
+  };
+
+  // Handle discarding changes (called from alert dialog)
+  const handleDiscardChanges = () => {
     setTempAccessToken(accessToken);
     setTempFileId(fileId);
     setModalExportResult(null);
     setModalShowPreview(false);
     setIsModalOpen(false);
+    setShowUnsavedChangesDialog(false);
+  };
+
+  // Handle keeping changes (called from alert dialog)
+  const handleKeepChanges = () => {
+    setShowUnsavedChangesDialog(false);
+    // Keep the modal open so user can save
   };
 
   // Manual token test function for debugging
@@ -212,7 +237,7 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
   const handlePublish = async () => {
     if (!tempAccessToken || !tempFileId) return;
     
-    setLoading(true);
+    setPublishLoading(true);
     try {
       console.log('[FigmaExportSettings] Starting Figma publishing...');
       
@@ -275,7 +300,7 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
         isClosable: true
       });
     } finally {
-      setLoading(false);
+      setPublishLoading(false);
     }
   };
 
@@ -283,7 +308,7 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
   const handleExportOnly = async () => {
     if (!tempAccessToken || !tempFileId) return;
     
-    setLoading(true);
+    setExportLoading(true);
     try {
       console.log('[FigmaExportSettings] Starting export only...');
       
@@ -340,7 +365,7 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
         isClosable: true,
       });
     } finally {
-      setLoading(false);
+      setExportLoading(false);
     }
   };
 
@@ -417,33 +442,25 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
       );
     }
 
-    if (changeTrackingState.canExport) {
+    // Only show alerts for error conditions, not success states
+    if (!changeTrackingState.canExport) {
       return (
-        <Alert status="success" borderRadius="md">
-          <AlertIcon as={CheckCircle} />
+        <Alert status="error" borderRadius="md">
+          <AlertIcon as={AlertTriangle} />
           <AlertDescription>
-            Ready to export. {changeTrackingState.changeCount > 0 
-              ? `${changeTrackingState.changeCount} local changes detected, but GitHub is in sync.`
-              : 'No changes detected.'
+            {changeTrackingState.hasLocalChanges && changeTrackingState.hasGitHubDivergence
+              ? `Export blocked: ${changeTrackingState.changeCount} local changes detected AND data has diverged from baseline. Please save your changes first.`
+              : changeTrackingState.hasLocalChanges
+              ? `Export blocked: ${changeTrackingState.changeCount} local changes detected. Please save your changes first.`
+              : 'Export blocked: Local data has diverged from baseline. Please sync with GitHub first.'
             }
           </AlertDescription>
         </Alert>
       );
     }
 
-    return (
-      <Alert status="error" borderRadius="md">
-        <AlertIcon as={AlertTriangle} />
-        <AlertDescription>
-          {changeTrackingState.hasLocalChanges && changeTrackingState.hasGitHubDivergence
-            ? `Export blocked: ${changeTrackingState.changeCount} local changes detected AND data has diverged from baseline. Please save your changes first.`
-            : changeTrackingState.hasLocalChanges
-            ? `Export blocked: ${changeTrackingState.changeCount} local changes detected. Please save your changes first.`
-            : 'Export blocked: Local data has diverged from baseline. Please sync with GitHub first.'
-          }
-        </AlertDescription>
-      </Alert>
-    );
+    // Return null when ready to export (no alert banner)
+    return null;
   };
 
   return (
@@ -458,7 +475,7 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
       >
         <HStack justify="space-between" align="center">
           <Box>
-            <CardTitle title="Figma" cardType="taxonomy" />
+            <CardTitle title="Figma" cardType="figma" />
             <Text fontSize="sm" color="gray.600">
               Figma access token: {accessToken ? `${accessToken.substring(0, 10)}...` : 'Not set'}
             </Text>
@@ -531,6 +548,50 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
                 </AlertDescription>
               </Alert>
 
+              {/* Action Buttons - Always visible but disabled when no data */}
+              <HStack spacing={2} justify="center">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleExportOnly}
+                  isLoading={exportLoading}
+                  loadingText="Generating API data..."
+                  isDisabled={!tempAccessToken || !tempFileId || !changeTrackingState?.canExport}
+                >
+                  Generate API data
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setModalShowPreview(!modalShowPreview)}
+                  leftIcon={modalShowPreview ? <EyeOff size={14} /> : <Eye size={14} />}
+                  isDisabled={!modalExportResult?.data}
+                >
+                  {modalShowPreview ? 'Hide' : 'Show'} Preview
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleModalDownload}
+                  leftIcon={<Download size={14} />}
+                  isDisabled={!modalExportResult?.data}
+                >
+                  Download JSON
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleModalCopy}
+                  leftIcon={<Copy size={14} />}
+                  isDisabled={!modalExportResult?.data}
+                >
+                  Copy JSON
+                </Button>
+              </HStack>
+
               {/* Export Result Display */}
               {modalExportResult?.data && (
                 <Box p={4} bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'} borderRadius="md">
@@ -542,35 +603,6 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
                         <Badge colorScheme="blue">{modalExportResult.data.collections.length} collections</Badge>
                         <Badge colorScheme="purple">{modalExportResult.data.variableModes.length} modes</Badge>
                       </HStack>
-                    </HStack>
-                    
-                    <HStack spacing={2}>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setModalShowPreview(!modalShowPreview)}
-                        leftIcon={modalShowPreview ? <EyeOff size={14} /> : <Eye size={14} />}
-                      >
-                        {modalShowPreview ? 'Hide' : 'Show'} Preview
-                      </Button>
-                      
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleModalDownload}
-                        leftIcon={<Download size={14} />}
-                      >
-                        Download JSON
-                      </Button>
-                      
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleModalCopy}
-                        leftIcon={<Copy size={14} />}
-                      >
-                        Copy JSON
-                      </Button>
                     </HStack>
 
                     {modalShowPreview && (
@@ -594,26 +626,15 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
           </ModalBody>
           <ModalFooter>
             <Button
-              colorScheme="blue"
-              onClick={handleExportOnly}
-              isLoading={loading}
-              loadingText="Generating Export..."
-              isDisabled={!tempAccessToken || !tempFileId || hasUnsavedChanges || !changeTrackingState?.canExport}
-              mr={3}
-            >
-              Export Only
-            </Button>
-            <Button
               colorScheme="green"
               onClick={handlePublish}
-              isLoading={loading}
+              isLoading={publishLoading}
               loadingText="Publishing..."
-              isDisabled={!tempAccessToken || !tempFileId || hasUnsavedChanges || !changeTrackingState?.canExport}
-              mr={3}
+              isDisabled={!tempAccessToken || !tempFileId || !changeTrackingState?.canExport}
             >
               Publish
             </Button>
-            <Button variant="ghost" onClick={handleCancelModal}>
+            <Button variant="ghost" onClick={handleCancelModal} ml="auto">
               Cancel
             </Button>
             <Button colorScheme="blue" onClick={handleSaveModal} ml={3}>
@@ -635,6 +656,32 @@ export const FigmaExportSettings: React.FC<FigmaExportSettingsProps> = ({ tokenS
           accessToken={accessToken}
         />
       )}
+
+      {/* Unsaved Changes Alert Dialog */}
+      <AlertDialog
+        isOpen={showUnsavedChangesDialog}
+        onClose={handleKeepChanges}
+        leastDestructiveRef={cancelRef}
+      >
+        <AlertDialogOverlay />
+        <AlertDialogContent>
+          <AlertDialogHeader fontSize="lg" fontWeight="bold">
+            Unsaved Changes
+          </AlertDialogHeader>
+          <AlertDialogBody>
+            You have unsaved changes to your Figma export settings.
+            If you leave without saving, your changes will be lost.
+          </AlertDialogBody>
+          <AlertDialogFooter>
+            <Button ref={cancelRef} onClick={handleKeepChanges}>
+              Keep Changes
+            </Button>
+            <Button colorScheme="red" onClick={handleDiscardChanges} ml={3}>
+              Discard Changes
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </VStack>
   );
 }; 
