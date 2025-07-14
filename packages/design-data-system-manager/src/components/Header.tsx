@@ -235,38 +235,10 @@ export const Header: React.FC<HeaderProps> = ({
 
       const parsedData = JSON.parse(fileContent.content);
 
-      // Load data into local storage based on file type
-      if (selectedRepoInfo.fileType === 'schema') {
-        // Load as core data
-        StorageService.setCollections(parsedData.tokenCollections || []);
-        StorageService.setDimensions(parsedData.dimensions || []);
-        StorageService.setTokens(parsedData.tokens || []);
-        StorageService.setPlatforms(parsedData.platforms || []);
-        StorageService.setThemes(parsedData.themes || []);
-        StorageService.setTaxonomies(parsedData.taxonomies || []);
-        StorageService.setValueTypes(parsedData.resolvedValueTypes || []);
-        
-        // Store root-level properties
-        StorageService.setRootData({
-          systemName: parsedData.systemName,
-          systemId: parsedData.systemId,
-          description: parsedData.description,
-          version: parsedData.version,
-          versionHistory: parsedData.versionHistory
-        });
-      } else if (selectedRepoInfo.fileType === 'theme-override') {
-        // Load as theme override
-        console.log('Theme override data loaded:', parsedData);
+      // Use the same data loading logic as the App component
+      if (onFileSelected) {
+        onFileSelected(parsedData, selectedRepoInfo.fileType);
       }
-
-      // Refresh the App data to update the UI
-      const refreshAppData = (window as Window & { refreshAppData?: () => void }).refreshAppData;
-      if (refreshAppData) {
-        refreshAppData();
-      }
-
-      // Dispatch event to notify change detection that data has been reloaded
-      window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
 
       toast({
         title: 'Reloaded',

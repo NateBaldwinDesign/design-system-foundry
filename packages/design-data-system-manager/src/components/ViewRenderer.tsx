@@ -29,6 +29,7 @@ import { ValueTypesView } from '../views/setup/ValueTypesView';
 import ThemesView from '../views/themes/ThemesView';
 import { PlatformsView } from '../views/publishing/PlatformsView';
 import { ValidationView } from '../views/publishing/ValidationView';
+import { ExportSettingsView } from '../views/publishing/ExportSettingsView';
 import CoreDataView from '../views/schemas/CoreDataView';
 import ThemeOverridesView from '../views/schemas/ThemeOverridesView';
 import AlgorithmDataView from '../views/schemas/AlgorithmDataView';
@@ -187,7 +188,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} tokens={tokens} setTokens={onUpdateTokens} taxonomies={taxonomies} />;
       
       case 'export-settings':
-        return <Box p={4}>Export settings content coming soon...</Box>;
+        return <ExportSettingsView />;
       
       case 'validation':
         return <ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />;

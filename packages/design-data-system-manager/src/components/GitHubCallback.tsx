@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { GitHubAuthService } from '../services/githubAuth';
 import { useToast } from '@chakra-ui/react';
 import { GitHubRepoSelector } from './GitHubRepoSelector';
+import { ChangeTrackingService } from '../services/changeTrackingService';
 
 export const GitHubCallback: React.FC = () => {
   const navigate = useNavigate();
@@ -91,8 +92,14 @@ export const GitHubCallback: React.FC = () => {
       isClosable: true,
     });
     
+    // Update last GitHub sync timestamp
+    ChangeTrackingService.updateLastGitHubSync();
+    
     // Dispatch event to notify the main app that GitHub data has been loaded
     window.dispatchEvent(new CustomEvent('github:file-loaded'));
+    
+    // Dispatch data change event to update change log
+    window.dispatchEvent(new CustomEvent('token-model:data-change'));
     
     // Redirect to the main app
     navigate('/');

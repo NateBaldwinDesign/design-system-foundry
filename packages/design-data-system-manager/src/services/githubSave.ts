@@ -1,5 +1,6 @@
 import { GitHubApiService } from './githubApi';
 import { StorageService } from './storage';
+import { DataManager } from './dataManager';
 
 export interface SaveOptions {
   message?: string;
@@ -67,6 +68,10 @@ export class GitHubSaveService {
           commitMessage
         );
 
+        // Reset baseline to current data after successful save
+        const dataManager = DataManager.getInstance();
+        dataManager.resetBaselineToCurrent();
+
         return {
           success: true,
           message: `Successfully saved changes to ${repoInfo.filePath}`
@@ -125,6 +130,10 @@ export class GitHubSaveService {
       newBranchName,
       targetBranch
     );
+
+    // Reset baseline to current data after successful PR creation
+    const dataManager = DataManager.getInstance();
+    dataManager.resetBaselineToCurrent();
 
     return {
       success: true,

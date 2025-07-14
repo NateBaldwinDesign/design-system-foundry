@@ -1,10 +1,10 @@
 import React from 'react';
 import { HStack, Text } from "@chakra-ui/react"
-import { Circle, Folders, SquareFunctionIcon, Timer, Tag, MoveVertical, MoveHorizontal, Palette, Ruler, Expand, Type, Minus, Plus, SquareRoundCorner, PencilRuler, SquareStack, Blend } from "lucide-react"
+import { Circle, Folders, SquareFunctionIcon, Timer, Tag, MoveVertical, MoveHorizontal, Palette, Ruler, Expand, Type, Minus, Plus, SquareRoundCorner, PencilRuler, SquareStack, Blend, Figma } from "lucide-react"
 
 interface CardTitleProps {
     title: string;
-    cardType?: 'algorithm' | 'token' | 'collection' | 'taxonomy' | 'dimension' | 'COLOR' | 'DIMENSION' | 'SPACING' | 'FONT_FAMILY' | 'FONT_WEIGHT' | 'FONT_SIZE' | 'LINE_HEIGHT' | 'LETTER_SPACING' | 'DURATION' | 'CUBIC_BEZIER' | 'BLUR' | 'SPREAD' | 'RADIUS' | 'Custom' | 'system-variable';
+    cardType?: 'algorithm' | 'figma' | 'token' | 'collection' | 'taxonomy' | 'dimension' | 'COLOR' | 'DIMENSION' | 'SPACING' | 'FONT_FAMILY' | 'FONT_WEIGHT' | 'FONT_SIZE' | 'LINE_HEIGHT' | 'LETTER_SPACING' | 'DURATION' | 'CUBIC_BEZIER' | 'BLUR' | 'SPREAD' | 'RADIUS' | 'Custom' | 'system-variable';
 }
 
 const CardTitle: React.FC<CardTitleProps> = ({ title, cardType = 'algorithm' }) => {
@@ -20,6 +20,9 @@ const CardTitle: React.FC<CardTitleProps> = ({ title, cardType = 'algorithm' }) 
             break;
         case 'taxonomy':
             icon = <Tag size={size}/>;
+            break;
+        case 'figma':
+            icon = <Figma size={size}/>;
             break;
         case 'dimension':
             icon = <SquareStack size={size}/>;

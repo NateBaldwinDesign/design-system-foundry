@@ -1,0 +1,572 @@
+{
+    "status": 200,
+    "error": false,
+    "meta": {
+      "variableCollections": {
+        "VariableCollectionId:239:3": {
+          "defaultModeId": "239:0",
+          "id": "VariableCollectionId:239:3",
+          "name": "Color Scheme",
+          "remote": false,
+          "modes": [
+            {
+              "modeId": "239:0",
+              "name": "Light"
+            },
+            {
+              "modeId": "239:1",
+              "name": "Dark"
+            }
+          ],
+          "key": "8c5afb429cb30c2381b76dc409131b8e8f31f75a",
+          "hiddenFromPublishing": true,
+          "variableIds": [
+            "VariableID:239:12",
+            "VariableID:239:14",
+            "VariableID:239:15",
+            "VariableID:239:16"
+          ]
+        },
+        "VariableCollectionId:239:8": {
+          "defaultModeId": "239:15",
+          "id": "VariableCollectionId:239:8",
+          "name": "Color",
+          "remote": false,
+          "modes": [
+            {
+              "modeId": "239:15",
+              "name": "Value"
+            }
+          ],
+          "key": "77ad8d5eb91ca2c31f4b16a8921b9d00918c065c",
+          "hiddenFromPublishing": false,
+          "variableIds": [
+            "VariableID:239:11",
+            "VariableID:239:13",
+            "VariableID:239:18"
+          ]
+        },
+        "VariableCollectionId:239:10": {
+          "defaultModeId": "239:17",
+          "id": "VariableCollectionId:239:10",
+          "name": "Dimensions",
+          "remote": false,
+          "modes": [
+            {
+              "modeId": "239:17",
+              "name": "Value"
+            }
+          ],
+          "key": "5ac4035c403bf8c8bfa92b4c0618cdb83a2d7c7d",
+          "hiddenFromPublishing": false,
+          "variableIds": [
+            "VariableID:239:23"
+          ]
+        },
+        "VariableCollectionId:239:9": {
+          "defaultModeId": "239:16",
+          "id": "VariableCollectionId:239:9",
+          "name": "Typography",
+          "remote": false,
+          "modes": [
+            {
+              "modeId": "239:16",
+              "name": "Value"
+            }
+          ],
+          "key": "dddb7e46a79ca271a04fd97ce6ef64b1abb50393",
+          "hiddenFromPublishing": false,
+          "variableIds": [
+            "VariableID:239:20",
+            "VariableID:239:21",
+            "VariableID:239:22",
+            "VariableID:239:24",
+            "VariableID:239:25",
+            "VariableID:239:26"
+          ]
+        },
+        "VariableCollectionId:239:4": {
+          "defaultModeId": "239:2",
+          "id": "VariableCollectionId:239:4",
+          "name": "Contrast",
+          "remote": false,
+          "modes": [
+            {
+              "modeId": "239:2",
+              "name": "Regular"
+            },
+            {
+              "modeId": "239:3",
+              "name": "Low"
+            },
+            {
+              "modeId": "239:4",
+              "name": "High"
+            }
+          ],
+          "key": "ada2fea49d1c0f6b7460992efcba9425ec80684b",
+          "hiddenFromPublishing": true,
+          "variableIds": [
+            "VariableID:239:17"
+          ]
+        },
+        "VariableCollectionId:239:5": {
+          "defaultModeId": "239:5",
+          "id": "VariableCollectionId:239:5",
+          "name": "Language",
+          "remote": false,
+          "modes": [
+            {
+              "modeId": "239:5",
+              "name": "Latin"
+            },
+            {
+              "modeId": "239:6",
+              "name": "CJK"
+            },
+            {
+              "modeId": "239:7",
+              "name": "Arabic"
+            },
+            {
+              "modeId": "239:8",
+              "name": "Hebrew"
+            }
+          ],
+          "key": "00c487fc4e33f1790729750b0d77bab4bf73575a",
+          "hiddenFromPublishing": true,
+          "variableIds": [
+            "VariableID:239:19"
+          ]
+        },
+        "VariableCollectionId:239:6": {
+          "defaultModeId": "239:9",
+          "id": "VariableCollectionId:239:6",
+          "name": "Responsive size",
+          "remote": false,
+          "modes": [
+            {
+              "modeId": "239:9",
+              "name": "Mobile"
+            },
+            {
+              "modeId": "239:10",
+              "name": "Tablet"
+            },
+            {
+              "modeId": "239:11",
+              "name": "Desktop"
+            }
+          ],
+          "key": "179b64ffe2746656fa5a3070a3a2d6a8ad62296d",
+          "hiddenFromPublishing": true,
+          "variableIds": []
+        },
+        "VariableCollectionId:239:7": {
+          "defaultModeId": "239:12",
+          "id": "VariableCollectionId:239:7",
+          "name": "User density",
+          "remote": false,
+          "modes": [
+            {
+              "modeId": "239:12",
+              "name": "Regular"
+            },
+            {
+              "modeId": "239:13",
+              "name": "Compact"
+            },
+            {
+              "modeId": "239:14",
+              "name": "Spacious"
+            }
+          ],
+          "key": "024e74d71be6255682c0a287b11ac71a7446b09f",
+          "hiddenFromPublishing": true,
+          "variableIds": []
+        }
+      },
+      "variables": {
+        "VariableID:239:12": {
+          "id": "VariableID:239:12",
+          "name": "Blue/500 (Color Scheme)",
+          "remote": false,
+          "key": "649002502ee2e3cbb50b70820e5659843dd61bf8",
+          "variableCollectionId": "VariableCollectionId:239:3",
+          "resolvedType": "COLOR",
+          "description": "",
+          "hiddenFromPublishing": true,
+          "valuesByMode": {
+            "239:0": {
+              "r": 0,
+              "g": 1,
+              "b": 0,
+              "a": 1
+            },
+            "239:1": {
+              "r": 0.4117647111415863,
+              "g": 0.5843137502670288,
+              "b": 0.9960784316062927,
+              "a": 1
+            }
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {}
+        },
+        "VariableID:239:14": {
+          "id": "VariableID:239:14",
+          "name": "Text/Accent (Color Scheme - Regular)",
+          "remote": false,
+          "key": "8e30cdb4a44ce2e57510fa9ea69a2fec75f99d34",
+          "variableCollectionId": "VariableCollectionId:239:3",
+          "resolvedType": "COLOR",
+          "description": "",
+          "hiddenFromPublishing": true,
+          "valuesByMode": {
+            "239:0": {
+              "r": 0.2980392277240753,
+              "g": 0.43529412150382996,
+              "b": 0.9960784316062927,
+              "a": 1
+            },
+            "239:1": {
+              "r": 0.20392157137393951,
+              "g": 0.4313725531101227,
+              "b": 0.9764705896377563,
+              "a": 1
+            }
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {}
+        },
+        "VariableID:239:15": {
+          "id": "VariableID:239:15",
+          "name": "Text/Accent (Color Scheme - Low)",
+          "remote": false,
+          "key": "75eb4da95698666b7090aa87fc3b760dc4d69005",
+          "variableCollectionId": "VariableCollectionId:239:3",
+          "resolvedType": "COLOR",
+          "description": "",
+          "hiddenFromPublishing": true,
+          "valuesByMode": {
+            "239:0": {
+              "type": "VARIABLE_ALIAS",
+              "id": "VariableID:239:13"
+            },
+            "239:1": {
+              "type": "VARIABLE_ALIAS",
+              "id": "VariableID:239:13"
+            }
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {}
+        },
+        "VariableID:239:16": {
+          "id": "VariableID:239:16",
+          "name": "Text/Accent (Color Scheme - High)",
+          "remote": false,
+          "key": "6f53211e2b2cb872f1f9ef260fac3a7ec13fe3ed",
+          "variableCollectionId": "VariableCollectionId:239:3",
+          "resolvedType": "COLOR",
+          "description": "",
+          "hiddenFromPublishing": true,
+          "valuesByMode": {
+            "239:0": {
+              "r": 0.03529411926865578,
+              "g": 0.18431372940540314,
+              "b": 0.800000011920929,
+              "a": 1
+            },
+            "239:1": {
+              "r": 0.6549019813537598,
+              "g": 0.7568627595901489,
+              "b": 1,
+              "a": 1
+            }
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {}
+        },
+        "VariableID:239:11": {
+          "id": "VariableID:239:11",
+          "name": "Black",
+          "remote": false,
+          "key": "fab0bcde796a1d9860383b97e70c7f0d4f4ed9a2",
+          "variableCollectionId": "VariableCollectionId:239:8",
+          "resolvedType": "COLOR",
+          "description": "",
+          "hiddenFromPublishing": false,
+          "valuesByMode": {
+            "239:15": {
+              "r": 0,
+              "g": 0,
+              "b": 0,
+              "a": 1
+            }
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {
+            "WEB": "--spblack",
+            "ANDROID": "SPBLACK",
+            "iOS": "SpBlack"
+          }
+        },
+        "VariableID:239:13": {
+          "id": "VariableID:239:13",
+          "name": "Blue/500",
+          "remote": false,
+          "key": "cbe7241311e9af5afe15676f5a15305e8d5f04df",
+          "variableCollectionId": "VariableCollectionId:239:8",
+          "resolvedType": "COLOR",
+          "description": "",
+          "hiddenFromPublishing": false,
+          "valuesByMode": {
+            "239:15": {
+              "type": "VARIABLE_ALIAS",
+              "id": "VariableID:239:12"
+            }
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {
+            "WEB": "--sp-blue-500",
+            "ANDROID": "SP_BLUE_500",
+            "iOS": "Sp_Blue_500"
+          }
+        },
+        "VariableID:239:18": {
+          "id": "VariableID:239:18",
+          "name": "Text/Accent",
+          "remote": false,
+          "key": "d206f15d11f1b900755a4d7c703b0890a6dc1dd3",
+          "variableCollectionId": "VariableCollectionId:239:8",
+          "resolvedType": "COLOR",
+          "description": "",
+          "hiddenFromPublishing": false,
+          "valuesByMode": {
+            "239:15": {
+              "type": "VARIABLE_ALIAS",
+              "id": "VariableID:239:17"
+            }
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {
+            "WEB": "--sptext-accent",
+            "ANDROID": "SPTEXT_ACCENT",
+            "iOS": "SpText_Accent"
+          }
+        },
+        "VariableID:239:23": {
+          "id": "VariableID:239:23",
+          "name": "Radius/100",
+          "remote": false,
+          "key": "0c6109196eb98a48c60606635e3f67dca14bab2d",
+          "variableCollectionId": "VariableCollectionId:239:10",
+          "resolvedType": "FLOAT",
+          "description": "",
+          "hiddenFromPublishing": false,
+          "valuesByMode": {
+            "239:17": 4
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {
+            "WEB": "--spradius-100",
+            "ANDROID": "SPRADIUS_100",
+            "iOS": "SpRadius_100"
+          }
+        },
+        "VariableID:239:20": {
+          "id": "VariableID:239:20",
+          "name": "Font family/Primary",
+          "remote": false,
+          "key": "bf471de12933d43886404f03388e1e47a56c6122",
+          "variableCollectionId": "VariableCollectionId:239:9",
+          "resolvedType": "STRING",
+          "description": "",
+          "hiddenFromPublishing": false,
+          "valuesByMode": {
+            "239:16": {
+              "type": "VARIABLE_ALIAS",
+              "id": "VariableID:239:19"
+            }
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {
+            "WEB": "--spfont family-primary",
+            "ANDROID": "SPFONT FAMILY_PRIMARY",
+            "iOS": "SpFont family_Primary"
+          }
+        },
+        "VariableID:239:21": {
+          "id": "VariableID:239:21",
+          "name": "Line height/Primary",
+          "remote": false,
+          "key": "45638112f8a82deba27c42939692e9db52c2f6c8",
+          "variableCollectionId": "VariableCollectionId:239:9",
+          "resolvedType": "FLOAT",
+          "description": "",
+          "hiddenFromPublishing": false,
+          "valuesByMode": {
+            "239:16": 1.5
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {
+            "WEB": "--spline height-primary",
+            "ANDROID": "SPLINE HEIGHT_PRIMARY",
+            "iOS": "SpLine height_Primary"
+          }
+        },
+        "VariableID:239:22": {
+          "id": "VariableID:239:22",
+          "name": "Font weight/Primary",
+          "remote": false,
+          "key": "c1d159553b145f27f4cb7fdd7d8a1a9a0549f371",
+          "variableCollectionId": "VariableCollectionId:239:9",
+          "resolvedType": "STRING",
+          "description": "",
+          "hiddenFromPublishing": false,
+          "valuesByMode": {
+            "239:16": "#000000"
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {
+            "WEB": "--spfont weight-primary",
+            "ANDROID": "SPFONT WEIGHT_PRIMARY",
+            "iOS": "SpFont weight_Primary"
+          }
+        },
+        "VariableID:239:24": {
+          "id": "VariableID:239:24",
+          "name": "Font family/Secondary",
+          "remote": false,
+          "key": "f802d17357a427dc2ff96a8a9d0dbe7c47925e19",
+          "variableCollectionId": "VariableCollectionId:239:9",
+          "resolvedType": "STRING",
+          "description": "",
+          "hiddenFromPublishing": false,
+          "valuesByMode": {
+            "239:16": "SF Pro"
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {
+            "WEB": "--spfont family-secondary",
+            "ANDROID": "SPFONT FAMILY_SECONDARY",
+            "iOS": "SpFont family_Secondary"
+          }
+        },
+        "VariableID:239:25": {
+          "id": "VariableID:239:25",
+          "name": "Line height/200",
+          "remote": false,
+          "key": "dd9732297d0e54dd56fd30049952a7dc57b1a388",
+          "variableCollectionId": "VariableCollectionId:239:9",
+          "resolvedType": "FLOAT",
+          "description": "",
+          "hiddenFromPublishing": false,
+          "valuesByMode": {
+            "239:16": 200
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {
+            "WEB": "--spline height-200",
+            "ANDROID": "SPLINE HEIGHT_200",
+            "iOS": "SpLine height_200"
+          }
+        },
+        "VariableID:239:26": {
+          "id": "VariableID:239:26",
+          "name": "Font weight/200",
+          "remote": false,
+          "key": "e6a0b79da6ea8ebb7760c803671b25dd7f58831e",
+          "variableCollectionId": "VariableCollectionId:239:9",
+          "resolvedType": "STRING",
+          "description": "",
+          "hiddenFromPublishing": false,
+          "valuesByMode": {
+            "239:16": "200"
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {
+            "WEB": "--spfont weight-200",
+            "ANDROID": "SPFONT WEIGHT_200",
+            "iOS": "SpFont weight_200"
+          }
+        },
+        "VariableID:239:17": {
+          "id": "VariableID:239:17",
+          "name": "Text/Accent (Contrast)",
+          "remote": false,
+          "key": "72e9f3344c07bffb7e67a9c43b1445f8b4b965c4",
+          "variableCollectionId": "VariableCollectionId:239:4",
+          "resolvedType": "COLOR",
+          "description": "",
+          "hiddenFromPublishing": true,
+          "valuesByMode": {
+            "239:2": {
+              "type": "VARIABLE_ALIAS",
+              "id": "VariableID:239:14"
+            },
+            "239:3": {
+              "type": "VARIABLE_ALIAS",
+              "id": "VariableID:239:15"
+            },
+            "239:4": {
+              "type": "VARIABLE_ALIAS",
+              "id": "VariableID:239:16"
+            }
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {}
+        },
+        "VariableID:239:19": {
+          "id": "VariableID:239:19",
+          "name": "Font family/Primary (Language)",
+          "remote": false,
+          "key": "090657ded1d92d28b2cef56e5025335f53a0b49e",
+          "variableCollectionId": "VariableCollectionId:239:5",
+          "resolvedType": "STRING",
+          "description": "",
+          "hiddenFromPublishing": true,
+          "valuesByMode": {
+            "239:5": "Inter",
+            "239:6": "Inter Han",
+            "239:7": "Inter Arabic",
+            "239:8": "Inter Hebrew"
+          },
+          "scopes": [
+            "ALL_SCOPES"
+          ],
+          "codeSyntax": {}
+        }
+      }
+    }
+  }
