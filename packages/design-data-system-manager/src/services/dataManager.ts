@@ -49,6 +49,13 @@ export class DataManager {
   }
 
   /**
+   * Set callbacks without reinitializing
+   */
+  setCallbacks(callbacks: DataManagerCallbacks): void {
+    this.callbacks = { ...this.callbacks, ...callbacks };
+  }
+
+  /**
    * Initialize the data manager and load initial data
    */
   async initialize(callbacks: DataManagerCallbacks = {}): Promise<DataSnapshot> {

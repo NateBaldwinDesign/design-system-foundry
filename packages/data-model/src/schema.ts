@@ -53,6 +53,21 @@ export const TokenTier = z.enum([
   'COMPONENT'
 ]);
 
+export const PropertyType = z.object({
+  id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  displayName: z.string(),
+  category: z.enum(['color', 'typography', 'spacing', 'dimension', 'effect', 'border', 'layout', 'animation']),
+  compatibleValueTypes: z.array(z.string()),
+  platformMappings: z.object({
+    css: z.array(z.string()).optional(),
+    figma: z.array(z.string()).optional(),
+    ios: z.array(z.string()).optional(),
+    android: z.array(z.string()).optional()
+  }).optional(),
+  defaultUnit: z.string().optional(),
+  inheritance: z.boolean().default(false)
+});
+
 export const FallbackStrategy = z.enum([
   'MOST_SPECIFIC_MATCH',
   'DIMENSION_PRIORITY',
@@ -210,7 +225,7 @@ export const Token = z.object({
   generatedByAlgorithm: z.boolean().default(false),
   algorithmId: z.string().regex(/^[a-zA-Z0-9-_]+$/).optional(),
   taxonomies: z.array(TokenTaxonomyRef),
-  propertyTypes: z.array(z.string()),
+  propertyTypes: z.array(PropertyType),
   codeSyntax: z.array(z.object({
     platformId: z.string(),
     formattedName: z.string()
@@ -349,6 +364,8 @@ export const TokenSystem = z.object({
   themes: z.array(Theme).optional(),
   themeOverrides: ThemeOverrides.optional(),
   taxonomies: z.array(Taxonomy),
+  standardPropertyTypes: z.array(PropertyType),
+  propertyTypes: z.array(PropertyType),
   resolvedValueTypes: z.array(ResolvedValueType),
   extensions: z.object({
     tokenGroups: z.array(TokenGroup).optional(),
@@ -524,4 +541,5 @@ export type MigrationStrategy = z.infer<typeof MigrationStrategy>;
 export type VersionHistoryEntry = z.infer<typeof VersionHistoryEntry>;
 export type DimensionEvolutionRule = z.infer<typeof DimensionEvolutionRule>;
 export type DimensionEvolution = z.infer<typeof DimensionEvolution>;
-export type TokenTier = z.infer<typeof TokenTier>; 
+export type TokenTier = z.infer<typeof TokenTier>;
+export type PropertyType = z.infer<typeof PropertyType>; 

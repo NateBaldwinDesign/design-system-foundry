@@ -5,6 +5,7 @@ import { Header } from './Header';
 import { StorageService } from '../services/storage';
 import type { GitHubUser } from '../config/github';
 import type { ViewId } from '../hooks/useViewState';
+import { DataManager, type DataSnapshot } from '../services/dataManager';
 
 interface DataSourceOption {
   label: string;
@@ -251,6 +252,43 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     window.addEventListener(DATA_CHANGE_EVENT, handleDataChange);
     return () => window.removeEventListener(DATA_CHANGE_EVENT, handleDataChange);
   }, [checkForChanges, resetBaselineForNewSource, getCurrentData, isNewDataSource]);
+
+  // Listen for DataManager baseline updates (for GitHub save operations)
+  useEffect(() => {
+    const dataManager = DataManager.getInstance();
+    
+    const handleBaselineUpdated = (newBaseline: DataSnapshot) => {
+      // Convert DataSnapshot to the format expected by AppLayout
+      const baselineData = {
+        tokenCollections: newBaseline.collections,
+        dimensions: newBaseline.dimensions,
+        tokens: newBaseline.tokens,
+        platforms: newBaseline.platforms,
+        themes: newBaseline.themes,
+        taxonomies: newBaseline.taxonomies,
+        resolvedValueTypes: newBaseline.resolvedValueTypes,
+        algorithms: newBaseline.algorithms,
+        namingRules: newBaseline.namingRules,
+      };
+      
+      // Update AppLayout's baseline state
+      setBaselineData(baselineData);
+      baselineRef.current = baselineData;
+      lastSourceDataRef.current = baselineData;
+      
+      // Reset change tracking since baseline is now current
+      setHasChanges(false);
+      setChangeCount(0);
+    };
+
+    // Register the callback
+    dataManager.setCallbacks({ onBaselineUpdated: handleBaselineUpdated });
+    
+    return () => {
+      // Clean up callback when component unmounts
+      dataManager.setCallbacks({ onBaselineUpdated: undefined });
+    };
+  }, []);
 
   // Listen for storage events (when localStorage changes in other tabs)
   useEffect(() => {

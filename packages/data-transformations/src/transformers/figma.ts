@@ -13,6 +13,7 @@ import { validateTokenSystem } from '../utils/validation';
 import { FigmaIdManager } from '../services/figma-id-manager';
 import { FigmaValueConverter } from '../services/figma-value-converter';
 import { FigmaDaisyChainService } from '../services/figma-daisy-chain';
+import { mapPropertyTypesToFigmaScopes } from '../utils/helpers';
 
 /**
  * Optimized Figma transformer following the intended 8-step workflow:
@@ -334,16 +335,26 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       ? this.idManager.generateDeterministicId(tokenCollection.id, 'collection')
       : 'default-collection';
 
-    return {
+    // --- Use the new propertyType-to-Figma-scope mapping utility ---
+    const scopes = mapPropertyTypesToFigmaScopes(token.propertyTypes || []);
+
+    const variable: FigmaVariable = {
       action: action,
       id: figmaId,
       name: figmaCodeSyntax.formattedName,
       variableCollectionId: this.idManager.getFigmaId(deterministicCollectionId),
       resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
-      scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
+      scopes: scopes,
       hiddenFromPublishing: token.private || false,
       codeSyntax: this.buildCodeSyntax(token, tokenSystem)
     };
+
+    // Add description if it exists and is not empty
+    if (token.description && token.description.trim() !== '') {
+      variable.description = token.description;
+    } 
+
+    return variable;
   }
 
   /**
@@ -478,16 +489,6 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     return tokenSystem.tokenCollections?.find((collection: any) => 
       collection.resolvedValueTypeIds.includes(token.resolvedValueTypeId)
     ) || null;
-  }
-
-  /**
-   * Map property types to Figma scopes
-   */
-  private mapPropertyTypesToScopes(propertyTypes: string[]): string[] {
-    if (propertyTypes.includes('ALL_PROPERTY_TYPES') || propertyTypes.length === 0) {
-      return ['ALL_SCOPES'];
-    }
-    return propertyTypes;
   }
 
   /**

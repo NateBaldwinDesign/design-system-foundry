@@ -6,7 +6,7 @@ import type {
 import type { TokenSystem, Token } from '@token-model/data-model';
 import { FigmaIdManager } from './figma-id-manager';
 import { FigmaValueConverter } from './figma-value-converter';
-import { generateUniqueId } from '../utils/helpers';
+import { generateUniqueId, mapPropertyTypesToFigmaScopes } from '../utils/helpers';
 
 /**
  * Service for handling daisy-chaining logic for Figma variables
@@ -667,7 +667,8 @@ export class FigmaDaisyChainService {
   }
 
   /**
-   * Create the final token variable that references the appropriate intermediary
+   * Create a final token variable in the collection
+   * This variable will be the one that users see and interact with
    */
   private createFinalTokenVariable(
     token: Token,
@@ -680,16 +681,26 @@ export class FigmaDaisyChainService {
 
     console.log(`[FigmaDaisyChain] Creating final token variable "${figmaCodeSyntax.formattedName}" action: ${action}`);
 
-    return {
+    const variable: FigmaVariable = {
       action: action,
       id: figmaId,
       name: figmaCodeSyntax.formattedName,
       variableCollectionId: this.getTokenCollectionId(token, tokenSystem),
       resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
-      scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
+      scopes: mapPropertyTypesToFigmaScopes(token.propertyTypes || []),
       hiddenFromPublishing: token.private || false,
       codeSyntax: this.buildCodeSyntax(token, tokenSystem)
     };
+
+    // Add description if it exists and is not empty
+    if (token.description && token.description.trim() !== '') {
+      variable.description = token.description;
+      console.log(`[FigmaDaisyChain] Added description to final variable ${token.id}: "${token.description}"`);
+    } else {
+      console.log(`[FigmaDaisyChain] No valid description for final token ${token.id}`);
+    }
+
+    return variable;
   }
 
   /**
@@ -787,16 +798,26 @@ export class FigmaDaisyChainService {
     const figmaId = this.idManager.getFigmaId(token.id);
     const action = this.idManager.determineAction(token.id);
 
-    return {
+    const variable: FigmaVariable = {
       action: action,
       id: figmaId,
       name: figmaCodeSyntax.formattedName,
       variableCollectionId: this.getTokenCollectionId(token, tokenSystem),
       resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
-      scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
+      scopes: mapPropertyTypesToFigmaScopes(token.propertyTypes || []),
       hiddenFromPublishing: token.private || false,
       codeSyntax: this.buildCodeSyntax(token, tokenSystem)
     };
+
+    // Add description if it exists and is not empty
+    if (token.description && token.description.trim() !== '') {
+      variable.description = token.description;
+      console.log(`[FigmaDaisyChain] Added description to direct variable ${token.id}: "${token.description}"`);
+    } else {
+      console.log(`[FigmaDaisyChain] No valid description for direct token ${token.id}`);
+    }
+
+    return variable;
   }
 
   /**
@@ -820,16 +841,6 @@ export class FigmaDaisyChainService {
     return tokenSystem.tokenCollections?.find((collection: any) => 
       collection.resolvedValueTypeIds.includes(token.resolvedValueTypeId)
     ) || null;
-  }
-
-  /**
-   * Map property types to Figma scopes
-   */
-  private mapPropertyTypesToScopes(propertyTypes: string[]): string[] {
-    if (propertyTypes.includes('ALL_PROPERTY_TYPES') || propertyTypes.length === 0) {
-      return ['ALL_SCOPES'];
-    }
-    return propertyTypes;
   }
 
   /**
