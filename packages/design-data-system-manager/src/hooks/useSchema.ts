@@ -165,6 +165,19 @@ export const useSchema = () => {
           return null; // This will trigger loading of new example data
         }
         
+        // Check if the stored schema has the old spacing property type mappings
+        const hasOldSpacingMappings = parsed.standardPropertyTypes?.some((pt: PropertyType) => 
+          (pt.id === 'padding' || pt.id === 'margin' || pt.id === 'gap-spacing') && 
+          pt.compatibleValueTypes?.includes('dimension')
+        );
+        
+        if (hasOldSpacingMappings) {
+          console.log('[useSchema] Detected old spacing property type mappings, clearing storage to load updated data');
+          // Clear the old schema from storage
+          setItem('schema', '');
+          return null; // This will trigger loading of new example data
+        }
+        
         // Ensure naming rules are included from storage
         const namingRules = StorageService.getNamingRules();
         const taxonomies = StorageService.getTaxonomies();
@@ -496,5 +509,11 @@ export const useSchema = () => {
     }
   };
 
-  return { schema, updateSchema };
+  const clearSchemaCache = () => {
+    console.log('[useSchema] Clearing schema cache');
+    setItem('schema', '');
+    setSchema(null);
+  };
+
+  return { schema, updateSchema, clearSchemaCache };
 }; 

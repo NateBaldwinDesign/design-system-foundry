@@ -41,36 +41,80 @@ const getFilteredPropertyTypes = (resolvedValueTypeId: string, resolvedValueType
     );
     
     if (matchingPropertyType) {
-      // Return the matching property type + "All" option
+      // Return the matching property type + both options
       return [
+        {
+          id: "ANY_PROPERTY",
+          displayName: "Any Property (undefined)",
+          category: "layout",
+          compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+          inheritance: false
+        },
         matchingPropertyType,
         {
           id: "ALL",
-          displayName: "All Properties",
+          displayName: "Select All",
           category: "layout",
           compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
           inheritance: false
         }
       ];
     } else {
-      // Return only "All" option for custom types without matching property types
-      return [{
-        id: "ALL",
-        displayName: "All Properties",
-        category: "layout",
-        compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
-        inheritance: false
-      }];
+      // Return only the options for custom types without matching property types
+      return [
+        {
+          id: "ANY_PROPERTY",
+          displayName: "Any Property (undefined)",
+          category: "layout",
+          compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+          inheritance: false
+        },
+        {
+          id: "ALL",
+          displayName: "Select All",
+          category: "layout",
+          compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+          inheritance: false
+        }
+      ];
     }
   }
 
   // For standard types, filter based on compatible value types
   // Note: PropertyType.compatibleValueTypes use hyphens (e.g., "font-family")
   // while ResolvedValueType.id uses underscores (e.g., "font_family")
+  
+  console.log('[getFilteredPropertyTypes] Debug filtering:', {
+    resolvedValueTypeId,
+    standardPropertyTypesCount: standardPropertyTypes.length,
+    standardPropertyTypes: standardPropertyTypes.map(pt => ({
+      id: pt.id,
+      displayName: pt.displayName,
+      compatibleValueTypes: pt.compatibleValueTypes
+    }))
+  });
+  
   const compatiblePropertyTypes = standardPropertyTypes.filter(pt => 
     pt.compatibleValueTypes.includes(resolvedValueTypeId) ||
     pt.compatibleValueTypes.includes(resolvedValueTypeId.replace(/_/g, '-'))
   );
+
+  // Define the special options
+  const anyPropertyOption: PropertyType = {
+    id: "ANY_PROPERTY",
+    displayName: "Any Property (undefined)",
+    category: "layout" as const,
+    compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+    inheritance: false
+  };
+
+  const selectAllOption: PropertyType = {
+    id: "ALL",
+    displayName: "Select All",
+    category: "layout" as const,
+    compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+    inheritance: false
+  };
 
   // If no compatible property types found for a standard type, treat as custom type
   if (compatiblePropertyTypes.length === 0) {
@@ -82,30 +126,24 @@ const getFilteredPropertyTypes = (resolvedValueTypeId: string, resolvedValueType
     );
     
     if (matchingPropertyType) {
-      // Return matching property type + "All Properties" option
+      // Return matching property type + "Any Property" option only (no "Select All" for single option)
       return [
-        matchingPropertyType,
-        {
-          id: "ALL",
-          displayName: "All Properties",
-          category: "layout",
-          compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
-          inheritance: false
-        }
+        anyPropertyOption,
+        matchingPropertyType
       ];
     } else {
-      // Return only "All Properties" option
-      return [{
-        id: "ALL",
-        displayName: "All Properties",
-        category: "layout",
-        compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
-        inheritance: false
-      }];
+      // Return only "Any Property" option (no "Select All" for no options)
+      return [anyPropertyOption];
     }
   }
 
-  return compatiblePropertyTypes;
+  // Return compatible property types + options
+  // Only include "Select All" if there are multiple compatible property types
+  if (compatiblePropertyTypes.length > 1) {
+    return [anyPropertyOption, ...compatiblePropertyTypes, selectAllOption];
+  } else {
+    return [anyPropertyOption, ...compatiblePropertyTypes];
+  }
 };
 
 // Add utility function to get default property types for a resolved value type

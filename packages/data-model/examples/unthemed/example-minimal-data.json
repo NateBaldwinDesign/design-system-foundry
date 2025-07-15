@@ -1865,7 +1865,7 @@
       "displayName": "Padding",
       "category": "spacing",
       "compatibleValueTypes": [
-        "dimension"
+        "spacing"
       ],
       "platformMappings": {
         "css": [
@@ -1892,7 +1892,7 @@
       "displayName": "Margin",
       "category": "spacing",
       "compatibleValueTypes": [
-        "dimension"
+        "spacing"
       ],
       "platformMappings": {
         "css": [
@@ -1919,7 +1919,7 @@
       "displayName": "Gap/Spacing",
       "category": "spacing",
       "compatibleValueTypes": [
-        "dimension"
+        "spacing"
       ],
       "platformMappings": {
         "css": [

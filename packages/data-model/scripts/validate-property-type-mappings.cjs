@@ -90,40 +90,44 @@ function getFilteredPropertyTypes(resolvedValueTypeId) {
     }
   }
 
-  return compatiblePropertyTypes;
+  // Always include "All Properties" option as a UX fallback
+  const allPropertiesOption = { id: 'ALL', displayName: 'All Properties', category: 'custom', compatibleValueTypes: [], platformMappings: {}, inheritance: false };
+  
+  // Return compatible property types + "All Properties" option
+  return [...compatiblePropertyTypes, allPropertiesOption];
 }
 
-// Test cases for standard types
+// Test cases for standard types (including "All Properties" option)
 const standardTypeTests = [
   {
     id: 'dimension',
-    expected: ['width-height', 'border-width', 'position'],
-    description: 'DIMENSION -> Width/Height, Border Width, Position'
+    expected: ['width-height', 'border-width', 'position', 'ALL'],
+    description: 'DIMENSION -> Width/Height, Border Width, Position + All Properties'
   },
   {
     id: 'spacing',
-    expected: ['padding', 'margin', 'gap-spacing'],
-    description: 'SPACING -> Padding, Margin, Gap/Spacing'
+    expected: ['padding', 'margin', 'gap-spacing', 'ALL'],
+    description: 'SPACING -> Padding, Margin, Gap/Spacing + All Properties'
   },
   {
     id: 'color',
-    expected: ['background-color', 'text-color', 'border-color', 'shadow-color'],
-    description: 'COLOR -> Background Color, Text Color, Border Color, Shadow Color'
+    expected: ['background-color', 'text-color', 'border-color', 'shadow-color', 'ALL'],
+    description: 'COLOR -> Background Color, Text Color, Border Color, Shadow Color + All Properties'
   },
   {
     id: 'radius',
-    expected: ['border-radius'],
-    description: 'RADIUS -> Border Radius'
+    expected: ['border-radius', 'ALL'],
+    description: 'RADIUS -> Border Radius + All Properties'
   },
   {
     id: 'spread',
-    expected: ['shadow'],
-    description: 'SPREAD -> Shadow'
+    expected: ['shadow', 'ALL'],
+    description: 'SPREAD -> Shadow + All Properties'
   },
   {
     id: 'font_family',
-    expected: ['font-family'],
-    description: 'FONT_FAMILY -> Font Family'
+    expected: ['font-family', 'ALL'],
+    description: 'FONT_FAMILY -> Font Family + All Properties'
   }
 ];
 
