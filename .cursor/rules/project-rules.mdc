@@ -181,6 +181,25 @@ When making any change, explicitly state:
 - Check `@technical-decisions.md` before making architectural decisions
 - Use pnpm for package and workspace management
 
+## AI Prompt Context
+- **FOCUS ANY SOLUTION/RESPONSE TO SPECIFIC CONTEXT PROVIDED IN PROMPT**. Do not implement changes outside of this context.
+- **RETAIN PRIOR CONTEXT**. For successive chat prompts, if no specific context given in a prompt, maintain focused context on prior context that was provided.
+
+## Solution Constraints
+- **MINIMAL VIABLE FIX FIRST**. Address the immediate issue with the smallest possible change before considering broader improvements.
+- **PRESERVE EXISTING ARCHITECTURE**. Do not refactor, restructure, or modify existing code patterns unless explicitly requested or directly necessary for the fix.
+- **MAINTAIN CURRENT DEPENDENCIES**. Do not add, remove, or update dependencies unless the specific issue cannot be resolved otherwise.
+
+## Change Boundaries
+- **MODIFY ONLY FAILING CODE**. If an error points to specific files/functions, limit changes to those areas unless the root cause is definitively elsewhere.
+- **PRESERVE WORKING SYSTEMS**. Do not alter build scripts, configuration files, or tooling unless they are the direct cause of the reported issue.
+- **KEEP EXISTING PATTERNS**. Match the current code style, naming conventions, and architectural patterns in the project.
+
+## Response Protocol
+- **EXPLAIN THE TARGETED APPROACH**. State what specific issue you're addressing and why your solution is focused on that area.
+- **IDENTIFY SCOPE BOUNDARIES**. Explicitly mention what you are NOT changing and why.
+- **SUGGEST FOLLOW-UP SEPARATELY**. If you notice broader improvements, mention them as separate suggestions after solving the immediate problem.
+
 ## AI Response Format
 
 For every response involving code changes, include:

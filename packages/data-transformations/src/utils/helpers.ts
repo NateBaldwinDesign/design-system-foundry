@@ -261,3 +261,93 @@ export function isHexColor(value: string): boolean {
   const hexPattern = /^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{4}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/;
   return hexPattern.test(trimmed);
 } 
+
+// --- Property Type to Figma Scope Mapping Utility ---
+
+/**
+ * Canonical mapping from property types to Figma scopes, based on cross-platform-property-types.md
+ * Keys are normalized to lowercase, hyphenated or underscored as found in schema and codebase.
+ * Values are Figma scope strings (may be arrays for multi-mapped types).
+ * Update this mapping as Figma API or property types evolve.
+ */
+const propertyTypeToFigmaScopeMap: Record<string, string | string[]> = {
+  // Color Properties
+  'background-color': ['FRAME_FILL', 'SHAPE_FILL'],
+  'text-color': 'TEXT_FILL',
+  'border-color': 'STROKE_COLOR',
+  'shadow-color': 'EFFECT_COLOR',
+  // Spacing & Dimensions
+  'width-height': 'WIDTH_HEIGHT',
+  'border-width': 'STROKE_FLOAT',
+  'border-radius': 'CORNER_RADIUS',
+  // Spacing
+  'padding': 'GAP',
+  'margin': 'GAP',
+  'gap-spacing': 'GAP',
+  // Typography
+  'font-family': 'FONT_FAMILY',
+  'font-size': 'FONT_SIZE',
+  'font-weight': 'FONT_WEIGHT',
+  'font-style': 'FONT_STYLE',
+  'line-height': 'LINE_HEIGHT',
+  'letter-spacing': 'LETTER_SPACING',
+  'text-alignment': 'ALL_SCOPES', // Currently Figma doesn't support these
+  'text-transform': 'ALL_SCOPES', // Currently Figma doesn't support these
+  // Effects & Appearance
+  'opacity': 'OPACITY',
+  'shadow': ['EFFECT_FLOAT', 'EFFECT_COLOR'],
+  'blur': 'EFFECT_FLOAT',
+  // Layout & Positioning
+  'position': 'ALL_SCOPES',
+  'z-index': 'ALL_SCOPES',
+  'flex-properties': 'ALL_SCOPES',
+  // Animation & Motion
+  'duration': 'EFFECT_FLOAT',
+  'easing': 'ALL_SCOPES',
+  'delay': 'EFFECT_FLOAT',
+};
+
+/**
+ * Maps PropertyType objects to Figma scopes by extracting from platformMappings.figma.
+ * If no propertyTypes are listed, returns ["ALL_SCOPES"].
+ * If a PropertyType has no figma mapping, falls back to hardcoded mapping.
+ * If any PropertyType maps to multiple scopes, all are included (deduped).
+ */
+export function mapPropertyTypesToFigmaScopes(propertyTypes: Array<string | { id: string; platformMappings?: { figma?: string[] } }>): string[] {
+  if (!propertyTypes || propertyTypes.length === 0 || propertyTypes.some(pt => typeof pt === 'string' && pt === 'ALL_PROPERTY_TYPES')) {
+    return ['ALL_SCOPES'];
+  }
+  
+  const scopes = new Set<string>();
+  
+  for (const pt of propertyTypes) {
+    if (typeof pt === 'string') {
+      // Handle string property type IDs - use hardcoded mapping as fallback
+      const key = pt.toLowerCase().replace(/_/g, '-');
+      const mapped = propertyTypeToFigmaScopeMap[key];
+      if (Array.isArray(mapped)) {
+        mapped.forEach(scope => scopes.add(scope));
+      } else if (typeof mapped === 'string') {
+        scopes.add(mapped);
+      }
+    } else {
+      // Handle PropertyType objects - extract from platformMappings.figma
+      const figmaScopes = pt.platformMappings?.figma;
+      if (figmaScopes && Array.isArray(figmaScopes)) {
+        figmaScopes.forEach(scope => scopes.add(scope));
+      } else {
+        // Fallback to hardcoded mapping if no figma mapping found
+        const key = pt.id.toLowerCase().replace(/_/g, '-');
+        const mapped = propertyTypeToFigmaScopeMap[key];
+        if (Array.isArray(mapped)) {
+          mapped.forEach(scope => scopes.add(scope));
+        } else if (typeof mapped === 'string') {
+          scopes.add(mapped);
+        }
+      }
+    }
+  }
+  
+  // Fallback: if nothing mapped, return ALL_SCOPES
+  return scopes.size > 0 ? Array.from(scopes) : ['ALL_SCOPES'];
+} 

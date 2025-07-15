@@ -14,10 +14,16 @@
 | Token Property Type | Figma Scope | CSS Properties | iOS/SwiftUI | Android/Material |
 |------------|-------------|----------------|-------------|-------------------|
 | **Width/Height** | `WIDTH_HEIGHT` | `width`, `height`, `min-width`, `max-width`, `min-height`, `max-height` | `.frame()`, `.width()`, `.height()` | `layout_width`, `layout_height` |
+| **Border Width** | `STROKE_FLOAT` | `border-width`, `border-*-width` | `.border()` | `strokeWidth`, `borderWidth` |
+| **Border Radius** | `CORNER_RADIUS` | `border-radius`, `border-*-radius` | `.cornerRadius()`, `.clipShape()` | `cornerRadius`, `shapeAppearance` |
+
+## Spacing
+
+| Token Property Type | Figma Scope | CSS Properties | iOS/SwiftUI | Android/Material |
+|------------|-------------|----------------|-------------|-------------------|
 | **Padding** | `GAP` | `padding`, `padding-*` | `.padding()` | `padding`, `paddingStart`, `paddingEnd` |
 | **Margin** | `GAP` | `margin`, `margin-*` | `.offset()` | `layout_margin`, `marginStart`, `marginEnd` |
 | **Gap/Spacing** | `GAP` | `gap`, `row-gap`, `column-gap` | `.spacing()` | `layout_spaceBetween`, `space` |
-| **Border Radius** | `CORNER_RADIUS` | `border-radius`, `border-*-radius` | `.cornerRadius()`, `.clipShape()` | `cornerRadius`, `shapeAppearance` |
 
 ## Typography
 

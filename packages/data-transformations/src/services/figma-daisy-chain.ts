@@ -6,7 +6,7 @@ import type {
 import type { TokenSystem, Token } from '@token-model/data-model';
 import { FigmaIdManager } from './figma-id-manager';
 import { FigmaValueConverter } from './figma-value-converter';
-import { generateUniqueId } from '../utils/helpers';
+import { generateUniqueId, mapPropertyTypesToFigmaScopes } from '../utils/helpers';
 
 /**
  * Service for handling daisy-chaining logic for Figma variables
@@ -667,7 +667,8 @@ export class FigmaDaisyChainService {
   }
 
   /**
-   * Create the final token variable that references the appropriate intermediary
+   * Create a final token variable in the collection
+   * This variable will be the one that users see and interact with
    */
   private createFinalTokenVariable(
     token: Token,
@@ -686,7 +687,7 @@ export class FigmaDaisyChainService {
       name: figmaCodeSyntax.formattedName,
       variableCollectionId: this.getTokenCollectionId(token, tokenSystem),
       resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
-      scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
+      scopes: mapPropertyTypesToFigmaScopes(token.propertyTypes || []),
       hiddenFromPublishing: token.private || false,
       codeSyntax: this.buildCodeSyntax(token, tokenSystem)
     };
@@ -803,7 +804,7 @@ export class FigmaDaisyChainService {
       name: figmaCodeSyntax.formattedName,
       variableCollectionId: this.getTokenCollectionId(token, tokenSystem),
       resolvedType: this.valueConverter.mapToFigmaVariableType(token.resolvedValueTypeId, tokenSystem),
-      scopes: this.mapPropertyTypesToScopes(token.propertyTypes || []),
+      scopes: mapPropertyTypesToFigmaScopes(token.propertyTypes || []),
       hiddenFromPublishing: token.private || false,
       codeSyntax: this.buildCodeSyntax(token, tokenSystem)
     };
@@ -840,16 +841,6 @@ export class FigmaDaisyChainService {
     return tokenSystem.tokenCollections?.find((collection: any) => 
       collection.resolvedValueTypeIds.includes(token.resolvedValueTypeId)
     ) || null;
-  }
-
-  /**
-   * Map property types to Figma scopes
-   */
-  private mapPropertyTypesToScopes(propertyTypes: string[]): string[] {
-    if (propertyTypes.includes('ALL_PROPERTY_TYPES') || propertyTypes.length === 0) {
-      return ['ALL_SCOPES'];
-    }
-    return propertyTypes;
   }
 
   /**

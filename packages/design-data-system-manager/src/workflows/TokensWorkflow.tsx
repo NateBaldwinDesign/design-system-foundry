@@ -20,23 +20,92 @@ import { Token as TokenSchema, PropertyType } from '../../../data-model/src/sche
 import { ZodError } from 'zod';
 import { TaxonomyPicker } from '../components/TaxonomyPicker';
 import { PropertyTypePicker } from '../components/PropertyTypePicker';
-import { useSchema } from '../hooks/useSchema';
+import { useSchema, type Schema } from '../hooks/useSchema';
 import { CodeSyntaxService } from '../services/codeSyntax';
 
 // Add utility function to filter property types based on resolved value type
 const getFilteredPropertyTypes = (resolvedValueTypeId: string, resolvedValueTypes: ResolvedValueType[], standardPropertyTypes: PropertyType[]): PropertyType[] => {
   const resolvedValueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
-  if (!resolvedValueType || !resolvedValueType.type) {
-    // If no type is specified, return all standard property types
-    return standardPropertyTypes;
+  if (!resolvedValueType) {
+    // If resolved value type not found, return empty array
+    return [];
   }
 
-  const standardType = resolvedValueType.type;
-  
-  // Filter standard property types based on compatible value types
-  return standardPropertyTypes.filter(pt => 
-    pt.compatibleValueTypes.includes(resolvedValueTypeId)
+  // If this is a custom type (no standard type), handle specially
+  if (!resolvedValueType.type) {
+    // For custom types, check if there's a matching property type by ID pattern
+    const matchingPropertyType = standardPropertyTypes.find(pt => 
+      pt.id === resolvedValueTypeId || 
+      pt.id === resolvedValueTypeId.replace(/_/g, '-') ||
+      pt.id === resolvedValueTypeId.replace(/-/g, '_')
+    );
+    
+    if (matchingPropertyType) {
+      // Return the matching property type + "All" option
+      return [
+        matchingPropertyType,
+        {
+          id: "ALL",
+          displayName: "All Properties",
+          category: "layout",
+          compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+          inheritance: false
+        }
+      ];
+    } else {
+      // Return only "All" option for custom types without matching property types
+      return [{
+        id: "ALL",
+        displayName: "All Properties",
+        category: "layout",
+        compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+        inheritance: false
+      }];
+    }
+  }
+
+  // For standard types, filter based on compatible value types
+  // Note: PropertyType.compatibleValueTypes use hyphens (e.g., "font-family")
+  // while ResolvedValueType.id uses underscores (e.g., "font_family")
+  const compatiblePropertyTypes = standardPropertyTypes.filter(pt => 
+    pt.compatibleValueTypes.includes(resolvedValueTypeId) ||
+    pt.compatibleValueTypes.includes(resolvedValueTypeId.replace(/_/g, '-'))
   );
+
+  // If no compatible property types found for a standard type, treat as custom type
+  if (compatiblePropertyTypes.length === 0) {
+    // Check if there's a matching property type by ID pattern
+    const matchingPropertyType = standardPropertyTypes.find(pt => 
+      pt.id === resolvedValueTypeId || 
+      pt.id === resolvedValueTypeId.replace(/_/g, '-') ||
+      pt.id === resolvedValueTypeId.replace(/-/g, '_')
+    );
+    
+    if (matchingPropertyType) {
+      // Return matching property type + "All Properties" option
+      return [
+        matchingPropertyType,
+        {
+          id: "ALL",
+          displayName: "All Properties",
+          category: "layout",
+          compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+          inheritance: false
+        }
+      ];
+    } else {
+      // Return only "All Properties" option
+      return [{
+        id: "ALL",
+        displayName: "All Properties",
+        category: "layout",
+        compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+        inheritance: false
+      }];
+    }
+  }
+
+  return compatiblePropertyTypes;
 };
 
 // Add utility function to get default property types for a resolved value type
@@ -133,7 +202,21 @@ export default function TokensWorkflow({
       );
       const codeSyntax = CodeSyntaxService.generateAllCodeSyntaxes(
         { ...newToken, taxonomies: validTaxonomies } as Token,
-        schema || { platforms: [], namingRules: { taxonomyOrder: [] }, taxonomies: [], standardPropertyTypes: [] }
+        schema || { 
+          platforms: [], 
+          namingRules: { taxonomyOrder: [] }, 
+          taxonomies: [], 
+          standardPropertyTypes: [],
+          version: '1.0.0',
+          systemName: 'Default',
+          systemId: 'default',
+          tokenCollections: [],
+          dimensions: [],
+          themes: [],
+          tokens: [],
+          resolvedValueTypes: [],
+          versionHistory: []
+        } as Schema
       );
       const token = TokenSchema.parse({
         id: crypto.randomUUID(),
@@ -258,7 +341,21 @@ export default function TokensWorkflow({
 
             <Text fontSize="lg" fontWeight="medium">Code Syntax (auto-generated)</Text>
             <VStack spacing={2} align="stretch">
-              {Object.entries(CodeSyntaxService.generateAllCodeSyntaxes(newToken as Token, schema || { platforms: [], namingRules: { taxonomyOrder: [] }, taxonomies: [], standardPropertyTypes: [] })).map(([key, value]) => (
+              {Object.entries(CodeSyntaxService.generateAllCodeSyntaxes(newToken as Token, schema || { 
+  platforms: [], 
+  namingRules: { taxonomyOrder: [] }, 
+  taxonomies: [], 
+  standardPropertyTypes: [],
+  version: '1.0.0',
+  systemName: 'Default',
+  systemId: 'default',
+  tokenCollections: [],
+  dimensions: [],
+  themes: [],
+  tokens: [],
+  resolvedValueTypes: [],
+  versionHistory: []
+} as Schema)).map(([key, value]) => (
                 <HStack key={key} spacing={2}>
                   <Text fontSize="sm">{key}: {typeof value === 'string' ? value : JSON.stringify(value)}</Text>
                 </HStack>

@@ -46,8 +46,6 @@ import {
   Trash2,
   ChevronDown,
   MonitorSmartphone,
-  Tags,
-  Type,
   PencilLine,
   Shapes,
   Compass,
@@ -215,15 +213,86 @@ type PreservedValuesRef = Record<string, Record<string, PreservedValue>>;
 // Add utility function to filter property types based on resolved value type
 const getFilteredPropertyTypes = (resolvedValueTypeId: string, resolvedValueTypes: ResolvedValueType[], standardPropertyTypes: PropertyType[]): PropertyType[] => {
   const resolvedValueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
-  if (!resolvedValueType || !resolvedValueType.type) {
-    // If no type is specified, return all standard property types
-    return standardPropertyTypes;
+  if (!resolvedValueType) {
+    // If resolved value type not found, return empty array
+    return [];
   }
 
-  // Filter standard property types based on compatible value types
-  return standardPropertyTypes.filter(pt => 
-    pt.compatibleValueTypes.includes(resolvedValueTypeId)
+  // If this is a custom type (no standard type), handle specially
+  if (!resolvedValueType.type) {
+    // For custom types, check if there's a matching property type by ID pattern
+    const matchingPropertyType = standardPropertyTypes.find(pt => 
+      pt.id === resolvedValueTypeId || 
+      pt.id === resolvedValueTypeId.replace(/_/g, '-') ||
+      pt.id === resolvedValueTypeId.replace(/-/g, '_')
+    );
+    
+    if (matchingPropertyType) {
+      // Return the matching property type + "All" option
+      return [
+        matchingPropertyType,
+        {
+          id: "ALL",
+          displayName: "All Properties",
+          category: "layout",
+          compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+          inheritance: false
+        }
+      ];
+    } else {
+      // Return only "All" option for custom types without matching property types
+      return [{
+        id: "ALL",
+        displayName: "All Properties",
+        category: "layout",
+        compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+        inheritance: false
+      }];
+    }
+  }
+
+  // For standard types, filter based on compatible value types
+  // Note: PropertyType.compatibleValueTypes use hyphens (e.g., "font-family")
+  // while ResolvedValueType.id uses underscores (e.g., "font_family")
+  const compatiblePropertyTypes = standardPropertyTypes.filter(pt => 
+    pt.compatibleValueTypes.includes(resolvedValueTypeId) ||
+    pt.compatibleValueTypes.includes(resolvedValueTypeId.replace(/_/g, '-'))
   );
+
+  // If no compatible property types found for a standard type, treat as custom type
+  if (compatiblePropertyTypes.length === 0) {
+    // Check if there's a matching property type by ID pattern
+    const matchingPropertyType = standardPropertyTypes.find(pt => 
+      pt.id === resolvedValueTypeId || 
+      pt.id === resolvedValueTypeId.replace(/_/g, '-') ||
+      pt.id === resolvedValueTypeId.replace(/-/g, '_')
+    );
+    
+    if (matchingPropertyType) {
+      // Return matching property type + "All Properties" option
+      return [
+        matchingPropertyType,
+        {
+          id: "ALL",
+          displayName: "All Properties",
+          category: "layout",
+          compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+          inheritance: false
+        }
+      ];
+    } else {
+      // Return only "All Properties" option
+      return [{
+        id: "ALL",
+        displayName: "All Properties",
+        category: "layout",
+        compatibleValueTypes: ["color", "dimension", "font-family", "font-weight", "font-size", "line-height", "letter-spacing", "duration", "cubic-bezier", "blur", "radius"],
+        inheritance: false
+      }];
+    }
+  }
+
+  return compatiblePropertyTypes;
 };
 
 // Add utility function to get default property types for a resolved value type

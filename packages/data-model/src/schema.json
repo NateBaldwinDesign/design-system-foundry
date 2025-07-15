@@ -787,7 +787,7 @@
             "id": "padding",
             "displayName": "Padding",
             "category": "spacing",
-            "compatibleValueTypes": ["dimension"],
+            "compatibleValueTypes": ["spacing"],
             "platformMappings": {
               "css": ["padding", "padding-*"],
               "figma": ["GAP"],
@@ -801,7 +801,7 @@
             "id": "margin",
             "displayName": "Margin",
             "category": "spacing",
-            "compatibleValueTypes": ["dimension"],
+            "compatibleValueTypes": ["spacing"],
             "platformMappings": {
               "css": ["margin", "margin-*"],
               "figma": ["GAP"],
@@ -815,7 +815,7 @@
             "id": "gap-spacing",
             "displayName": "Gap/Spacing",
             "category": "spacing",
-            "compatibleValueTypes": ["dimension"],
+            "compatibleValueTypes": ["spacing"],
             "platformMappings": {
               "css": ["gap", "row-gap", "column-gap"],
               "figma": ["GAP"],
@@ -829,7 +829,7 @@
             "id": "border-radius",
             "displayName": "Border Radius",
             "category": "border",
-            "compatibleValueTypes": ["dimension", "radius"],
+            "compatibleValueTypes": ["radius"],
             "platformMappings": {
               "css": ["border-radius", "border-*-radius"],
               "figma": ["CORNER_RADIUS"],
@@ -962,7 +962,7 @@
             "id": "shadow",
             "displayName": "Shadow",
             "category": "effect",
-            "compatibleValueTypes": ["shadow"],
+            "compatibleValueTypes": ["shadow", "spread"],
             "platformMappings": {
               "css": ["box-shadow", "filter: drop-shadow()"],
               "figma": ["EFFECT_FLOAT"],
