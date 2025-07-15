@@ -652,6 +652,31 @@ const App = () => {
               onFileSelected={handleFileSelected}
               currentView={currentView}
               onNavigate={navigateToView}
+              schema={schema!}
+              onTokenCreated={(token) => {
+                // Handle AI-created token
+                const newToken = token as ExtendedToken;
+                handleUpdateTokens([...tokens, newToken]);
+                toast({
+                  title: "Token Created",
+                  description: `AI created token "${newToken.displayName}"`,
+                  status: "success",
+                  duration: 3000,
+                  isClosable: true,
+                });
+              }}
+              onCollectionSuggested={(collection) => {
+                // Handle AI-suggested collection
+                const newCollection = collection as TokenCollection;
+                handleUpdateCollections([...collections, newCollection]);
+                toast({
+                  title: "Collection Suggested",
+                  description: `AI suggested collection "${newCollection.name}"`,
+                  status: "info",
+                  duration: 3000,
+                  isClosable: true,
+                });
+              }}
             >
               <Routes>
                 <Route path="/auth/github/callback" element={<GitHubCallback />} />

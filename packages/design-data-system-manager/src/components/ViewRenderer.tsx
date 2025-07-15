@@ -33,6 +33,7 @@ import { ExportSettingsView } from '../views/publishing/ExportSettingsView';
 import CoreDataView from '../views/schemas/CoreDataView';
 import ThemeOverridesView from '../views/schemas/ThemeOverridesView';
 import AlgorithmDataView from '../views/schemas/AlgorithmDataView';
+import { MCPDemo } from './MCPDemo';
 import { TokenEditorDialog } from './TokenEditorDialog';
 
 interface ViewRendererProps {
@@ -207,6 +208,9 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
       
       case 'algorithm-data':
         return <AlgorithmDataView />;
+      
+      case 'mcp-demo':
+        return schema ? <MCPDemo schema={schema as unknown as import('@token-model/data-model').TokenSystem} /> : <Box p={4}>Loading schema...</Box>;
       
       default:
         return <DashboardView tokens={tokens} platforms={platforms} themes={themes} />;

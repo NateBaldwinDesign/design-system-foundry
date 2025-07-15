@@ -16,6 +16,7 @@
     "deploy:preview": "npm run build && gh-pages -d dist --no-push"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.56.0",
     "@chakra-ui/hooks": "^2.4.2",
     "@chakra-ui/react": "^2.8.2",
     "@chakra-ui/system": "^2.6.2",

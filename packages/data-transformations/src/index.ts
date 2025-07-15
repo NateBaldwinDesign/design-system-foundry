@@ -7,6 +7,9 @@ export * from './transformers';
 // Export all utilities
 export * from './utils';
 
+// Export MCP functionality
+export { TransformationMCP } from './mcp';
+
 // Export main classes and interfaces
 export { AbstractBaseTransformer } from './transformers/base';
 export { FigmaTransformer } from './transformers/figma';

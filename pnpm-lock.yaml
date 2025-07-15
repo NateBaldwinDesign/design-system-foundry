@@ -140,6 +140,9 @@ importers:
 
   packages/design-data-system-manager:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.56.0
+        version: 0.56.0
       '@chakra-ui/hooks':
         specifier: ^2.4.2
         version: 2.4.2(react@18.3.1)
@@ -300,6 +303,10 @@ packages:
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
+
+  '@anthropic-ai/sdk@0.56.0':
+    resolution: {integrity: sha512-SLCB8M8+VMg1cpCucnA1XWHGWqVSZtIWzmOdDOEu3eTFZMB+A0sGZ1ESO5MHDnqrNTXz3safMrWx9x4rMZSOqA==}
+    hasBin: true
 
   '@ark-ui/react@5.14.0':
     resolution: {integrity: sha512-7WWlCM3SowtF01e9NouuO4T6SYuKTM1dovR+2NZuuWTlqTBlvZ+1vPHS6BeqzXriwMLU7QUU+Y0i/TcI6/s/Sg==}
@@ -4884,6 +4891,8 @@ snapshots:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.8
       '@jridgewell/trace-mapping': 0.3.25
+
+  '@anthropic-ai/sdk@0.56.0': {}
 
   '@ark-ui/react@5.14.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:

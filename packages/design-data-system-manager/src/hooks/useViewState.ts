@@ -19,7 +19,8 @@ export type ViewId =
   | 'access'
   | 'core-data'
   | 'theme-overrides'
-  | 'algorithm-data';
+  | 'algorithm-data'
+  | 'mcp-demo';
 
 export const useViewState = () => {
   const [currentView, setCurrentView] = useState<ViewId>('dashboard');

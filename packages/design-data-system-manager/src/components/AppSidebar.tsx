@@ -25,7 +25,8 @@ import {
   Users,
   FileCode,
   ChartNetwork,
-  Blend
+  Blend,
+  Zap
 } from 'lucide-react';
 import Logo from './Logo';
 import TokenIcon from '../icons/TokenIcon';
@@ -85,6 +86,7 @@ const NAV_ITEMS: NavItem[] = [
       { id: 'core-data', label: 'Core Data', icon: FileCode },
       { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode },
       { id: 'algorithm-data', label: 'Algorithm Data', icon: FileCode },
+      { id: 'mcp-demo', label: 'MCP Demo', icon: Zap },
     ],
   },
 ];

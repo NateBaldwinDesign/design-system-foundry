@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, Flex, useColorMode } from '@chakra-ui/react';
 import { AppSidebar } from './AppSidebar';
+import { ChatSidebar } from './ChatSidebar';
 import { Header } from './Header';
 import { StorageService } from '../services/storage';
 import type { GitHubUser } from '../config/github';
 import type { ViewId } from '../hooks/useViewState';
 import { DataManager, type DataSnapshot } from '../services/dataManager';
+import type { Schema } from '../hooks/useSchema';
 
 interface DataSourceOption {
   label: string;
@@ -33,6 +35,9 @@ interface AppLayoutProps {
   currentView: ViewId;
   onNavigate: (viewId: ViewId) => void;
   children: React.ReactNode;
+  schema: Schema;
+  onTokenCreated?: (token: Record<string, unknown>) => void;
+  onCollectionSuggested?: (collection: Record<string, unknown>) => void;
 }
 
 // Custom event for data changes
@@ -53,6 +58,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   currentView,
   onNavigate,
   children,
+  schema,
+  onTokenCreated,
+  onCollectionSuggested,
 }: AppLayoutProps) => {
   const { colorMode } = useColorMode();
   const [hasChanges, setHasChanges] = useState(false);
@@ -321,9 +329,17 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           onGitHubDisconnect={onGitHubDisconnect}
           onFileSelected={onFileSelected}
         />
-        <Box flex="1" overflow="auto" p={4} bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
-          {children}
-        </Box>
+        <Flex direction="row" h="100%">
+          <Box flex="1" overflow="auto" p={4} bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
+            {children}
+          </Box>
+          <ChatSidebar 
+            schema={schema}
+            onTokenCreated={onTokenCreated}
+            onCollectionSuggested={onCollectionSuggested}
+          />
+
+        </Flex>
       </Flex>
     </Flex>
   );

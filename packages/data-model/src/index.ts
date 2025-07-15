@@ -1,5 +1,8 @@
 export * from './schema';
 
+// Export MCP functionality
+export * from './mcp';
+
 // Re-export specific types for convenience
 export type { 
   StandardValueType,
