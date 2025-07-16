@@ -20,7 +20,7 @@ const TokenTag: React.FC<TokenTagProps> = ({
     isPill = false,
     onClick
 }) => {
-
+    const iconSize = 14;
     const valueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
     if (!valueType) {
         throw new Error(`Unknown value type: ${resolvedValueTypeId}`);
@@ -39,18 +39,18 @@ const TokenTag: React.FC<TokenTagProps> = ({
             borderColor="gray.200"
         >
             <HStack width="100%" justifyContent="space-between">
-                <HStack>
+                <HStack gap={2}>
                     {valueType.type === 'COLOR' && (
-                        <div style={{ display: 'flex', flexGrow: 0, flexShrink: 0, width: '16px', height: '16px', borderRadius: '4px', backgroundColor: String(value) }}></div>
+                        <div style={{ display: 'flex', flexGrow: 0, flexShrink: 0, width: iconSize, height: iconSize, borderRadius: '2px', backgroundColor: String(value) }}></div>
                     )}
                     {valueType.type !== 'COLOR' && (
-                        <div style={{ display: 'flex', flexGrow: 0, flexShrink: 0, width: '16px', height: '16px' }}>
+                        <div style={{ display: 'flex', flexGrow: 0, flexShrink: 0, width: iconSize, height: iconSize }}>
                             {getValueTypeIcon(valueType.type, 16)}
                         </div>
                     )}
                     <Text className="kode-mono">{displayName}</Text>
                 </HStack>
-                <Text color="gray.500">{String(value)}</Text>
+                <Text color="gray.500" fontSize="xs" pl={2}>{String(value)}</Text>
             </HStack>
         </Box>
     )

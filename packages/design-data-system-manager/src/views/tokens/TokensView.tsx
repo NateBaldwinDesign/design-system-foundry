@@ -4,6 +4,7 @@ import { Edit, Columns, Filter, X, Search } from 'lucide-react';
 import type { TokenCollection, ResolvedValueType, Taxonomy, Mode } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
 import TokenTag from '../../components/TokenTag';
+import TokenResolvedValueTag from '../../components/TokenResolvedValueTag';
 import { formatValueForDisplay } from '../../utils/valueTypeUtils';
 import { getValueTypeIcon } from '../../utils/getValueTypeIcon';
 import TokenIcon from '../../icons/TokenIcon';
@@ -180,43 +181,13 @@ export function TokensView({
         
         const formattedValue = formatValueForDisplay(rawValue, token.resolvedValueTypeId, resolvedValueTypes);
         
-        switch (valueType.type) {
-          case 'COLOR':
-            displayValue = (
-              <HStack spacing={2}>
-                <Box
-                  w={4}
-                  h={4}
-                  borderRadius="sm"
-                  bg={typeof rawValue === 'string' ? rawValue : String(rawValue)}
-                  border="1px solid"
-                  borderColor="gray.200"
-                />
-                <Text>{formattedValue}</Text>
-              </HStack>
-            );
-            break;
-          case 'DIMENSION':
-          case 'SPACING':
-          case 'FONT_SIZE':
-          case 'LINE_HEIGHT':
-          case 'LETTER_SPACING':
-          case 'DURATION':
-          case 'BLUR':
-          case 'SPREAD':
-          case 'RADIUS':
-            displayValue = `${typeof rawValue === 'number' ? rawValue : Number(rawValue)}px`;
-            break;
-          case 'FONT_WEIGHT':
-            displayValue = typeof rawValue === 'number' ? rawValue.toString() : String(rawValue);
-            break;
-          case 'FONT_FAMILY':
-          case 'CUBIC_BEZIER':
-            displayValue = typeof rawValue === 'string' ? rawValue : String(rawValue);
-            break;
-          default:
-            displayValue = formattedValue;
-        }
+        displayValue = (
+          <TokenResolvedValueTag
+            resolvedValueType={valueType.type || 'UNKNOWN'}
+            rawValue={rawValue}
+            formattedValue={formattedValue}
+          />
+        );
       } else {
         displayValue = String(value);
       }
@@ -582,7 +553,7 @@ export function TokensView({
               <Tr key={token.id}>
                 <Td>
                   <HStack spacing={2} backgroundColor={token.generatedByAlgorithm ? "orange.100" : "gray.100"} borderRadius="md" p={2} width="fit-content">
-                    {getValueTypeIcon(getTypeFromId(token.resolvedValueTypeId), 20, token.generatedByAlgorithm, getTypeNameFromId(token.resolvedValueTypeId))}
+                    {getValueTypeIcon(getTypeFromId(token.resolvedValueTypeId), 20, 'currentColor', token.generatedByAlgorithm, getTypeNameFromId(token.resolvedValueTypeId))}
                   </HStack>
                 </Td>
                 <Td>
@@ -596,7 +567,11 @@ export function TokensView({
                 {visibleColumns.collection && (
                   <Td>{collections.find(c => c.id === token.tokenCollectionId)?.name || token.tokenCollectionId}</Td>
                 )}
-                <Td>{getValueDisplay(token)}</Td>
+                <Td>
+                  <VStack align="start" spacing={1}>
+                    {getValueDisplay(token)}
+                  </VStack>
+                </Td>
                 {visibleColumns.status && (
                   <Td>
                     <Badge
