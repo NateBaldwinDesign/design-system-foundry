@@ -14,6 +14,7 @@ import type {
 import type { ExtendedToken } from './TokenEditorDialog';
 import type { Algorithm } from '../types/algorithm';
 import type { Schema } from '../hooks/useSchema';
+import type { GitHubUser } from '../config/github';
 
 // Import all view components
 import DashboardView from '../views/dashboard/DashboardView';
@@ -50,6 +51,8 @@ interface ViewRendererProps {
   dimensionOrder: string[];
   taxonomyOrder: string[];
   schema: Schema | null;
+  // GitHub user info
+  githubUser: GitHubUser | null;
   // Handler props
   onUpdateTokens: (tokens: ExtendedToken[]) => void;
   onUpdateCollections: (collections: TokenCollection[]) => void;
@@ -85,6 +88,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   dimensionOrder,
   taxonomyOrder,
   schema,
+  githubUser,
   onUpdateTokens,
   onUpdateCollections,
   onUpdateDimensions,
@@ -106,7 +110,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <DashboardView tokens={tokens} platforms={platforms} themes={themes} />;
+        return <DashboardView tokens={tokens} platforms={platforms} themes={themes} githubUser={githubUser} />;
       
       case 'tokens':
         return (

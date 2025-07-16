@@ -672,6 +672,7 @@ const App = () => {
                 dimensionOrder={dimensionOrder}
                 taxonomyOrder={taxonomyOrder}
                 schema={schema}
+                githubUser={githubUser}
                 onUpdateTokens={handleUpdateTokens}
                 onUpdateCollections={handleUpdateCollections}
                 onUpdateDimensions={handleUpdateDimensions}

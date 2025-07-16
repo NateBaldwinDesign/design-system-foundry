@@ -357,6 +357,9 @@ export const Header: React.FC<HeaderProps> = ({
         justifyContent="space-between"
       >
         <HStack spacing={2} alignItems="baseline">
+          {selectedRepoInfo && (
+            <Github style={{alignSelf: 'center'}} size={16} />
+          )}
           <Text fontSize="md" fontWeight="bold">{title}</Text>
           <Text fontSize="xs">{subtitle}</Text>
         </HStack>

@@ -3,14 +3,16 @@ import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Di
 import { getTokenStats, getPlatformOverrideStats, getThemeStats, getLatestRelease, getRecentActivity } from '../../utils/dashboardStats';
 import type { Platform, Theme } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
+import type { GitHubUser } from '../../config/github';
 
 interface DashboardViewProps {
   tokens: ExtendedToken[];
   platforms: Platform[];
   themes: Theme[];
+  githubUser: GitHubUser | null;
 }
 
-const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes, githubUser }) => {
   const { colorMode } = useColorMode();
   
   const tokenStats = getTokenStats(tokens);
@@ -19,10 +21,19 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
   const latestRelease = getLatestRelease();
   const recentActivity = getRecentActivity();
 
+  // Get the user's first name from GitHub user data
+  const getWelcomeMessage = () => {
+    if (githubUser && githubUser.name) {
+      const firstName = githubUser.name.split(' ')[0];
+      return `Welcome, ${firstName}`;
+    }
+    return 'Dashboard';
+  };
+
   return (
     <Box p={0} borderWidth={0} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
       <Box p={8}>
-        <Heading size="xl" mb={8}>Dashboard</Heading>
+        <Heading size="xl" mb={8}>{getWelcomeMessage()}</Heading>
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mb={8}>
           {/* Tokens Section */}
           <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
