@@ -118,7 +118,7 @@ When making any change, explicitly state:
 ### Component Development
 - **FIRST**: Search `/src/packages/design-system-data-manager/` for existing components
 - **USE**: Existing components like `@TokenTag.tsx` before creating new ones
-- **NEW COMPONENTS**: Use Chakra-UI v3 only
+- **NEW COMPONENTS**: Use Chakra-UI v2 only
 - **REFERENCE**: https://chakra-ui.com/llms-components.txt and https://chakra-ui.com/llms-styling.txt
 - **UI CONTROLS**: Always use Chakra UI `Select` component for dropdowns/filters - never custom or native HTML selects
 - **UI MAPPING**: Assign mapping logic to constants above return statement, not inline in JSX (unless performance requires memoization)
