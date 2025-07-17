@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import {
   Input,
+  InputGroup,
+  InputLeftElement,
   NumberInput,
   NumberInputField,
   NumberInputStepper,
@@ -121,13 +123,24 @@ export function TokenValuePicker({
       switch (valueType.type) {
         case 'COLOR':
           return (
-            <Input
-              size="sm"
-              value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
-              onChange={(e) => handleValueChange(e.target.value)}
-              placeholder="Enter color (hex)"
-              isDisabled={isDisabled}
-            />
+            <InputGroup size="sm" width="200px">
+              <InputLeftElement>
+                <Box
+                  width="14px"
+                  height="14px"
+                  borderRadius="2px"
+                  backgroundColor={typeof value === 'object' && 'value' in value ? String(value.value) : '#000000'}
+                  border="1px solid"
+                  borderColor="rgba(0, 0, 0, 0.1)"
+                />
+              </InputLeftElement>
+              <Input
+                value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
+                onChange={(e) => handleValueChange(e.target.value)}
+                placeholder="Enter color (hex)"
+                isDisabled={isDisabled}
+              />
+            </InputGroup>
           );
         case 'DIMENSION':
         case 'SPACING':
@@ -142,6 +155,7 @@ export function TokenValuePicker({
           return (
             <NumberInput
               size="sm"
+              width="200px"
               value={typeof value === 'object' && 'value' in value ? Number(value.value) : 0}
               onChange={(_, val) => handleValueChange(val)}
               isDisabled={isDisabled}
@@ -158,6 +172,7 @@ export function TokenValuePicker({
           return (
             <Input
               size="sm"
+              width="200px"
               value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
               onChange={(e) => handleValueChange(e.target.value)}
               placeholder={`Enter ${valueType.type.toLowerCase()}`}
@@ -168,6 +183,7 @@ export function TokenValuePicker({
           return (
             <Input
               size="sm"
+              width="200px"
               value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
               onChange={(e) => handleValueChange(e.target.value)}
               placeholder="Enter value"
@@ -179,6 +195,7 @@ export function TokenValuePicker({
     return (
       <Input
         size="sm"
+        width="200px"
         value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
         onChange={(e) => handleValueChange(e.target.value)}
         placeholder="Enter value"
@@ -234,6 +251,7 @@ export function TokenValuePicker({
             placeholder="Search tokens..."
             value={searchTerm}
             size="sm"
+            width="calc(100% - 40px)"
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <List spacing={0}>
@@ -269,7 +287,21 @@ export function TokenValuePicker({
           <>
           <Popover isOpen={isOpen} onClose={onClose} placement="bottom-start">
             <PopoverTrigger>
-              <Box width="100%">
+              <Box 
+                width="100%" 
+                cursor="pointer"
+                tabIndex={isDisabled ? -1 : 0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (!isDisabled) onOpen();
+                  }
+                }}
+                minWidth="200px"
+                borderRadius="var(--chakra-radii-md)"
+                _hover={{ bg: 'gray.100' }}
+                _dark={{ _hover: { bg: 'gray.700' } }}
+              >
                 <TokenTag
                   displayName={referencedToken.displayName}
                   resolvedValueTypeId={referencedToken.resolvedValueTypeId}
