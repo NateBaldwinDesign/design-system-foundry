@@ -298,6 +298,73 @@ export const DisplayP3: Story = {
   }
 };
 
+export const ColorGamutComparison: Story = {
+  render: (args) => {
+    const [color, setColor] = useState(args.color);
+    
+    return (
+      <VStack spacing={6} align="stretch">
+        <Text fontWeight="bold" fontSize="lg">Colorjs.io Canvas Color Space Conversion</Text>
+        <Text fontSize="sm" color="gray.600">
+          Colors are converted using Colorjs.io to match the canvas color space (display-p3 or srgb) for maximum vibrancy and accuracy.
+        </Text>
+        
+        <HStack spacing={4} wrap="wrap" justify="center">
+          <VStack spacing={2}>
+            <Text fontSize="sm" fontWeight="medium">sRGB (rgb/hsl)</Text>
+            <Text fontSize="xs" color="gray.500">Colorjs.io → srgb</Text>
+            <ColorCanvas
+              size={200}
+              color={color}
+              colorSpace="sRGB"
+              model="cartesian"
+              onChange={setColor}
+            />
+          </VStack>
+          
+          <VStack spacing={2}>
+            <Text fontSize="sm" fontWeight="medium">Display P3</Text>
+            <Text fontSize="xs" color="gray.500">Colorjs.io → p3</Text>
+            <ColorCanvas
+              size={200}
+              color={color}
+              colorSpace="Display P3"
+              onChange={setColor}
+            />
+          </VStack>
+          
+          <VStack spacing={2}>
+            <Text fontSize="sm" fontWeight="medium">OKlch</Text>
+            <Text fontSize="xs" color="gray.500">Colorjs.io → oklch/oklab</Text>
+            <ColorCanvas
+              size={200}
+              color={color}
+              colorSpace="OKlch"
+              model="polar"
+              onChange={setColor}
+            />
+          </VStack>
+        </HStack>
+        
+        {/* Debug information */}
+        <Box p={4} bg="gray.50" borderRadius="md">
+          <Text fontWeight="bold">Colorjs.io Conversion Strategy:</Text>
+          <Text fontSize="sm">• Canvas Context: display-p3 (if supported) or srgb</Text>
+          <Text fontSize="sm">• sRGB Colors → Converted to canvas color space</Text>
+          <Text fontSize="sm">• Display P3 Colors → Converted to canvas color space</Text>
+          <Text fontSize="sm">• OKlch Colors → Converted to canvas color space</Text>
+          <Text fontSize="sm">• All conversions use Colorjs.io for accuracy</Text>
+          <Text fontSize="sm">Current Color: {color.toString()}</Text>
+        </Box>
+      </VStack>
+    );
+  },
+  args: {
+    ...baseProps,
+    color: new Color('p3', [1, 0, 0.5]), // Vibrant magenta in P3
+  }
+};
+
 export const OKLCH: Story = {
   render: Template,
   args: {

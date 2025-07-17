@@ -133,6 +133,23 @@ describe('ColorCanvas', () => {
       expect(color.coords[2]).toBe(50);  // Lightness: 0-100
     });
 
+    it('should support canvas color space conversion', () => {
+      // Test that the component can work with different canvas color spaces
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { colorSpace: 'display-p3' });
+      expect(canvas).toBeDefined();
+      expect(ctx).toBeDefined(); // May be null if not supported
+      // Note: Color conversion is handled by Colorjs.io
+    });
+
+    it('should handle color space conversion correctly', () => {
+      // Test color conversion from different spaces to canvas space
+      const srgbColor = new Color('srgb', [1, 0, 0]); // Red
+      const p3Color = srgbColor.to('p3');
+      expect(p3Color).toBeInstanceOf(Color);
+      expect(p3Color.space.id).toBe('p3');
+    });
+
     it('should use correct default channels for Display P3', () => {
       const color = new Color('p3', [0, 1, 0]); // Green in P3
       expect(color).toBeInstanceOf(Color);

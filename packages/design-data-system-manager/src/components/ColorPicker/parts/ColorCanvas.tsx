@@ -2,6 +2,11 @@ import React, { useRef, useEffect, useCallback, memo } from 'react';
 import { Box } from '@chakra-ui/react';
 import Color from 'colorjs.io';
 
+// Extended canvas context type to include colorSpace property
+interface ExtendedCanvasRenderingContext2D extends CanvasRenderingContext2D {
+  colorSpace?: string;
+}
+
 export interface ColorCanvasProps {
   /** Size of the canvas in pixels (both width and height) */
   size: number;
@@ -41,6 +46,7 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
   'data-testid': testId,
   ...boxProps
 }: ColorCanvasProps) => {
+
   // Determine default channels based on color space and model
   const getDefaultChannels = (): [string, string] => {
     switch (colorSpace) {
@@ -64,13 +70,63 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
   // Memoize the color to avoid unnecessary re-renders
   const memoizedColor = useCallback(() => color, [color.toString()]);
 
+  // Utility function to get canvas pixel color using Colorjs.io
+  const getCanvasPixelColor = useCallback((pixelColor: Color, canvasColorSpace: string): [number, number, number, number] => {
+    try {
+      let outputColor: Color;
+      
+      // Convert to the appropriate color space for the canvas
+      switch (canvasColorSpace) {
+        case 'display-p3':
+          outputColor = pixelColor.to('p3');
+          break;
+        case 'srgb':
+        default:
+          outputColor = pixelColor.to('srgb');
+          break;
+      }
+      
+      // Get coordinates and clamp to valid range [0, 1]
+      const [r, g, b] = outputColor.coords.map(v => Math.max(0, Math.min(1, v)));
+      const alpha = Math.max(0, Math.min(1, outputColor.alpha ?? 1));
+      
+      return [
+        Math.round(r * 255),     // R
+        Math.round(g * 255),     // G
+        Math.round(b * 255),     // B
+        Math.round(alpha * 255)  // A
+      ];
+    } catch (error) {
+      // Fallback to sRGB if conversion fails
+      const srgb = pixelColor.to('srgb');
+      const [r, g, b] = srgb.coords.map(v => Math.max(0, Math.min(1, v)));
+      const alpha = Math.max(0, Math.min(1, srgb.alpha ?? 1));
+      
+      return [
+        Math.round(r * 255),
+        Math.round(g * 255),
+        Math.round(b * 255),
+        Math.round(alpha * 255)
+      ];
+    }
+  }, []);
+
   // Render the gradient to canvas
   const renderGradient = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    // Try to get context with display-p3 support first
+    let ctx = canvas.getContext('2d', {
+      colorSpace: 'display-p3',
+      willReadFrequently: false
+    });
+    
+    // Fallback to sRGB if display-p3 is not supported
+    if (!ctx) {
+      ctx = canvas.getContext('2d');
+      if (!ctx) return;
+    }
 
     const startTime = performance.now();
     
@@ -127,12 +183,13 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
       return;
     }
 
+    // Get canvas color space for pixel conversion
+    const canvasColorSpace = (ctx as ExtendedCanvasRenderingContext2D).colorSpace || 'srgb';
+
     // Render gradient based on selected channels
     for (let y = 0; y < size; y++) {
       for (let x = 0; x < size; x++) {
         const pixelIndex = (y * size + x) * 4;
-        
-        let pixelColor: Color;
         
         try {
           // Convert base color to target color space
@@ -165,17 +222,16 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
           }
           
           // Create new color with updated coordinates
-          pixelColor = new Color(colorSpaceId, coords);
+          const pixelColor = new Color(colorSpaceId, coords);
 
-          // Convert to sRGB for display
-          const srgb = pixelColor.to('srgb');
-          const srgbCoords = srgb.coords;
+          // Get pixel color using Colorjs.io conversion
+          const [r, g, b, a] = getCanvasPixelColor(pixelColor, canvasColorSpace);
           
-          // Set RGB values (0-255)
-          data[pixelIndex] = Math.round(srgbCoords[0] * 255);     // R
-          data[pixelIndex + 1] = Math.round(srgbCoords[1] * 255); // G
-          data[pixelIndex + 2] = Math.round(srgbCoords[2] * 255); // B
-          data[pixelIndex + 3] = Math.round((srgb.alpha ?? 1) * 255); // A
+          // Set pixel data
+          data[pixelIndex] = r;     // R
+          data[pixelIndex + 1] = g; // G
+          data[pixelIndex + 2] = b; // B
+          data[pixelIndex + 3] = a; // A
           
         } catch (error) {
           // If color conversion fails, use a fallback color
@@ -197,7 +253,7 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
     if (lastRenderTimeRef.current > 16) {
       console.warn(`ColorCanvas: Rendering took ${lastRenderTimeRef.current.toFixed(2)}ms (target: <16ms for 60fps)`);
     }
-  }, [size, colorSpace, model, channels, memoizedColor]);
+  }, [size, colorSpace, model, channels, memoizedColor, getCanvasPixelColor]);
 
   // Handle mouse/touch events
   const handlePointerDown = useCallback((event: React.PointerEvent) => {
