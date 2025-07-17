@@ -74,58 +74,29 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
   // Memoize the color to avoid unnecessary re-renders
   const memoizedColor = useCallback(() => color, [color.toString()]);
 
-  // Convert gamut prop to Colorjs.io space identifier
+  // Convert gamut property to Colorjs.io gamut space identifier
   const getGamutSpace = useCallback((gamutProp: string): string => {
     switch (gamutProp) {
       case 'sRGB':
         return 'srgb';
       case 'Display-P3':
-        return 'p3';
+        return 'display-p3';
       case 'Rec2020':
         return 'rec2020';
       default:
-        return 'srgb';
+        return 'display-p3';
     }
   }, []);
 
-  // Get channel ranges for different color spaces and models
-  const getChannelRange = useCallback((channel: string, colorSpaceId: string): { min: number; max: number } => {
-    switch (colorSpaceId) {
-      case 'hsl':
-        // HSL coordinates: H (0-360), S (0-100), L (0-100)
-        if (channel === 'h') return { min: 0, max: 360 };
-        if (channel === 's' || channel === 'l') return { min: 0, max: 100 };
-        return { min: 0, max: 1 };
-      
-      case 'oklch':
-        // OKLCh coordinates: L (0-1), C (0-0.26), H (0-360)
-        if (channel === 'l') return { min: 0, max: 1 };
-        if (channel === 'c') return { min: 0, max: 0.26 }; // Practical max chroma
-        if (channel === 'h') return { min: 0, max: 360 };
-        return { min: 0, max: 1 };
-      
-      case 'oklab':
-        // OKLab coordinates: L (0-1), a (-0.13 to 0.20), b (-0.28 to 0.10)
-        if (channel === 'l') return { min: 0, max: 1 };
-        if (channel === 'a') return { min: -0.13, max: 0.20 };
-        if (channel === 'b') return { min: -0.28, max: 0.10 };
-        return { min: 0, max: 1 };
-      
-      default:
-        // sRGB, Display P3, and other color spaces use 0-1 range
-        return { min: 0, max: 1 };
-    }
-  }, []);
-
-  // Check if coordinates would be out-of-gamut for the specified gamut
-  const isOutOfGamut = useCallback((coords: [number, number, number], targetSpace: string, gamutSpace: string): boolean => {
+  // Check if coordinates would be out-of-gamut without automatic mapping
+  const isOutOfGamut = useCallback((coords: [number, number, number], targetSpace: string): boolean => {
     try {
       // Create color with exact coordinates (no automatic mapping)
       const testColor = new Color(targetSpace, coords);
       
-      // Convert to the target gamut space to check if any component is outside 0-1 range
-      const gamutColor = testColor.to(gamutSpace);
-      const [r, g, b] = gamutColor.coords;
+      // Convert to RGB to check if any component is outside 0-1 range
+      const rgbColor = testColor.to('srgb');
+      const [r, g, b] = rgbColor.coords;
       
       // Check if any component is outside the valid range
       return r < 0 || r > 1 || g < 0 || g > 1 || b < 0 || b > 1;
@@ -209,6 +180,9 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
     // Get base color coordinates
     const baseColor = memoizedColor();
     
+    // Get gamut space for constraint checking
+    const gamutSpace = getGamutSpace(gamut);
+    
     // Determine the color space and model for rendering
     const getColorSpaceId = () => {
       switch (colorSpace) {
@@ -269,17 +243,25 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
           const channelIndexX = availableChannels.indexOf(channelX);
           const channelIndexY = availableChannels.indexOf(channelY);
           
-          // Get channel ranges for proper scaling
-          const rangeX = getChannelRange(channelX, colorSpaceId);
-          const rangeY = getChannelRange(channelY, colorSpaceId);
+          // Update coordinates based on selected channels
+          // Handle different coordinate ranges for different color spaces
+          if (colorSpaceId === 'hsl') {
+            // HSL coordinates: H (0-360), S (0-100), L (0-100)
+            if (channelX === 'h') coords[channelIndexX] = valueX * 360;
+            else if (channelX === 's' || channelX === 'l') coords[channelIndexX] = valueX * 100;
+            else coords[channelIndexX] = valueX;
+            
+            if (channelY === 'h') coords[channelIndexY] = valueY * 360;
+            else if (channelY === 's' || channelY === 'l') coords[channelIndexY] = valueY * 100;
+            else coords[channelIndexY] = valueY;
+          } else {
+            // Other color spaces use 0-1 range
+            coords[channelIndexX] = valueX;
+            coords[channelIndexY] = valueY;
+          }
           
-          // Update coordinates based on selected channels with proper scaling
-          coords[channelIndexX] = rangeX.min + (valueX * (rangeX.max - rangeX.min));
-          coords[channelIndexY] = rangeY.min + (valueY * (rangeY.max - rangeY.min));
-          
-          // Check if this color would be out-of-gamut for the specified gamut
-          const gamutSpace = getGamutSpace(gamut);
-          const outOfGamut = isOutOfGamut(coords, colorSpaceId, gamutSpace);
+          // Check if this color would be out-of-gamut before creating the color object
+          const outOfGamut = isOutOfGamut(coords, colorSpaceId);
           
           let pixelColor: Color;
           if (outOfGamut) {
@@ -319,7 +301,7 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
     if (lastRenderTimeRef.current > 16) {
       console.warn(`ColorCanvas: Rendering took ${lastRenderTimeRef.current.toFixed(2)}ms (target: <16ms for 60fps)`);
     }
-  }, [size, colorSpace, model, channels, gamut, memoizedColor, getChannelRange, isOutOfGamut, getCanvasPixelColor, getGamutSpace]);
+  }, [size, colorSpace, model, channels, gamut, memoizedColor, getGamutSpace, isOutOfGamut, getCanvasPixelColor]);
 
   // Handle mouse/touch events
   const handlePointerDown = useCallback((event: React.PointerEvent) => {
@@ -396,13 +378,22 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
       const channelIndexX = availableChannels.indexOf(channelX);
       const channelIndexY = availableChannels.indexOf(channelY);
       
-      // Get channel ranges for proper scaling
-      const rangeX = getChannelRange(channelX, colorSpaceId);
-      const rangeY = getChannelRange(channelY, colorSpaceId);
-      
-      // Update coordinates based on selected channels with proper scaling
-      coords[channelIndexX] = rangeX.min + (normalizedX * (rangeX.max - rangeX.min));
-      coords[channelIndexY] = rangeY.min + (normalizedY * (rangeY.max - rangeY.min));
+      // Update coordinates based on selected channels
+      // Handle different coordinate ranges for different color spaces
+      if (colorSpaceId === 'hsl') {
+        // HSL coordinates: H (0-360), S (0-100), L (0-100)
+        if (channelX === 'h') coords[channelIndexX] = normalizedX * 360;
+        else if (channelX === 's' || channelX === 'l') coords[channelIndexX] = normalizedX * 100;
+        else coords[channelIndexX] = normalizedX;
+        
+        if (channelY === 'h') coords[channelIndexY] = normalizedY * 360;
+        else if (channelY === 's' || channelY === 'l') coords[channelIndexY] = normalizedY * 100;
+        else coords[channelIndexY] = normalizedY;
+      } else {
+        // Other color spaces use 0-1 range
+        coords[channelIndexX] = normalizedX;
+        coords[channelIndexY] = normalizedY;
+      }
       
       // Create new color with updated coordinates
       const newColor = new Color(colorSpaceId, coords);
@@ -411,13 +402,9 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
     } catch (error) {
       console.error('Error creating color from canvas position:', error);
     }
-  }, [size, colorSpace, model, channels, onChange, memoizedColor, getChannelRange]);
+  }, [size, colorSpace, model, channels, onChange, memoizedColor]);
 
   const handlePointerUp = useCallback(() => {
-    isMouseDownRef.current = false;
-  }, []);
-
-  const handlePointerLeave = useCallback(() => {
     isMouseDownRef.current = false;
   }, []);
 
@@ -428,30 +415,22 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
 
   return (
     <Box
-      as="div"
-      position="relative"
-      display="inline-block"
+      as="canvas"
+      ref={canvasRef}
+      width={size}
+      height={size}
       className={className}
       data-testid={testId}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerUp}
+      style={{
+        cursor: onChange ? 'crosshair' : 'default',
+        touchAction: 'none', // Prevent scrolling on touch devices
+      }}
       {...boxProps}
-    >
-      <canvas
-        ref={canvasRef}
-        width={size}
-        height={size}
-        style={{
-          display: 'block',
-          cursor: 'crosshair',
-          borderRadius: '4px',
-          border: '1px solid rgba(0, 0, 0, 0.1)'
-        }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerLeave}
-        data-testid={`${testId}-canvas`}
-      />
-    </Box>
+    />
   );
 });
 
