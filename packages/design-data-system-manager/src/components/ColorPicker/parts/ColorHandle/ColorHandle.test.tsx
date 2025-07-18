@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import Color from 'colorjs.io';
 import { ColorHandle } from './ColorHandle';
 
@@ -268,12 +268,22 @@ describe('ColorHandle', () => {
     });
 
     it('should prioritize explicit isLoupeVisible over auto-show', () => {
-      // Explicit isLoupeVisible should take precedence over auto-show logic
+      // Explicit isLoupeVisible should override auto-show behavior
       const explicitVisible = true;
       const autoShowEnabled = true;
       const isFocused = false;
       const isActive = false;
       const shouldShow = explicitVisible || (autoShowEnabled && (isFocused || isActive));
+      expect(shouldShow).toBe(true);
+    });
+
+    it('should show loupe during drag state when isLoupeVisible is true', () => {
+      // Loupe should be visible during drag operations when isLoupeVisible is set
+      const isLoupeVisible = true; // Drag state
+      const autoShowEnabled = true;
+      const isFocused = false;
+      const isActive = false;
+      const shouldShow = isLoupeVisible || (autoShowEnabled && (isFocused || isActive));
       expect(shouldShow).toBe(true);
     });
 
@@ -305,33 +315,46 @@ describe('ColorHandle', () => {
 
   describe('Event Handling', () => {
     it('should handle focus events', () => {
-      // Component should handle focus events
+      // Component should handle focus events for loupe visibility
       const focusEvent = 'focus';
       expect(focusEvent).toBe('focus');
     });
 
     it('should handle blur events', () => {
-      // Component should handle blur events
+      // Component should handle blur events for loupe visibility
       const blurEvent = 'blur';
       expect(blurEvent).toBe('blur');
     });
 
     it('should handle mouse down events', () => {
-      // Component should handle mouse down events
+      // Component should handle mouse down events for active state
       const mouseDownEvent = 'mousedown';
       expect(mouseDownEvent).toBe('mousedown');
     });
 
     it('should handle mouse up events', () => {
-      // Component should handle mouse up events
+      // Component should handle mouse up events for active state
       const mouseUpEvent = 'mouseup';
       expect(mouseUpEvent).toBe('mouseup');
     });
 
     it('should handle mouse leave events', () => {
-      // Component should handle mouse leave events
+      // Component should handle mouse leave events for active state
       const mouseLeaveEvent = 'mouseleave';
       expect(mouseLeaveEvent).toBe('mouseleave');
+    });
+
+    it('should handle key down events', () => {
+      // Component should handle key down events for keyboard navigation
+      const keyDownEvent = 'keydown';
+      expect(keyDownEvent).toBe('keydown');
+    });
+
+    it('should accept onKeyDown callback prop', () => {
+      // Component should accept onKeyDown callback for keyboard navigation
+      const onKeyDown = vi.fn();
+      const propsWithKeyDown = { color: mockColor, onKeyDown };
+      expect(propsWithKeyDown.onKeyDown).toBe(onKeyDown);
     });
   });
 

@@ -23,14 +23,6 @@ export interface ColorCanvasProps {
   color: Color;
   /** Gamut constraint for rendering ('sRGB', 'Display-P3', 'Rec2020') */
   gamut?: 'sRGB' | 'Display-P3' | 'Rec2020';
-  /** Callback for pointer down events */
-  onPointerDown?: (event: React.PointerEvent) => void;
-  /** Callback for pointer move events */
-  onPointerMove?: (event: React.PointerEvent) => void;
-  /** Callback for pointer up events */
-  onPointerUp?: (event: React.PointerEvent) => void;
-  /** Callback for pointer leave events */
-  onPointerLeave?: (event: React.PointerEvent) => void;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
@@ -56,10 +48,6 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
   colorChannels,
   color,
   gamut = 'Display-P3',
-  onPointerDown,
-  onPointerMove,
-  onPointerUp,
-  onPointerLeave,
   className,
   'data-testid': testId,
   ...boxProps
@@ -211,23 +199,6 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
     }
   }, [size, colorSpace, model, channels, gamut, config, colorMode, baseColorForRendering]);
 
-  // Handle mouse/touch events with gamut-aware interaction
-  const handlePointerDown = useCallback((event: React.PointerEvent) => {
-    onPointerDown?.(event);
-  }, [onPointerDown]);
-
-  const handlePointerMove = useCallback((event: React.PointerEvent) => {
-    onPointerMove?.(event);
-  }, [onPointerMove]);
-
-  const handlePointerUp = useCallback((event: React.PointerEvent) => {
-    onPointerUp?.(event);
-  }, [onPointerUp]);
-
-  const handlePointerLeave = useCallback((event: React.PointerEvent) => {
-    onPointerLeave?.(event);
-  }, [onPointerLeave]);
-
   // Render gradient when dependencies change (only when slice changes)
   useEffect(() => {
     renderGradient();
@@ -252,10 +223,6 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
           borderRadius: '4px',
           border: '1px solid rgba(0, 0, 0, 0.1)'
         }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerLeave}
         data-testid={`${testId}-canvas`}
       />
     </Box>

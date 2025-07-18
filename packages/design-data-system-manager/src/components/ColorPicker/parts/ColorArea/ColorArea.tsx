@@ -163,18 +163,25 @@ export const ColorArea = memo<ColorAreaProps>(({
       
       // Store drag start position
       dragStartRef.current = constrainedPosition;
+      
+      // Set pointer capture for global tracking
+      event.currentTarget.setPointerCapture(event.pointerId);
     } catch (error) {
       console.warn('Error constraining canvas interaction to gamut:', error);
       // Fallback to original clamped position
       setDragPosition({ x: clampedX, y: clampedY });
       setIsDragging(true);
       dragStartRef.current = { x: clampedX, y: clampedY };
+      
+      // Set pointer capture for global tracking
+      event.currentTarget.setPointerCapture(event.pointerId);
     }
   }, [size, color, colorSpace, model, channels, gamut]);
 
   // Handle canvas drag movement for immediate positioning
   const handleCanvasDragMove = useCallback((event: React.PointerEvent) => {
-    if (!isDragging) return;
+    // Always handle pointer move when dragging, regardless of isDragging state
+    // This ensures continuous movement during drag operations
     
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -199,12 +206,42 @@ export const ColorArea = memo<ColorAreaProps>(({
       
       // Update immediate drag position for instant visual feedback
       setDragPosition(constrainedPosition);
+      
+      // Calculate and set the color at the constrained position for immediate feedback
+      const newDragColor = canvasToColorCoords(
+        constrainedPosition.x,
+        constrainedPosition.y,
+        size,
+        color, // Use current color as base for third channel
+        colorSpace,
+        model,
+        channels,
+        gamut
+      );
+      setDragColor(newDragColor);
     } catch (error) {
       console.warn('Error constraining canvas drag to gamut:', error);
       // Fallback to original clamped position
       setDragPosition({ x: clampedX, y: clampedY });
+      
+      // Calculate and set the color at the fallback position
+      try {
+        const newDragColor = canvasToColorCoords(
+          clampedX,
+          clampedY,
+          size,
+          color, // Use current color as base for third channel
+          colorSpace,
+          model,
+          channels,
+          gamut
+        );
+        setDragColor(newDragColor);
+      } catch (colorError) {
+        console.error('Error calculating drag color:', colorError);
+      }
     }
-  }, [isDragging, size, color, colorSpace, model, channels, gamut]);
+  }, [size, color, colorSpace, model, channels, gamut]);
 
   // Handle handle drag start
   const handleHandleDragStart = useCallback((event: React.PointerEvent) => {
@@ -318,6 +355,81 @@ export const ColorArea = memo<ColorAreaProps>(({
     handleCanvasDragEnd();
   }, [isDragging, handleCanvasDragEnd]);
 
+  // Handle keyboard navigation for the ColorHandle
+  const handleKeyboardNavigation = useCallback((event: React.KeyboardEvent) => {
+    // Only handle arrow keys
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Get current handle position
+    const currentX = handlePosition.x;
+    const currentY = handlePosition.y;
+
+    // Define step size for keyboard navigation (in pixels)
+    const stepSize = event.shiftKey ? 10 : 1; // Larger steps with Shift key
+
+    // Calculate new position based on key pressed
+    let newX = currentX;
+    let newY = currentY;
+
+    switch (event.key) {
+      case 'ArrowUp':
+        newY = Math.max(0, currentY - stepSize);
+        break;
+      case 'ArrowDown':
+        newY = Math.min(size, currentY + stepSize);
+        break;
+      case 'ArrowLeft':
+        newX = Math.max(0, currentX - stepSize);
+        break;
+      case 'ArrowRight':
+        newX = Math.min(size, currentX + stepSize);
+        break;
+    }
+
+    // Constrain to gamut boundary to prevent handle from appearing in gray areas
+    try {
+      const constrainedPosition = constrainToGamutBoundary(
+        newX,
+        newY,
+        size,
+        color, // Use current color as base for third channel
+        colorSpace,
+        model,
+        channels,
+        gamut
+      );
+
+      // Update position and trigger color change
+      setDragPosition(constrainedPosition);
+      
+      // Calculate and set the color at the constrained position
+      const newColor = canvasToColorCoords(
+        constrainedPosition.x,
+        constrainedPosition.y,
+        size,
+        color, // Use current color as base for third channel
+        colorSpace,
+        model,
+        channels,
+        gamut
+      );
+      setDragColor(newColor);
+
+      // Update the color immediately for keyboard navigation
+      if (onChange) {
+        onChange(newColor);
+      }
+    } catch (error) {
+      console.warn('Error handling keyboard navigation:', error);
+      // Fallback to original position if constraint fails
+    }
+  }, [handlePosition, size, color, colorSpace, model, channels, gamut, onChange]);
+
   // Set up global event listeners for handle dragging
   useEffect(() => {
     if (isDragging) {
@@ -330,6 +442,40 @@ export const ColorArea = memo<ColorAreaProps>(({
       };
     }
   }, [isDragging, handleGlobalMouseMove, handleGlobalMouseUp]);
+
+  // Set up canvas pointer events after ColorCanvas renders
+  useEffect(() => {
+    const canvas = containerRef.current?.querySelector('canvas');
+    if (!canvas) return;
+
+    const handlePointerDown = (event: PointerEvent) => {
+      handleCanvasInteraction(event as unknown as React.PointerEvent);
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      handleCanvasDragMove(event as unknown as React.PointerEvent);
+    };
+
+    const handlePointerUp = () => {
+      handleCanvasDragEnd();
+    };
+
+    const handlePointerLeave = () => {
+      handleCanvasDragEnd();
+    };
+
+    canvas.addEventListener('pointerdown', handlePointerDown);
+    canvas.addEventListener('pointermove', handlePointerMove);
+    canvas.addEventListener('pointerup', handlePointerUp);
+    canvas.addEventListener('pointerleave', handlePointerLeave);
+
+    return () => {
+      canvas.removeEventListener('pointerdown', handlePointerDown);
+      canvas.removeEventListener('pointermove', handlePointerMove);
+      canvas.removeEventListener('pointerup', handlePointerUp);
+      canvas.removeEventListener('pointerleave', handlePointerLeave);
+    };
+  }, [handleCanvasInteraction, handleCanvasDragMove, handleCanvasDragEnd]);
 
   return (
     <Box
@@ -351,18 +497,16 @@ export const ColorArea = memo<ColorAreaProps>(({
         color={color} // Only the third channel value is used for the slice
         gamut={gamut}
         onChange={handleCanvasChange}
-        onPointerDown={handleCanvasInteraction}
-        onPointerUp={handleCanvasDragEnd}
-        onPointerLeave={handleCanvasDragEnd}
-        onPointerMove={handleCanvasDragMove}
         data-testid={`${testId}-canvas`}
       />
       
       {/* ColorHandle positioned based on color coordinates or immediate drag position */}
       <ColorHandle
         color={handleColor}
+        isLoupeVisible={isDragging}
         autoShowLoupe={true}
         onPointerDown={handleHandleDragStart}
+        onKeyDown={handleKeyboardNavigation} // Add keyboard navigation handler
         style={{
           position: 'absolute',
           left: `${handlePosition.x}px`,

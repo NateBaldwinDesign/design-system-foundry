@@ -18,6 +18,8 @@ export interface ColorHandleProps {
   onPointerUp?: (event: React.PointerEvent) => void;
   /** Callback for pointer leave events */
   onPointerLeave?: (event: React.PointerEvent) => void;
+  /** Callback for key down events */
+  onKeyDown?: (event: React.KeyboardEvent) => void;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
@@ -46,6 +48,7 @@ export const ColorHandle = memo<ColorHandleProps>(({
   onPointerMove,
   onPointerUp,
   onPointerLeave,
+  onKeyDown,
   className,
   'data-testid': testId,
   ...boxProps
@@ -93,6 +96,7 @@ export const ColorHandle = memo<ColorHandleProps>(({
       tabIndex={0}
       onFocus={handleFocus}
       onBlur={handleBlur}
+      onKeyDown={onKeyDown}
       {...boxProps}
     >
       {/* Circular handle with border and shadow */}
