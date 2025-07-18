@@ -515,7 +515,7 @@ export const ColorSlider = memo<ColorSliderProps>(({
     } else {
       return {
         ...baseStyle,
-        left: '11px', // Center horizontally in 24px width
+        left: '13px', // Center horizontally in 24px width
         top: `${handlePosition}px`
       };
     }
@@ -542,7 +542,7 @@ export const ColorSlider = memo<ColorSliderProps>(({
         style={{
           display: 'block',
           cursor: 'crosshair',
-          borderRadius: '8px',
+          borderRadius: '12px',
           border: '1px solid rgba(0, 0, 0, 0.1)'
         }}
         data-testid={`${testId}-canvas`}

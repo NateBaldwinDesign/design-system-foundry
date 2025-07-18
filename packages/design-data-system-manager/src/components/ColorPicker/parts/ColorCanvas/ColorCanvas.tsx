@@ -220,7 +220,7 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
         style={{
           display: 'block',
           cursor: 'crosshair',
-          borderRadius: '4px',
+          borderRadius: '12px',
           border: '1px solid rgba(0, 0, 0, 0.1)'
         }}
         data-testid={`${testId}-canvas`}

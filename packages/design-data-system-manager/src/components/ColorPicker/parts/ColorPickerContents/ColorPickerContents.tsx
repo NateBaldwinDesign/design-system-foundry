@@ -9,7 +9,7 @@ import {
   ButtonGroup,
   useColorMode
 } from '@chakra-ui/react';
-import { Square, Circle } from 'lucide-react';
+import { BoxIcon, Cylinder } from 'lucide-react';
 import Color from 'colorjs.io';
 import { ColorArea } from '../ColorArea/ColorArea';
 import { ColorSlider } from '../ColorSlider/ColorSlider';
@@ -125,9 +125,9 @@ export const ColorPickerContents = React.memo<ColorPickerContentsProps>(({
         <HStack spacing={3} justify="space-between">
           {/* Color Space Dropdown */}
           <VStack spacing={1} align="start" flex={1}>
-            <Text fontSize="sm" fontWeight="medium">Color Space</Text>
+            <Text fontSize="xs" fontWeight="medium">Color Space</Text>
             <Select
-              size="sm"
+              size="xs"
               value={colorSpaceState}
               onChange={handleColorSpaceChange}
               data-testid={`${testId}-color-space-select`}
@@ -140,9 +140,9 @@ export const ColorPickerContents = React.memo<ColorPickerContentsProps>(({
 
           {/* Gamut Dropdown */}
           <VStack spacing={1} align="start" flex={1}>
-            <Text fontSize="sm" fontWeight="medium">Gamut</Text>
+            <Text fontSize="xs" fontWeight="medium">Gamut</Text>
             <Select
-              size="sm"
+              size="xs"
               value={colorGamut}
               onChange={handleGamutChange}
               data-testid={`${testId}-gamut-select`}
@@ -155,15 +155,15 @@ export const ColorPickerContents = React.memo<ColorPickerContentsProps>(({
 
           {/* Model Toggle */}
           <VStack spacing={1} align="start">
-            <Text fontSize="sm" fontWeight="medium">Model</Text>
-            <ButtonGroup size="sm" isAttached>
+            <Text fontSize="xs" fontWeight="medium">Model</Text>
+            <ButtonGroup size="xs" isAttached>
               <Button
                 variant={colorModel === 'cartesian' ? 'solid' : 'outline'}
                 onClick={() => handleModelChange('cartesian')}
                 data-testid={`${testId}-cartesian-toggle`}
                 colorScheme={colorModel === 'cartesian' ? 'blue' : 'gray'}
               >
-                <Square size={16} />
+                <BoxIcon size={14} />
               </Button>
               <Button
                 variant={colorModel === 'polar' ? 'solid' : 'outline'}
@@ -171,46 +171,49 @@ export const ColorPickerContents = React.memo<ColorPickerContentsProps>(({
                 data-testid={`${testId}-polar-toggle`}
                 colorScheme={colorModel === 'polar' ? 'blue' : 'gray'}
               >
-                <Circle size={16} />
+                <Cylinder size={14} />
               </Button>
             </ButtonGroup>
           </VStack>
         </HStack>
 
-        {/* Color Area */}
-        <Box>
-          <Text fontSize="sm" fontWeight="medium" mb={2}>
-            Color Area ({colorChannels[0]} × {colorChannels[1]})
-          </Text>
-          <ColorArea
-            size={200}
-            colorSpace={colorSpaceState}
-            model={colorModel}
-            colorChannels={colorChannels}
-            color={color}
-            gamut={colorGamut}
-            onChange={handleColorChange}
-            data-testid={`${testId}-color-area`}
-          />
-        </Box>
+        {/* Color Area and Slider Row */}
+        <HStack spacing={4} align="start">
+          {/* Color Area */}
+          <Box>
+            <Text fontSize="sm" fontWeight="medium" mb={2}>
+              Color Area ({colorChannels[0]} × {colorChannels[1]})
+            </Text>
+            <ColorArea
+              size={200}
+              colorSpace={colorSpaceState}
+              model={colorModel}
+              colorChannels={colorChannels}
+              color={color}
+              gamut={colorGamut}
+              onChange={handleColorChange}
+              data-testid={`${testId}-color-area`}
+            />
+          </Box>
 
-        {/* Color Slider */}
-        <Box>
-          <Text fontSize="sm" fontWeight="medium" mb={2}>
-            {sliderChannel.toUpperCase()} Channel
-          </Text>
-          <ColorSlider
-            size={200}
-            orientation="horizontal"
-            colorSpace={colorSpaceState}
-            model={colorModel}
-            channel={sliderChannel}
-            color={color}
-            gamut={colorGamut}
-            onChange={handleColorChange}
-            data-testid={`${testId}-color-slider`}
-          />
-        </Box>
+          {/* Color Slider */}
+          <Box>
+            <Text fontSize="sm" fontWeight="medium" mb={2}>
+              {sliderChannel.toUpperCase()} Channel
+            </Text>
+            <ColorSlider
+              size={200}
+              orientation="vertical"
+              colorSpace={colorSpaceState}
+              model={colorModel}
+              channel={sliderChannel}
+              color={color}
+              gamut={colorGamut}
+              onChange={handleColorChange}
+              data-testid={`${testId}-color-slider`}
+            />
+          </Box>
+        </HStack>
 
         {/* Color Display */}
         <Box p={3} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'} borderRadius="md">

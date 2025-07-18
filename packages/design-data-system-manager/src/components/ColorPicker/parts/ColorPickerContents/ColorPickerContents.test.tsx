@@ -22,8 +22,8 @@ vi.mock('../ColorSlider/ColorSlider', () => ({
 
 // Mock lucide-react icons
 vi.mock('lucide-react', () => ({
-  Square: ({ size }: any) => <div data-testid="square-icon" style={{ width: size, height: size }}>Square</div>,
-  Circle: ({ size }: any) => <div data-testid="circle-icon" style={{ width: size, height: size }}>Circle</div>
+  BoxIcon: ({ size }: any) => <div data-testid="box-icon" style={{ width: size, height: size }}>Box</div>,
+  Cylinder: ({ size }: any) => <div data-testid="cylinder-icon" style={{ width: size, height: size }}>Cylinder</div>
 }));
 
 describe('ColorPickerContents', () => {
@@ -133,8 +133,8 @@ describe('ColorPickerContents', () => {
 
     it('should display correct icons', () => {
       // Test that icons are defined
-      expect('square-icon').toBe('square-icon');
-      expect('circle-icon').toBe('circle-icon');
+      expect('box-icon').toBe('box-icon');
+      expect('cylinder-icon').toBe('cylinder-icon');
     });
   });
 
