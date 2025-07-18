@@ -30,6 +30,15 @@ const meta = {
     onChange: {
       action: 'color changed',
       description: 'Callback when color changes'
+    },
+    gamut: {
+      control: 'select',
+      options: ['sRGB', 'Display-P3', 'Rec2020'],
+      description: 'Initial gamut constraint (defaults to Display-P3)'
+    },
+    showGamutPicker: {
+      control: 'boolean',
+      description: 'Whether to show the gamut picker dropdown (defaults to true)'
     }
   }
 } satisfies Meta<typeof ColorPickerContents>;
@@ -190,6 +199,65 @@ export const Debug: Story = {
           <p>Current Color: {color}</p>
           <p>Last Change: {lastChange || 'None'}</p>
           <p>Color Object: {color ? new Color(color).toString() : 'N/A'}</p>
+        </div>
+      </div>
+    );
+  },
+  args: {
+    color: '#FF6B35'
+  }
+};
+
+// Story with custom gamut
+export const CustomGamut: Story = {
+  render: (args) => {
+    return <ColorPickerContents {...args} />;
+  },
+  args: {
+    color: '#FF6B35',
+    gamut: 'sRGB'
+  }
+};
+
+// Story with hidden gamut picker
+export const HiddenGamutPicker: Story = {
+  render: (args) => {
+    return <ColorPickerContents {...args} />;
+  },
+  args: {
+    color: '#FF6B35',
+    showGamutPicker: false
+  }
+};
+
+// Story with both custom gamut and hidden picker
+export const CustomGamutHiddenPicker: Story = {
+  render: (args) => {
+    return <ColorPickerContents {...args} />;
+  },
+  args: {
+    color: '#FF6B35',
+    gamut: 'Rec2020',
+    showGamutPicker: false
+  }
+};
+
+// Different gamuts comparison
+export const GamutComparison: Story = {
+  render: (args) => {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div>
+          <h3>sRGB Gamut</h3>
+          <ColorPickerContents {...args} gamut="sRGB" />
+        </div>
+        <div>
+          <h3>Display P3 Gamut</h3>
+          <ColorPickerContents {...args} gamut="Display-P3" />
+        </div>
+        <div>
+          <h3>Rec2020 Gamut</h3>
+          <ColorPickerContents {...args} gamut="Rec2020" />
         </div>
       </div>
     );

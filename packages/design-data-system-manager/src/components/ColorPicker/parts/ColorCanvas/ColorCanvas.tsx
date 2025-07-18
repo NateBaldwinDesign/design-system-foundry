@@ -153,7 +153,13 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
           let pixelColor: Color;
           if (outOfGamut) {
             // Use midtone gray for out-of-gamut colors
-            pixelColor = new Color('srgb', [0.5, 0.5, 0.5]);
+            if (colorMode === 'dark') {
+              // Dark mode fallback: darker gray
+              pixelColor = new Color('srgb', [0.10196078431372549, 0.12549019607843137, 0.17254901960784313]);
+            } else {
+              // Light mode fallback: lighter gray
+              pixelColor = new Color('srgb', [0.8862745098039215, 0.9098039215686274, 0.9411764705882353]);
+            }
           } else {
             // Create new color with updated coordinates
             pixelColor = new Color(config.id, coords);

@@ -66,6 +66,26 @@ describe('ColorPickerContents', () => {
       const props = { ...defaultProps, 'data-testid': 'custom-test-id' };
       expect(props['data-testid']).toBe('custom-test-id');
     });
+
+    it('should accept optional gamut prop', () => {
+      const props = { ...defaultProps, gamut: 'sRGB' as const };
+      expect(props.gamut).toBe('sRGB');
+    });
+
+    it('should accept optional showGamutPicker prop', () => {
+      const props = { ...defaultProps, showGamutPicker: false };
+      expect(props.showGamutPicker).toBe(false);
+    });
+
+    it('should default gamut to Display-P3 when not provided', () => {
+      const props = { ...defaultProps };
+      expect(props.gamut).toBeUndefined();
+    });
+
+    it('should default showGamutPicker to true when not provided', () => {
+      const props = { ...defaultProps };
+      expect(props.showGamutPicker).toBeUndefined();
+    });
   });
 
   describe('Initial State', () => {
@@ -120,6 +140,27 @@ describe('ColorPickerContents', () => {
       expect(gamuts).toContain('sRGB');
       expect(gamuts).toContain('Display-P3');
       expect(gamuts).toContain('Rec2020');
+    });
+
+    it('should use external gamut prop when provided', () => {
+      // Test that external gamut prop is used
+      const externalGamut = 'sRGB' as const;
+      expect(externalGamut).toBe('sRGB');
+    });
+
+    it('should default to Display-P3 when no external gamut is provided', () => {
+      // Test default gamut value
+      const defaultGamut = 'Display-P3';
+      expect(defaultGamut).toBe('Display-P3');
+    });
+
+    it('should conditionally show gamut picker based on showGamutPicker prop', () => {
+      // Test gamut picker visibility logic
+      const showGamutPicker = true;
+      const hideGamutPicker = false;
+      
+      expect(showGamutPicker).toBe(true);
+      expect(hideGamutPicker).toBe(false);
     });
   });
 

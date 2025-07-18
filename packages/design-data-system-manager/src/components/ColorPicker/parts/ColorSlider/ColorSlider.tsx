@@ -229,13 +229,21 @@ export const ColorSlider = memo<ColorSliderProps>(({
       // Calculate normalized position (0-1)
       const normalizedPosition = (channelValue - channelRange.min) / (channelRange.max - channelRange.min);
       
-      // Convert to pixel position
-      return Math.max(0, Math.min(size, normalizedPosition * size));
+      // Convert to pixel position with proper orientation handling
+      let pixelPosition: number;
+      if (orientation === 'horizontal') {
+        pixelPosition = normalizedPosition * size;
+      } else {
+        // For vertical sliders, invert the position to match gradient rendering
+        pixelPosition = (1 - normalizedPosition) * size;
+      }
+      
+      return Math.max(0, Math.min(size, pixelPosition));
     } catch (error) {
       console.warn('Error calculating handle position:', error);
       return size / 2; // Fallback to center
     }
-  }, [color, config.id, config.channels, channel, size, isDragging, dragPosition]);
+  }, [color, config.id, config.channels, channel, size, orientation, isDragging, dragPosition]);
 
   // Calculate the color to display in the handle (current color or drag color)
   const handleColor = useMemo(() => {
@@ -255,8 +263,14 @@ export const ColorSlider = memo<ColorSliderProps>(({
       const targetColor = baseColorForRendering.to(config.id);
       const coords = [...targetColor.coords] as [number, number, number];
       
-      // Calculate normalized value (0-1) for the channel axis
-      const normalizedPosition = position / size;
+      // Calculate normalized value (0-1) for the channel axis with proper orientation handling
+      let normalizedPosition: number;
+      if (orientation === 'horizontal') {
+        normalizedPosition = position / size;
+      } else {
+        // For vertical sliders, invert the position to match gradient rendering
+        normalizedPosition = 1 - (position / size);
+      }
       
       // Map channel to coordinate index
       const channelIndex = config.channels.indexOf(channel);
@@ -273,7 +287,7 @@ export const ColorSlider = memo<ColorSliderProps>(({
       console.warn('Error converting canvas position to color:', error);
       return color; // Fallback to current color
     }
-  }, [size, config.id, config.channels, channel, baseColorForRendering, color]);
+  }, [size, orientation, config.id, config.channels, channel, baseColorForRendering, color]);
 
   // Handle canvas interaction for immediate positioning
   const handleCanvasInteraction = useCallback((event: React.PointerEvent) => {

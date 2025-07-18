@@ -19,6 +19,10 @@ export interface ColorPickerContentsProps {
   color: string;
   /** Callback when color changes */
   onChange?: (color: Color) => void;
+  /** Initial gamut constraint (defaults to 'Display-P3') */
+  gamut?: 'sRGB' | 'Display-P3' | 'Rec2020';
+  /** Whether to show the gamut picker dropdown (defaults to true) */
+  showGamutPicker?: boolean;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
@@ -38,6 +42,8 @@ export interface ColorPickerContentsProps {
 export const ColorPickerContents = React.memo<ColorPickerContentsProps>(({
   color: initialColor,
   onChange,
+  gamut: initialGamut = 'Display-P3',
+  showGamutPicker = true,
   className,
   'data-testid': testId = 'color-picker-contents',
   ...boxProps
@@ -56,7 +62,7 @@ export const ColorPickerContents = React.memo<ColorPickerContentsProps>(({
 
   // State for color space, gamut, and model
   const [colorSpaceState, setColorSpaceState] = useState<'sRGB' | 'Display P3' | 'OKlch'>('sRGB');
-  const [colorGamut, setColorGamut] = useState<'sRGB' | 'Display-P3' | 'Rec2020'>('Display-P3');
+  const [colorGamut, setColorGamut] = useState<'sRGB' | 'Display-P3' | 'Rec2020'>(initialGamut);
   const [colorModel, setColorModel] = useState<'cartesian' | 'polar'>('cartesian');
 
   // Handle color changes from sub-components
@@ -138,20 +144,22 @@ export const ColorPickerContents = React.memo<ColorPickerContentsProps>(({
             </Select>
           </VStack>
 
-          {/* Gamut Dropdown */}
-          <VStack spacing={1} align="start" flex={1}>
-            <Text fontSize="xs" fontWeight="medium">Gamut</Text>
-            <Select
-              size="xs"
-              value={colorGamut}
-              onChange={handleGamutChange}
-              data-testid={`${testId}-gamut-select`}
-            >
-              <option value="sRGB">sRGB</option>
-              <option value="Display-P3">Display P3</option>
-              <option value="Rec2020">Rec2020</option>
-            </Select>
-          </VStack>
+          {/* Gamut Dropdown - Only show if showGamutPicker is true */}
+          {showGamutPicker && (
+            <VStack spacing={1} align="start" flex={1}>
+              <Text fontSize="xs" fontWeight="medium">Gamut</Text>
+              <Select
+                size="xs"
+                value={colorGamut}
+                onChange={handleGamutChange}
+                data-testid={`${testId}-gamut-select`}
+              >
+                <option value="sRGB">sRGB</option>
+                <option value="Display-P3">Display P3</option>
+                <option value="Rec2020">Rec2020</option>
+              </Select>
+            </VStack>
+          )}
 
           {/* Model Toggle */}
           <VStack spacing={1} align="start">
