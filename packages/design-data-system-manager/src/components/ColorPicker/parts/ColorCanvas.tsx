@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useCallback, memo } from 'react';
-import { Box } from '@chakra-ui/react';
+import { Box, useColorMode } from '@chakra-ui/react';
 import Color from 'colorjs.io';
 
 // Extended canvas context type to include colorSpace property
@@ -50,6 +50,7 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
   'data-testid': testId,
   ...boxProps
 }: ColorCanvasProps) => {
+  const { colorMode } = useColorMode();
 
   // Determine default channels based on color space and model
   const getDefaultChannels = (): [string, string] => {
@@ -300,11 +301,20 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
           data[pixelIndex + 3] = a; // A
           
         } catch (error) {
-          // If color conversion fails, use a fallback color
-          data[pixelIndex] = 128;     // R
-          data[pixelIndex + 1] = 128; // G
-          data[pixelIndex + 2] = 128; // B
-          data[pixelIndex + 3] = 255; // A
+          // If color conversion fails, use a fallback color based on color mode
+          if (colorMode === 'dark') {
+            // Dark mode fallback: darker gray
+            data[pixelIndex] = 26;      // R
+            data[pixelIndex + 1] = 32;  // G
+            data[pixelIndex + 2] = 44;  // B
+            data[pixelIndex + 3] = 255; // A
+          } else {
+            // Light mode fallback: lighter gray
+            data[pixelIndex] = 226;     // R
+            data[pixelIndex + 1] = 232; // G
+            data[pixelIndex + 2] = 240; // B
+            data[pixelIndex + 3] = 255; // A
+          }
         }
       }
     }

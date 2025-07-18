@@ -286,7 +286,7 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
           data[pixelIndex] = 128;     // R
           data[pixelIndex + 1] = 128; // G
           data[pixelIndex + 2] = 128; // B
-          data[pixelIndex + 3] = 255; // A
+          data[pixelIndex + 3] = 0; // A
         }
       }
     }
