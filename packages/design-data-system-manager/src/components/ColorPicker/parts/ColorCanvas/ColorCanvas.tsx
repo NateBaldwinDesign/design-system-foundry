@@ -1,11 +1,14 @@
-import React, { useRef, useEffect, useCallback, memo } from 'react';
-import { Box } from '@chakra-ui/react';
+import React, { useRef, useEffect, useCallback, memo, useMemo } from 'react';
+import { Box, useColorMode } from '@chakra-ui/react';
 import Color from 'colorjs.io';
-
-// Extended canvas context type to include colorSpace property
-interface ExtendedCanvasRenderingContext2D extends CanvasRenderingContext2D {
-  colorSpace?: string;
-}
+import {
+  ExtendedCanvasRenderingContext2D,
+  getColorSpaceConfig,
+  getChannelRange,
+  getGamutSpace,
+  isOutOfGamut,
+  getCanvasPixelColor
+} from '../../utils/colorUtils';
 
 export interface ColorCanvasProps {
   /** Size of the canvas in pixels (both width and height) */
@@ -16,12 +19,18 @@ export interface ColorCanvasProps {
   model?: 'polar' | 'cartesian';
   /** Color channels to render on the canvas (e.g., ['r', 'g'] for red and green) */
   colorChannels?: [string, string];
-  /** Base color object from Colorjs.io */
+  /** Base color object from Colorjs.io - only the third channel value is used for the fixed slice */
   color: Color;
   /** Gamut constraint for rendering ('sRGB', 'Display-P3', 'Rec2020') */
   gamut?: 'sRGB' | 'Display-P3' | 'Rec2020';
-  /** Callback when user interacts with the canvas */
-  onChange?: (color: Color) => void;
+  /** Callback for pointer down events */
+  onPointerDown?: (event: React.PointerEvent) => void;
+  /** Callback for pointer move events */
+  onPointerMove?: (event: React.PointerEvent) => void;
+  /** Callback for pointer up events */
+  onPointerUp?: (event: React.PointerEvent) => void;
+  /** Callback for pointer leave events */
+  onPointerLeave?: (event: React.PointerEvent) => void;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
@@ -33,10 +42,12 @@ export interface ColorCanvasProps {
 /**
  * ColorCanvas - A square canvas component that renders a color gradient
  * 
- * This is the first atomic component in the color picker system. It renders
- * a 2D gradient based on the provided color and color space, optimized for
- * performance using canvas rendering. The gamut property constrains colors
- * to a specific color space, showing midtone gray for out-of-gamut colors.
+ * This component renders a fixed 2D slice of the color space defined by:
+ * - colorSpace, model, gamut (the slice parameters)
+ * - The third channel value from the color prop (the slice position)
+ * 
+ * The canvas only re-renders when the slice itself changes, not when the user
+ * moves within the x,y plane. This provides optimal performance for color picking.
  */
 export const ColorCanvas = memo<ColorCanvasProps>(({
   size,
@@ -45,109 +56,43 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
   colorChannels,
   color,
   gamut = 'Display-P3',
-  onChange,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerLeave,
   className,
   'data-testid': testId,
   ...boxProps
 }: ColorCanvasProps) => {
+  const { colorMode } = useColorMode();
 
-  // Determine default channels based on color space and model
-  const getDefaultChannels = (): [string, string] => {
-    switch (colorSpace) {
-      case 'sRGB':
-        return model === 'polar' ? ['s', 'l'] : ['r', 'g'];
-      case 'Display P3':
-        return ['r', 'g']; // Only cartesian model
-      case 'OKlch':
-        return model === 'polar' ? ['c', 'h'] : ['a', 'b'];
-      default:
-        return ['r', 'g'];
-    }
-  };
-
-  const defaultChannels = getDefaultChannels();
-  const channels = colorChannels || defaultChannels;
+  // Get color space configuration (memoized for performance)
+  const config = getColorSpaceConfig(colorSpace, model);
+  const channels = colorChannels || config.defaultChannels;
+  
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const isMouseDownRef = useRef(false);
   const lastRenderTimeRef = useRef(0);
 
-  // Memoize the color to avoid unnecessary re-renders
-  const memoizedColor = useCallback(() => color, [color.toString()]);
-
-  // Convert gamut property to Colorjs.io gamut space identifier
-  const getGamutSpace = useCallback((gamutProp: string): string => {
-    switch (gamutProp) {
-      case 'sRGB':
-        return 'srgb';
-      case 'Display-P3':
-        return 'display-p3';
-      case 'Rec2020':
-        return 'rec2020';
-      default:
-        return 'display-p3';
-    }
-  }, []);
-
-  // Check if coordinates would be out-of-gamut without automatic mapping
-  const isOutOfGamut = useCallback((coords: [number, number, number], targetSpace: string): boolean => {
+  // Create a stable base color with the third channel value for rendering
+  // This should only change when the slice parameters change, not when user moves within x,y plane
+  const baseColorForRendering = useMemo(() => {
     try {
-      // Create color with exact coordinates (no automatic mapping)
-      const testColor = new Color(targetSpace, coords);
+      // Extract the third channel value from the current color in the current color space
+      const colorInSpace = color.to(config.id);
+      const thirdChannelIndex = config.channels.indexOf(config.thirdChannel);
+      const thirdChannelValue = colorInSpace.coords[thirdChannelIndex] || 0;
       
-      // Convert to RGB to check if any component is outside 0-1 range
-      const rgbColor = testColor.to('srgb');
-      const [r, g, b] = rgbColor.coords;
-      
-      // Check if any component is outside the valid range
-      return r < 0 || r > 1 || g < 0 || g > 1 || b < 0 || b > 1;
+      // Create base color with the third channel value
+      const coords = [...config.channels.map(() => 0)] as [number, number, number];
+      coords[thirdChannelIndex] = thirdChannelValue;
+      return new Color(config.id, coords);
     } catch (error) {
-      // If conversion fails, assume it's out of gamut
-      return true;
+      console.warn('Error creating base color for rendering:', error);
+      return new Color('srgb', [0, 0, 0]);
     }
-  }, []);
+  }, [color, config.id, config.channels, config.thirdChannel]);
 
-  // Utility function to get canvas pixel color using Colorjs.io
-  const getCanvasPixelColor = useCallback((pixelColor: Color, canvasColorSpace: string): [number, number, number, number] => {
-    try {
-      let outputColor: Color;
-      
-      // Convert to the appropriate color space for the canvas
-      switch (canvasColorSpace) {
-        case 'display-p3':
-          outputColor = pixelColor.to('p3');
-          break;
-        case 'srgb':
-        default:
-          outputColor = pixelColor.to('srgb');
-          break;
-      }
-      
-      // Get coordinates and clamp to valid range [0, 1]
-      const [r, g, b] = outputColor.coords.map(v => Math.max(0, Math.min(1, v)));
-      const alpha = Math.max(0, Math.min(1, outputColor.alpha ?? 1));
-      
-      return [
-        Math.round(r * 255),     // R
-        Math.round(g * 255),     // G
-        Math.round(b * 255),     // B
-        Math.round(alpha * 255)  // A
-      ];
-    } catch (error) {
-      // Fallback to sRGB if conversion fails
-      const srgb = pixelColor.to('srgb');
-      const [r, g, b] = srgb.coords.map(v => Math.max(0, Math.min(1, v)));
-      const alpha = Math.max(0, Math.min(1, srgb.alpha ?? 1));
-      
-      return [
-        Math.round(r * 255),
-        Math.round(g * 255),
-        Math.round(b * 255),
-        Math.round(alpha * 255)
-      ];
-    }
-  }, []);
-
-  // Render the gradient to canvas
+  // Render the gradient to canvas - only re-renders when the slice changes
   const renderGradient = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -177,53 +122,15 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
     const imageData = ctx.createImageData(size, size);
     const data = imageData.data;
 
-    // Get base color coordinates
-    const baseColor = memoizedColor();
-    
-    // Get gamut space for constraint checking
-    const gamutSpace = getGamutSpace(gamut);
-    
-    // Determine the color space and model for rendering
-    const getColorSpaceId = () => {
-      switch (colorSpace) {
-        case 'sRGB':
-          return model === 'polar' ? 'hsl' : 'srgb';
-        case 'Display P3':
-          return 'p3';
-        case 'OKlch':
-          return model === 'polar' ? 'oklch' : 'oklab';
-        default:
-          return 'srgb';
-      }
-    };
+    // Get canvas color space for pixel conversion
+    const canvasColorSpace = (ctx as ExtendedCanvasRenderingContext2D).colorSpace || 'srgb';
 
-    const colorSpaceId = getColorSpaceId();
-    
-    // Get available channels for the color space
-    const getAvailableChannels = () => {
-      switch (colorSpace) {
-        case 'sRGB':
-          return model === 'polar' ? ['h', 's', 'l'] : ['r', 'g', 'b'];
-        case 'Display P3':
-          return ['r', 'g', 'b'];
-        case 'OKlch':
-          return model === 'polar' ? ['l', 'c', 'h'] : ['l', 'a', 'b'];
-        default:
-          return ['r', 'g', 'b'];
-      }
-    };
-
-    const availableChannels = getAvailableChannels();
-    const [channelX, channelY] = channels;
-    
     // Validate channels
-    if (!availableChannels.includes(channelX) || !availableChannels.includes(channelY)) {
+    const [channelX, channelY] = channels;
+    if (!config.channels.includes(channelX) || !config.channels.includes(channelY)) {
       console.warn(`ColorCanvas: Invalid channels [${channelX}, ${channelY}] for color space ${colorSpace} and model ${model}`);
       return;
     }
-
-    // Get canvas color space for pixel conversion
-    const canvasColorSpace = (ctx as ExtendedCanvasRenderingContext2D).colorSpace || 'srgb';
 
     // Render gradient based on selected channels
     for (let y = 0; y < size; y++) {
@@ -232,7 +139,7 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
         
         try {
           // Convert base color to target color space
-          const targetColor = baseColor.to(colorSpaceId);
+          const targetColor = baseColorForRendering.to(config.id);
           const coords = [...targetColor.coords] as [number, number, number]; // Ensure 3 coordinates
           
           // Calculate normalized values (0-1) for each axis
@@ -240,28 +147,20 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
           const valueY = (size - y) / size; // Invert Y axis
           
           // Map channels to coordinate indices
-          const channelIndexX = availableChannels.indexOf(channelX);
-          const channelIndexY = availableChannels.indexOf(channelY);
+          const channelIndexX = config.channels.indexOf(channelX);
+          const channelIndexY = config.channels.indexOf(channelY);
           
-          // Update coordinates based on selected channels
-          // Handle different coordinate ranges for different color spaces
-          if (colorSpaceId === 'hsl') {
-            // HSL coordinates: H (0-360), S (0-100), L (0-100)
-            if (channelX === 'h') coords[channelIndexX] = valueX * 360;
-            else if (channelX === 's' || channelX === 'l') coords[channelIndexX] = valueX * 100;
-            else coords[channelIndexX] = valueX;
-            
-            if (channelY === 'h') coords[channelIndexY] = valueY * 360;
-            else if (channelY === 's' || channelY === 'l') coords[channelIndexY] = valueY * 100;
-            else coords[channelIndexY] = valueY;
-          } else {
-            // Other color spaces use 0-1 range
-            coords[channelIndexX] = valueX;
-            coords[channelIndexY] = valueY;
-          }
+          // Get channel ranges for proper scaling
+          const rangeX = getChannelRange(channelX, config.id);
+          const rangeY = getChannelRange(channelY, config.id);
           
-          // Check if this color would be out-of-gamut before creating the color object
-          const outOfGamut = isOutOfGamut(coords, colorSpaceId);
+          // Update coordinates based on selected channels with proper scaling
+          coords[channelIndexX] = rangeX.min + (valueX * (rangeX.max - rangeX.min));
+          coords[channelIndexY] = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+          
+          // Check if this color would be out-of-gamut for the specified gamut
+          const gamutSpace = getGamutSpace(gamut);
+          const outOfGamut = isOutOfGamut(coords, config.id, gamutSpace);
           
           let pixelColor: Color;
           if (outOfGamut) {
@@ -269,7 +168,7 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
             pixelColor = new Color('srgb', [0.5, 0.5, 0.5]);
           } else {
             // Create new color with updated coordinates
-            pixelColor = new Color(colorSpaceId, coords);
+            pixelColor = new Color(config.id, coords);
           }
 
           // Get pixel color using Colorjs.io conversion
@@ -282,11 +181,20 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
           data[pixelIndex + 3] = a; // A
           
         } catch (error) {
-          // If color conversion fails, use a fallback color
-          data[pixelIndex] = 128;     // R
-          data[pixelIndex + 1] = 128; // G
-          data[pixelIndex + 2] = 128; // B
-          data[pixelIndex + 3] = 0; // A
+          // If color conversion fails, use a fallback color based on color mode
+          if (colorMode === 'dark') {
+            // Dark mode fallback: darker gray
+            data[pixelIndex] = 26;      // R
+            data[pixelIndex + 1] = 32;  // G
+            data[pixelIndex + 2] = 44;  // B
+            data[pixelIndex + 3] = 255; // A
+          } else {
+            // Light mode fallback: lighter gray
+            data[pixelIndex] = 226;     // R
+            data[pixelIndex + 1] = 232; // G
+            data[pixelIndex + 2] = 240; // B
+            data[pixelIndex + 3] = 255; // A
+          }
         }
       }
     }
@@ -301,136 +209,56 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
     if (lastRenderTimeRef.current > 16) {
       console.warn(`ColorCanvas: Rendering took ${lastRenderTimeRef.current.toFixed(2)}ms (target: <16ms for 60fps)`);
     }
-  }, [size, colorSpace, model, channels, gamut, memoizedColor, getGamutSpace, isOutOfGamut, getCanvasPixelColor]);
+  }, [size, colorSpace, model, channels, gamut, config, colorMode, baseColorForRendering]);
 
-  // Handle mouse/touch events
+  // Handle mouse/touch events with gamut-aware interaction
   const handlePointerDown = useCallback((event: React.PointerEvent) => {
-    isMouseDownRef.current = true;
-    handlePointerMove(event);
-  }, []);
+    onPointerDown?.(event);
+  }, [onPointerDown]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent) => {
-    if (!isMouseDownRef.current || !onChange) return;
-    
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    onPointerMove?.(event);
+  }, [onPointerMove]);
 
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    
-    // Clamp coordinates to canvas bounds
-    const clampedX = Math.max(0, Math.min(size, x));
-    const clampedY = Math.max(0, Math.min(size, y));
-    
-    // Convert coordinates to color values (0-1)
-    const normalizedX = clampedX / size;
-    const normalizedY = (size - clampedY) / size; // Invert Y axis
-    
-    // Create new color based on position
-    try {
-      const baseColor = memoizedColor();
-      
-      // Determine the color space and model for interaction
-      const getColorSpaceId = () => {
-        switch (colorSpace) {
-          case 'sRGB':
-            return model === 'polar' ? 'hsl' : 'srgb';
-          case 'Display P3':
-            return 'p3';
-          case 'OKlch':
-            return model === 'polar' ? 'oklch' : 'oklab';
-          default:
-            return 'srgb';
-        }
-      };
+  const handlePointerUp = useCallback((event: React.PointerEvent) => {
+    onPointerUp?.(event);
+  }, [onPointerUp]);
 
-      const colorSpaceId = getColorSpaceId();
-      
-      // Get available channels for the color space
-      const getAvailableChannels = () => {
-        switch (colorSpace) {
-          case 'sRGB':
-            return model === 'polar' ? ['h', 's', 'l'] : ['r', 'g', 'b'];
-          case 'Display P3':
-            return ['r', 'g', 'b'];
-          case 'OKlch':
-            return model === 'polar' ? ['l', 'c', 'h'] : ['l', 'a', 'b'];
-          default:
-            return ['r', 'g', 'b'];
-        }
-      };
+  const handlePointerLeave = useCallback((event: React.PointerEvent) => {
+    onPointerLeave?.(event);
+  }, [onPointerLeave]);
 
-      const availableChannels = getAvailableChannels();
-      const [channelX, channelY] = channels;
-      
-      // Validate channels
-      if (!availableChannels.includes(channelX) || !availableChannels.includes(channelY)) {
-        console.warn(`ColorCanvas: Invalid channels [${channelX}, ${channelY}] for color space ${colorSpace} and model ${model}`);
-        return;
-      }
-      
-      // Convert base color to target color space
-      const targetColor = baseColor.to(colorSpaceId);
-      const coords = [...targetColor.coords] as [number, number, number]; // Ensure 3 coordinates
-      
-      // Map channels to coordinate indices
-      const channelIndexX = availableChannels.indexOf(channelX);
-      const channelIndexY = availableChannels.indexOf(channelY);
-      
-      // Update coordinates based on selected channels
-      // Handle different coordinate ranges for different color spaces
-      if (colorSpaceId === 'hsl') {
-        // HSL coordinates: H (0-360), S (0-100), L (0-100)
-        if (channelX === 'h') coords[channelIndexX] = normalizedX * 360;
-        else if (channelX === 's' || channelX === 'l') coords[channelIndexX] = normalizedX * 100;
-        else coords[channelIndexX] = normalizedX;
-        
-        if (channelY === 'h') coords[channelIndexY] = normalizedY * 360;
-        else if (channelY === 's' || channelY === 'l') coords[channelIndexY] = normalizedY * 100;
-        else coords[channelIndexY] = normalizedY;
-      } else {
-        // Other color spaces use 0-1 range
-        coords[channelIndexX] = normalizedX;
-        coords[channelIndexY] = normalizedY;
-      }
-      
-      // Create new color with updated coordinates
-      const newColor = new Color(colorSpaceId, coords);
-      
-      onChange(newColor);
-    } catch (error) {
-      console.error('Error creating color from canvas position:', error);
-    }
-  }, [size, colorSpace, model, channels, onChange, memoizedColor]);
-
-  const handlePointerUp = useCallback(() => {
-    isMouseDownRef.current = false;
-  }, []);
-
-  // Render gradient when dependencies change
+  // Render gradient when dependencies change (only when slice changes)
   useEffect(() => {
     renderGradient();
   }, [renderGradient]);
 
   return (
     <Box
-      as="canvas"
-      ref={canvasRef}
-      width={size}
-      height={size}
+      as="div"
+      position="relative"
+      display="inline-block"
       className={className}
       data-testid={testId}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerLeave={handlePointerUp}
-      style={{
-        cursor: onChange ? 'crosshair' : 'default',
-        touchAction: 'none', // Prevent scrolling on touch devices
-      }}
       {...boxProps}
-    />
+    >
+      <canvas
+        ref={canvasRef}
+        width={size}
+        height={size}
+        style={{
+          display: 'block',
+          cursor: 'crosshair',
+          borderRadius: '4px',
+          border: '1px solid rgba(0, 0, 0, 0.1)'
+        }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerLeave}
+        data-testid={`${testId}-canvas`}
+      />
+    </Box>
   );
 });
 

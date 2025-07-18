@@ -10,6 +10,14 @@ export interface ColorHandleProps {
   isLoupeVisible?: boolean;
   /** Whether to automatically show loupe on focus/active states (defaults to true) */
   autoShowLoupe?: boolean;
+  /** Callback for pointer down events */
+  onPointerDown?: (event: React.PointerEvent) => void;
+  /** Callback for pointer move events */
+  onPointerMove?: (event: React.PointerEvent) => void;
+  /** Callback for pointer up events */
+  onPointerUp?: (event: React.PointerEvent) => void;
+  /** Callback for pointer leave events */
+  onPointerLeave?: (event: React.PointerEvent) => void;
   /** Additional CSS classes */
   className?: string;
   /** Test ID for testing */
@@ -34,6 +42,10 @@ export const ColorHandle = memo<ColorHandleProps>(({
   color,
   isLoupeVisible = false,
   autoShowLoupe = true,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerLeave,
   className,
   'data-testid': testId,
   ...boxProps
@@ -97,6 +109,10 @@ export const ColorHandle = memo<ColorHandleProps>(({
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseLeave}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerLeave}
         _focus={{
           outline: '2px solid #007AFF',
           outlineOffset: '2px'
