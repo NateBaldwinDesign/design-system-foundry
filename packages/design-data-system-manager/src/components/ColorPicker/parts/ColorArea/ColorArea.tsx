@@ -3,7 +3,12 @@ import { Box } from '@chakra-ui/react';
 import Color from 'colorjs.io';
 import { ColorCanvas } from '../ColorCanvas';
 import { ColorHandle } from '../ColorHandle/ColorHandle';
-import { getColorSpaceConfig, colorToCanvasCoords, canvasToColorCoords } from '../../utils/colorUtils';
+import { 
+  getColorSpaceConfig, 
+  colorToCanvasCoords, 
+  canvasToColorCoords,
+  constrainToGamutBoundary 
+} from '../../utils/colorUtils';
 
 export interface ColorAreaProps {
   /** The size of the color area canvas (defaults to 200) */
@@ -68,20 +73,48 @@ export const ColorArea = memo<ColorAreaProps>(({
 
   // Calculate handle position based on color coordinates in current color space
   // Uses the same coordinate mapping logic as ColorCanvas for consistency
+  // Now constrained to gamut boundaries to prevent handle from appearing in gray areas
   const handlePosition = useMemo(() => {
     // If dragging, use the immediate drag position for instant feedback
     if (isDragging && dragPosition) {
-      return dragPosition;
+      // Constrain drag position to gamut boundary
+      try {
+        return constrainToGamutBoundary(
+          dragPosition.x,
+          dragPosition.y,
+          size,
+          color, // Use current color as base for third channel
+          colorSpace,
+          model,
+          channels,
+          gamut
+        );
+      } catch (error) {
+        console.warn('Error constraining drag position to gamut:', error);
+        return dragPosition; // Fallback to original position
+      }
     }
     
     // Otherwise, calculate position from the current color
     try {
-      return colorToCanvasCoords(color, size, colorSpace, model, channels);
+      const basePosition = colorToCanvasCoords(color, size, colorSpace, model, channels);
+      
+      // Constrain the calculated position to gamut boundary
+      return constrainToGamutBoundary(
+        basePosition.x,
+        basePosition.y,
+        size,
+        color, // Use current color as base for third channel
+        colorSpace,
+        model,
+        channels,
+        gamut
+      );
     } catch (error) {
       console.warn('Error calculating handle position:', error);
       return { x: size / 2, y: size / 2 }; // Fallback to center
     }
-  }, [color, colorSpace, model, channels, size, isDragging, dragPosition]);
+  }, [color, colorSpace, model, channels, size, isDragging, dragPosition, gamut]);
 
   // Calculate the color to display in the handle (current color or drag color)
   const handleColor = useMemo(() => {
@@ -111,13 +144,33 @@ export const ColorArea = memo<ColorAreaProps>(({
     const clampedX = Math.max(0, Math.min(size, x));
     const clampedY = Math.max(0, Math.min(size, y));
     
-    // Set immediate drag position for instant visual feedback
-    setDragPosition({ x: clampedX, y: clampedY });
-    setIsDragging(true);
-    
-    // Store drag start position
-    dragStartRef.current = { x: clampedX, y: clampedY };
-  }, [size]);
+    // Constrain to gamut boundary to prevent handle from appearing in gray areas
+    try {
+      const constrainedPosition = constrainToGamutBoundary(
+        clampedX,
+        clampedY,
+        size,
+        color, // Use current color as base for third channel
+        colorSpace,
+        model,
+        channels,
+        gamut
+      );
+      
+      // Set immediate drag position for instant visual feedback
+      setDragPosition(constrainedPosition);
+      setIsDragging(true);
+      
+      // Store drag start position
+      dragStartRef.current = constrainedPosition;
+    } catch (error) {
+      console.warn('Error constraining canvas interaction to gamut:', error);
+      // Fallback to original clamped position
+      setDragPosition({ x: clampedX, y: clampedY });
+      setIsDragging(true);
+      dragStartRef.current = { x: clampedX, y: clampedY };
+    }
+  }, [size, color, colorSpace, model, channels, gamut]);
 
   // Handle canvas drag movement for immediate positioning
   const handleCanvasDragMove = useCallback((event: React.PointerEvent) => {
@@ -131,9 +184,27 @@ export const ColorArea = memo<ColorAreaProps>(({
     const clampedX = Math.max(0, Math.min(size, x));
     const clampedY = Math.max(0, Math.min(size, y));
     
-    // Update immediate drag position for instant visual feedback
-    setDragPosition({ x: clampedX, y: clampedY });
-  }, [isDragging, size]);
+    // Constrain to gamut boundary to prevent handle from appearing in gray areas
+    try {
+      const constrainedPosition = constrainToGamutBoundary(
+        clampedX,
+        clampedY,
+        size,
+        color, // Use current color as base for third channel
+        colorSpace,
+        model,
+        channels,
+        gamut
+      );
+      
+      // Update immediate drag position for instant visual feedback
+      setDragPosition(constrainedPosition);
+    } catch (error) {
+      console.warn('Error constraining canvas drag to gamut:', error);
+      // Fallback to original clamped position
+      setDragPosition({ x: clampedX, y: clampedY });
+    }
+  }, [isDragging, size, color, colorSpace, model, channels, gamut]);
 
   // Handle handle drag start
   const handleHandleDragStart = useCallback((event: React.PointerEvent) => {
@@ -159,12 +230,9 @@ export const ColorArea = memo<ColorAreaProps>(({
     const clampedX = Math.max(0, Math.min(size, x));
     const clampedY = Math.max(0, Math.min(size, y));
     
-    // Update immediate drag position for instant visual feedback
-    setDragPosition({ x: clampedX, y: clampedY });
-    
-    // Calculate and set the color at the current drag position
+    // Constrain to gamut boundary to prevent handle from appearing in gray areas
     try {
-      const newDragColor = canvasToColorCoords(
+      const constrainedPosition = constrainToGamutBoundary(
         clampedX,
         clampedY,
         size,
@@ -174,9 +242,43 @@ export const ColorArea = memo<ColorAreaProps>(({
         channels,
         gamut
       );
+      
+      // Update immediate drag position for instant visual feedback
+      setDragPosition(constrainedPosition);
+      
+      // Calculate and set the color at the constrained position
+      const newDragColor = canvasToColorCoords(
+        constrainedPosition.x,
+        constrainedPosition.y,
+        size,
+        color, // Use current color as base for third channel
+        colorSpace,
+        model,
+        channels,
+        gamut
+      );
       setDragColor(newDragColor);
     } catch (error) {
-      console.error('Error calculating drag color:', error);
+      console.error('Error constraining handle drag to gamut:', error);
+      // Fallback to original clamped position
+      setDragPosition({ x: clampedX, y: clampedY });
+      
+      // Calculate and set the color at the fallback position
+      try {
+        const newDragColor = canvasToColorCoords(
+          clampedX,
+          clampedY,
+          size,
+          color, // Use current color as base for third channel
+          colorSpace,
+          model,
+          channels,
+          gamut
+        );
+        setDragColor(newDragColor);
+      } catch (colorError) {
+        console.error('Error calculating drag color:', colorError);
+      }
     }
   }, [isDragging, size, color, colorSpace, model, channels, gamut]);
 

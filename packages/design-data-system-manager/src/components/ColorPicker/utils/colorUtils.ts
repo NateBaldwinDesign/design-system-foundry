@@ -382,5 +382,127 @@ export const findClosestInGamutColor = (
   }
 };
 
+// Constrain canvas coordinates to gamut boundaries
+export const constrainToGamutBoundary = (
+  canvasX: number,
+  canvasY: number,
+  size: number,
+  baseColor: Color,
+  colorSpace: string,
+  model: string,
+  colorChannels: [string, string],
+  gamut: string
+): { x: number; y: number } => {
+  const config = getColorSpaceConfig(colorSpace, model);
+  const channels = colorChannels || config.defaultChannels;
+  const [channelX, channelY] = channels;
+  
+  // Validate channels
+  if (!config.channels.includes(channelX) || !config.channels.includes(channelY)) {
+    throw new Error(`Invalid channels [${channelX}, ${channelY}] for color space ${colorSpace} and model ${model}`);
+  }
+  
+  // Convert base color to target color space
+  const targetColor = baseColor.to(config.id);
+  const coords = [...targetColor.coords] as [number, number, number];
+  
+  // Calculate normalized values (0-1) for each axis
+  const valueX = canvasX / size;
+  const valueY = (size - canvasY) / size; // Invert Y axis
+  
+  // Map channels to coordinate indices
+  const channelIndexX = config.channels.indexOf(channelX);
+  const channelIndexY = config.channels.indexOf(channelY);
+  
+  // Get channel ranges for proper scaling
+  const rangeX = getChannelRange(channelX, config.id);
+  const rangeY = getChannelRange(channelY, config.id);
+  
+  // Update coordinates based on selected channels with proper scaling
+  coords[channelIndexX] = rangeX.min + (valueX * (rangeX.max - rangeX.min));
+  coords[channelIndexY] = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+  
+  // Check if this position is already in gamut
+  const gamutSpace = getGamutSpace(gamut);
+  const testColor = new Color(config.id, coords);
+  
+  if (testColor.inGamut(gamutSpace)) {
+    // Already in gamut, return original coordinates
+    return { x: canvasX, y: canvasY };
+  }
+  
+  // Position is out of gamut, need to find the closest in-gamut position
+  // Use radial search from the target point outward to find the closest boundary
+  
+  // Search parameters
+  const maxRadius = Math.max(size, size) * 0.5; // Maximum search radius
+  const searchSteps = 16; // Number of radial directions to search
+  const maxIterations = 12; // Maximum iterations per direction
+  
+  let bestPosition = { x: canvasX, y: canvasY };
+  let bestDistance = Infinity;
+  
+  // Search in multiple radial directions from the target point
+  for (let angleStep = 0; angleStep < searchSteps; angleStep++) {
+    const angle = (angleStep / searchSteps) * 2 * Math.PI;
+    
+    // Binary search along this radial direction
+    let low = 0;
+    let high = maxRadius;
+    let iterations = 0;
+    
+    while (iterations < maxIterations && (high - low) > 1) {
+      const radius = (low + high) / 2;
+      
+      // Calculate position along this radial direction
+      const testX = canvasX + Math.cos(angle) * radius;
+      const testY = canvasY + Math.sin(angle) * radius;
+      
+      // Clamp to canvas bounds
+      const clampedX = Math.max(0, Math.min(size, testX));
+      const clampedY = Math.max(0, Math.min(size, testY));
+      
+      // Convert to color coordinates
+      const testValueX = clampedX / size;
+      const testValueY = (size - clampedY) / size;
+      
+      const testCoords = [...coords] as [number, number, number];
+      testCoords[channelIndexX] = rangeX.min + (testValueX * (rangeX.max - rangeX.min));
+      testCoords[channelIndexY] = rangeY.min + (testValueY * (rangeY.max - rangeY.min));
+      
+      // Check if this position is in gamut
+      const testColor = new Color(config.id, testCoords);
+      const inGamut = testColor.inGamut(gamutSpace);
+      
+      if (inGamut) {
+        // This position is in gamut, try a smaller radius
+        high = radius;
+        
+        // Calculate distance from original target
+        const distance = Math.sqrt(
+          Math.pow(clampedX - canvasX, 2) + Math.pow(clampedY - canvasY, 2)
+        );
+        
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestPosition = { x: clampedX, y: clampedY };
+        }
+      } else {
+        // This position is out of gamut, try a larger radius
+        low = radius;
+      }
+      
+      iterations++;
+    }
+  }
+  
+  // If we didn't find any in-gamut position, fall back to center
+  if (bestDistance === Infinity) {
+    return { x: size / 2, y: size / 2 };
+  }
+  
+  return bestPosition;
+};
+
 // Export the configuration getter for components that need it
 export { getColorSpaceConfig }; 
