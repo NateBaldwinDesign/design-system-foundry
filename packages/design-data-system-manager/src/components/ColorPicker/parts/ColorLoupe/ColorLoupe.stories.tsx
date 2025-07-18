@@ -45,6 +45,10 @@ const meta: Meta<typeof ColorLoupe> = {
       control: { type: 'text' },
       description: 'Additional CSS classes'
     },
+    style: {
+      control: { type: 'object' },
+      description: 'Custom CSS styles for positioning and other styling'
+    },
     'data-testid': {
       control: { type: 'text' },
       description: 'Test ID for testing'
@@ -358,6 +362,66 @@ export const SVGImplementation: Story = {
   )
 };
 
+// Story showing custom styling for positioning
+export const CustomStyling: Story = {
+  render: () => (
+    <div style={{ 
+      position: 'relative', 
+      width: '400px', 
+      height: '200px', 
+      backgroundColor: '#f0f0f0',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-around'
+    }}>
+      <div style={{ textAlign: 'center', position: 'relative' }}>
+        <ColorLoupe
+          color={new Color('srgb', [1, 0, 0])}
+          isVisible={true}
+          style={{ zIndex: 1000, pointerEvents: 'none' }}
+          data-testid="custom-styled-loupe"
+        />
+        <div style={{ marginTop: '60px', fontSize: '12px' }}>Custom Z-Index</div>
+        <div style={{ marginTop: '5px', fontSize: '10px', color: '#666' }}>
+          zIndex: 1000
+        </div>
+      </div>
+      <div style={{ textAlign: 'center', position: 'relative' }}>
+        <ColorLoupe
+          color={new Color('srgb', [0, 1, 0])}
+          isVisible={true}
+          style={{ 
+            top: '-10px', 
+            left: '10px',
+            transform: 'scale(1.2)',
+            zIndex: 999
+          }}
+          data-testid="positioned-loupe"
+        />
+        <div style={{ marginTop: '60px', fontSize: '12px' }}>Custom Position</div>
+        <div style={{ marginTop: '5px', fontSize: '10px', color: '#666' }}>
+          top: -10px, left: 10px
+        </div>
+      </div>
+      <div style={{ textAlign: 'center', position: 'relative' }}>
+        <ColorLoupe
+          color={new Color('srgb', [0, 0, 1])}
+          isVisible={true}
+          style={{ 
+            transform: 'rotate(15deg)',
+            filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))'
+          }}
+          data-testid="transformed-loupe"
+        />
+        <div style={{ marginTop: '60px', fontSize: '12px' }}>Custom Transform</div>
+        <div style={{ marginTop: '5px', fontSize: '10px', color: '#666' }}>
+          rotate(15deg)
+        </div>
+      </div>
+    </div>
+  )
+};
+
 // Debug story for interactive testing
 export const Debug: Story = {
   render: (args) => {
@@ -400,6 +464,7 @@ export const Debug: Story = {
           <div>Opacity: {args.isVisible ? '1' : '0'}</div>
           <div>Dimensions: 38x48px</div>
           <div>SVG ViewBox: 0 0 38 48</div>
+          <div>Style: {args.style ? JSON.stringify(args.style, null, 2) : 'None'}</div>
         </div>
       </div>
     );

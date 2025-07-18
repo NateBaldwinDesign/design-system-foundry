@@ -9,6 +9,8 @@ export interface ColorLoupeProps {
   isVisible?: boolean;
   /** Additional CSS classes */
   className?: string;
+  /** Custom CSS styles for positioning and other styling */
+  style?: React.CSSProperties;
   /** Test ID for testing */
   'data-testid'?: string;
   /** Additional Chakra UI Box props */
@@ -26,6 +28,7 @@ export const ColorLoupe = memo<ColorLoupeProps>(({
   color,
   isVisible = false,
   className,
+  style,
   'data-testid': testId,
   ...boxProps
 }: ColorLoupeProps) => {
@@ -39,6 +42,7 @@ export const ColorLoupe = memo<ColorLoupeProps>(({
       width="38px"
       height="48px"
       className={className}
+      style={style}
       data-testid={testId}
       // Mirror React Spectrum's positioning approach
       transform={isVisible ? 'translate(0, 0)' : 'translate(0, 16px)'}

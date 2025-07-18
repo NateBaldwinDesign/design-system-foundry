@@ -37,6 +37,15 @@ describe('ColorLoupe', () => {
       expect(propsWithClassName.className).toBe('custom-class');
     });
 
+    it('should accept optional style prop', () => {
+      const customStyle = { top: '10px', left: '20px', zIndex: 1000 };
+      const propsWithStyle = { color: mockColor, style: customStyle };
+      expect(propsWithStyle.style).toBe(customStyle);
+      expect(propsWithStyle.style.top).toBe('10px');
+      expect(propsWithStyle.style.left).toBe('20px');
+      expect(propsWithStyle.style.zIndex).toBe(1000);
+    });
+
     it('should accept optional data-testid prop', () => {
       const propsWithTestId = { color: mockColor, 'data-testid': 'test-loupe' };
       expect(propsWithTestId['data-testid']).toBe('test-loupe');
@@ -141,6 +150,40 @@ describe('ColorLoupe', () => {
       // Component should render SVG with data-testid for testing
       const expectedTestId = 'test-loupe-svg';
       expect(expectedTestId).toBe('test-loupe-svg');
+    });
+  });
+
+  describe('Style Prop Handling', () => {
+    it('should accept custom positioning styles', () => {
+      const customStyle = { top: '5px', left: '10px', zIndex: 999 };
+      expect(customStyle.top).toBe('5px');
+      expect(customStyle.left).toBe('10px');
+      expect(customStyle.zIndex).toBe(999);
+    });
+
+    it('should accept custom z-index for layering', () => {
+      const zIndexStyle = { zIndex: 1000 };
+      expect(zIndexStyle.zIndex).toBe(1000);
+    });
+
+    it('should accept pointer-events styling', () => {
+      const pointerStyle = { pointerEvents: 'none' as const };
+      expect(pointerStyle.pointerEvents).toBe('none');
+    });
+
+    it('should accept complex style objects', () => {
+      const complexStyle = {
+        top: '10px',
+        left: '20px',
+        zIndex: 1000,
+        pointerEvents: 'none' as const,
+        transform: 'translate(-50%, -50%)'
+      };
+      expect(complexStyle.top).toBe('10px');
+      expect(complexStyle.left).toBe('20px');
+      expect(complexStyle.zIndex).toBe(1000);
+      expect(complexStyle.pointerEvents).toBe('none');
+      expect(complexStyle.transform).toBe('translate(-50%, -50%)');
     });
   });
 }); 
