@@ -341,4 +341,40 @@ export const PerformanceTest: Story = {
   args: {
     color: '#FF6B35'
   }
+};
+
+// P3-HSL Polar story - demonstrates the new P3-HSL functionality
+export const P3HslPolar: Story = {
+  render: (args) => {
+    const [color, setColor] = React.useState(args.color);
+    
+    const handleChange = (newColor: Color) => {
+      setColor(newColor.toString({ format: 'hex' }));
+      args.onChange?.(newColor);
+    };
+    
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ 
+          padding: '8px', 
+          backgroundColor: '#e8f4fd', 
+          borderRadius: '4px',
+          fontSize: '12px',
+          border: '1px solid #b3d9ff'
+        }}>
+          <strong>P3-HSL Polar Model:</strong> This demonstrates the new cylindrical coordinate system for Display P3 color space. 
+          Similar to HSL but operating within P3 primaries and gamut boundaries.
+        </div>
+        
+        <ColorPickerContents 
+          {...args} 
+          color={color} 
+          onChange={handleChange}
+        />
+      </div>
+    );
+  },
+  args: {
+    color: '#FF6B35'
+  }
 }; 

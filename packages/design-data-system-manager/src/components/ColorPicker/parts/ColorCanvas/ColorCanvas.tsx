@@ -9,6 +9,7 @@ import {
   isOutOfGamut,
   getCanvasPixelColor
 } from '../../utils/colorUtils';
+import { colorToP3Hsl, p3HslToColor, type P3HslCoords } from '../../utils/p3HslUtils';
 
 export interface ColorCanvasProps {
   /** Size of the canvas in pixels (both width and height) */
@@ -61,24 +62,52 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastRenderTimeRef = useRef(0);
 
+  // Extract the third channel value for dependency tracking
+  const thirdChannelValue = useMemo(() => {
+    try {
+      if (config.id === 'p3-hsl') {
+        const currentHsl = colorToP3Hsl(color);
+        const thirdChannel = config.thirdChannel;
+        return currentHsl[thirdChannel as keyof P3HslCoords];
+      } else {
+        const colorInSpace = color.to(config.id);
+        const thirdChannelIndex = config.channels.indexOf(config.thirdChannel);
+        return colorInSpace.coords[thirdChannelIndex] || 0;
+      }
+    } catch (error) {
+      console.warn('Error extracting third channel value:', error);
+      return 0;
+    }
+  }, [color.toString(), config.id, config.channels, config.thirdChannel]);
+
   // Create a stable base color with the third channel value for rendering
   // This should only change when the slice parameters change, not when user moves within x,y plane
   const baseColorForRendering = useMemo(() => {
     try {
-      // Extract the third channel value from the current color in the current color space
-      const colorInSpace = color.to(config.id);
-      const thirdChannelIndex = config.channels.indexOf(config.thirdChannel);
-      const thirdChannelValue = colorInSpace.coords[thirdChannelIndex] || 0;
+      // Handle P3-HSL color space specially
+      if (config.id === 'p3-hsl') {
+        // Create base HSL coordinates with only the third channel value
+        const baseHsl: P3HslCoords = { h: 0, s: 0, l: 0 };
+        const thirdChannel = config.thirdChannel;
+        if (thirdChannel === 'h') baseHsl.h = thirdChannelValue;
+        else if (thirdChannel === 's') baseHsl.s = thirdChannelValue;
+        else if (thirdChannel === 'l') baseHsl.l = thirdChannelValue;
+        
+        // Convert to P3 color for rendering
+        return p3HslToColor(baseHsl);
+      }
       
+      // Handle other color spaces with standard approach
       // Create base color with the third channel value
       const coords = [...config.channels.map(() => 0)] as [number, number, number];
+      const thirdChannelIndex = config.channels.indexOf(config.thirdChannel);
       coords[thirdChannelIndex] = thirdChannelValue;
       return new Color(config.id, coords);
     } catch (error) {
       console.warn('Error creating base color for rendering:', error);
       return new Color('srgb', [0, 0, 0]);
     }
-  }, [color, config.id, config.channels, config.thirdChannel]);
+  }, [config.id, config.channels, config.thirdChannel, thirdChannelValue]);
 
   // Render the gradient to canvas - only re-renders when the slice changes
   const renderGradient = useCallback(() => {
@@ -125,32 +154,69 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
       for (let x = 0; x < size; x++) {
         const pixelIndex = (y * size + x) * 4;
         
+        let pixelColor: Color;
+        
         try {
-          // Convert base color to target color space
-          const targetColor = baseColorForRendering.to(config.id);
-          const coords = [...targetColor.coords] as [number, number, number]; // Ensure 3 coordinates
-          
-          // Calculate normalized values (0-1) for each axis
-          const valueX = x / size;
-          const valueY = (size - y) / size; // Invert Y axis
-          
-          // Map channels to coordinate indices
-          const channelIndexX = config.channels.indexOf(channelX);
-          const channelIndexY = config.channels.indexOf(channelY);
-          
-          // Get channel ranges for proper scaling
-          const rangeX = getChannelRange(channelX, config.id);
-          const rangeY = getChannelRange(channelY, config.id);
-          
-          // Update coordinates based on selected channels with proper scaling
-          coords[channelIndexX] = rangeX.min + (valueX * (rangeX.max - rangeX.min));
-          coords[channelIndexY] = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+          // Handle P3-HSL color space specially
+          if (config.id === 'p3-hsl') {
+            // Calculate normalized values (0-1) for each axis
+            const valueX = x / size;
+            const valueY = (size - y) / size; // Invert Y axis
+            
+            // Get channel ranges for proper scaling
+            const rangeX = getChannelRange(channelX, config.id);
+            const rangeY = getChannelRange(channelY, config.id);
+            
+            // Create HSL coordinates directly from the third channel value and pixel position
+            const newHsl: P3HslCoords = { h: 0, s: 0, l: 0 };
+            const thirdChannel = config.thirdChannel;
+            
+            // Set the third channel value (fixed for this slice)
+            if (thirdChannel === 'h') newHsl.h = thirdChannelValue;
+            else if (thirdChannel === 's') newHsl.s = thirdChannelValue;
+            else if (thirdChannel === 'l') newHsl.l = thirdChannelValue;
+            
+            // Set the X and Y channel values based on pixel position
+            if (channelX === 'h') newHsl.h = rangeX.min + (valueX * (rangeX.max - rangeX.min));
+            else if (channelX === 's') newHsl.s = rangeX.min + (valueX * (rangeX.max - rangeX.min));
+            else if (channelX === 'l') newHsl.l = rangeX.min + (valueX * (rangeX.max - rangeX.min));
+            
+            if (channelY === 'h') newHsl.h = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+            else if (channelY === 's') newHsl.s = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+            else if (channelY === 'l') newHsl.l = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+            
+            // Create new color from HSL coordinates
+            pixelColor = p3HslToColor(newHsl);
+          } else {
+            // Handle other color spaces with standard approach
+            // Convert base color to target color space
+            const targetColor = baseColorForRendering.to(config.id);
+            const coords = [...targetColor.coords] as [number, number, number]; // Ensure 3 coordinates
+            
+            // Calculate normalized values (0-1) for each axis
+            const valueX = x / size;
+            const valueY = (size - y) / size; // Invert Y axis
+            
+            // Map channels to coordinate indices
+            const channelIndexX = config.channels.indexOf(channelX);
+            const channelIndexY = config.channels.indexOf(channelY);
+            
+            // Get channel ranges for proper scaling
+            const rangeX = getChannelRange(channelX, config.id);
+            const rangeY = getChannelRange(channelY, config.id);
+            
+            // Update coordinates based on selected channels with proper scaling
+            coords[channelIndexX] = rangeX.min + (valueX * (rangeX.max - rangeX.min));
+            coords[channelIndexY] = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+            
+            // Create new color with updated coordinates
+            pixelColor = new Color(config.id, coords);
+          }
           
           // Check if this color would be out-of-gamut for the specified gamut
           const gamutSpace = getGamutSpace(gamut);
-          const outOfGamut = isOutOfGamut(coords, config.id, gamutSpace);
+          const outOfGamut = isOutOfGamut(pixelColor.coords, pixelColor.space.id, gamutSpace);
           
-          let pixelColor: Color;
           if (outOfGamut) {
             // Use midtone gray for out-of-gamut colors
             if (colorMode === 'dark') {
@@ -160,9 +226,6 @@ export const ColorCanvas = memo<ColorCanvasProps>(({
               // Light mode fallback: lighter gray
               pixelColor = new Color('srgb', [0.8862745098039215, 0.9098039215686274, 0.9411764705882353]);
             }
-          } else {
-            // Create new color with updated coordinates
-            pixelColor = new Color(config.id, coords);
           }
 
           // Get pixel color using Colorjs.io conversion

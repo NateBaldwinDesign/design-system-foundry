@@ -5,8 +5,10 @@ import { ColorHandle } from '../ColorHandle/ColorHandle';
 import { 
   getColorSpaceConfig, 
   getChannelRange, 
-  getCanvasPixelColor 
+  getCanvasPixelColor,
+  createColorWithChannelValue
 } from '../../utils/colorUtils';
+import { colorToP3Hsl } from '../../utils/p3HslUtils';
 
 export interface ExtendedCanvasRenderingContext2D extends CanvasRenderingContext2D {
   colorSpace?: string;
@@ -82,18 +84,13 @@ export const ColorSlider = memo<ColorSliderProps>(({
   // Create a stable base color with the other channels' current values for rendering
   const baseColorForRendering = useMemo(() => {
     try {
-      // Extract the current values for all channels from the color
-      const colorInSpace = color.to(config.id);
-      
-      // Create base color with current values for all channels
-      const coords = [...colorInSpace.coords] as [number, number, number];
-      // The target channel will be varied during rendering, others stay at current values
-      return new Color(config.id, coords);
+      // Use the utility function that handles P3-HSL properly
+      return createColorWithChannelValue(color, config, channel, 0);
     } catch (error) {
       console.warn('Error creating base color for rendering:', error);
       return new Color('srgb', [0, 0, 0]);
     }
-  }, [color, config.id, config.channels, channel]);
+  }, [color, config, channel]);
 
   // Render the gradient to canvas
   const renderGradient = useCallback(() => {
@@ -133,19 +130,12 @@ export const ColorSlider = memo<ColorSliderProps>(({
     // Get canvas color space for pixel conversion
     const canvasColorSpace = (ctx as ExtendedCanvasRenderingContext2D).colorSpace || 'srgb';
 
-    // Get channel range for proper scaling
-    const channelRange = getChannelRange(channel, config.id);
-
     // Render gradient based on orientation
     for (let y = 0; y < canvas.height; y++) {
       for (let x = 0; x < canvas.width; x++) {
         const pixelIndex = (y * canvas.width + x) * 4;
         
         try {
-          // Convert base color to target color space
-          const targetColor = baseColorForRendering.to(config.id);
-          const coords = [...targetColor.coords] as [number, number, number];
-          
           // Calculate normalized value (0-1) for the channel axis
           let channelValue: number;
           if (orientation === 'horizontal') {
@@ -154,21 +144,12 @@ export const ColorSlider = memo<ColorSliderProps>(({
             channelValue = (canvas.height - y) / canvas.height; // Invert Y axis
           }
           
-          // Map channel to coordinate index
-          const channelIndex = config.channels.indexOf(channel);
+          // Get channel range for proper scaling and calculate the actual channel value
+          const channelRange = getChannelRange(channel, config.id);
+          const actualChannelValue = channelRange.min + (channelValue * (channelRange.max - channelRange.min));
           
-          // Update coordinate based on selected channel with proper scaling
-          coords[channelIndex] = channelRange.min + (channelValue * (channelRange.max - channelRange.min));
-          
-          // Create new color with updated coordinates
-          // For sliders, we show the full range even if some values are out-of-gamut
-          let pixelColor: Color;
-          try {
-            pixelColor = new Color(config.id, coords);
-          } catch (error) {
-            // If color creation fails, use a fallback color
-            pixelColor = new Color('srgb', [0.5, 0.5, 0.5]);
-          }
+          // Use the utility function that handles P3-HSL properly
+          const pixelColor = createColorWithChannelValue(baseColorForRendering, config, channel, actualChannelValue);
 
           // Get pixel color using Colorjs.io conversion
           const [r, g, b, a] = getCanvasPixelColor(pixelColor, canvasColorSpace);
@@ -219,9 +200,24 @@ export const ColorSlider = memo<ColorSliderProps>(({
     
     // Otherwise, calculate position from the current color
     try {
-      const colorInSpace = color.to(config.id);
-      const channelIndex = config.channels.indexOf(channel);
-      const channelValue = colorInSpace.coords[channelIndex] || 0;
+      let channelValue: number;
+      
+      // Handle P3-HSL color space specially
+      if (config.id === 'p3-hsl') {
+        // Extract the current HSL values from the color
+        const currentHsl = colorToP3Hsl(color);
+        
+        // Get the value for the target channel
+        if (channel === 'h') channelValue = currentHsl.h;
+        else if (channel === 's') channelValue = currentHsl.s;
+        else if (channel === 'l') channelValue = currentHsl.l;
+        else channelValue = 0;
+      } else {
+        // Handle other color spaces with standard approach
+        const colorInSpace = color.to(config.id);
+        const channelIndex = config.channels.indexOf(channel);
+        channelValue = colorInSpace.coords[channelIndex] || 0;
+      }
       
       // Get channel range for proper scaling
       const channelRange = getChannelRange(channel, config.id);
@@ -259,10 +255,6 @@ export const ColorSlider = memo<ColorSliderProps>(({
   // Convert canvas position to color coordinates
   const canvasToColorCoords = useCallback((position: number): Color => {
     try {
-      // Convert base color to target color space
-      const targetColor = baseColorForRendering.to(config.id);
-      const coords = [...targetColor.coords] as [number, number, number];
-      
       // Calculate normalized value (0-1) for the channel axis with proper orientation handling
       let normalizedPosition: number;
       if (orientation === 'horizontal') {
@@ -272,22 +264,19 @@ export const ColorSlider = memo<ColorSliderProps>(({
         normalizedPosition = 1 - (position / size);
       }
       
-      // Map channel to coordinate index
-      const channelIndex = config.channels.indexOf(channel);
-      
       // Get channel range for proper scaling
       const channelRange = getChannelRange(channel, config.id);
       
-      // Update coordinate based on selected channel with proper scaling
-      coords[channelIndex] = channelRange.min + (normalizedPosition * (channelRange.max - channelRange.min));
+      // Calculate the actual channel value based on normalized position
+      const actualChannelValue = channelRange.min + (normalizedPosition * (channelRange.max - channelRange.min));
       
-      // Create new color with updated coordinates
-      return new Color(config.id, coords);
+      // Use the utility function that handles P3-HSL properly
+      return createColorWithChannelValue(baseColorForRendering, config, channel, actualChannelValue);
     } catch (error) {
       console.warn('Error converting canvas position to color:', error);
       return color; // Fallback to current color
     }
-  }, [size, orientation, config.id, config.channels, channel, baseColorForRendering, color]);
+  }, [size, orientation, config, channel, baseColorForRendering, color]);
 
   // Handle canvas interaction for immediate positioning
   const handleCanvasInteraction = useCallback((event: React.PointerEvent) => {

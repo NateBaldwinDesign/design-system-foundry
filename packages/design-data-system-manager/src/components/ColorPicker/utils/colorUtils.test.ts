@@ -30,12 +30,19 @@ describe('Color Utilities', () => {
       expect(config.thirdChannel).toBe('h');
     });
 
-    it('should return correct config for Display P3', () => {
+    it('should return correct config for Display P3 cartesian', () => {
       const config = getColorSpaceConfig('Display P3', 'cartesian');
       expect(config.id).toBe('p3');
       expect(config.channels).toEqual(['r', 'g', 'b']);
       expect(config.defaultChannels).toEqual(['r', 'g']);
       expect(config.thirdChannel).toBe('b');
+    });
+
+    it('should return correct config for Display P3 polar', () => {
+      const config = getColorSpaceConfig('Display P3', 'polar');
+      expect(config.id).toBe('p3-hsl');
+      expect(config.channels).toEqual(['h', 's', 'l']);
+      expect(config.defaultChannels).toEqual(['s', 'l']);
     });
 
     it('should return correct config for OKLCH polar', () => {
@@ -66,6 +73,12 @@ describe('Color Utilities', () => {
       expect(getChannelRange('h', 'hsl')).toEqual({ min: 0, max: 360 });
       expect(getChannelRange('s', 'hsl')).toEqual({ min: 0, max: 100 });
       expect(getChannelRange('l', 'hsl')).toEqual({ min: 0, max: 100 });
+    });
+
+    it('should return correct ranges for P3-HSL channels', () => {
+      expect(getChannelRange('h', 'p3-hsl')).toEqual({ min: 0, max: 360 });
+      expect(getChannelRange('s', 'p3-hsl')).toEqual({ min: 0, max: 100 });
+      expect(getChannelRange('l', 'p3-hsl')).toEqual({ min: 0, max: 100 });
     });
 
     it('should return correct ranges for OKLCH channels', () => {
@@ -506,6 +519,88 @@ describe('Color Utilities', () => {
         // Should complete in under 10ms for good performance
         expect(duration).toBeLessThan(10);
       });
+    });
+  });
+
+  describe('P3-HSL Integration', () => {
+    it('should convert canvas coordinates to P3-HSL color correctly', () => {
+      const baseColor = new Color('p3', [0.5, 0.5, 0.5]);
+      const color = canvasToColorCoords(
+        100, // x position (50% of 200px canvas)
+        100, // y position (50% of 200px canvas)
+        200, // canvas size
+        baseColor,
+        'Display P3',
+        'polar',
+        ['s', 'l'],
+        'sRGB'
+      );
+      
+      expect(color).toBeInstanceOf(Color);
+      expect(color.space.id).toBe('p3');
+    });
+
+    it('should convert P3-HSL color to canvas coordinates correctly', () => {
+      const color = new Color('p3', [1, 0, 0]); // Red in P3
+      const coords = colorToCanvasCoords(
+        color,
+        200, // canvas size
+        'Display P3',
+        'polar',
+        ['s', 'l']
+      );
+      
+      expect(coords.x).toBeGreaterThanOrEqual(0);
+      expect(coords.x).toBeLessThanOrEqual(200);
+      expect(coords.y).toBeGreaterThanOrEqual(0);
+      expect(coords.y).toBeLessThanOrEqual(200);
+    });
+
+    it('should handle P3-HSL with hue channel correctly', () => {
+      const baseColor = new Color('p3', [0.5, 0.5, 0.5]);
+      const color = canvasToColorCoords(
+        100, // x position
+        100, // y position
+        200, // canvas size
+        baseColor,
+        'Display P3',
+        'polar',
+        ['h', 's'],
+        'sRGB'
+      );
+      
+      expect(color).toBeInstanceOf(Color);
+      expect(color.space.id).toBe('p3');
+    });
+
+    it('should maintain P3-HSL color space identity through conversions', () => {
+      const originalColor = new Color('p3', [0.8, 0.2, 0.9]);
+      const canvasCoords = colorToCanvasCoords(
+        originalColor,
+        200,
+        'Display P3',
+        'polar',
+        ['s', 'l']
+      );
+      
+      const convertedColor = canvasToColorCoords(
+        canvasCoords.x,
+        canvasCoords.y,
+        200,
+        originalColor,
+        'Display P3',
+        'polar',
+        ['s', 'l'],
+        'sRGB'
+      );
+      
+      // Colors should be similar (allowing for small floating point differences)
+      const originalP3 = originalColor.to('p3');
+      const convertedP3 = convertedColor.to('p3');
+      
+      expect(convertedP3.coords[0]).toBeCloseTo(originalP3.coords[0], 2);
+      expect(convertedP3.coords[1]).toBeCloseTo(originalP3.coords[1], 2);
+      expect(convertedP3.coords[2]).toBeCloseTo(originalP3.coords[2], 2);
     });
   });
 }); 

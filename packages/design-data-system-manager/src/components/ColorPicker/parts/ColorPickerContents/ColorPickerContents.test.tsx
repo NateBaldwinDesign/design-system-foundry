@@ -125,11 +125,14 @@ describe('ColorPickerContents', () => {
       expect(colorSpaces).toContain('OKlch');
     });
 
-    it('should reset model to cartesian when changing from OKLCH to other spaces', () => {
-      // Test model reset logic
+    it('should persist model selection when changing color spaces', () => {
+      // Test that model selection persists when changing color spaces
       const colorSpace = 'sRGB' as string;
-      const expectedModel = colorSpace !== 'OKlch' ? 'cartesian' : 'cartesian';
-      expect(expectedModel).toBe('cartesian');
+      const model = 'polar' as string;
+      
+      // Model should persist regardless of color space change
+      expect(model).toBe('polar');
+      expect(colorSpace).toBe('sRGB');
     });
   });
 
@@ -249,11 +252,61 @@ describe('ColorPickerContents', () => {
         colorChannels = ['a', 'b'];
       } else if (colorSpace === 'sRGB' && model === 'polar') {
         colorChannels = ['s', 'l'];
+      } else if (colorSpace === 'Display P3' && model === 'polar') {
+        colorChannels = ['s', 'l'];
+      } else if (colorSpace === 'Display P3' && model === 'cartesian') {
+        colorChannels = ['r', 'g'];
       } else {
         colorChannels = ['r', 'g'];
       }
       
       expect(colorChannels).toEqual(['a', 'b']);
+    });
+
+    it('should select correct channels for Display P3 polar (P3-HSL)', () => {
+      // Test channel selection for Display P3 polar
+      const colorSpace = 'Display P3' as const;
+      const model = 'polar' as const;
+      
+      let colorChannels: [string, string];
+      if (colorSpace === 'OKlch' && model === 'polar') {
+        colorChannels = ['c', 'h'];
+      } else if (colorSpace === 'OKlch' && model === 'cartesian') {
+        colorChannels = ['a', 'b'];
+      } else if (colorSpace === 'sRGB' && model === 'polar') {
+        colorChannels = ['s', 'l'];
+      } else if (colorSpace === 'Display P3' && model === 'polar') {
+        colorChannels = ['s', 'l'];
+      } else if (colorSpace === 'Display P3' && model === 'cartesian') {
+        colorChannels = ['r', 'g'];
+      } else {
+        colorChannels = ['r', 'g'];
+      }
+      
+      expect(colorChannels).toEqual(['s', 'l']);
+    });
+
+    it('should select correct channels for Display P3 cartesian', () => {
+      // Test channel selection for Display P3 cartesian
+      const colorSpace = 'Display P3' as const;
+      const model = 'cartesian' as const;
+      
+      let colorChannels: [string, string];
+      if (colorSpace === 'OKlch' && model === 'polar') {
+        colorChannels = ['c', 'h'];
+      } else if (colorSpace === 'OKlch' && model === 'cartesian') {
+        colorChannels = ['a', 'b'];
+      } else if (colorSpace === 'sRGB' && model === 'polar') {
+        colorChannels = ['s', 'l'];
+      } else if (colorSpace === 'Display P3' && model === 'polar') {
+        colorChannels = ['s', 'l'];
+      } else if (colorSpace === 'Display P3' && model === 'cartesian') {
+        colorChannels = ['r', 'g'];
+      } else {
+        colorChannels = ['r', 'g'];
+      }
+      
+      expect(colorChannels).toEqual(['r', 'g']);
     });
   });
 

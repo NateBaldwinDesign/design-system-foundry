@@ -6,8 +6,7 @@ import {
   Select, 
   Text,
   Button,
-  ButtonGroup,
-  useColorMode
+  ButtonGroup
 } from '@chakra-ui/react';
 import { BoxIcon, Cylinder } from 'lucide-react';
 import Color from 'colorjs.io';
@@ -48,7 +47,6 @@ export const ColorPickerContents = React.memo<ColorPickerContentsProps>(({
   'data-testid': testId = 'color-picker-contents',
   ...boxProps
 }: ColorPickerContentsProps) => {
-  const { colorMode } = useColorMode();
 
   // Parse initial color string to Color object
   const [color, setColor] = useState<Color>(() => {
@@ -81,6 +79,10 @@ export const ColorPickerContents = React.memo<ColorPickerContentsProps>(({
       return ['a', 'b'] as [string, string]; // a and b for OKLab
     } else if (colorSpaceState === 'sRGB' && colorModel === 'polar') {
       return ['s', 'l'] as [string, string]; // Saturation and Lightness for HSL
+    } else if (colorSpaceState === 'Display P3' && colorModel === 'polar') {
+      return ['s', 'l'] as [string, string]; // Saturation and Lightness for P3-HSL
+    } else if (colorSpaceState === 'Display P3' && colorModel === 'cartesian') {
+      return ['r', 'g'] as [string, string]; // Red and Green for P3 cartesian
     } else {
       return ['r', 'g'] as [string, string]; // Red and Green for sRGB cartesian
     }
@@ -92,8 +94,10 @@ export const ColorPickerContents = React.memo<ColorPickerContentsProps>(({
       return 'l'; // Lightness for OKLCH
     } else if (colorSpaceState === 'sRGB' && colorModel === 'polar') {
       return 'h'; // Hue for HSL
+    } else if (colorSpaceState === 'Display P3' && colorModel === 'polar') {
+      return 'h'; // Hue for P3-HSL
     } else {
-      return 'b'; // Blue for sRGB cartesian
+      return 'b'; // Blue for sRGB/Display P3 cartesian
     }
   }, [colorSpaceState, colorModel]);
 
@@ -102,10 +106,7 @@ export const ColorPickerContents = React.memo<ColorPickerContentsProps>(({
     const newColorSpace = event.target.value as 'sRGB' | 'Display P3' | 'OKlch';
     setColorSpaceState(newColorSpace);
     
-    // Reset model to cartesian for sRGB and Display P3, keep current for OKLCH
-    if (newColorSpace !== 'OKlch') {
-      setColorModel('cartesian');
-    }
+    // Model selection should persist - removed automatic reset logic
   }, []);
 
   // Handle gamut change

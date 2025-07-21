@@ -1,4 +1,5 @@
 import Color from 'colorjs.io';
+import { colorToP3Hsl, p3HslToColor, type P3HslCoords } from './p3HslUtils';
 
 // Extended canvas context type to include colorSpace property
 export interface ExtendedCanvasRenderingContext2D extends CanvasRenderingContext2D {
@@ -45,12 +46,21 @@ const getColorSpaceConfig = (colorSpace: string, model: string): ColorSpaceConfi
       break;
       
     case 'Display P3':
-      config = {
-        id: 'p3',
-        channels: ['r', 'g', 'b'],
-        defaultChannels: ['r', 'g'],
-        thirdChannel: 'b'
-      };
+      if (model === 'polar') {
+        config = {
+          id: 'p3-hsl', // Custom P3-HSL color space
+          channels: ['h', 's', 'l'],
+          defaultChannels: ['s', 'l'],
+          thirdChannel: 'h'
+        };
+      } else {
+        config = {
+          id: 'p3',
+          channels: ['r', 'g', 'b'],
+          defaultChannels: ['r', 'g'],
+          thirdChannel: 'b'
+        };
+      }
       break;
       
     case 'OKlch':
@@ -99,6 +109,13 @@ export const getChannelRange = (channel: string, colorSpaceId: string): { min: n
   switch (colorSpaceId) {
     case 'hsl':
       // HSL coordinates: H (0-360), S (0-100), L (0-100)
+      if (channel === 'h') range = { min: 0, max: 360 };
+      else if (channel === 's' || channel === 'l') range = { min: 0, max: 100 };
+      else range = { min: 0, max: 1 };
+      break;
+      
+    case 'p3-hsl':
+      // P3-HSL coordinates: H (0-360), S (0-100), L (0-100)
       if (channel === 'h') range = { min: 0, max: 360 };
       else if (channel === 's' || channel === 'l') range = { min: 0, max: 100 };
       else range = { min: 0, max: 1 };
@@ -222,6 +239,44 @@ export const canvasToColorCoords = (
     throw new Error(`Invalid channels [${channelX}, ${channelY}] for color space ${colorSpace} and model ${model}`);
   }
   
+  // Handle P3-HSL color space specially
+  if (config.id === 'p3-hsl') {
+    // Get current HSL values from base color
+    const currentHsl = colorToP3Hsl(baseColor);
+    
+    // Calculate normalized values (0-1) for each axis
+    const valueX = canvasX / size;
+    const valueY = (size - canvasY) / size; // Invert Y axis
+    
+    // Get channel ranges for proper scaling
+    const rangeX = getChannelRange(channelX, config.id);
+    const rangeY = getChannelRange(channelY, config.id);
+    
+    // Create new HSL coordinates
+    const newHsl: P3HslCoords = { ...currentHsl };
+    
+    // Update coordinates based on selected channels with proper scaling
+    if (channelX === 'h') newHsl.h = rangeX.min + (valueX * (rangeX.max - rangeX.min));
+    else if (channelX === 's') newHsl.s = rangeX.min + (valueX * (rangeX.max - rangeX.min));
+    else if (channelX === 'l') newHsl.l = rangeX.min + (valueX * (rangeX.max - rangeX.min));
+    
+    if (channelY === 'h') newHsl.h = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+    else if (channelY === 's') newHsl.s = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+    else if (channelY === 'l') newHsl.l = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+    
+    // Create new color from HSL coordinates
+    const newColor = p3HslToColor(newHsl);
+    
+    // Apply gamut mapping if needed
+    const gamutSpace = getGamutSpace(gamut);
+    if (!newColor.inGamut(gamutSpace)) {
+      return newColor.toGamut({ space: gamutSpace });
+    }
+    
+    return newColor;
+  }
+  
+  // Handle other color spaces with standard approach
   // Convert base color to target color space
   const targetColor = baseColor.to(config.id);
   const coords = [...targetColor.coords] as [number, number, number];
@@ -266,6 +321,60 @@ export const colorToCanvasCoords = (
   const channels = colorChannels || config.defaultChannels;
   const [channelX, channelY] = channels;
   
+  // Handle P3-HSL color space specially
+  if (config.id === 'p3-hsl') {
+    // Get HSL coordinates from color
+    const hsl = colorToP3Hsl(color);
+    
+    // Get channel ranges for proper scaling
+    const rangeX = getChannelRange(channelX, config.id);
+    const rangeY = getChannelRange(channelY, config.id);
+    
+    // Get coordinate values
+    let xCoord: number, yCoord: number;
+    
+    if (channelX === 'h') xCoord = hsl.h;
+    else if (channelX === 's') xCoord = hsl.s;
+    else if (channelX === 'l') xCoord = hsl.l;
+    else xCoord = 0;
+    
+    if (channelY === 'h') yCoord = hsl.h;
+    else if (channelY === 's') yCoord = hsl.s;
+    else if (channelY === 'l') yCoord = hsl.l;
+    else yCoord = 0;
+    
+    // For polar coordinates, handle wrapping and scaling
+    if (model === 'polar') {
+      if (channelX === 'h') {
+        // Hue wraps around 0-360 degrees
+        const normalizedX = (xCoord % 360 + 360) % 360 / 360;
+        const normalizedY = (yCoord - rangeY.min) / (rangeY.max - rangeY.min);
+        return { x: normalizedX * size, y: (1 - normalizedY) * size };
+      } else if (channelY === 'h') {
+        // Hue wraps around 0-360 degrees
+        const normalizedX = (xCoord - rangeX.min) / (rangeX.max - rangeX.min);
+        const normalizedY = (yCoord % 360 + 360) % 360 / 360;
+        return { x: normalizedX * size, y: (1 - normalizedY) * size };
+      } else {
+        // Other polar coordinates (saturation, lightness)
+        const normalizedX = (xCoord - rangeX.min) / (rangeX.max - rangeX.min);
+        const normalizedY = (yCoord - rangeY.min) / (rangeY.max - rangeY.min);
+        return { x: normalizedX * size, y: (1 - normalizedY) * size };
+      }
+    }
+    
+    // For cartesian coordinates, use proper scaling
+    const normalizedX = (xCoord - rangeX.min) / (rangeX.max - rangeX.min);
+    const normalizedY = (yCoord - rangeY.min) / (rangeY.max - rangeY.min);
+    
+    // Clamp to 0-1 range
+    const clampedX = Math.max(0, Math.min(1, normalizedX));
+    const clampedY = Math.max(0, Math.min(1, normalizedY));
+    
+    return { x: clampedX * size, y: (1 - clampedY) * size };
+  }
+  
+  // Handle other color spaces with standard approach
   // Get the color coordinates in the current color space
   const colorInSpace = color.to(config.id);
   const coords = colorInSpace.coords;
@@ -402,6 +511,122 @@ export const constrainToGamutBoundary = (
     throw new Error(`Invalid channels [${channelX}, ${channelY}] for color space ${colorSpace} and model ${model}`);
   }
   
+  // Handle P3-HSL color space specially
+  if (config.id === 'p3-hsl') {
+    // Get current HSL values from base color
+    const currentHsl = colorToP3Hsl(baseColor);
+    
+    // Calculate normalized values (0-1) for each axis
+    const valueX = canvasX / size;
+    const valueY = (size - canvasY) / size; // Invert Y axis
+    
+    // Get channel ranges for proper scaling
+    const rangeX = getChannelRange(channelX, config.id);
+    const rangeY = getChannelRange(channelY, config.id);
+    
+    // Create new HSL coordinates
+    const newHsl: P3HslCoords = { ...currentHsl };
+    
+    // Update coordinates based on selected channels with proper scaling
+    if (channelX === 'h') newHsl.h = rangeX.min + (valueX * (rangeX.max - rangeX.min));
+    else if (channelX === 's') newHsl.s = rangeX.min + (valueX * (rangeX.max - rangeX.min));
+    else if (channelX === 'l') newHsl.l = rangeX.min + (valueX * (rangeX.max - rangeX.min));
+    
+    if (channelY === 'h') newHsl.h = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+    else if (channelY === 's') newHsl.s = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+    else if (channelY === 'l') newHsl.l = rangeY.min + (valueY * (rangeY.max - rangeY.min));
+    
+    // Create new color from HSL coordinates
+    const testColor = p3HslToColor(newHsl);
+    
+    // Check if this position is already in gamut
+    const gamutSpace = getGamutSpace(gamut);
+    if (testColor.inGamut(gamutSpace)) {
+      // Already in gamut, return original coordinates
+      return { x: canvasX, y: canvasY };
+    }
+    
+    // Position is out of gamut, need to find the closest in-gamut position
+    // Use radial search from the target point outward to find the closest boundary
+    
+    // Search parameters
+    const maxRadius = Math.max(size, size) * 0.5; // Maximum search radius
+    const searchSteps = 16; // Number of radial directions to search
+    const maxIterations = 12; // Maximum iterations per direction
+    
+    let bestPosition = { x: canvasX, y: canvasY };
+    let bestDistance = Infinity;
+    
+    // Search in multiple radial directions from the target point
+    for (let angleStep = 0; angleStep < searchSteps; angleStep++) {
+      const angle = (angleStep / searchSteps) * 2 * Math.PI;
+      
+      // Binary search along this radial direction
+      let low = 0;
+      let high = maxRadius;
+      let iterations = 0;
+      
+      while (iterations < maxIterations && (high - low) > 1) {
+        const radius = (low + high) / 2;
+        
+        // Calculate position along this radial direction
+        const testX = canvasX + Math.cos(angle) * radius;
+        const testY = canvasY + Math.sin(angle) * radius;
+        
+        // Clamp to canvas bounds
+        const clampedX = Math.max(0, Math.min(size, testX));
+        const clampedY = Math.max(0, Math.min(size, testY));
+        
+        // Convert to color coordinates
+        const testValueX = clampedX / size;
+        const testValueY = (size - clampedY) / size;
+        
+        const testHsl: P3HslCoords = { ...currentHsl };
+        
+        // Update coordinates based on selected channels with proper scaling
+        if (channelX === 'h') testHsl.h = rangeX.min + (testValueX * (rangeX.max - rangeX.min));
+        else if (channelX === 's') testHsl.s = rangeX.min + (testValueX * (rangeX.max - rangeX.min));
+        else if (channelX === 'l') testHsl.l = rangeX.min + (testValueX * (rangeX.max - rangeX.min));
+        
+        if (channelY === 'h') testHsl.h = rangeY.min + (testValueY * (rangeY.max - rangeY.min));
+        else if (channelY === 's') testHsl.s = rangeY.min + (testValueY * (rangeY.max - rangeY.min));
+        else if (channelY === 'l') testHsl.l = rangeY.min + (testValueY * (rangeY.max - rangeY.min));
+        
+        // Check if this position is in gamut
+        const testColor = p3HslToColor(testHsl);
+        const inGamut = testColor.inGamut(gamutSpace);
+        
+        if (inGamut) {
+          // This position is in gamut, try a smaller radius
+          high = radius;
+          
+          // Calculate distance from original target
+          const distance = Math.sqrt(
+            Math.pow(clampedX - canvasX, 2) + Math.pow(clampedY - canvasY, 2)
+          );
+          
+          if (distance < bestDistance) {
+            bestDistance = distance;
+            bestPosition = { x: clampedX, y: clampedY };
+          }
+        } else {
+          // This position is out of gamut, try a larger radius
+          low = radius;
+        }
+        
+        iterations++;
+      }
+    }
+    
+    // If we didn't find any in-gamut position, fall back to center
+    if (bestDistance === Infinity) {
+      return { x: size / 2, y: size / 2 };
+    }
+    
+    return bestPosition;
+  }
+  
+  // Handle other color spaces with standard approach
   // Convert base color to target color space
   const targetColor = baseColor.to(config.id);
   const coords = [...targetColor.coords] as [number, number, number];
@@ -505,4 +730,51 @@ export const constrainToGamutBoundary = (
 };
 
 // Export the configuration getter for components that need it
-export { getColorSpaceConfig }; 
+export { getColorSpaceConfig };
+
+/**
+ * Create a color with updated channel values, handling P3-HSL specially
+ * This utility function is used by components like ColorSlider that need to create
+ * colors with specific channel values while supporting P3-HSL color space.
+ */
+export const createColorWithChannelValue = (
+  baseColor: Color,
+  config: ColorSpaceConfig,
+  channel: string,
+  channelValue: number
+): Color => {
+  try {
+    // Handle P3-HSL color space specially
+    if (config.id === 'p3-hsl') {
+      // Get current HSL values from base color
+      const currentHsl = colorToP3Hsl(baseColor);
+      
+      // Create new HSL coordinates
+      const newHsl: P3HslCoords = { ...currentHsl };
+      
+      // Update the specified channel
+      if (channel === 'h') newHsl.h = channelValue;
+      else if (channel === 's') newHsl.s = channelValue;
+      else if (channel === 'l') newHsl.l = channelValue;
+      
+      // Create new color from HSL coordinates
+      return p3HslToColor(newHsl);
+    } else {
+      // Handle other color spaces with standard approach
+      const colorInSpace = baseColor.to(config.id);
+      const coords = [...colorInSpace.coords] as [number, number, number];
+      
+      // Map channel to coordinate index
+      const channelIndex = config.channels.indexOf(channel);
+      
+      // Update coordinate based on selected channel
+      coords[channelIndex] = channelValue;
+      
+      // Create new color with updated coordinates
+      return new Color(config.id, coords);
+    }
+  } catch (error) {
+    console.warn('Error creating color with channel value:', error);
+    return baseColor; // Fallback to base color
+  }
+}; 
