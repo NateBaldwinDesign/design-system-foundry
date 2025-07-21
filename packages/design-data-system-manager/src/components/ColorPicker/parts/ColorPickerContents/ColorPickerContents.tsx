@@ -222,13 +222,6 @@ export const ColorPickerContents = React.memo<ColorPickerContentsProps>(({
             />
           </Box>
         </HStack>
-
-        {/* Color Display */}
-        <Box p={3} bg={colorMode === 'dark' ? 'gray.700' : 'gray.50'} borderRadius="md">
-          <Text fontSize="sm" fontFamily="mono">
-            {color.toString({ format: 'hex' })}
-          </Text>
-        </Box>
       </VStack>
     </Box>
   );

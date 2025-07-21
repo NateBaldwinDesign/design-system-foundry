@@ -26,6 +26,8 @@ import {
 import { Search, Unlink } from 'lucide-react';
 import type { Token, TokenValue, ResolvedValueType } from '@token-model/data-model';
 import TokenTag from './TokenTag';
+import { ColorPickerContents } from './ColorPicker/parts/ColorPickerContents/ColorPickerContents';
+import Color from 'colorjs.io';
 
 type TokenValueChange = TokenValue;
 
@@ -123,24 +125,41 @@ export function TokenValuePicker({
       switch (valueType.type) {
         case 'COLOR':
           return (
-            <InputGroup size="sm" width="200px">
-              <InputLeftElement>
-                <Box
-                  width="14px"
-                  height="14px"
-                  borderRadius="2px"
-                  backgroundColor={typeof value === 'object' && 'value' in value ? String(value.value) : '#000000'}
-                  border="1px solid"
-                  borderColor="rgba(0, 0, 0, 0.1)"
-                />
-              </InputLeftElement>
-              <Input
-                value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
-                onChange={(e) => handleValueChange(e.target.value)}
-                placeholder="Enter color (hex)"
-                isDisabled={isDisabled}
-              />
-            </InputGroup>
+            <Popover placement="bottom-start">
+              <PopoverTrigger>
+                <InputGroup size="sm" width="200px">
+                  <InputLeftElement>
+                    <Box
+                      width="14px"
+                      height="14px"
+                      borderRadius="2px"
+                      backgroundColor={typeof value === 'object' && 'value' in value ? String(value.value) : '#000000'}
+                      border="1px solid"
+                      borderColor="rgba(0, 0, 0, 0.1)"
+                    />
+                  </InputLeftElement>
+                  <Input
+                    value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
+                    onChange={(e) => handleValueChange(e.target.value)}
+                    placeholder="Enter color (hex)"
+                    isDisabled={isDisabled}
+                    cursor="pointer"
+                    readOnly={!isDisabled}
+                  />
+                </InputGroup>
+              </PopoverTrigger>
+              <PopoverContent minWidth="320px" p={0}>
+                <PopoverBody p={0}>
+                  <Box p={4}>
+                    <ColorPickerContents
+                      color={typeof value === 'object' && 'value' in value ? String(value.value) : '#000000'}
+                      onChange={(newColor: Color) => handleValueChange(newColor.toString({ format: 'hex' }))}
+                      data-testid="token-value-picker-color-picker"
+                    />
+                  </Box>
+                </PopoverBody>
+              </PopoverContent>
+            </Popover>
           );
         case 'DIMENSION':
         case 'SPACING':
