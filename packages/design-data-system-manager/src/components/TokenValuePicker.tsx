@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Input,
   InputGroup,
@@ -21,7 +21,8 @@ import {
   IconButton,
   List,
   ListItem,
-  Box
+  Box,
+  Text
 } from '@chakra-ui/react';
 import { Search, Unlink } from 'lucide-react';
 import type { Token, TokenValue, ResolvedValueType } from '@token-model/data-model';
@@ -64,12 +65,25 @@ export function TokenValuePicker({
 }: TokenValuePickerProps) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [searchTerm, setSearchTerm] = useState('');
+  const [colorError, setColorError] = useState<string | null>(null);
 
   // Get the value type from schema
   const valueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
   if (!valueType) {
     throw new Error(`Unknown value type: ${resolvedValueTypeId}`);
   }
+
+  // Validate initial color value
+  useEffect(() => {
+    if (valueType.type === 'COLOR' && typeof value === 'object' && 'value' in value) {
+      try {
+        new Color(String(value.value));
+        setColorError(null); // Clear error if initial color is valid
+      } catch (error) {
+        setColorError('Color value not valid');
+      }
+    }
+  }, [value, valueType.type]);
 
   // Filter tokens based on search term and value type
   const filteredTokens = tokens.filter(token => {
@@ -85,6 +99,17 @@ export function TokenValuePicker({
     if (valueType.type) {
       switch (valueType.type) {
         case 'COLOR':
+          // Validate color input
+          try {
+            new Color(String(newValue));
+            setColorError(null); // Clear error if color is valid
+          } catch (error) {
+            setColorError('Color value not valid');
+            // Still update the value even if invalid, so user can see what they typed
+          }
+          // String values
+          onChange({ value: String(newValue) });
+          break;
         case 'FONT_FAMILY':
         case 'CUBIC_BEZIER':
           // String values
@@ -125,41 +150,49 @@ export function TokenValuePicker({
       switch (valueType.type) {
         case 'COLOR':
           return (
-            <Popover placement="bottom-start">
-              <PopoverTrigger>
-                <InputGroup size="sm" width="200px">
-                  <InputLeftElement>
-                    <Box
-                      width="14px"
-                      height="14px"
-                      borderRadius="2px"
-                      backgroundColor={typeof value === 'object' && 'value' in value ? String(value.value) : '#000000'}
-                      border="1px solid"
-                      borderColor="rgba(0, 0, 0, 0.1)"
+            <VStack spacing={1} align="stretch">
+              <Popover placement="bottom-start">
+                <PopoverTrigger>
+                  <InputGroup size="sm" width="200px">
+                    <InputLeftElement>
+                      <Box
+                        width="14px"
+                        height="14px"
+                        borderRadius="2px"
+                        backgroundColor={typeof value === 'object' && 'value' in value ? String(value.value) : '#000000'}
+                        border="1px solid"
+                        borderColor="rgba(0, 0, 0, 0.1)"
+                      />
+                    </InputLeftElement>
+                    <Input
+                      value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
+                      onChange={(e) => handleValueChange(e.target.value)}
+                      placeholder="Enter color (hex)"
+                      isDisabled={isDisabled}
                     />
-                  </InputLeftElement>
-                  <Input
-                    value={typeof value === 'object' && 'value' in value ? String(value.value) : ''}
-                    onChange={(e) => handleValueChange(e.target.value)}
-                    placeholder="Enter color (hex)"
-                    isDisabled={isDisabled}
-                    cursor="pointer"
-                    readOnly={!isDisabled}
-                  />
-                </InputGroup>
-              </PopoverTrigger>
-              <PopoverContent minWidth="320px" p={0}>
-                <PopoverBody p={0}>
-                  <Box p={4}>
-                    <ColorPickerContents
-                      color={typeof value === 'object' && 'value' in value ? String(value.value) : '#000000'}
-                      onChange={(newColor: Color) => handleValueChange(newColor.toString({ format: 'hex' }))}
-                      data-testid="token-value-picker-color-picker"
-                    />
-                  </Box>
-                </PopoverBody>
-              </PopoverContent>
-            </Popover>
+                  </InputGroup>
+                </PopoverTrigger>
+                <PopoverContent minWidth="320px" p={0}>
+                  <PopoverBody p={0}>
+                    <Box p={4}>
+                      <ColorPickerContents
+                        color={typeof value === 'object' && 'value' in value ? String(value.value) : '#000000'}
+                        onChange={(newColor: Color) => {
+                          setColorError(null); // Clear error when color picker changes color
+                          handleValueChange(newColor.toString({ format: 'hex' }));
+                        }}
+                        data-testid="token-value-picker-color-picker"
+                      />
+                    </Box>
+                  </PopoverBody>
+                </PopoverContent>
+              </Popover>
+              {colorError && (
+                <Text fontSize="xs" color="red.500" data-testid="color-validation-error">
+                  {colorError}
+                </Text>
+              )}
+            </VStack>
           );
         case 'DIMENSION':
         case 'SPACING':
@@ -300,7 +333,7 @@ export function TokenValuePicker({
 
   return (
     <VStack spacing={2} align="stretch">
-      <HStack>
+      <HStack align="flex-start">
         {/* If value is an alias (tokenId), show TokenTag as PopoverTrigger, else show input and IconButton as before */}
         {typeof value === 'object' && 'tokenId' in value && referencedToken ? (
           <>
