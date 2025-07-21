@@ -2308,33 +2308,32 @@
     },
     {
       "id": "platform-web",
-      "displayName": "Web",
-      "syntaxPatterns": {
-        "prefix": "--",
-        "suffix": "",
-        "delimiter": "-",
-        "capitalization": "lowercase"
-      }
+      "displayName": "Web"
     },
     {
       "id": "platform-ios",
-      "displayName": "iOS",
-      "syntaxPatterns": {
-        "prefix": "",
-        "suffix": "",
-        "delimiter": "",
-        "capitalization": "capitalize"
-      }
+      "displayName": "iOS"
     },
     {
       "id": "platform-android",
-      "displayName": "Android",
-      "syntaxPatterns": {
-        "prefix": "",
-        "suffix": "",
-        "delimiter": ".",
-        "capitalization": "uppercase"
-      }
+      "displayName": "Android"
+    }
+  ],
+  "platformExtensions": [
+    {
+      "platformId": "platform-web",
+      "repositoryUri": "company/design-system-web",
+      "filePath": "platform-extension.json"
+    },
+    {
+      "platformId": "platform-ios",
+      "repositoryUri": "company/design-system-ios",
+      "filePath": "platform-extension.json"
+    },
+    {
+      "platformId": "platform-android",
+      "repositoryUri": "company/design-system-android",
+      "filePath": "platform-extension.json"
     }
   ],
   "taxonomies": [

@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://designsystem.org/schemas/platform-extension/v1.0.0",
+  "title": "Platform Extension Schema",
+  "description": "Schema for platform-specific extensions and overrides",
+  "type": "object",
+  "required": ["systemId", "platformId", "version"],
+  "properties": {
+    "systemId": {
+      "type": "string",
+      "description": "ID of the core system this extension belongs to"
+    },
+    "platformId": {
+      "type": "string",
+      "description": "ID of the platform this extension is for"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version of this platform extension"
+    },
+    "syntaxPatterns": {
+      "type": "object",
+      "description": "Platform-specific syntax patterns (not for Figma)",
+      "properties": {
+        "prefix": { "type": "string" },
+        "suffix": { "type": "string" },
+        "delimiter": { "type": "string", "enum": ["", "_", "-", ".", "/"] },
+        "capitalization": { "type": "string", "enum": ["camel", "uppercase", "lowercase", "capitalize"] },
+        "formatString": { "type": "string" }
+      }
+    },
+    "valueFormatters": {
+      "type": "object",
+      "description": "Platform-specific value formatting rules",
+      "properties": {
+        "color": { "type": "string", "enum": ["hex", "rgb", "rgba", "hsl", "hsla"] },
+        "dimension": { "type": "string", "enum": ["px", "rem", "em", "pt", "dp", "sp"] },
+        "numberPrecision": { "type": "integer", "minimum": 0, "maximum": 10 }
+      }
+    },
+    "algorithmVariableOverrides": {
+      "type": "array",
+      "description": "Platform-specific algorithm variable overrides (variables only, not formulas)",
+      "items": {
+        "type": "object",
+        "required": ["algorithmId", "variableId", "valuesByMode"],
+        "properties": {
+          "algorithmId": { "type": "string" },
+          "variableId": { "type": "string" },
+          "valuesByMode": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["modeIds", "value"],
+              "properties": {
+                "modeIds": { "type": "array", "items": { "type": "string" } },
+                "value": { "oneOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tokenOverrides": {
+      "type": "array",
+      "description": "Platform-specific token overrides and additions",
+      "items": {
+        "type": "object",
+        "required": ["id", "valuesByMode"],
+        "properties": {
+          "id": { "type": "string", "description": "Token ID (matches core or is new for platform)" },
+          "displayName": { "type": "string" },
+          "description": { "type": "string" },
+          "themeable": { "type": "boolean" },
+          "private": { "type": "boolean" },
+          "status": { "type": "string" },
+          "tokenTier": { "type": "string" },
+          "resolvedValueTypeId": { "type": "string" },
+          "generatedByAlgorithm": { "type": "boolean" },
+          "algorithmId": { "type": "string" },
+          "taxonomies": { "type": "array", "items": { "type": "object" } },
+          "propertyTypes": { "type": "array", "items": { "type": "object" } },
+          "codeSyntax": { "type": "array", "items": { "type": "object" } },
+          "valuesByMode": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["modeIds", "value"],
+              "properties": {
+                "modeIds": { "type": "array", "items": { "type": "string" } },
+                "value": {
+                  "oneOf": [
+                    { "type": "object", "required": ["value"], "properties": { "value": {} } },
+                    { "type": "object", "required": ["tokenId"], "properties": { "tokenId": { "type": "string" } } }
+                  ]
+                },
+                "metadata": { "type": "object" }
+              }
+            }
+          },
+          "omit": { "type": "boolean", "description": "If true, this token is omitted from the platform" }
+        }
+      }
+    },
+    "omittedModes": {
+      "type": "array",
+      "description": "List of mode IDs omitted from this platform (hidden, not deleted)",
+      "items": { "type": "string" }
+    },
+    "omittedDimensions": {
+      "type": "array",
+      "description": "List of dimension IDs omitted from this platform (hidden, not deleted)",
+      "items": { "type": "string" }
+    }
+  }
+} 

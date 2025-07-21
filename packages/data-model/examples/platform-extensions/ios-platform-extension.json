@@ -1,0 +1,84 @@
+{
+  "systemId": "design-system-core",
+  "platformId": "platform-ios",
+  "version": "1.0.0",
+  "metadata": {
+    "name": "iOS Platform Extension",
+    "description": "Platform-specific overrides and additions for iOS",
+    "maintainer": "ios-team@company.com",
+    "lastUpdated": "2024-01-15",
+    "repositoryVisibility": "private"
+  },
+  "syntaxPatterns": {
+    "prefix": "",
+    "suffix": "",
+    "delimiter": "_",
+    "capitalization": "camel",
+    "formatString": "{name}"
+  },
+  "valueFormatters": {
+    "color": "hex",
+    "dimension": "pt",
+    "numberPrecision": 2
+  },
+  "algorithmVariableOverrides": [
+    {
+      "algorithmId": "spacing-scale",
+      "variableId": "base-unit",
+      "valuesByMode": [
+        {
+          "modeIds": ["mode-light", "mode-dark"],
+          "value": 4
+        }
+      ]
+    }
+  ],
+  "tokenOverrides": [
+    {
+      "id": "color-primary-500",
+      "displayName": "Primary Color 500",
+      "description": "iOS-specific primary color override",
+      "themeable": true,
+      "private": false,
+      "status": "active",
+      "tokenTier": "foundation",
+      "resolvedValueTypeId": "color",
+      "valuesByMode": [
+        {
+          "modeIds": ["mode-light"],
+          "value": {
+            "value": "#007AFF"
+          }
+        },
+        {
+          "modeIds": ["mode-dark"],
+          "value": {
+            "value": "#0A84FF"
+          }
+        }
+      ]
+    },
+    {
+      "id": "spacing-xs",
+      "displayName": "Extra Small Spacing",
+      "description": "iOS-specific spacing token",
+      "themeable": false,
+      "private": false,
+      "status": "active",
+      "tokenTier": "foundation",
+      "resolvedValueTypeId": "dimension",
+      "generatedByAlgorithm": true,
+      "algorithmId": "spacing-scale",
+      "valuesByMode": [
+        {
+          "modeIds": ["mode-light", "mode-dark"],
+          "value": {
+            "value": 4
+          }
+        }
+      ]
+    }
+  ],
+  "omittedModes": ["mode-high-contrast"],
+  "omittedDimensions": ["dimension-brand"]
+} 

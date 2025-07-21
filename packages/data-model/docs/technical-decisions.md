@@ -1,3 +1,210 @@
+# Technical Decisions: Platform Data Modularization (Phase 1)
+
+## Context
+The platform data handling has been modularized to support distributed ownership and better governance. Platform-specific data is now separated from core data, with platforms owning their own syntax patterns, value formatters, token overrides, and algorithm variable overrides.
+
+## Key Changes in Phase 1
+
+### Platform Extension Schema
+- **New Schema**: `platform-extension-schema.json` defines the structure for platform-specific extensions
+- **Standalone Files**: Platform extensions are stored in separate files/repositories
+- **Minimal Registry**: Core data includes a minimal `platformExtensions` registry with only `platformId`, `repositoryUri`, and `filePath`
+
+### Syntax Patterns Ownership
+- **Core Data**: Only owns syntax patterns for the Figma platform
+- **Platform Extensions**: Own syntax patterns for all other platforms (Web, iOS, Android, etc.)
+- **Schema Updates**: Core schema updated to clarify that `syntaxPatterns` and `valueFormatters` are only included for Figma platform
+
+### TypeScript Integration
+- **New Types**: `PlatformExtensionRegistry` and `PlatformExtension` types added to schema.ts
+- **Validation Functions**: Added validation functions for platform extension data
+- **Exports**: Updated index.ts to export new types, schemas, and validation functions
+
+### Example Data
+- **iOS Platform Extension**: Example showing iOS-specific overrides, syntax patterns, and omissions
+- **Web Platform Extension**: Example showing web-specific overrides, syntax patterns, and value formatters
+
+## Rationale
+- **Governance**: Platform teams can manage their data independently
+- **Scalability**: Supports any number of platforms without core schema changes
+- **Clarity**: Clear ownership boundaries between core and platform-specific data
+- **Backward Compatibility**: Existing functionality preserved during migration
+
+## Implementation Notes
+- Platform extensions can override algorithm variables (but not formulas)
+- Platform extensions can omit modes and dimensions (hidden, not deleted)
+- Platform extensions can add new tokens or override existing ones
+- Core data maintains minimal registry for linking platform extensions
+
+---
+
+# Technical Decisions: Platform Data Modularization (Phase 2)
+
+## Context
+Phase 2 implements the data model and validation layer for platform extensions, including comprehensive validation logic, data merging capabilities, and backward compatibility support.
+
+## Key Changes in Phase 2
+
+### Enhanced Validation Logic
+- **Platform Extension Validation**: Comprehensive validation for standalone platform extensions and when merged with core data
+- **Referential Integrity**: Validates that all overrides/additions reference valid core tokens or are clearly marked as new
+- **Syntax Pattern Ownership**: Enforces that only Figma syntax patterns exist in core data
+- **Registry Validation**: Validates the platform extensions registry in core data
+
+### Data Merging Logic
+- **Merge Order**: Core → platform extensions → theme overrides
+- **Token Merging**: Merges/overrides token properties according to extension rules
+- **Omission Handling**: Excludes omitted tokens/modes/dimensions from merged output (hidden, not deleted)
+- **Analytics**: Calculates comprehensive analytics for dashboard and export
+
+### New Services
+- **Platform Extension Validation**: `validation/platform-extension-validation.ts`
+- **Data Merging**: `merging/data-merger.ts`
+
+## Rationale
+- **Data Integrity**: Comprehensive validation ensures data consistency across distributed sources
+- **Performance**: Efficient merging logic supports real-time data combination
+- **Clean Architecture**: Focused implementation without backward compatibility complexity
+- **Analytics**: Built-in analytics support dashboard and export requirements
+
+## Implementation Notes
+- Validation functions return detailed error and warning messages
+- Data merging supports filtering by target platform and theme
+- All services are exported through the main index for easy consumption
+- System designed for clean, forward-looking architecture
+
+---
+
+# Technical Decisions: Platform Data Modularization (Phase 3)
+
+## Context
+Phase 3 implements the UI/UX refactor for platform extension management, including repository linking, analytics dashboard, and data source management.
+
+## Key Changes in Phase 3
+
+### Multi-Repository Management
+- **MultiRepositoryManager**: Service for managing multiple repository links (core, platform extensions, themes)
+- **Repository Linking**: Support for linking/unlinking repositories with validation
+- **Data Synchronization**: Automatic data loading and merging from linked repositories
+- **Error Handling**: Comprehensive error handling and status tracking
+
+### UI Components
+- **RepositoryManager**: React component for managing repository links with modal-based linking
+- **PlatformAnalytics**: Analytics dashboard showing token overrides, new tokens, and platform status
+- **PlatformsView**: Comprehensive view integrating repository management and analytics
+
+### Repository Management Features
+- **Link/Unlink**: Add and remove repository connections
+- **Status Tracking**: Real-time status updates (linked, loading, error, synced)
+- **Validation**: Platform extension validation against core data
+- **Refresh**: Manual refresh of repository data
+
+### Analytics Dashboard
+- **Token Analysis**: Override, addition, and omission percentages
+- **Platform Status**: Validation status for each platform extension
+- **Data Source Status**: Connection status for core, platforms, and themes
+- **Visual Indicators**: Progress bars, badges, and status colors
+
+## Rationale
+- **User Experience**: Intuitive interface for managing distributed data sources
+- **Real-time Feedback**: Immediate status updates and validation results
+- **Comprehensive Analytics**: Clear insights into data relationships and changes
+- **Scalable Architecture**: Support for multiple repositories and platforms
+
+## Implementation Notes
+- Components use Chakra UI for consistent design
+- Mock data used for demonstration (will be replaced with real MultiRepositoryManager)
+- Error handling and loading states implemented throughout
+- Responsive design for different screen sizes
+
+---
+
+# Technical Decisions: Platform Data Modularization (Phase 4)
+
+## Context
+Phase 4 implements the clean integration of platform extension management with the existing web application, including platform-specific export settings and enhanced UI integration.
+
+## Key Changes in Phase 4
+
+### UI Integration
+- **ViewRenderer Update**: Updated to use new PlatformsView instead of legacy publishing view
+- **Component Integration**: Seamless integration of repository management and analytics components
+- **Navigation**: Platform management accessible through existing navigation structure
+
+### Platform Export Settings
+- **PlatformExportSettings Component**: Comprehensive settings management for platform-specific exports
+- **Syntax Pattern Configuration**: Prefix, suffix, delimiter, capitalization, and format string settings
+- **Value Formatter Configuration**: Color format, dimension units, number precision settings
+- **Export Options**: Comments, metadata, minification toggles
+- **Live Preview**: Real-time preview of token formatting based on settings
+
+### Enhanced Platform Management
+- **Tabbed Interface**: Repository Management, Analytics, and Platform Settings tabs
+- **Settings Persistence**: Save/reset functionality for platform configurations
+- **Validation**: Real-time validation and error handling
+- **User Feedback**: Toast notifications for user actions
+
+## Rationale
+- **Seamless Integration**: Maintains existing application structure while adding new functionality
+- **Comprehensive Settings**: Provides full control over platform-specific export formatting
+- **User Experience**: Intuitive interface with live preview and immediate feedback
+- **Scalability**: Supports multiple platforms with individual configurations
+
+## Implementation Notes
+- Platform settings use mock data for demonstration
+- Export settings component is reusable across different platforms
+- Settings include syntax patterns, value formatters, and export options
+- Live preview shows how tokens will be formatted in exports
+- Toast notifications provide user feedback for all actions
+
+---
+
+# Technical Decisions: Platform Data Modularization (Phase 5)
+
+## Context
+Phase 5 implements optimization and enhancement features for the platform extension management system, including advanced analytics, performance optimization, and enhanced export capabilities.
+
+## Key Changes in Phase 5
+
+### Advanced Analytics
+- **PlatformAnalyticsService**: Comprehensive analytics service with trend analysis and performance metrics
+- **AdvancedAnalytics Component**: Enhanced analytics dashboard with historical data and trend visualization
+- **Performance Metrics**: Data load time, merge time, validation time, memory usage, and cache hit rate tracking
+- **Trend Analysis**: Token growth, override rates, new token rates, and platform adoption trends
+
+### Enhanced Export System
+- **EnhancedExportService**: Batch export processing with multiple format support
+- **BatchExportManager Component**: Comprehensive batch export management with job monitoring
+- **Multiple Formats**: JSON, CSS, SCSS, TypeScript, Swift, and Kotlin export support
+- **Job Management**: Real-time job status tracking, progress monitoring, and result display
+
+### Performance Optimization
+- **Caching System**: TTL-based caching for improved performance
+- **Background Processing**: Asynchronous batch export processing
+- **Memory Management**: Memory usage tracking and optimization
+- **Rate Limiting**: Built-in rate limiting for GitHub API calls
+
+### User Experience Enhancements
+- **Real-time Updates**: Live job status updates and progress tracking
+- **Comprehensive Feedback**: Toast notifications and error handling
+- **Visual Indicators**: Progress bars, status badges, and trend arrows
+- **Responsive Design**: Optimized for different screen sizes
+
+## Rationale
+- **Performance**: Optimized data processing and caching for large datasets
+- **Scalability**: Support for multiple platforms and formats simultaneously
+- **User Experience**: Comprehensive analytics and real-time feedback
+- **Maintainability**: Modular service architecture with clear separation of concerns
+
+## Implementation Notes
+- Analytics service includes mock data generation for demonstration
+- Export service supports multiple formats with extensible architecture
+- Batch processing includes job management and progress tracking
+- Performance metrics provide insights into system optimization
+- Caching system improves response times for repeated operations
+
+---
+
 # Technical Decisions: ID Field Naming Convention
 
 ## Context

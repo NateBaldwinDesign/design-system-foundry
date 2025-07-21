@@ -28,7 +28,8 @@ import { ClassificationView } from '../views/setup/ClassificationView';
 import { NamingRulesView } from '../views/setup/NamingRulesView';
 import { ValueTypesView } from '../views/setup/ValueTypesView';
 import ThemesView from '../views/themes/ThemesView';
-import { PlatformsView } from '../views/publishing/PlatformsView';
+
+import { PlatformsView } from '../views/platforms/PlatformsView';
 import { ValidationView } from '../views/publishing/ValidationView';
 import { ExportSettingsView } from '../views/publishing/ExportSettingsView';
 import CoreDataView from '../views/schemas/CoreDataView';
@@ -189,7 +190,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <ThemesView themes={themes} setThemes={onUpdateThemes} />;
       
       case 'platforms':
-        return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} tokens={tokens} setTokens={onUpdateTokens} taxonomies={taxonomies} />;
+        return <PlatformsView />;
       
       case 'export-settings':
         return <ExportSettingsView />;
@@ -213,7 +214,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <AlgorithmDataView />;
       
       default:
-        return <DashboardView tokens={tokens} platforms={platforms} themes={themes} />;
+        return <DashboardView tokens={tokens} platforms={platforms} themes={themes} githubUser={githubUser} />;
     }
   };
 

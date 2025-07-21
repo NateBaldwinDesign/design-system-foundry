@@ -281,6 +281,73 @@ export const Platform = z.object({
   }).optional()
 });
 
+// Platform Extension Registry Entry
+export const PlatformExtensionRegistry = z.object({
+  platformId: z.string(),
+  repositoryUri: z.string(),
+  filePath: z.string()
+});
+
+// Platform Extension Schema (for standalone platform extension files)
+export const PlatformExtension = z.object({
+  systemId: z.string(),
+  platformId: z.string(),
+  version: z.string(),
+  metadata: z.object({
+    name: z.string().optional(),
+    description: z.string().optional(),
+    maintainer: z.string().optional(),
+    lastUpdated: z.string().optional(),
+    repositoryVisibility: z.enum(['public', 'private']).optional()
+  }).optional(),
+  syntaxPatterns: z.object({
+    prefix: z.string().optional(),
+    suffix: z.string().optional(),
+    delimiter: PlatformDelimiter.optional(),
+    capitalization: z.enum(['camel', 'uppercase', 'lowercase', 'capitalize']).optional(),
+    formatString: z.string().optional()
+  }).optional(),
+  valueFormatters: z.object({
+    color: z.enum(['hex', 'rgb', 'rgba', 'hsl', 'hsla']).optional(),
+    dimension: z.enum(['px', 'rem', 'em', 'pt', 'dp', 'sp']).optional(),
+    numberPrecision: z.number().int().min(0).max(10).optional()
+  }).optional(),
+  algorithmVariableOverrides: z.array(z.object({
+    algorithmId: z.string(),
+    variableId: z.string(),
+    valuesByMode: z.array(z.object({
+      modeIds: z.array(z.string()),
+      value: z.union([z.string(), z.number(), z.boolean()])
+    }))
+  })).optional(),
+  tokenOverrides: z.array(z.object({
+    id: z.string(),
+    displayName: z.string().optional(),
+    description: z.string().optional(),
+    themeable: z.boolean().optional(),
+    private: z.boolean().optional(),
+    status: z.string().optional(),
+    tokenTier: z.string().optional(),
+    resolvedValueTypeId: z.string().optional(),
+    generatedByAlgorithm: z.boolean().optional(),
+    algorithmId: z.string().optional(),
+    taxonomies: z.array(z.any()).optional(),
+    propertyTypes: z.array(z.any()).optional(),
+    codeSyntax: z.array(z.any()).optional(),
+    valuesByMode: z.array(z.object({
+      modeIds: z.array(z.string()),
+      value: z.union([
+        z.object({ value: z.any() }),
+        z.object({ tokenId: z.string() })
+      ]),
+      metadata: z.any().optional()
+    })),
+    omit: z.boolean().optional()
+  })).optional(),
+  omittedModes: z.array(z.string()).optional(),
+  omittedDimensions: z.array(z.string()).optional()
+});
+
 // Theme schema
 export const Theme = z.object({
   id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
@@ -348,7 +415,7 @@ export const DimensionEvolution = z.object({
   rules: z.array(DimensionEvolutionRule)
 });
 
-// Update TokenSystem to require platforms
+// Update TokenSystem to require platforms and include platform extensions registry
 export const TokenSystem = z.object({
   systemName: z.string(),
   systemId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
@@ -361,6 +428,7 @@ export const TokenSystem = z.object({
   tokenCollections: z.array(TokenCollection),
   tokens: z.array(Token),
   platforms: z.array(Platform),
+  platformExtensions: z.array(PlatformExtensionRegistry).optional(),
   themes: z.array(Theme).optional(),
   themeOverrides: ThemeOverrides.optional(),
   taxonomies: z.array(Taxonomy),
@@ -446,6 +514,14 @@ export const validateThemeOverride = (data: unknown): ThemeOverride => {
 
 export const validateThemeOverrides = (data: unknown): ThemeOverrides => {
   return ThemeOverrides.parse(data);
+};
+
+export const validatePlatformExtensionRegistry = (data: unknown): PlatformExtensionRegistry => {
+  return PlatformExtensionRegistry.parse(data);
+};
+
+export const validatePlatformExtension = (data: unknown): PlatformExtension => {
+  return PlatformExtension.parse(data);
 };
 
 export const validateTaxonomy = (data: unknown): Taxonomy => {
@@ -542,4 +618,6 @@ export type VersionHistoryEntry = z.infer<typeof VersionHistoryEntry>;
 export type DimensionEvolutionRule = z.infer<typeof DimensionEvolutionRule>;
 export type DimensionEvolution = z.infer<typeof DimensionEvolution>;
 export type TokenTier = z.infer<typeof TokenTier>;
-export type PropertyType = z.infer<typeof PropertyType>; 
+export type PropertyType = z.infer<typeof PropertyType>;
+export type PlatformExtensionRegistry = z.infer<typeof PlatformExtensionRegistry>;
+export type PlatformExtension = z.infer<typeof PlatformExtension>; 

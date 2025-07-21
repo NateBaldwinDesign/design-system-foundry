@@ -24,6 +24,8 @@ export type {
   TokenVariant,
   TokenSystem,
   Platform,
+  PlatformExtensionRegistry,
+  PlatformExtension,
   Taxonomy,
   TaxonomyTerm,
   TokenTaxonomyRef
@@ -46,6 +48,8 @@ export {
   TokenVariant as TokenVariantSchema,
   TokenSystem as TokenSystemSchema,
   Platform as PlatformSchema,
+  PlatformExtensionRegistry as PlatformExtensionRegistrySchema,
+  PlatformExtension as PlatformExtensionSchema,
   Taxonomy as TaxonomySchema,
   TokenTaxonomyRef as TokenTaxonomyRefSchema
 } from './schema';
@@ -83,6 +87,35 @@ export function validateTokenValuesByMode(valuesByMode: { modeIds: string[]; val
   return true;
 }
 
+// Export validation functions
+export {
+  validateTokenSystem,
+  validateResolvedValueType,
+  validateToken,
+  validateTokenCollection,
+  validateDimension,
+  validateTokenValue,
+  validateColorValue,
+  validateDimensionValue,
+  validateDurationValue,
+  validateCubicBezierValue,
+  validateShadowValue,
+  validateTypographyValue,
+  validateBorderValue,
+  validateTheme,
+  validateThemeOverride,
+  validateThemeOverrides,
+  validatePlatformExtensionRegistry,
+  validatePlatformExtension,
+  validateTaxonomy
+} from './schema';
+
+// Export platform extension validation
+export * from './validation/platform-extension-validation';
+
+// Export data merging functionality
+export * from './merging/data-merger';
+
 // Export example data
 export const exampleData = {
   core: () => import('../examples/themed/core-data.json'),
@@ -95,4 +128,10 @@ export const exampleData = {
 export const algorithmData = {
   core: () => import('../examples/algorithms/core-algorithms.json').catch(() => null),
   minimal: () => import('../examples/algorithms/example-minimal-algorithms.json').catch(() => null)
+} as const;
+
+// Export platform extension examples
+export const platformExtensionData = {
+  ios: () => import('../examples/platform-extensions/ios-platform-extension.json'),
+  web: () => import('../examples/platform-extensions/web-platform-extension.json')
 } as const; 

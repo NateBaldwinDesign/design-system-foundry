@@ -1,0 +1,84 @@
+{
+  "systemId": "design-system-core",
+  "platformId": "platform-web",
+  "version": "1.0.0",
+  "metadata": {
+    "name": "Web Platform Extension",
+    "description": "Platform-specific overrides and additions for Web",
+    "maintainer": "web-team@company.com",
+    "lastUpdated": "2024-01-15",
+    "repositoryVisibility": "public"
+  },
+  "syntaxPatterns": {
+    "prefix": "--",
+    "suffix": "",
+    "delimiter": "-",
+    "capitalization": "lowercase",
+    "formatString": "{name}"
+  },
+  "valueFormatters": {
+    "color": "hex",
+    "dimension": "rem",
+    "numberPrecision": 4
+  },
+  "algorithmVariableOverrides": [
+    {
+      "algorithmId": "spacing-scale",
+      "variableId": "base-unit",
+      "valuesByMode": [
+        {
+          "modeIds": ["mode-light", "mode-dark"],
+          "value": 0.25
+        }
+      ]
+    }
+  ],
+  "tokenOverrides": [
+    {
+      "id": "color-primary-500",
+      "displayName": "Primary Color 500",
+      "description": "Web-specific primary color override",
+      "themeable": true,
+      "private": false,
+      "status": "active",
+      "tokenTier": "foundation",
+      "resolvedValueTypeId": "color",
+      "valuesByMode": [
+        {
+          "modeIds": ["mode-light"],
+          "value": {
+            "value": "#0066CC"
+          }
+        },
+        {
+          "modeIds": ["mode-dark"],
+          "value": {
+            "value": "#4DA6FF"
+          }
+        }
+      ]
+    },
+    {
+      "id": "spacing-xs",
+      "displayName": "Extra Small Spacing",
+      "description": "Web-specific spacing token",
+      "themeable": false,
+      "private": false,
+      "status": "active",
+      "tokenTier": "foundation",
+      "resolvedValueTypeId": "dimension",
+      "generatedByAlgorithm": true,
+      "algorithmId": "spacing-scale",
+      "valuesByMode": [
+        {
+          "modeIds": ["mode-light", "mode-dark"],
+          "value": {
+            "value": 0.25
+          }
+        }
+      ]
+    }
+  ],
+  "omittedModes": [],
+  "omittedDimensions": []
+} 

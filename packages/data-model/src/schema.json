@@ -194,7 +194,7 @@
       },
       "platforms": {
         "type": "array",
-        "description": "Platforms that can be used to resolve token values",
+        "description": "Platforms that can be used to resolve token values. Note: syntaxPatterns and valueFormatters are only included for the Figma platform in core data. Other platforms define these in their respective platform extension files.",
         "items": {
           "type": "object",
           "required": ["id", "displayName"],
@@ -207,7 +207,7 @@
             },
             "syntaxPatterns": {
               "type": "object",
-              "description": "Patterns for generating code syntax for this platform",
+              "description": "Patterns for generating code syntax for this platform (only included for Figma platform in core data)",
               "properties": {
                 "prefix": {
                   "type": "string",
@@ -242,7 +242,7 @@
             },
             "valueFormatters": {
               "type": "object",
-              "description": "Rules for formatting values for this platform",
+              "description": "Rules for formatting values for this platform (only included for Figma platform in core data)",
               "properties": {
                 "color": {
                   "type": "string",
@@ -1215,6 +1215,28 @@
           "additionalProperties": true
         },
         "uniqueItems": true
+      },
+      "platformExtensions": {
+        "type": "array",
+        "description": "Registry of official platform extension data sources.",
+        "items": {
+          "type": "object",
+          "required": ["platformId", "repositoryUri", "filePath"],
+          "properties": {
+            "platformId": {
+              "type": "string",
+              "description": "ID of the platform this extension is for."
+            },
+            "repositoryUri": {
+              "type": "string",
+              "description": "GitHub repository URI (e.g., 'owner/repo')."
+            },
+            "filePath": {
+              "type": "string",
+              "description": "Path to the platform extension file within the repository."
+            }
+          }
+        }
       }
     },
     "additionalProperties": false,
