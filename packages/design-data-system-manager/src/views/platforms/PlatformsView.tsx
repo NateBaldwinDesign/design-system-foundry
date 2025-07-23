@@ -34,6 +34,7 @@ import { ExtendedToken } from '../../components/TokenEditorDialog';
 import type { DataType } from '../../services/dataTypeDetector';
 import { DataManager } from '../../services/dataManager';
 import { GitHubApiService } from '../../services/githubApi';
+import { RepositoryCreationService } from '../../services/repositoryCreationService';
 
 interface PlatformsViewProps {
   platforms?: Platform[];
@@ -395,36 +396,26 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
           // Create new repository with scaffolded structure
           if (linkData.platformId && linkData.type === 'platform-extension') {
             const { StorageService } = await import('../../services/storage');
-            const { RepositoryScaffoldingService } = await import('../../services/repositoryScaffoldingService');
             
             try {
-              // Create the repository scaffolding configuration
-              const config = {
-                name: linkData.newRepositoryName || `${linkData.platformId}-extension`,
+              
+              // Create the repository with scaffolding using the new RepositoryCreationService
+              const repositoryConfig = {
+                name: linkData.newRepositoryName || linkData.platformId,
                 description: linkData.newRepositoryDescription || `Platform extension for ${linkData.platformId}`,
-                visibility: linkData.newRepositoryVisibility || 'public',
-                platformId: linkData.platformId,
+                visibility: (linkData.newRepositoryVisibility as 'public' | 'private') || 'public',
+                organization: '', // Will use user's personal account
+                schemaType: 'platform-extension' as const,
                 systemId: linkData.systemId || await getCurrentSystemId(),
-                displayName: linkData.displayName || linkData.platformId,
-                platformDescription: linkData.description || '',
-                syntaxPatterns: linkData.syntaxPatterns || {
-                  prefix: '',
-                  suffix: '',
-                  delimiter: '_',
-                  capitalization: 'camel',
-                  formatString: ''
-                },
-                valueFormatters: linkData.valueFormatters || {
-                  color: 'hex',
-                  dimension: 'px',
-                  numberPrecision: 2
-                }
+                platformId: linkData.platformId
               };
               
-              // Create the repository with scaffolding
-              const scaffoldedRepo = await RepositoryScaffoldingService.createPlatformExtensionRepository(config);
+              const createdRepository = await RepositoryCreationService.createRepository(repositoryConfig);
               
-              // Create the platform extension file data conforming to platform-extension-schema.json
+              // The platform extension file is already created by RepositoryCreationService
+              // We just need to store it in localStorage and update the platforms array
+              
+              // Get the platform extension data from the created repository
               const platformExtensionData = {
                 systemId: linkData.systemId || await getCurrentSystemId(),
                 platformId: linkData.platformId,
@@ -455,12 +446,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                 omittedDimensions: []
               };
               
-              // Create the actual file content as JSON string
-              const fileContent = JSON.stringify(platformExtensionData, null, 2);
-              
               // Store the platform extension file in localStorage for local access
               StorageService.setPlatformExtensionFile(linkData.platformId, platformExtensionData);
-              StorageService.setPlatformExtensionFileContent(linkData.platformId, fileContent);
               
               // Add to core data's platforms array with extensionSource pointing to new repository
               const snapshot = dataManager.getCurrentSnapshot();
@@ -473,8 +460,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                 updatedPlatforms[platformIndex] = {
                   ...updatedPlatforms[platformIndex],
                   extensionSource: {
-                    repositoryUri: scaffoldedRepo.url.replace('https://github.com/', ''),
-                    filePath: 'platform-extension.json'
+                    repositoryUri: createdRepository.fullName,
+                    filePath: createdRepository.initialFilePath || 'platform-extension.json'
                   }
                 };
                 updatePlatformsInDataManager(updatedPlatforms);
@@ -485,16 +472,16 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                   displayName: linkData.displayName || linkData.platformId,
                   description: linkData.description || '',
                   extensionSource: {
-                    repositoryUri: scaffoldedRepo.url.replace('https://github.com/', ''),
-                    filePath: 'platform-extension.json'
+                    repositoryUri: createdRepository.fullName,
+                    filePath: createdRepository.initialFilePath || 'platform-extension.json'
                   }
                 };
                 updatePlatformsInDataManager([...currentPlatforms, newPlatform]);
               }
               
               toast({
-                title: 'Repository Creation Started',
-                description: `Repository "${scaffoldedRepo.url}" has been created with schema-compliant platform extension file`,
+                title: 'Repository Created Successfully',
+                description: `Repository "${createdRepository.htmlUrl}" has been created with schema-compliant platform extension file`,
                 status: 'success',
                 duration: 3000,
                 isClosable: true

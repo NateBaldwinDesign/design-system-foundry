@@ -113,9 +113,13 @@ const App = () => {
     const currentSnapshot = createDataSnapshot();
     // Get the current baseline data from ChangeTrackingService to ensure we have the latest
     const baselineSnapshot = ChangeTrackingService.getBaselineDataSnapshot();
+    
+    // If no baseline exists, use current data as baseline (this should only happen on initial load)
+    const effectiveBaseline = baselineSnapshot || currentSnapshot;
+    
     setChangeLogData({
       currentData: currentSnapshot,
-      baselineData: baselineSnapshot
+      baselineData: effectiveBaseline
     });
   }, [createDataSnapshot]);
 
@@ -147,11 +151,8 @@ const App = () => {
             setTaxonomyOrder(snapshot.namingRules.taxonomyOrder);
             setDimensionOrder(snapshot.dimensionOrder);
             
-            // Update change log data
-            setChangeLogData({
-              currentData: snapshot as unknown as Record<string, unknown>,
-              baselineData: snapshot as unknown as Record<string, unknown>
-            });
+            // Update change log data - use the baseline that was set by DataManager
+            updateChangeLogData();
             
             setLoading(false);
           },

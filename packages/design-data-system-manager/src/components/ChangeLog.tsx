@@ -1245,6 +1245,8 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
   const oldPlatforms = (previousData.platforms as unknown[]) || [];
   const newPlatforms = (currentData.platforms as unknown[]) || [];
   
+
+  
   const oldPlatformMap = new Map();
   const newPlatformMap = new Map();
 
@@ -1270,6 +1272,7 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
   for (const [id, platform] of newPlatformMap) {
     if (!oldPlatformMap.has(id)) {
       const platformObj = platform as { displayName?: string };
+
       changes.push({
         type: 'added',
         entityType: 'platform',
@@ -1403,6 +1406,8 @@ export const ChangeLog: React.FC<ChangeLogProps> = ({ previousData, currentData 
       </Box>
     );
   }
+  
+
   
   // Use the previousData prop directly instead of managing internal baseline
   const changes = detectChanges(previousData, currentData);
