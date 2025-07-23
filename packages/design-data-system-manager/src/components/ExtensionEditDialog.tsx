@@ -6,160 +6,136 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
-  ModalCloseButton,
   Button,
-  VStack,
-  HStack,
-  Text,
   FormControl,
   FormLabel,
   Input,
-  Card,
-  CardHeader,
-  CardBody,
-  Heading,
+  Select,
+  VStack,
+  HStack,
+  Text,
+  useToast,
   Divider,
   Alert,
   AlertIcon,
+  Box,
+  useColorMode,
+  Badge,
   AlertDialog,
   AlertDialogOverlay,
   AlertDialogContent,
   AlertDialogHeader,
   AlertDialogBody,
   AlertDialogFooter,
-  Badge,
-  useToast,
-  Flex
 } from '@chakra-ui/react';
-import { RepositoryLink } from '../services/multiRepositoryManager';
-import type { Platform } from '@token-model/data-model';
+import { PlatformExtensionValidationService } from '../services/platformExtensionValidation';
 import { StorageService } from '../services/storage';
-import {
-  WorkflowSelector,
-  CreateFileFields,
-  CreateRepositoryFields,
-  SaveToCoreFields,
-  PlatformFields,
-  SyntaxPatternsForm,
-  ValueFormattersForm,
-  type SyntaxPatterns,
-  type ValueFormatters,
-  type ExtensionWorkflow
-} from './shared/ExtensionFormComponents';
+import type { RepositoryLink } from '../services/multiRepositoryManager';
+import { SourceSelectionDialog, SourceSelectionData } from './SourceSelectionDialog';
 
-interface ExportOptions {
-  includeComments?: boolean;
-  includeMetadata?: boolean;
-  minifyOutput?: boolean;
+export interface ExtensionEditData {
+  type: 'core' | 'platform-extension' | 'theme-override';
+  repositoryUri: string;
+  branch: string;
+  filePath: string;
+  platformId?: string;
+  themeId?: string;
+  // Core schema fields for platformExtensions
+  systemId?: string;
+  syntaxPatterns?: {
+    prefix: string;
+    suffix: string;
+    delimiter: string;
+    capitalization: string;
+    formatString: string;
+  };
+  valueFormatters?: {
+    color: string;
+    dimension: string;
+    numberPrecision: number;
+  };
+  // Platform management fields
+  displayName?: string;
+  description?: string;
+  // Workflow-specific fields
+  workflow: 'link-existing' | 'create-file' | 'create-repository';
+  newFileName?: string;
+  newRepositoryName?: string;
+  newRepositoryDescription?: string;
+  newRepositoryVisibility?: 'public' | 'private';
 }
 
 interface ExtensionEditDialogProps {
   repository: RepositoryLink;
-  open: boolean;
+  isOpen: boolean;
   onClose: () => void;
-  onSave: (updates: {
-    repositoryUri: string;
-    branch: string;
-    filePath: string;
-    platformId?: string;
-    themeId?: string;
-    syntaxPatterns?: SyntaxPatterns;
-    valueFormatters?: ValueFormatters;
-    exportOptions?: ExportOptions;
-    displayName?: string;
-    description?: string;
-  }) => Promise<void>;
+  onSave: (data: ExtensionEditData) => void;
   onDelete?: (repositoryId: string) => void;
   onDeprecate?: (repositoryId: string) => void;
 }
 
 export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
   repository,
-  open,
+  isOpen,
   onClose,
   onSave,
   onDelete,
   onDeprecate
 }) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ExtensionEditData>({
+    type: repository.type,
     repositoryUri: repository.repositoryUri,
     branch: repository.branch,
     filePath: repository.filePath,
+    systemId: '',
     platformId: repository.platformId || '',
     themeId: repository.themeId || '',
     displayName: '',
-    description: ''
+    description: '',
+    workflow: 'link-existing',
+    newFileName: 'platform-extension.json',
+    newRepositoryName: '',
+    newRepositoryDescription: '',
+    newRepositoryVisibility: 'public',
+    syntaxPatterns: {
+      prefix: '',
+      suffix: '',
+      delimiter: '_',
+      capitalization: 'none',
+      formatString: ''
+    },
+    valueFormatters: {
+      color: 'hex',
+      dimension: 'px',
+      numberPrecision: 2
+    }
   });
 
-  const [workflow, setWorkflow] = useState<ExtensionWorkflow>('link-existing');
-  const [newFileName, setNewFileName] = useState('platform-extension.json');
-  const [newRepositoryName, setNewRepositoryName] = useState('');
-  const [newRepositoryDescription, setNewRepositoryDescription] = useState('');
-  const [newRepositoryVisibility, setNewRepositoryVisibility] = useState<'public' | 'private'>('public');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const toast = useToast();
+  const { colorMode } = useColorMode();
 
-  const [syntaxPatterns, setSyntaxPatterns] = useState<SyntaxPatterns>({
-    prefix: '',
-    suffix: '',
-    delimiter: '_',
-    capitalization: 'none',
-    formatString: ''
-  });
-
-  const [valueFormatters, setValueFormatters] = useState<ValueFormatters>({
-    colorFormat: 'hex',
-    dimensionUnit: 'px',
-    numberPrecision: 2
-  });
-
-  const [exportOptions] = useState<ExportOptions>({
-    includeComments: true,
-    includeMetadata: false,
-    minifyOutput: false
-  });
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDirty, setIsDirty] = useState(false);
+  // Delete dialog state
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [platformData, setPlatformData] = useState<Platform | undefined>(undefined);
-  const [errors] = useState<Record<string, string>>({});
   const deleteDialogCancelRef = useRef<HTMLButtonElement>(null);
-  const toast = useToast();
 
-  // Load platform data to check extensionSource
-  useEffect(() => {
-    const loadPlatformData = async () => {
-      if (repository.platformId) {
-        const { StorageService } = await import('../services/storage');
-        const platforms = StorageService.getPlatforms();
-        const platform = platforms.find(p => p.id === repository.platformId);
-        setPlatformData(platform);
-        
-        // Pre-select workflow based on extensionSource
-        if (platform) {
-          if (!platform.extensionSource) {
-            // No extensionSource means it's core data
-            setWorkflow('save-to-core');
-          } else if (platform.extensionSource.repositoryUri === 'local') {
-            // Local extensionSource means it's an extension file
-            setWorkflow('create-file');
-          } else {
-            // Any other extensionSource means it's a linked external repository
-            setWorkflow('link-existing');
-          }
-        }
-      }
-    };
-    
-    loadPlatformData();
-  }, [repository.platformId]);
+  // Source selection dialog state
+  const [isSourceSelectionOpen, setIsSourceSelectionOpen] = useState(false);
+  const [isExternalSource, setIsExternalSource] = useState(false);
+
+  // Get current system ID from storage
+  const getCurrentSystemId = (): string => {
+    const rootData = StorageService.getRootData();
+    return rootData.systemId || 'system-default';
+  };
 
   // Use CodeSyntaxService for preview (from PlatformEditorDialog)
   const preview = useMemo(() => {
-    if (repository.type !== 'platform-extension') return '';
+    if (formData.type !== 'platform-extension') return '';
     
     // Simple preview generation based on syntax patterns
-    const { prefix = '', suffix = '', delimiter = '_', capitalization = 'none' } = syntaxPatterns;
+    const { prefix = '', suffix = '', delimiter = '_', capitalization = 'none' } = formData.syntaxPatterns || {};
     let tokenName = 'primary-color-background';
     
     // Apply capitalization
@@ -181,82 +157,121 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
     }
     
     return `${prefix}${tokenName}${suffix}`;
-  }, [syntaxPatterns, repository.type]);
+  }, [formData.syntaxPatterns, formData.type]);
 
   // Reset form when repository changes
   useEffect(() => {
+    // Load platform extension data from localStorage if available
+    let platformExtensionData: Record<string, unknown> | null = null;
+    if (repository.platformId && repository.type === 'platform-extension') {
+      platformExtensionData = StorageService.getPlatformExtensionFile(repository.platformId);
+    }
+
     setFormData({
+      type: repository.type,
       repositoryUri: repository.repositoryUri,
       branch: repository.branch,
       filePath: repository.filePath,
+      systemId: (platformExtensionData?.systemId as string) || getCurrentSystemId(),
       platformId: repository.platformId || '',
       themeId: repository.themeId || '',
-      displayName: '',
-      description: ''
+      displayName: (platformExtensionData?.metadata as Record<string, unknown>)?.name as string || 
+                   (platformExtensionData?.displayName as string) || '',
+      description: (platformExtensionData?.metadata as Record<string, unknown>)?.description as string || 
+                   (platformExtensionData?.description as string) || '',
+      workflow: 'link-existing',
+      newFileName: 'platform-extension.json',
+      newRepositoryName: '',
+      newRepositoryDescription: '',
+      newRepositoryVisibility: 'public',
+      syntaxPatterns: {
+        prefix: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.prefix as string || '',
+        suffix: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.suffix as string || '',
+        delimiter: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.delimiter as string || '_',
+        capitalization: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.capitalization as string || 'none',
+        formatString: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.formatString as string || ''
+      },
+      valueFormatters: {
+        color: (platformExtensionData?.valueFormatters as Record<string, unknown>)?.color as string || 'hex',
+        dimension: (platformExtensionData?.valueFormatters as Record<string, unknown>)?.dimension as string || 'px',
+        numberPrecision: (platformExtensionData?.valueFormatters as Record<string, unknown>)?.numberPrecision as number || 2
+      }
     });
-    setIsDirty(false);
+    setErrors({});
   }, [repository]);
 
-  const handleFormChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    setIsDirty(true);
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Basic validation for editing
+    if (!formData.repositoryUri.trim()) {
+      newErrors.repositoryUri = 'Repository URI is required';
+    }
+    if (!formData.branch.trim()) {
+      newErrors.branch = 'Branch is required';
+    }
+    if (!formData.filePath.trim()) {
+      newErrors.filePath = 'File path is required';
+    }
+
+    // Type-specific validation
+    if (formData.type === 'platform-extension') {
+      if (!formData.displayName?.trim()) {
+        newErrors.displayName = 'Display name is required for platform extensions';
+      }
+      // Platform ID validation removed since it's read-only
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleSyntaxPatternChange = (field: keyof SyntaxPatterns, value: string | number | undefined) => {
-    setSyntaxPatterns(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    setIsDirty(true);
-  };
-
-  const handleValueFormatterChange = (field: keyof ValueFormatters, value: string | number | undefined) => {
-    setValueFormatters(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    setIsDirty(true);
-  };
-
-  const handleSave = async () => {
-    setIsLoading(true);
-    try {
-      await onSave({
-        repositoryUri: formData.repositoryUri,
-        branch: formData.branch,
-        filePath: formData.filePath,
-        platformId: formData.platformId || undefined,
-        themeId: formData.themeId || undefined,
-        syntaxPatterns,
-        valueFormatters,
-        exportOptions,
-        displayName: formData.displayName || undefined,
-        description: formData.description || undefined
-      });
-      
-      setIsDirty(false);
+  const handleSave = () => {
+    if (!validateForm()) {
       toast({
-        title: 'Extension Updated',
-        description: 'Extension settings have been saved successfully.',
-        status: 'success',
+        title: 'Validation Error',
+        description: 'Please fix the errors before saving',
+        status: 'error',
         duration: 3000,
         isClosable: true
       });
-      onClose();
+      return;
+    }
+
+    // Validate against schema
+    try {
+      if (formData.type === 'platform-extension') {
+        const extensionData = {
+          systemId: formData.systemId,
+          platformId: formData.platformId,
+          version: '1.0.0',
+          syntaxPatterns: formData.syntaxPatterns,
+          valueFormatters: formData.valueFormatters
+        };
+        
+        // Validate platform extension data
+        const validation = PlatformExtensionValidationService.validatePlatformExtension(extensionData);
+        if (!validation.isValid) {
+          throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+        }
+        
+        if (validation.warnings.length > 0) {
+          console.warn('Platform extension warnings:', validation.warnings);
+        }
+      }
     } catch (error) {
       toast({
-        title: 'Update Failed',
-        description: error instanceof Error ? error.message : 'Failed to update extension settings.',
+        title: 'Schema Validation Error',
+        description: error instanceof Error ? error.message : 'Invalid data structure',
         status: 'error',
         duration: 5000,
         isClosable: true
       });
-    } finally {
-      setIsLoading(false);
+      return;
     }
+
+    onSave(formData);
+    onClose();
   };
 
   const handleDeleteConfirm = () => {
@@ -275,6 +290,38 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
     }
   };
 
+  const handleSelectNewSource = () => {
+    setIsSourceSelectionOpen(true);
+  };
+
+  const handleSourceSelected = (sourceData: SourceSelectionData) => {
+    // Update form data with new source information
+    setFormData(prev => ({
+      ...prev,
+      repositoryUri: sourceData.repositoryUri || prev.repositoryUri,
+      branch: sourceData.branch || prev.branch,
+      filePath: sourceData.filePath || prev.filePath,
+      newFileName: sourceData.newFileName || prev.newFileName,
+      newRepositoryName: sourceData.newRepositoryName || prev.newRepositoryName,
+      newRepositoryDescription: sourceData.newRepositoryDescription || prev.newRepositoryDescription,
+      newRepositoryVisibility: sourceData.newRepositoryVisibility || prev.newRepositoryVisibility,
+      workflow: sourceData.workflow
+    }));
+
+    // Determine if this is an external source
+    const isExternal = sourceData.workflow === 'link-existing' && sourceData.repositoryUri && 
+                      sourceData.repositoryUri !== 'local';
+    setIsExternalSource(!!isExternal);
+
+    toast({
+      title: 'Source Updated',
+      description: `Source has been updated to ${sourceData.workflow === 'link-existing' ? 'external repository' : sourceData.workflow === 'create-file' ? 'local file' : 'new repository'}`,
+      status: 'success',
+      duration: 3000,
+      isClosable: true
+    });
+  };
+
   const getTypeDisplayName = (type: RepositoryLink['type']) => {
     switch (type) {
       case 'core': return 'Core Data';
@@ -284,271 +331,482 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
     }
   };
 
-  // Get current system ID from storage
-  const getCurrentSystemId = (): string => {
-    const rootData = StorageService.getRootData();
-    return rootData.systemId || 'system-default';
+  const renderSourceSelection = () => (
+    <VStack spacing={4} align="stretch">
+      <HStack justify="space-between" align="center">
+        <Text fontWeight="bold" fontSize="sm" color="gray.600">
+          Source Configuration
+        </Text>
+        <Button
+          size="sm"
+          colorScheme="blue"
+          variant="outline"
+          onClick={handleSelectNewSource}
+        >
+          Select New Source
+        </Button>
+      </HStack>
+      
+      {isExternalSource && (
+        <Alert status="info" borderRadius="md">
+          <AlertIcon />
+          <VStack align="start" spacing={1}>
+            <Text fontWeight="bold">External Source Detected</Text>
+            <Text fontSize="sm">This data comes from an external source file. Most fields are read-only to maintain data integrity.</Text>
+            {/* TODO: Add "Switch source to edit settings" functionality */}
+          </VStack>
+        </Alert>
+      )}
+    </VStack>
+  );
+
+  const renderLinkExistingFields = () => (
+    <VStack spacing={4} align="stretch">
+      <Text fontWeight="bold" fontSize="sm" color="gray.600">
+        Repository Settings
+      </Text>
+      
+      {Object.keys(errors).length > 0 && (
+        <Alert status="error">
+          <AlertIcon />
+          <Text>Please fix the validation errors below</Text>
+        </Alert>
+      )}
+
+      <FormControl isRequired isInvalid={!!errors.repositoryUri}>
+        <FormLabel>Repository URI</FormLabel>
+        {isExternalSource ? (
+          <Box
+            p={3}
+            borderWidth={1}
+            borderRadius="md"
+            bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+            borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+          >
+            <Text fontSize="sm" color="gray.500" fontFamily="mono">
+              {formData.repositoryUri || 'Not set'}
+            </Text>
+          </Box>
+        ) : (
+          <Input
+            value={formData.repositoryUri}
+            onChange={(e) => setFormData({ ...formData, repositoryUri: e.target.value })}
+            placeholder="owner/repository"
+          />
+        )}
+      </FormControl>
+
+      <HStack spacing={4}>
+        <FormControl isRequired isInvalid={!!errors.branch}>
+          <FormLabel>Branch</FormLabel>
+          {isExternalSource ? (
+            <Box
+              p={3}
+              borderWidth={1}
+              borderRadius="md"
+              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+            >
+              <Text fontSize="sm" color="gray.500" fontFamily="mono">
+                {formData.branch || 'Not set'}
+              </Text>
+            </Box>
+          ) : (
+            <Input
+              value={formData.branch}
+              onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+              placeholder="main"
+            />
+          )}
+        </FormControl>
+
+        <FormControl isRequired isInvalid={!!errors.filePath}>
+          <FormLabel>File Path</FormLabel>
+          {isExternalSource ? (
+            <Box
+              p={3}
+              borderWidth={1}
+              borderRadius="md"
+              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+            >
+              <Text fontSize="sm" color="gray.500" fontFamily="mono">
+                {formData.filePath || 'Not set'}
+              </Text>
+            </Box>
+          ) : (
+            <Input
+              value={formData.filePath}
+              onChange={(e) => setFormData({ ...formData, filePath: e.target.value })}
+              placeholder="path/to/file.json"
+            />
+          )}
+        </FormControl>
+      </HStack>
+
+      {/* Platform ID is now handled in the platform fields section as read-only */}
+
+      {formData.type === 'theme-override' && (
+        <FormControl isRequired isInvalid={!!errors.themeId}>
+          <FormLabel>Theme ID</FormLabel>
+          <Input
+            value={formData.themeId || ''}
+            onChange={(e) => setFormData({ ...formData, themeId: e.target.value })}
+            placeholder="theme-dark"
+          />
+        </FormControl>
+      )}
+    </VStack>
+  );
+
+  const renderCreateFileFields = () => (
+    <VStack spacing={4} align="stretch">
+      <Text fontWeight="bold" fontSize="sm" color="gray.600">
+        File Settings
+      </Text>
+      
+      <FormControl isRequired isInvalid={!!errors.newFileName}>
+        <FormLabel>File Name</FormLabel>
+        <Input
+          value={formData.newFileName}
+          onChange={(e) => setFormData({ ...formData, newFileName: e.target.value })}
+          placeholder="platform-extension.json"
+        />
+        <Text fontSize="xs" color="gray.500" mt={1}>
+          File will be created in the current repository
+        </Text>
+      </FormControl>
+    </VStack>
+  );
+
+  const renderCreateRepositoryFields = () => (
+    <VStack spacing={4} align="stretch">
+      <Text fontWeight="bold" fontSize="sm" color="gray.600">
+        Repository Settings
+      </Text>
+      
+      <FormControl isRequired isInvalid={!!errors.newRepositoryName}>
+        <FormLabel>Repository Name</FormLabel>
+        <Input
+          value={formData.newRepositoryName}
+          onChange={(e) => setFormData({ ...formData, newRepositoryName: e.target.value })}
+          placeholder="my-platform-extension"
+        />
+        <Text fontSize="xs" color="gray.500" mt={1}>
+          Repository will be created as: {formData.newRepositoryName ? `${formData.newRepositoryName}` : 'your-org/repo-name'}
+        </Text>
+      </FormControl>
+      
+      <FormControl>
+        <FormLabel>Description</FormLabel>
+        <Input
+          value={formData.newRepositoryDescription}
+          onChange={(e) => setFormData({ ...formData, newRepositoryDescription: e.target.value })}
+          placeholder="Platform-specific design tokens and overrides"
+        />
+      </FormControl>
+      
+      <FormControl>
+        <FormLabel>Visibility</FormLabel>
+        <Select
+          value={formData.newRepositoryVisibility}
+          onChange={(e) => setFormData({ ...formData, newRepositoryVisibility: e.target.value as 'public' | 'private' })}
+        >
+          <option value="public">Public</option>
+          <option value="private">Private</option>
+        </Select>
+      </FormControl>
+      
+      <Alert status="info" size="sm">
+        <AlertIcon />
+        Repository will be scaffolded with proper directory structure and initial platform extension file
+      </Alert>
+    </VStack>
+  );
+
+  const renderPlatformFields = () => {
+    return (
+      <VStack spacing={4} align="stretch">
+        <Text fontWeight="bold" fontSize="sm" color="gray.600">
+          Platform Extension Settings
+        </Text>
+        
+        {/* Basic Platform Information */}
+        <Box
+          p={3}
+          borderWidth={1}
+          borderRadius="md"
+          bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+          borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+        >
+          <VStack spacing={3} align="stretch">
+            <FormControl isRequired isInvalid={!!errors.displayName}>
+              <FormLabel>Display Name</FormLabel>
+              {isExternalSource ? (
+                <Box
+                  p={3}
+                  borderWidth={1}
+                  borderRadius="md"
+                  bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                  borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                >
+                  <Text fontSize="sm" color="gray.500">
+                    {formData.displayName || 'Not set'}
+                  </Text>
+                </Box>
+              ) : (
+                <Input
+                  value={formData.displayName || ''}
+                  onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                  placeholder="iOS Platform"
+                />
+              )}
+            </FormControl>
+            <FormControl>
+              <FormLabel>Description</FormLabel>
+              {isExternalSource ? (
+                <Box
+                  p={3}
+                  borderWidth={1}
+                  borderRadius="md"
+                  bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                  borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                >
+                  <Text fontSize="sm" color="gray.500">
+                    {formData.description || 'Not set'}
+                  </Text>
+                </Box>
+              ) : (
+                <Input
+                  value={formData.description || ''}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Platform-specific extensions for iOS"
+                />
+              )}
+            </FormControl>
+          </VStack>
+        </Box>
+
+        {/* Platform ID - Read-only display */}
+        <Box p={3} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'} borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}>
+          <Text fontSize="sm" fontWeight="medium" mb={2}>Platform ID</Text>
+          <Text fontSize="sm" color="gray.500" fontFamily="mono">
+            {formData.platformId || 'Not set'}
+          </Text>
+          <Text fontSize="xs" color="gray.400" mt={1}>
+            Platform ID cannot be changed after creation
+          </Text>
+        </Box>
+        
+        {/* System ID is hidden and auto-populated */}
+        <Box p={3} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'} borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}>
+          <Text fontSize="sm" fontWeight="medium" mb={2}>System ID</Text>
+          <Text fontSize="sm" color="gray.500">
+            {formData.systemId || getCurrentSystemId()}
+          </Text>
+          <Text fontSize="xs" color="gray.400" mt={1}>
+            Auto-populated from current system
+          </Text>
+        </Box>
+      </VStack>
+    );
   };
 
   const renderWorkflowSpecificFields = () => {
-    switch (workflow) {
+    switch (formData.workflow) {
       case 'link-existing':
-        return (
-          <Card>
-            <CardHeader>
-              <Heading size="sm">Repository Settings</Heading>
-              <Text fontSize="sm" color="gray.600">
-                Configure the repository connection and file path
-              </Text>
-            </CardHeader>
-            <CardBody>
-              <VStack spacing={4} align="stretch">
-                <FormControl isRequired>
-                  <FormLabel fontSize="sm">Repository URI</FormLabel>
-                  <Input
-                    size="sm"
-                    value={formData.repositoryUri}
-                    onChange={(e) => handleFormChange('repositoryUri', e.target.value)}
-                    placeholder="owner/repository"
-                  />
-                </FormControl>
-
-                <HStack spacing={4}>
-                  <FormControl isRequired>
-                    <FormLabel fontSize="sm">Branch</FormLabel>
-                    <Input
-                      size="sm"
-                      value={formData.branch}
-                      onChange={(e) => handleFormChange('branch', e.target.value)}
-                      placeholder="main"
-                    />
-                  </FormControl>
-
-                  <FormControl isRequired>
-                    <FormLabel fontSize="sm">File Path</FormLabel>
-                    <Input
-                      size="sm"
-                      value={formData.filePath}
-                      onChange={(e) => handleFormChange('filePath', e.target.value)}
-                      placeholder="path/to/file.json"
-                    />
-                  </FormControl>
-                </HStack>
-
-                {repository.type === 'platform-extension' && (
-                  <FormControl isRequired>
-                    <FormLabel fontSize="sm">Platform ID</FormLabel>
-                    <Input
-                      size="sm"
-                      value={formData.platformId}
-                      onChange={(e) => handleFormChange('platformId', e.target.value)}
-                      placeholder="platform-ios"
-                    />
-                  </FormControl>
-                )}
-
-                {repository.type === 'theme-override' && (
-                  <FormControl isRequired>
-                    <FormLabel fontSize="sm">Theme ID</FormLabel>
-                    <Input
-                      size="sm"
-                      value={formData.themeId}
-                      onChange={(e) => handleFormChange('themeId', e.target.value)}
-                      placeholder="theme-dark"
-                    />
-                  </FormControl>
-                )}
-              </VStack>
-            </CardBody>
-          </Card>
-        );
+        return renderLinkExistingFields();
       case 'create-file':
-        return (
-          <Card>
-            <CardHeader>
-              <Heading size="sm">File Settings</Heading>
-              <Text fontSize="sm" color="gray.600">
-                Configure the new extension file
-              </Text>
-            </CardHeader>
-            <CardBody>
-              <CreateFileFields
-                newFileName={newFileName}
-                onNewFileNameChange={setNewFileName}
-                errors={errors}
-              />
-            </CardBody>
-          </Card>
-        );
+        return renderCreateFileFields();
       case 'create-repository':
-        return (
-          <Card>
-            <CardHeader>
-              <Heading size="sm">Repository Settings</Heading>
-              <Text fontSize="sm" color="gray.600">
-                Configure the new repository
-              </Text>
-            </CardHeader>
-            <CardBody>
-              <CreateRepositoryFields
-                newRepositoryName={newRepositoryName}
-                newRepositoryDescription={newRepositoryDescription}
-                newRepositoryVisibility={newRepositoryVisibility}
-                onNewRepositoryNameChange={setNewRepositoryName}
-                onNewRepositoryDescriptionChange={setNewRepositoryDescription}
-                onNewRepositoryVisibilityChange={setNewRepositoryVisibility}
-                errors={errors}
-              />
-            </CardBody>
-          </Card>
-        );
-      case 'save-to-core':
-        return (
-          <Card>
-            <CardHeader>
-              <Heading size="sm">Save to Core</Heading>
-              <Text fontSize="sm" color="gray.600">
-                Configure how to save the extension to the core data repository.
-              </Text>
-            </CardHeader>
-            <CardBody>
-              <SaveToCoreFields
-                repositoryUri={formData.repositoryUri}
-                branch={formData.branch}
-                filePath={formData.filePath}
-                onRepositoryUriChange={(value: string) => handleFormChange('repositoryUri', value)}
-                onBranchChange={(value: string) => handleFormChange('branch', value)}
-                onFilePathChange={(value: string) => handleFormChange('filePath', value)}
-                errors={errors}
-              />
-            </CardBody>
-          </Card>
-        );
+        return renderCreateRepositoryFields();
       default:
         return null;
     }
   };
 
+  const renderSyntaxPatterns = () => (
+    <VStack spacing={6} align="stretch">
+      <Text fontWeight="bold" fontSize="sm" color="gray.600">
+        Syntax Patterns
+      </Text>
+      <Box
+        p={3}
+        borderWidth={1}
+        borderRadius="md"
+        bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+        borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+      >
+        <HStack spacing={4} align="flex-end">
+          <FormControl>
+            <FormLabel>Prefix</FormLabel>
+            <Input
+              value={formData.syntaxPatterns?.prefix || ''}
+              onChange={(e) => setFormData({
+                ...formData,
+                syntaxPatterns: { ...formData.syntaxPatterns!, prefix: e.target.value }
+              })}
+              placeholder="e.g., TKN_"
+            />
+          </FormControl>
+          <FormControl>
+            <FormLabel>Suffix</FormLabel>
+            <Input
+              value={formData.syntaxPatterns?.suffix || ''}
+              onChange={(e) => setFormData({
+                ...formData,
+                syntaxPatterns: { ...formData.syntaxPatterns!, suffix: e.target.value }
+              })}
+              placeholder="e.g., _SUF"
+            />
+          </FormControl>
+          <FormControl>
+            <FormLabel>Delimiter</FormLabel>
+            <Select
+              value={formData.syntaxPatterns?.delimiter || '_'}
+              onChange={(e) => setFormData({
+                ...formData,
+                syntaxPatterns: { ...formData.syntaxPatterns!, delimiter: e.target.value }
+              })}
+            >
+              <option value="">None</option>
+              <option value="_">Underscore (_)</option>
+              <option value="-">Hyphen (-)</option>
+              <option value=".">Dot (.)</option>
+              <option value="/">Slash (/)</option>
+            </Select>
+          </FormControl>
+          <FormControl>
+            <FormLabel>Capitalization</FormLabel>
+            <Select
+              value={formData.syntaxPatterns?.capitalization || 'none'}
+              onChange={(e) => setFormData({
+                ...formData,
+                syntaxPatterns: { ...formData.syntaxPatterns!, capitalization: e.target.value }
+              })}
+            >
+              <option value="none">None</option>
+              <option value="uppercase">UPPERCASE</option>
+              <option value="lowercase">lowercase</option>
+              <option value="capitalize">Capitalize</option>
+            </Select>
+          </FormControl>
+        </HStack>
+        <VStack spacing={3} align="stretch" mt={4}>
+          <FormControl>
+            <FormLabel>Format String</FormLabel>
+            <Input
+              value={formData.syntaxPatterns?.formatString || ''}
+              onChange={(e) => setFormData({
+                ...formData,
+                syntaxPatterns: { ...formData.syntaxPatterns!, formatString: e.target.value }
+              })}
+              placeholder="e.g., {prefix}{name}{suffix}"
+              width="100%"
+            />
+          </FormControl>
+          <Box mt={2} p={3} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.700' : 'gray.100'}>
+            <Text fontSize="sm" color="gray.500" mb={1} fontWeight="bold">Preview</Text>
+            <Text fontFamily="mono" fontSize="md" wordBreak="break-all">{preview}</Text>
+          </Box>
+        </VStack>
+      </Box>
+    </VStack>
+  );
+
+  const renderValueFormatters = () => (
+    <VStack spacing={6} align="stretch">
+      <Text fontWeight="bold" fontSize="sm" color="gray.600">
+        Value Formatters
+      </Text>
+      <HStack spacing={4}>
+        <FormControl>
+          <FormLabel>Color Format</FormLabel>
+          <Select
+            value={formData.valueFormatters?.color || 'hex'}
+            onChange={(e) => setFormData({
+              ...formData,
+              valueFormatters: { ...formData.valueFormatters!, color: e.target.value }
+            })}
+          >
+            <option value="hex">Hex</option>
+            <option value="rgb">RGB</option>
+            <option value="rgba">RGBA</option>
+            <option value="hsl">HSL</option>
+            <option value="hsla">HSLA</option>
+          </Select>
+        </FormControl>
+        <FormControl>
+          <FormLabel>Dimension Unit</FormLabel>
+          <Select
+            value={formData.valueFormatters?.dimension || 'px'}
+            onChange={(e) => setFormData({
+              ...formData,
+              valueFormatters: { ...formData.valueFormatters!, dimension: e.target.value }
+            })}
+          >
+            <option value="px">px</option>
+            <option value="rem">rem</option>
+            <option value="em">em</option>
+            <option value="pt">pt</option>
+            <option value="dp">dp</option>
+            <option value="sp">sp</option>
+          </Select>
+        </FormControl>
+      </HStack>
+      <FormControl>
+        <FormLabel>Number Precision</FormLabel>
+        <Input
+          type="number"
+          min={0}
+          max={10}
+          value={formData.valueFormatters?.numberPrecision || 2}
+          onChange={(e) => setFormData({
+            ...formData,
+            valueFormatters: { ...formData.valueFormatters!, numberPrecision: parseInt(e.target.value) }
+          })}
+        />
+      </FormControl>
+    </VStack>
+  );
+
   return (
     <>
-    <Modal isOpen={open} onClose={onClose} size="xl" scrollBehavior="inside">
+    <Modal isOpen={isOpen} onClose={onClose} size="xl">
       <ModalOverlay />
-      <ModalContent maxH="90vh" maxW="900px">
+      <ModalContent maxW="900px">
         <ModalHeader>
           <VStack align="start" spacing={2}>
             <Text>Edit Extension</Text>
             <HStack spacing={2}>
-              {platformData?.extensionSource ? (
-                platformData.extensionSource.repositoryUri === 'local' ? (
-                  <Badge colorScheme="blue" variant="outline">Local</Badge>
-                ) : (
-                  <Badge colorScheme="green" variant="outline">External</Badge>
-                )
-              ) : (
-                <Badge colorScheme="blue" variant="outline">
-                  {getTypeDisplayName(repository.type)}
-                </Badge>
-              )}
+              <Badge colorScheme="blue" variant="outline">
+                {getTypeDisplayName(repository.type)}
+              </Badge>
             </HStack>
           </VStack>
         </ModalHeader>
-        <ModalCloseButton />
-        <ModalBody pb={6}>
+        <ModalBody>
           <VStack spacing={6} align="stretch">
-            {/* Workflow Selector */}
-            <Card>
-              <CardHeader>
-                <Heading size="sm">Extension Workflow</Heading>
-                <Text fontSize="sm" color="gray.600">
-                  Choose how to manage this extension
-                </Text>
-              </CardHeader>
-              <CardBody>
-                <WorkflowSelector
-                  workflow={workflow}
-                  onWorkflowChange={setWorkflow}
-                />
-              </CardBody>
-            </Card>
-
+            {/* Source Selection */}
+            {renderSourceSelection()}
             <Divider />
-
-            {/* Workflow-specific fields */}
             {renderWorkflowSpecificFields()}
 
             {/* Platform Settings - Only show for platform extensions */}
-            {repository.type === 'platform-extension' && (
+            {formData.type === 'platform-extension' && (
               <>
                 <Divider />
-                
-                {/* Basic Platform Information */}
-                <Card>
-                  <CardHeader>
-                    <Heading size="sm">Platform Information</Heading>
-                    <Text fontSize="sm" color="gray.600">
-                      Configure platform display name and description
-                    </Text>
-                  </CardHeader>
-                  <CardBody>
-                    <PlatformFields
-                      platformId={formData.platformId}
-                      displayName={formData.displayName}
-                      description={formData.description}
-                      systemId={getCurrentSystemId()}
-                      workflow={workflow}
-                      onPlatformIdChange={(value) => handleFormChange('platformId', value)}
-                      onDisplayNameChange={(value) => handleFormChange('displayName', value)}
-                      onDescriptionChange={(value) => handleFormChange('description', value)}
-                      errors={errors}
-                    />
-                  </CardBody>
-                </Card>
-                
-                {/* Syntax Patterns */}
-                <Card>
-                  <CardHeader>
-                    <Heading size="sm">Syntax Patterns</Heading>
-                    <Text fontSize="sm" color="gray.600">
-                      Define how token names are formatted in the exported code
-                    </Text>
-                  </CardHeader>
-                  <CardBody>
-                    <SyntaxPatternsForm
-                      syntaxPatterns={syntaxPatterns}
-                      onSyntaxPatternChange={handleSyntaxPatternChange}
-                      preview={preview}
-                    />
-                  </CardBody>
-                </Card>
-
-                {/* Value Formatters */}
-                <Card>
-                  <CardHeader>
-                    <Heading size="sm">Value Formatters</Heading>
-                    <Text fontSize="sm" color="gray.600">
-                      Define how token values are formatted in the exported code
-                    </Text>
-                  </CardHeader>
-                  <CardBody>
-                    <ValueFormattersForm
-                      valueFormatters={valueFormatters}
-                      onValueFormatterChange={handleValueFormatterChange}
-                    />
-                  </CardBody>
-                </Card>
+                {renderPlatformFields()}
+                <Divider />
+                {renderSyntaxPatterns()}
+                <Divider />
+                {renderValueFormatters()}
               </>
-            )}
-
-            {isDirty && (
-              <Alert status="info" size="sm">
-                <AlertIcon />
-                You have unsaved changes. Click &quot;Save Changes&quot; to apply them.
-              </Alert>
             )}
           </VStack>
         </ModalBody>
         <ModalFooter>
-          <Flex width="100%" justify="space-between">
+          <HStack spacing={3}>
             {(onDelete || onDeprecate) && (
               <Button
                 colorScheme="red"
@@ -558,20 +816,16 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
                 Delete
               </Button>
             )}
-            <HStack spacing={3}>
-              <Button variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button
-                colorScheme="blue"
-                onClick={handleSave}
-                isLoading={isLoading}
-                isDisabled={!isDirty}
-              >
-                Save Changes
-              </Button>
-            </HStack>
-          </Flex>
+            <Button variant="ghost" mr={3} onClick={onClose}>
+              Cancel
+            </Button>
+            <Button 
+              colorScheme="blue" 
+              onClick={handleSave}
+            >
+              Save Changes
+            </Button>
+          </HStack>
         </ModalFooter>
       </ModalContent>
     </Modal>
@@ -608,9 +862,11 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
                 <AlertIcon />
                 <VStack align="start" spacing={1}>
                   <Text fontWeight="bold">Warning: This action will:</Text>
+                  <Text>• Delete the file from GitHub repository</Text>
                   <Text>• Remove the repository link</Text>
-                  <Text>• Delete the extension file from the repository</Text>
-                  <Text>• This action cannot be undone</Text>
+                  <Text>• Remove the platform from local data</Text>
+                  <Text>• Clean up all associated files</Text>
+                  <Text fontWeight="bold" color="red.500">• This action cannot be undone</Text>
                 </VStack>
               </Alert>
 
@@ -653,6 +909,14 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
         </AlertDialogContent>
       </AlertDialogOverlay>
     </AlertDialog>
+
+    {/* Source Selection Dialog */}
+    <SourceSelectionDialog
+      isOpen={isSourceSelectionOpen}
+      onClose={() => setIsSourceSelectionOpen(false)}
+      onSourceSelected={handleSourceSelected}
+      schemaType={formData.type}
+    />
   </>
 );
 }; 

@@ -23,7 +23,7 @@ import {
   Badge
 } from '@chakra-ui/react';
 import { ExtensionCreateDialog } from '../../components/ExtensionCreateDialog';
-import { ExtensionEditDialog } from '../../components/ExtensionEditDialog';
+import { ExtensionEditDialog, ExtensionEditData } from '../../components/ExtensionEditDialog';
 import { MultiRepositoryManager, MultiRepositoryData, RepositoryLink } from '../../services/multiRepositoryManager';
 import type { Platform, Taxonomy } from '@token-model/data-model';
 import { ExtensionCreateData } from '../../components/ExtensionCreateDialog';
@@ -33,29 +33,7 @@ import { CacheDebugPanel } from '../../components/CacheDebugPanel';
 import { ExtendedToken } from '../../components/TokenEditorDialog';
 import type { DataType } from '../../services/dataTypeDetector';
 import { DataManager } from '../../services/dataManager';
-import { Plus } from 'lucide-react';
-
-// Import types from ExtensionEditDialog
-interface SyntaxPatterns {
-  prefix?: string;
-  suffix?: string;
-  delimiter?: '' | '_' | '-' | '.' | '/' | undefined;
-  capitalization?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
-  formatString?: string;
-}
-
-interface ValueFormatters {
-  colorFormat?: 'hex' | 'rgb' | 'rgba' | 'hsl' | 'hsla';
-  dimensionUnit?: 'px' | 'rem' | 'em' | 'pt' | 'dp' | 'sp';
-  numberPrecision?: number;
-  dateFormat?: string;
-}
-
-interface ExportOptions {
-  includeComments?: boolean;
-  includeMetadata?: boolean;
-  minifyOutput?: boolean;
-}
+import { GitHubApiService } from '../../services/githubApi';
 
 interface PlatformsViewProps {
   platforms?: Platform[];
@@ -65,7 +43,10 @@ interface PlatformsViewProps {
   taxonomies?: Taxonomy[];
 }
 
-export const PlatformsView: React.FC<PlatformsViewProps> = () => {
+export const PlatformsView: React.FC<PlatformsViewProps> = ({ 
+  platforms = [], 
+  setPlatforms 
+}) => {
   const { colorMode } = useColorMode();
   const [isLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +63,6 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRepository, setEditingRepository] = useState<RepositoryLink | null>(null);
   const [currentDataType, setCurrentDataType] = useState<DataType>('core');
-  const [platforms, setPlatforms] = useState<Platform[]>([]);
   const cardBg = useColorModeValue('gray.50', 'gray.800');
   const cardBorder = useColorModeValue('gray.200', 'gray.600');
   const toast = useToast();
@@ -132,11 +112,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
   useEffect(() => {
     const initializeManager = async () => {
       try {
-        // Load platforms from storage
-        const { StorageService } = await import('../../services/storage');
-        const storedPlatforms = StorageService.getPlatforms();
-        console.log('🔍 [initializeManager] Loaded platforms from storage:', storedPlatforms);
-        setPlatforms(storedPlatforms);
+        // Platforms are now managed by App-level state management
+        // No need to load platforms here since they're passed as props
         
         // Set up callbacks
         multiRepoManager.setCallbacks({
@@ -192,30 +169,21 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
     };
 
     initializeManager();
-  }, [multiRepoManager, toast]);
+  }, [multiRepoManager, toast, dataManager]);
 
-  // Listen for data changes to reload platforms
-  useEffect(() => {
-    const handleDataChange = async () => {
-      const { StorageService } = await import('../../services/storage');
-      const storedPlatforms = StorageService.getPlatforms();
-      console.log('🔍 [handleDataChange] Reloading platforms from storage:', storedPlatforms);
-      setPlatforms(storedPlatforms);
-    };
-
-    window.addEventListener('token-model:data-change', handleDataChange);
-    window.addEventListener('github:file-loaded', handleDataChange);
-
-    return () => {
-      window.removeEventListener('token-model:data-change', handleDataChange);
-      window.removeEventListener('github:file-loaded', handleDataChange);
-    };
-  }, []);
+    // Platforms are now managed by App-level state management
+  // No need to listen for DataManager changes since we receive updates through props
 
   // Debug: Monitor platforms state changes
   useEffect(() => {
     console.log('🔍 [platforms state changed] Current platforms:', platforms);
   }, [platforms]);
+
+  // Helper function to update platforms through App-level state management
+  const updatePlatformsInDataManager = (updatedPlatforms: Platform[]) => {
+    console.log('🔍 [updatePlatformsInDataManager] Updating platforms through App-level state management:', updatedPlatforms);
+    setPlatforms?.(updatedPlatforms);
+  };
 
   const handleLinkRepository = async (linkData: ExtensionCreateData) => {
     try {
@@ -261,10 +229,9 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
           
           // Update core data's platforms array to include the extension source
           if (linkData.platformId) {
-            const { StorageService } = await import('../../services/storage');
-            
-            // Get current platforms from storage
-            const currentPlatforms = StorageService.getPlatforms();
+            // Get current platforms from DataManager
+            const snapshot = dataManager.getCurrentSnapshot();
+            const currentPlatforms = snapshot.platforms;
             
             // Find the platform to update
             const platformIndex = currentPlatforms.findIndex(p => p.id === linkData.platformId);
@@ -280,8 +247,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
                 }
               };
               
-              // Save updated platforms to storage
-              StorageService.setPlatforms(updatedPlatforms);
+              // Update platforms through DataManager
+              updatePlatformsInDataManager(updatedPlatforms);
               
               console.log('🔍 [link-existing] Updated existing platform with extension source:', linkData.platformId);
             } else {
@@ -297,13 +264,10 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
               };
               
               const updatedPlatforms = [...currentPlatforms, newPlatform];
-              StorageService.setPlatforms(updatedPlatforms);
+              updatePlatformsInDataManager(updatedPlatforms);
               
               console.log('🔍 [link-existing] Created new platform with extension source:', linkData.platformId);
             }
-            
-            // Trigger data change event for UI updates and change tracking
-            window.dispatchEvent(new CustomEvent('token-model:data-change'));
             
             // Update platform extensions validation
             const validationResults = multiRepoManager.validatePlatformExtensions();
@@ -376,7 +340,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
               StorageService.setPlatformExtensionFileContent(linkData.platformId, fileContent);
               
               // Add to core data's platforms array with extensionSource pointing to the created file
-              const currentPlatforms = StorageService.getPlatforms();
+              const snapshot = dataManager.getCurrentSnapshot();
+              const currentPlatforms = snapshot.platforms;
               const platformIndex = currentPlatforms.findIndex(p => p.id === linkData.platformId);
               
               if (platformIndex !== -1) {
@@ -389,7 +354,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
                     filePath: fileName
                   }
                 };
-                StorageService.setPlatforms(updatedPlatforms);
+                updatePlatformsInDataManager(updatedPlatforms);
               } else {
                 // Create new platform entry
                 const newPlatform = {
@@ -401,11 +366,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
                     filePath: fileName
                   }
                 };
-                StorageService.setPlatforms([...currentPlatforms, newPlatform]);
+                updatePlatformsInDataManager([...currentPlatforms, newPlatform]);
               }
-              
-              // Trigger data change event for UI updates and change tracking
-              window.dispatchEvent(new CustomEvent('token-model:data-change'));
               
               toast({
                 title: 'Extension File Created',
@@ -501,7 +463,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
               StorageService.setPlatformExtensionFileContent(linkData.platformId, fileContent);
               
               // Add to core data's platforms array with extensionSource pointing to new repository
-              const currentPlatforms = StorageService.getPlatforms();
+              const snapshot = dataManager.getCurrentSnapshot();
+              const currentPlatforms = snapshot.platforms;
               const platformIndex = currentPlatforms.findIndex(p => p.id === linkData.platformId);
               
               if (platformIndex !== -1) {
@@ -514,7 +477,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
                     filePath: 'platform-extension.json'
                   }
                 };
-                StorageService.setPlatforms(updatedPlatforms);
+                updatePlatformsInDataManager(updatedPlatforms);
               } else {
                 // Create new platform entry
                 const newPlatform = {
@@ -526,11 +489,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
                     filePath: 'platform-extension.json'
                   }
                 };
-                StorageService.setPlatforms([...currentPlatforms, newPlatform]);
+                updatePlatformsInDataManager([...currentPlatforms, newPlatform]);
               }
-              
-              // Trigger data change event for UI updates and change tracking
-              window.dispatchEvent(new CustomEvent('token-model:data-change'));
               
               toast({
                 title: 'Repository Creation Started',
@@ -574,10 +534,9 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
     
     // Remove extension source from core data's platforms array
     if (repository?.platformId) {
-      const { StorageService } = await import('../../services/storage');
-      
-      // Get current platforms from storage
-      const currentPlatforms = StorageService.getPlatforms();
+      // Get current platforms from DataManager
+      const snapshot = dataManager.getCurrentSnapshot();
+      const currentPlatforms = snapshot.platforms;
       
       // Find the platform to update
       const platformIndex = currentPlatforms.findIndex(p => p.id === repository.platformId);
@@ -589,11 +548,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
         delete platformWithoutExtension.extensionSource;
         updatedPlatforms[platformIndex] = platformWithoutExtension;
         
-        // Save updated platforms to storage
-        StorageService.setPlatforms(updatedPlatforms);
-        
-        // Trigger data change event for UI updates and change tracking
-        window.dispatchEvent(new CustomEvent('token-model:data-change'));
+        // Update platforms through DataManager
+        updatePlatformsInDataManager(updatedPlatforms);
       }
     }
     
@@ -628,18 +584,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
     }
   };
 
-  const handleUpdateRepository = async (updates: {
-    repositoryUri: string;
-    branch: string;
-    filePath: string;
-    platformId?: string;
-    themeId?: string;
-    syntaxPatterns?: SyntaxPatterns;
-    valueFormatters?: ValueFormatters;
-    exportOptions?: ExportOptions;
-    displayName?: string;
-    description?: string;
-  }) => {
+  const handleUpdateRepository = async (editData: ExtensionEditData) => {
     if (!editingRepository) return;
     
     try {
@@ -648,27 +593,27 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
       
       if (isMockRepository) {
         // This is an unlinked platform being linked to a repository
-        if (updates.repositoryUri && updates.filePath && updates.platformId) {
+        if (editData.repositoryUri && editData.filePath && editData.platformId) {
           await handleLinkRepository({
             type: 'platform-extension',
-            repositoryUri: updates.repositoryUri,
-            branch: updates.branch,
-            filePath: updates.filePath,
-            platformId: updates.platformId,
+            repositoryUri: editData.repositoryUri,
+            branch: editData.branch,
+            filePath: editData.filePath,
+            platformId: editData.platformId,
             systemId: await getCurrentSystemId(),
-            displayName: updates.displayName || updates.platformId,
-            description: updates.description || '',
-            syntaxPatterns: {
-              prefix: updates.syntaxPatterns?.prefix || '',
-              suffix: updates.syntaxPatterns?.suffix || '',
-              delimiter: updates.syntaxPatterns?.delimiter || '_',
-              capitalization: updates.syntaxPatterns?.capitalization || 'camel',
-              formatString: updates.syntaxPatterns?.formatString || ''
+            displayName: editData.displayName || editData.platformId,
+            description: editData.description || '',
+            syntaxPatterns: editData.syntaxPatterns || {
+              prefix: '',
+              suffix: '',
+              delimiter: '_',
+              capitalization: 'none',
+              formatString: ''
             },
-            valueFormatters: {
-              color: updates.valueFormatters?.colorFormat || 'hex',
-              dimension: updates.valueFormatters?.dimensionUnit || 'px',
-              numberPrecision: updates.valueFormatters?.numberPrecision || 2
+            valueFormatters: editData.valueFormatters || {
+              color: 'hex',
+              dimension: 'px',
+              numberPrecision: 2
             },
             workflow: 'link-existing'
           });
@@ -676,8 +621,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
       } else {
         // This is an existing repository being updated
         await multiRepoManager.updateRepositoryLink(editingRepository.id, {
-          branch: updates.branch,
-          filePath: updates.filePath
+          branch: editData.branch,
+          filePath: editData.filePath
         });
         
         toast({
@@ -718,9 +663,10 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
         // Handle deletion of unlinked platform directly
         const { StorageService } = await import('../../services/storage');
         
-        // Get current platforms from storage
-        const currentPlatforms = StorageService.getPlatforms();
-        console.log('🔍 [handleDeleteRepository] Current platforms from storage:', currentPlatforms);
+        // Get current platforms from DataManager
+        const snapshot = dataManager.getCurrentSnapshot();
+        const currentPlatforms = snapshot.platforms;
+        console.log('🔍 [handleDeleteRepository] Current platforms from DataManager:', currentPlatforms);
         
         // Find the platform to delete
         const platformIndex = currentPlatforms.findIndex(p => p.id === platformId);
@@ -731,17 +677,69 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
           console.log('🔍 [handleDeleteRepository] Found platform:', platform);
           console.log('🔍 [handleDeleteRepository] Platform has extensionSource:', !!platform.extensionSource);
           
-          // Check if this platform was created as an extension (has extensionSource)
+          // Check if this platform has an extensionSource
           if (platform.extensionSource) {
-            console.log('🔍 [handleDeleteRepository] Removing entire platform (created as extension)');
+            console.log('🔍 [handleDeleteRepository] Platform has extensionSource, checking if local or external');
             
-            // Remove the entire platform since it was created as an extension
+            // Determine if this is a local file or external repository
+            const isLocalFile = platform.extensionSource.repositoryUri === 'local';
+            console.log('🔍 [handleDeleteRepository] Is local file:', isLocalFile);
+            
+            if (isLocalFile) {
+              // LOCAL FILE: Delete the file from filesystem + remove from core data
+              console.log('🔍 [handleDeleteRepository] Deleting local file...');
+              
+              try {
+                // Get current repository info for local file deletion
+                const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+                if (!repoInfo) {
+                  throw new Error('No repository selected for local file deletion');
+                }
+                
+                // Delete the local file from GitHub
+                await GitHubApiService.deleteFile(
+                  repoInfo.fullName,
+                  platform.extensionSource.filePath,
+                  repoInfo.branch,
+                  `Delete local platform extension: ${platformId}`
+                );
+                console.log('🔍 [handleDeleteRepository] Local file successfully deleted from GitHub');
+              } catch (error) {
+                console.error('🔍 [handleDeleteRepository] Failed to delete local file:', error);
+                
+                // Check if it's a "file not found" or "access denied" error
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                if (errorMessage.includes('not found') || errorMessage.includes('cannot be accessed')) {
+                  toast({
+                    title: 'Cannot Delete Platform',
+                    description: `File not found or you don't have access: ${platform.extensionSource.filePath}`,
+                    status: 'error',
+                    duration: 5000,
+                    isClosable: true
+                  });
+                  return; // Don't proceed with core data removal if file deletion fails
+                } else {
+                  toast({
+                    title: 'Local File Delete Failed',
+                    description: `Failed to delete local file: ${errorMessage}. The platform will still be removed from core data.`,
+                    status: 'warning',
+                    duration: 5000,
+                    isClosable: true
+                  });
+                  // Continue with core data removal even if file deletion fails
+                }
+              }
+            } else {
+              // EXTERNAL REPOSITORY: Only remove from core data, don't delete external file
+              console.log('🔍 [handleDeleteRepository] External repository - only removing from core data');
+            }
+            
+            // Remove the entire platform from core data (for both local and external)
             const updatedPlatforms = currentPlatforms.filter((_, index) => index !== platformIndex);
             console.log('🔍 [handleDeleteRepository] Updated platforms after removal:', updatedPlatforms);
             
-            // Update both state and storage
-            setPlatforms(updatedPlatforms);
-            StorageService.setPlatforms(updatedPlatforms);
+            // Update platforms through DataManager (saves to localStorage)
+            updatePlatformsInDataManager(updatedPlatforms);
             
             // Also remove the platform extension file from localStorage
             console.log('🔍 [handleDeleteRepository] Removing platform extension files from localStorage...');
@@ -750,7 +748,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
             
             console.log('🔍 [handleDeleteRepository] Platform extension files removed from localStorage');
           } else {
-            console.log('🔍 [handleDeleteRepository] Removing only extensionSource (core platform)');
+            console.log('🔍 [handleDeleteRepository] Platform has no extensionSource - removing only extensionSource (core platform)');
             
             // Platform was from core data, just remove the extensionSource
             const updatedPlatforms = [...currentPlatforms];
@@ -759,18 +757,13 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
             updatedPlatforms[platformIndex] = platformWithoutExtension;
             console.log('🔍 [handleDeleteRepository] Updated platform without extensionSource:', platformWithoutExtension);
             
-            // Update both state and storage
-            setPlatforms(updatedPlatforms);
-            StorageService.setPlatforms(updatedPlatforms);
+            // Update platforms through DataManager
+            updatePlatformsInDataManager(updatedPlatforms);
           }
           
           // Verify the update worked
-          const verifyPlatforms = StorageService.getPlatforms();
-          console.log('🔍 [handleDeleteRepository] Verification - platforms in storage after update:', verifyPlatforms);
-          
-          // Trigger data change event for UI updates and change tracking
-          console.log('🔍 [handleDeleteRepository] Dispatching data change event...');
-          window.dispatchEvent(new CustomEvent('token-model:data-change'));
+          const verifySnapshot = dataManager.getCurrentSnapshot();
+          console.log('🔍 [handleDeleteRepository] Verification - platforms in DataManager after update:', verifySnapshot.platforms);
           
           console.log('✅ [handleDeleteRepository] Mock repository delete process completed successfully');
         } else {
@@ -802,7 +795,10 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
           return;
         }
         
-        // Remove from MultiRepositoryManager first
+        // For real repository links, we only remove from core data (external files are not deleted)
+        console.log('🔍 [handleDeleteRepository] Real repository link - only removing from core data');
+        
+        // Remove from MultiRepositoryManager
         console.log('🔍 [handleDeleteRepository] Removing from MultiRepositoryManager...');
         multiRepoManager.unlinkRepository(repositoryId);
         
@@ -810,9 +806,10 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
           console.log('🔍 [handleDeleteRepository] Processing platform extension for platformId:', repository.platformId);
           const { StorageService } = await import('../../services/storage');
           
-          // Get current platforms from storage
-          const currentPlatforms = StorageService.getPlatforms();
-          console.log('🔍 [handleDeleteRepository] Current platforms from storage:', currentPlatforms);
+          // Get current platforms from DataManager
+          const snapshot = dataManager.getCurrentSnapshot();
+          const currentPlatforms = snapshot.platforms;
+          console.log('🔍 [handleDeleteRepository] Current platforms from DataManager:', currentPlatforms);
           
           // Find the platform to update
           const platformIndex = currentPlatforms.findIndex(p => p.id === repository.platformId);
@@ -831,9 +828,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
               const updatedPlatforms = currentPlatforms.filter((_, index) => index !== platformIndex);
               console.log('🔍 [handleDeleteRepository] Updated platforms after removal:', updatedPlatforms);
               
-              // Update both state and storage
-              setPlatforms(updatedPlatforms);
-              StorageService.setPlatforms(updatedPlatforms);
+              // Update platforms through DataManager
+              updatePlatformsInDataManager(updatedPlatforms);
               
               // Also remove the platform extension file from localStorage
               console.log('🔍 [handleDeleteRepository] Removing platform extension files from localStorage...');
@@ -851,18 +847,13 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
               updatedPlatforms[platformIndex] = platformWithoutExtension;
               console.log('🔍 [handleDeleteRepository] Updated platform without extensionSource:', platformWithoutExtension);
               
-              // Update both state and storage
-              setPlatforms(updatedPlatforms);
-              StorageService.setPlatforms(updatedPlatforms);
+              // Update platforms through DataManager
+              updatePlatformsInDataManager(updatedPlatforms);
             }
             
             // Verify the update worked
-            const verifyPlatforms = StorageService.getPlatforms();
-            console.log('🔍 [handleDeleteRepository] Verification - platforms in storage after update:', verifyPlatforms);
-            
-            // Trigger data change event for UI updates and change tracking
-            console.log('🔍 [handleDeleteRepository] Dispatching data change event...');
-            window.dispatchEvent(new CustomEvent('token-model:data-change'));
+            const verifySnapshot = dataManager.getCurrentSnapshot();
+            console.log('🔍 [handleDeleteRepository] Verification - platforms in DataManager after update:', verifySnapshot.platforms);
             
             console.log('✅ [handleDeleteRepository] Real repository delete process completed successfully');
           } else {
@@ -881,10 +872,11 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
         }
       }
       
+      // Show success message following the same pattern as Token deletion
       toast({
-        title: 'Extension Deleted',
-        description: 'Extension has been permanently deleted.',
-        status: 'success',
+        title: 'Platform Deleted',
+        description: 'Platform has been deleted from local storage. Changes will be saved to GitHub when you commit or create a PR.',
+        status: 'info',
         duration: 3000,
         isClosable: true
       });
@@ -892,7 +884,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
       console.error('❌ [handleDeleteRepository] Error during delete process:', error);
       toast({
         title: 'Delete Failed',
-        description: error instanceof Error ? error.message : 'Failed to delete extension.',
+        description: error instanceof Error ? error.message : 'Failed to delete platform.',
         status: 'error',
         duration: 5000,
         isClosable: true
@@ -1118,7 +1110,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
       {editingRepository && (
         <ExtensionEditDialog
           repository={editingRepository}
-          open={isEditDialogOpen}
+          isOpen={isEditDialogOpen}
           onClose={() => {
             setIsEditDialogOpen(false);
             setEditingRepository(null);

@@ -190,7 +190,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <ThemesView themes={themes} setThemes={onUpdateThemes} />;
       
       case 'platforms':
-        return <PlatformsView />;
+        return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} />;
       
       case 'figma-settings':
         return <ExportSettingsView />;

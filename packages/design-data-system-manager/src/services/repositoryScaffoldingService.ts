@@ -132,6 +132,10 @@ export class RepositoryScaffoldingService {
     const figmaFiles = this.generateFigmaDirectoryFiles(config);
     files.push(...figmaFiles);
 
+    // 5. platforms directory structure
+    const platformsFiles = this.generatePlatformsDirectoryFiles();
+    files.push(...platformsFiles);
+
     return files;
   }
 
@@ -316,6 +320,21 @@ temp/
   }
 
   /**
+   * Generate platforms directory structure and files
+   */
+  private static generatePlatformsDirectoryFiles() {
+    const files = [];
+
+    // platforms/.gitkeep
+    files.push({
+      path: 'platforms/.gitkeep',
+      content: ''
+    });
+
+    return files;
+  }
+
+  /**
    * Create a platform extension file in the current repository
    */
   static async createPlatformExtensionFile(
@@ -332,9 +351,12 @@ temp/
         throw new Error('No repository selected. Please select a repository first.');
       }
       
+      // Use standardized path: platforms/{fileName}
+      const filePath = `platforms/${fileName}`;
+      
       await GitHubApiService.createFile(
         repoInfo.fullName,
-        fileName,
+        filePath,
         content,
         repoInfo.branch,
         commitMessage || `Add platform extension file: ${fileName}`

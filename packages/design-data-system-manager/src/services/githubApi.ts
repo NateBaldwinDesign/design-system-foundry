@@ -271,6 +271,48 @@ export class GitHubApiService {
   ): Promise<void> {
     return this.createOrUpdateFile(repo, path, content, branch, message);
   }
+
+  /**
+   * Delete a file from the repository
+   */
+  static async deleteFile(
+    repo: string,
+    path: string,
+    branch: string,
+    message: string = 'Delete file'
+  ): Promise<void> {
+    const accessToken = await GitHubAuthService.getValidAccessToken();
+
+    // Get the current file to get its SHA (required for deletion)
+    let sha: string;
+    try {
+      const currentFile = await this.getFileContent(repo, path, branch);
+      sha = currentFile.sha;
+    } catch (error) {
+      throw new Error(`File not found or cannot be accessed: ${path}`);
+    }
+
+    const body = {
+      message,
+      sha,
+      branch,
+    };
+
+    const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}/contents/${path}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `token ${accessToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`Failed to delete file: ${response.statusText}${errorData.message ? ` - ${errorData.message}` : ''}`);
+    }
+  }
   
   /**
    * Create a pull request
