@@ -156,7 +156,7 @@ export const ExtensionCreateDialog: React.FC<ExtensionCreateDialogProps> = ({
   const steps = [
     { title: 'Source', description: 'Select the source of your data' },
     { title: 'Overview', description: 'Name and ID for linking data' },
-    { title: 'Settings', description: 'Export settings for the data' }
+    { title: 'Finish', description: 'Complete and save your platform' }
   ];
 
   const { activeStep, setActiveStep } = useSteps({
@@ -991,7 +991,7 @@ export const ExtensionCreateDialog: React.FC<ExtensionCreateDialogProps> = ({
   const renderWorkflowSelector = () => (
     <VStack spacing={4} align="stretch">
       <Text fontWeight="bold" fontSize="sm" color="gray.600">
-        Extension Workflow
+        Source location
       </Text>
       
       <RadioGroup value={formData.workflow} onChange={(value) => setFormData({ ...formData, workflow: value as ExtensionCreateData['workflow'] })}>
@@ -1343,13 +1343,13 @@ export const ExtensionCreateDialog: React.FC<ExtensionCreateDialogProps> = ({
   const getButtonText = () => {
     switch (formData.workflow) {
       case 'link-existing':
-        return 'Link Extension';
+        return 'Link Platform';
       case 'create-file':
-        return 'Create Extension File';
+        return 'Create Platform Extension File';
       case 'create-repository':
-        return 'Create Repository & Extension';
+        return 'Create Repository & PlatformExtension';
       default:
-        return 'Add Extension';
+        return 'Add Platform';
     }
   };
 
@@ -1537,15 +1537,12 @@ export const ExtensionCreateDialog: React.FC<ExtensionCreateDialogProps> = ({
       <ModalOverlay />
       <ModalContent maxW="900px">
         <ModalHeader>
-          Add Extension
-          <Text fontSize="sm" fontWeight="normal" color="gray.600">
-            {currentDataType === 'core' ? 'Add a Platform Extension' : 'Link Core Repository'}
-          </Text>
+          {currentDataType === 'core' ? 'Add Platform' : 'Link Core Repository'}
         </ModalHeader>
         <ModalBody>
           <VStack spacing={6} align="stretch">
             {/* Stepper */}
-            <Stepper index={activeStep} orientation="horizontal" height="100px" gap="0">
+            <Stepper index={activeStep} orientation="horizontal" gap="0" mb={5}>
               {steps.map((step, index) => (
                 <Step key={index}>
                   <StepIndicator>

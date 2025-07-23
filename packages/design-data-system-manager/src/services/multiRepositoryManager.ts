@@ -82,13 +82,22 @@ export class MultiRepositoryManager {
    * Detect the current data type based on loaded data
    */
   private detectCurrentDataType(snapshot: any): DataType {
-    // Check if we have core data indicators
-    if (snapshot.tokenCollections && snapshot.tokenCollections.length > 0) {
+    // Check if we have core data indicators (tokens, collections, dimensions, etc.)
+    if (snapshot.tokens && Array.isArray(snapshot.tokens) && snapshot.tokens.length > 0) {
       return 'core';
     }
     
-    // Check if we have extension data indicators
-    if (snapshot.platformExtensions && Object.keys(snapshot.platformExtensions).length > 0) {
+    // Check if we have theme override data indicators
+    if (snapshot.themeOverrides && typeof snapshot.themeOverrides === 'object' && 
+        Object.keys(snapshot.themeOverrides).length > 0) {
+      return 'theme';
+    }
+    
+    // Check if we have extension data indicators (but no core tokens)
+    // This would be a standalone platform extension file
+    if (snapshot.platformExtensions && typeof snapshot.platformExtensions === 'object' && 
+        Object.keys(snapshot.platformExtensions).length > 0 && 
+        (!snapshot.tokens || !Array.isArray(snapshot.tokens) || snapshot.tokens.length === 0)) {
       return 'extension';
     }
     

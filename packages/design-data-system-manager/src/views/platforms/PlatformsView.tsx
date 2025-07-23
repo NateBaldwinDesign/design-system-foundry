@@ -27,7 +27,7 @@ import { ExtensionEditDialog } from '../../components/ExtensionEditDialog';
 import { MultiRepositoryManager, MultiRepositoryData, RepositoryLink } from '../../services/multiRepositoryManager';
 import type { Platform, Taxonomy } from '@token-model/data-model';
 import { ExtensionCreateData } from '../../components/ExtensionCreateDialog';
-import { LuPencil, LuUnlink } from 'react-icons/lu';
+import { LuPencil, LuPlus, LuUnlink } from 'react-icons/lu';
 import { PlatformAnalytics } from '../../components/PlatformAnalytics';
 import { CacheDebugPanel } from '../../components/CacheDebugPanel';
 import { ExtendedToken } from '../../components/TokenEditorDialog';
@@ -101,21 +101,23 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
     const detectDataType = () => {
       const snapshot = dataManager.getCurrentSnapshot();
       
-      // Check if we have core data indicators
-      if (snapshot.collections && snapshot.collections.length > 0) {
+      // Check if we have core data indicators (tokens, collections, dimensions, etc.)
+      if (snapshot.tokens && snapshot.tokens.length > 0) {
         setCurrentDataType('core');
         return;
       }
       
-      // Check if we have extension data indicators
-      if (snapshot.platformExtensions && Object.keys(snapshot.platformExtensions).length > 0) {
-        setCurrentDataType('extension');
+      // Check if we have theme data indicators
+      if (snapshot.themeOverrides && Object.keys(snapshot.themeOverrides).length > 0) {
+        setCurrentDataType('theme');
         return;
       }
       
-      // Check if we have theme data indicators
-      if (snapshot.themeOverrides) {
-        setCurrentDataType('theme');
+      // Check if we have extension data indicators (but no core tokens)
+      // This would be a standalone platform extension file
+      if (snapshot.platformExtensions && Object.keys(snapshot.platformExtensions).length > 0 && 
+          (!snapshot.tokens || snapshot.tokens.length === 0)) {
+        setCurrentDataType('extension');
         return;
       }
       
@@ -218,7 +220,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
   const handleLinkRepository = async (linkData: ExtensionCreateData) => {
     try {
       switch (linkData.workflow) {
-        case 'link-existing':
+        case 'link-existing': {
           // Link to existing repository via MultiRepositoryManager
           await multiRepoManager.linkRepository(
             linkData.type,
@@ -228,6 +230,34 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
             linkData.platformId,
             linkData.themeId
           );
+          
+          // For platform extensions, ensure local data is stored for immediate access
+          if (linkData.platformId && linkData.type === 'platform-extension') {
+            const { StorageService } = await import('../../services/storage');
+            const { GitHubApiService } = await import('../../services/githubApi');
+            
+            try {
+              // Fetch the platform extension data from the repository
+              const fileContent = await GitHubApiService.getFileContent(
+                linkData.repositoryUri,
+                linkData.filePath,
+                linkData.branch
+              );
+              
+              if (fileContent && fileContent.content) {
+                const platformExtensionData = JSON.parse(fileContent.content);
+                
+                // Store the platform extension file in localStorage for local access
+                StorageService.setPlatformExtensionFile(linkData.platformId, platformExtensionData);
+                StorageService.setPlatformExtensionFileContent(linkData.platformId, fileContent.content);
+                
+                console.log('🔍 [link-existing] Stored platform extension data locally for:', linkData.platformId);
+              }
+            } catch (error) {
+              console.warn('🔍 [link-existing] Failed to fetch platform extension data for local storage:', error);
+              // Continue with the link process even if local storage fails
+            }
+          }
           
           // Update core data's platforms array to include the extension source
           if (linkData.platformId) {
@@ -240,7 +270,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
             const platformIndex = currentPlatforms.findIndex(p => p.id === linkData.platformId);
             
             if (platformIndex !== -1) {
-              // Update the platform with extension source
+              // Update existing platform with extension source
               const updatedPlatforms = [...currentPlatforms];
               updatedPlatforms[platformIndex] = {
                 ...updatedPlatforms[platformIndex],
@@ -253,11 +283,34 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
               // Save updated platforms to storage
               StorageService.setPlatforms(updatedPlatforms);
               
-              // Trigger data change event for UI updates and change tracking
-              window.dispatchEvent(new CustomEvent('token-model:data-change'));
+              console.log('🔍 [link-existing] Updated existing platform with extension source:', linkData.platformId);
+            } else {
+              // Create new platform entry since it doesn't exist
+              const newPlatform = {
+                id: linkData.platformId,
+                displayName: linkData.displayName || linkData.platformId,
+                description: linkData.description || '',
+                extensionSource: {
+                  repositoryUri: linkData.repositoryUri,
+                  filePath: linkData.filePath
+                }
+              };
+              
+              const updatedPlatforms = [...currentPlatforms, newPlatform];
+              StorageService.setPlatforms(updatedPlatforms);
+              
+              console.log('🔍 [link-existing] Created new platform with extension source:', linkData.platformId);
             }
+            
+            // Trigger data change event for UI updates and change tracking
+            window.dispatchEvent(new CustomEvent('token-model:data-change'));
+            
+            // Update platform extensions validation
+            const validationResults = multiRepoManager.validatePlatformExtensions();
+            setPlatformExtensions(validationResults);
           }
           break;
+        }
           
         case 'create-file':
           // Create new file in current repository
@@ -270,6 +323,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
               systemId: linkData.systemId || await getCurrentSystemId(),
               platformId: linkData.platformId,
               version: '1.0.0',
+              figmaFileKey: `${linkData.platformId}-platform-figma-file`,
               metadata: {
                 name: linkData.displayName || linkData.platformId,
                 description: linkData.description || '',
@@ -413,6 +467,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
                 systemId: linkData.systemId || await getCurrentSystemId(),
                 platformId: linkData.platformId,
                 version: '1.0.0',
+                figmaFileKey: `${linkData.platformId}-platform-figma-file`,
                 metadata: {
                   name: linkData.displayName || linkData.platformId,
                   description: linkData.description || '',
@@ -919,9 +974,9 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
       <VStack spacing={8} align="stretch">
         {/* Header */}
         <Box>
-          <Text fontSize="2xl" fontWeight="bold" mb={4}>Extensions</Text>
+          <Text fontSize="2xl" fontWeight="bold" mb={4}>Platforms</Text>
           <Text color="gray.600">
-            Manage platform extensions, link repositories, and view analytics for your distributed design system.
+            Manage platform extensions and link repositories for your distributed design system.
           </Text>
         </Box>
 
@@ -936,31 +991,25 @@ export const PlatformsView: React.FC<PlatformsViewProps> = () => {
         {/* Main Content */}
         <Tabs>
           <TabList>
-            <Tab>Repository Management</Tab>
+            <Tab>Platform Management</Tab>
             <Tab>Analytics</Tab>
             <Tab>Cache Debug</Tab>
           </TabList>
 
           <TabPanels>
             {/* Repository Management Tab */}
-            <TabPanel>
+            <TabPanel px={0}>
               {/* Unified Platforms Section */}
               <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
                 <HStack justify="space-between" mb={4}>
-                  <VStack align="start" spacing={1}>
-                    <Text fontSize="lg" fontWeight="medium">Platforms</Text>
-                    <Text fontSize="sm" color="gray.500">
-                      All platforms from source data ({platforms.length} found)
-                    </Text>
-                  </VStack>
                   <Button 
                     size="sm" 
-                    leftIcon={<Plus />} 
+                    leftIcon={<LuPlus />} 
                     onClick={() => setIsLinkDialogOpen(true)} 
                     colorScheme="blue"
                     isDisabled={getAvailableRepositoryTypes().length === 0}
                   >
-                    Add Extension
+                    Add Platform
                   </Button>
                 </HStack>
                 
