@@ -7,6 +7,21 @@ import {
   ThemeOverride
 } from '../schema';
 
+// Type definitions for syntax patterns and value formatters
+export interface SyntaxPatterns {
+  prefix?: string;
+  suffix?: string;
+  delimiter?: string;
+  capitalization?: string;
+  formatString?: string;
+}
+
+export interface ValueFormatters {
+  color?: string;
+  dimension?: string;
+  numberPrecision?: number;
+}
+
 export interface MergedData {
   core: TokenSystem;
   platformExtensions: PlatformExtension[];
@@ -42,6 +57,9 @@ export function mergeData(
   options: MergeOptions = {}
 ): MergedData {
   const { targetPlatformId, targetThemeId, includeOmitted = false } = options;
+  
+  // Validate platform extensions for figmaFileKey uniqueness
+  validatePlatformExtensions(platformExtensions);
   
   // Filter platform extensions if target platform is specified
   const relevantExtensions = targetPlatformId 
@@ -109,7 +127,10 @@ function applyPlatformExtension(
   if (platformIndex !== -1) {
     platforms[platformIndex] = {
       ...platforms[platformIndex],
-      syntaxPatterns: extension.syntaxPatterns || undefined,
+      syntaxPatterns: extension.syntaxPatterns ? {
+        ...extension.syntaxPatterns,
+        capitalization: extension.syntaxPatterns.capitalization === 'camel' ? 'none' : extension.syntaxPatterns.capitalization
+      } : undefined,
       valueFormatters: extension.valueFormatters || undefined
     };
   }
@@ -168,7 +189,7 @@ function mergeTokenProperties(existingToken: Token, override: any): Token {
 function applyThemeOverrides(tokens: Token[], themeOverrides: ThemeOverrides): Token[] {
   const result = [...tokens];
 
-  for (const [themeId, overrides] of Object.entries(themeOverrides)) {
+  for (const [, overrides] of Object.entries(themeOverrides)) {
     for (const override of overrides) {
       const tokenIndex = result.findIndex(t => t.id === override.tokenId);
       
@@ -193,12 +214,18 @@ function applyThemeOverrideToToken(token: Token, override: ThemeOverride): Token
     for (const platformOverride of override.platformOverrides) {
       // For now, we'll apply the first platform override we find
       // In a more sophisticated implementation, we might want to filter by target platform
-      newToken.valuesByMode = platformOverride.value;
+      newToken.valuesByMode = [{
+        value: platformOverride.value,
+        modeIds: []
+      }];
       break;
     }
   } else {
     // Apply general override
-    newToken.valuesByMode = override.value;
+    newToken.valuesByMode = [{
+      value: override.value,
+      modeIds: []
+    }];
   }
 
   return newToken;
@@ -242,14 +269,8 @@ export function getSyntaxPatternsForPlatform(
   coreData: TokenSystem,
   platformExtensions: PlatformExtension[],
   platformId: string
-): any {
-  // Figma patterns come from core data
-  if (platformId === 'platform-figma') {
-    const figmaPlatform = coreData.platforms.find(p => p.id === 'platform-figma');
-    return figmaPlatform?.syntaxPatterns;
-  }
-
-  // Other platform patterns come from their extensions
+): SyntaxPatterns | undefined {
+  // Platform patterns come from their extensions
   const extension = platformExtensions.find(ext => ext.platformId === platformId);
   return extension?.syntaxPatterns;
 }
@@ -261,14 +282,8 @@ export function getValueFormattersForPlatform(
   coreData: TokenSystem,
   platformExtensions: PlatformExtension[],
   platformId: string
-): any {
-  // Figma formatters come from core data
-  if (platformId === 'platform-figma') {
-    const figmaPlatform = coreData.platforms.find(p => p.id === 'platform-figma');
-    return figmaPlatform?.valueFormatters;
-  }
-
-  // Other platform formatters come from their extensions
+): ValueFormatters | undefined {
+  // Platform formatters come from their extensions
   const extension = platformExtensions.find(ext => ext.platformId === platformId);
   return extension?.valueFormatters;
 }
@@ -278,8 +293,7 @@ export function getValueFormattersForPlatform(
  */
 export function filterTokensByOmissions(
   tokens: Token[],
-  omittedModes: string[],
-  omittedDimensions: string[]
+  omittedModes: string[]
 ): Token[] {
   return tokens.filter(token => {
     // Check if token has any values in omitted modes
@@ -287,8 +301,47 @@ export function filterTokensByOmissions(
       valueByMode.modeIds.some(modeId => omittedModes.includes(modeId))
     );
 
-    // Check if token belongs to omitted dimensions (this would require additional metadata)
-    // For now, we'll just filter by modes
     return !hasOmittedModeValues;
   });
+}
+
+/**
+ * Validates platform extensions for figmaFileKey uniqueness
+ */
+function validatePlatformExtensions(extensions: PlatformExtension[]): void {
+  const fileKeys = new Set<string>();
+  
+  for (const extension of extensions) {
+    if (!extension.figmaFileKey) {
+      throw new Error(`Platform extension ${extension.platformId} must have a figmaFileKey`);
+    }
+    
+    if (fileKeys.has(extension.figmaFileKey)) {
+      throw new Error(`Duplicate figmaFileKey found: ${extension.figmaFileKey}. Each platform extension must have a unique Figma file key.`);
+    }
+    
+    fileKeys.add(extension.figmaFileKey);
+  }
+}
+
+/**
+ * Gets the Figma file key for a specific platform
+ */
+export function getFigmaFileKeyForPlatform(
+  coreData: TokenSystem,
+  platformExtensions: PlatformExtension[],
+  platformId: string
+): string {
+  // Core data has default Figma file key for core tokens
+  if (!platformId) {
+    return coreData.figmaConfiguration?.fileKey || 'default-figma-file';
+  }
+
+  // Platform extensions have their own unique file keys
+  const extension = platformExtensions.find(ext => ext.platformId === platformId);
+  if (!extension?.figmaFileKey) {
+    throw new Error(`Platform extension ${platformId} must have a figmaFileKey`);
+  }
+
+  return extension.figmaFileKey;
 } 

@@ -28,8 +28,11 @@ export class GitHubSaveService {
         throw new Error('No repository selected. Please load a file from GitHub first.');
       }
 
+      // Handle platform-extension file type by treating it as schema
+      const fileType = repoInfo.fileType === 'platform-extension' ? 'schema' : repoInfo.fileType;
+
       // Get current data from storage
-      const currentData = this.getCurrentDataForFileType(repoInfo.fileType);
+      const currentData = this.getCurrentDataForFileType(fileType);
       
       // Convert to JSON string
       const jsonContent = JSON.stringify(currentData, null, 2);
@@ -51,7 +54,10 @@ export class GitHubSaveService {
       if (options.createPullRequest && options.targetBranch) {
         // Create a new branch and pull request
         return await this.createPullRequestWithChanges(
-          repoInfo,
+          {
+            ...repoInfo,
+            fileType: repoInfo.fileType === 'platform-extension' ? 'schema' : repoInfo.fileType
+          },
           jsonContent,
           commitMessage,
           options.targetBranch,
@@ -150,7 +156,12 @@ export class GitHubSaveService {
       // Get root-level data from storage
       const rootData = StorageService.getRootData();
       
-      // Return core data structure
+      // Get platform extensions from DataManager
+      const dataManager = DataManager.getInstance();
+      const snapshot = dataManager.getCurrentSnapshot();
+      const platformExtensions = Array.from(Object.values(snapshot.platformExtensions));
+      
+      // Return core data structure with platform extensions
       return {
         tokenCollections: StorageService.getCollections(),
         dimensions: StorageService.getDimensions(),
@@ -166,7 +177,9 @@ export class GitHubSaveService {
         systemName: rootData.systemName || 'Design System',
         systemId: rootData.systemId || 'design-system',
         description: rootData.description || 'A comprehensive design system with tokens, dimensions, and themes',
-        version: rootData.version || '1.0.0'
+        version: rootData.version || '1.0.0',
+        // Include platform extensions in the core schema
+        platformExtensions: platformExtensions
       };
     } else if (fileType === 'theme-override') {
       // Return theme override structure

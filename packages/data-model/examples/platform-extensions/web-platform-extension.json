@@ -2,6 +2,7 @@
   "systemId": "design-system-core",
   "platformId": "platform-web",
   "version": "1.0.0",
+  "figmaFileKey": "web-platform-figma-file-key",
   "metadata": {
     "name": "Web Platform Extension",
     "description": "Platform-specific overrides and additions for Web",

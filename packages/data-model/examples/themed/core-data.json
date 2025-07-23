@@ -2295,17 +2295,17 @@
       ]
     }
   ],
-  "platforms": [
-    {
-      "id": "platform-figma",
-      "displayName": "Figma",
-      "syntaxPatterns": {
-        "prefix": "",
-        "suffix": "",
-        "delimiter": "/",
-        "capitalization": "capitalize"
-      }
+  "figmaConfiguration": {
+    "syntaxPatterns": {
+      "prefix": "",
+      "suffix": "",
+      "delimiter": "/",
+      "capitalization": "capitalize",
+      "formatString": ""
     },
+    "fileKey": "default-design-system-figma"
+  },
+  "platforms": [
     {
       "id": "platform-web",
       "displayName": "Web"

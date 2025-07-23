@@ -4,7 +4,7 @@
   "title": "Platform Extension Schema",
   "description": "Schema for platform-specific extensions and overrides",
   "type": "object",
-  "required": ["systemId", "platformId", "version"],
+  "required": ["systemId", "platformId", "version", "figmaFileKey"],
   "properties": {
     "systemId": {
       "type": "string",
@@ -17,6 +17,17 @@
     "version": {
       "type": "string",
       "description": "Version of this platform extension"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "deprecated"],
+      "description": "Lifecycle status of this platform extension",
+      "default": "active"
+    },
+    "figmaFileKey": {
+      "type": "string",
+      "description": "Unique Figma file key for this platform extension. Must be unique across all platform extensions and cannot be overridden.",
+      "pattern": "^[a-zA-Z0-9-_]+$"
     },
     "syntaxPatterns": {
       "type": "object",

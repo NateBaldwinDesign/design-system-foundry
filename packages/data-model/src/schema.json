@@ -19,6 +19,52 @@
         "type": "string",
         "description": "Description of the design system"
       },
+      "figmaConfiguration": {
+        "type": "object",
+        "description": "Figma publishing configuration for design tool integration",
+        "required": ["fileKey"],
+        "properties": {
+          "syntaxPatterns": {
+            "type": "object",
+            "description": "Patterns for generating Figma token names",
+            "properties": {
+              "prefix": {
+                "type": "string",
+                "description": "Prefix to add before token names"
+              },
+              "suffix": {
+                "type": "string",
+                "description": "Suffix to add after token names"
+              },
+              "delimiter": {
+                "type": "string",
+                "description": "Delimiter to use between token name parts.",
+                "enum": ["", "_", "-", ".", "/"],
+                "enumDescriptions": [
+                  "None (no delimiter)",
+                  "Underscore (_)",
+                  "Hyphen (-)",
+                  "Dot (.)",
+                  "Forward slash (/)"
+                ]
+              },
+              "capitalization": {
+                "type": "string",
+                "enum": ["camel", "uppercase", "lowercase", "capitalize"],
+                "description": "Capitalization style for token names"
+              },
+              "formatString": {
+                "type": "string",
+                "description": "Template string for formatting token names, using {name} as placeholder"
+              }
+            }
+          },
+          "fileKey": {
+            "type": "string",
+            "description": "Default Figma file key for publishing core tokens"
+          }
+        }
+      },
       "version": {
         "type": "string",
         "description": "Semantic version of the token set",
@@ -194,20 +240,26 @@
       },
       "platforms": {
         "type": "array",
-        "description": "Platforms that can be used to resolve token values. Note: syntaxPatterns and valueFormatters are only included for the Figma platform in core data. Other platforms define these in their respective platform extension files.",
+        "description": "Runtime platforms that can be used to resolve token values. Each platform can either have syntax patterns and value formatters defined in core data, or reference an external platform extension file.",
         "items": {
           "type": "object",
           "required": ["id", "displayName"],
           "properties": {
-            "id": { "type": "string" },
-            "displayName": { "type": "string" },
+            "id": { 
+              "type": "string",
+              "description": "Unique identifier for the platform"
+            },
+            "displayName": { 
+              "type": "string",
+              "description": "Human-readable name for the platform"
+            },
             "description": { 
               "type": "string",
               "description": "Detailed description of the platform"
             },
             "syntaxPatterns": {
               "type": "object",
-              "description": "Patterns for generating code syntax for this platform (only included for Figma platform in core data)",
+              "description": "Patterns for generating code syntax for this platform. Optional when not using external extensions.",
               "properties": {
                 "prefix": {
                   "type": "string",
@@ -242,7 +294,7 @@
             },
             "valueFormatters": {
               "type": "object",
-              "description": "Rules for formatting values for this platform (only included for Figma platform in core data)",
+              "description": "Rules for formatting values for this platform. Optional when not using external extensions.",
               "properties": {
                 "color": {
                   "type": "string",
@@ -261,6 +313,59 @@
                   "description": "Number of decimal places to use for numeric values"
                 }
               }
+            },
+            "extensionSource": {
+              "type": "object",
+              "description": "Reference to external platform extension file. Cannot be used with syntaxPatterns/valueFormatters in core data.",
+              "properties": {
+                "repositoryUri": {
+                  "type": "string",
+                  "description": "GitHub repository URI (e.g., 'owner/repo')"
+                },
+                "filePath": {
+                  "type": "string",
+                  "description": "Path to the platform extension file within the repository"
+                }
+              },
+              "required": ["repositoryUri", "filePath"]
+            },
+            "status": {
+              "type": "string",
+              "enum": ["active", "deprecated"],
+              "description": "Lifecycle status of this platform",
+              "default": "active"
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": { "extensionSource": { "type": "object" } }
+              },
+              "then": {
+                "not": { "required": ["syntaxPatterns", "valueFormatters"] }
+              }
+            }
+          ]
+        }
+      },
+      "platformExtensions": {
+        "type": "array",
+        "description": "Registry of platform extensions for this design system. This minimal registry enables the UI to pull and analyze platform extension data.",
+        "items": {
+          "type": "object",
+          "required": ["platformId", "repositoryUri", "filePath"],
+          "properties": {
+            "platformId": {
+              "type": "string",
+              "description": "ID of the platform this extension is for (e.g., 'platform-ios')"
+            },
+            "repositoryUri": {
+              "type": "string",
+              "description": "GitHub repository URI (e.g., 'ios-team/design-tokens-ios')"
+            },
+            "filePath": {
+              "type": "string",
+              "description": "Path to the platform extension file within the repository (e.g., 'platform-extension.json')"
             }
           }
         }
@@ -1215,28 +1320,6 @@
           "additionalProperties": true
         },
         "uniqueItems": true
-      },
-      "platformExtensions": {
-        "type": "array",
-        "description": "Registry of official platform extension data sources.",
-        "items": {
-          "type": "object",
-          "required": ["platformId", "repositoryUri", "filePath"],
-          "properties": {
-            "platformId": {
-              "type": "string",
-              "description": "ID of the platform this extension is for."
-            },
-            "repositoryUri": {
-              "type": "string",
-              "description": "GitHub repository URI (e.g., 'owner/repo')."
-            },
-            "filePath": {
-              "type": "string",
-              "description": "Path to the platform extension file within the repository."
-            }
-          }
-        }
       }
     },
     "additionalProperties": false,

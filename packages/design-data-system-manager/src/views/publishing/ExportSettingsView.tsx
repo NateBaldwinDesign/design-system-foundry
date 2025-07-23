@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Text, VStack, useColorMode } from '@chakra-ui/react';
-import { FigmaExportSettings } from './FigmaExportSettings';
+import { FigmaSettings } from '../../components/FigmaSettings';
 import { createSchemaJsonFromLocalStorage } from '../../services/createJson';
 import type { TokenSystem } from '@token-model/data-model';
 
@@ -13,7 +13,7 @@ export const ExportSettingsView: React.FC<ExportSettingsViewProps> = () => {
   const { colorMode } = useColorMode();
 
   // Load the canonical token system from localStorage
-  const tokenSystem = createSchemaJsonFromLocalStorage() as TokenSystem;
+  const tokenSystem = createSchemaJsonFromLocalStorage() as unknown as TokenSystem;
 
   return (
     <VStack 
@@ -26,14 +26,14 @@ export const ExportSettingsView: React.FC<ExportSettingsViewProps> = () => {
       <Box maxW="1000px" p={0} w="100%">
         <Box mb={6}>
           <Text fontSize="2xl" fontWeight="bold" mb={2}>
-            Export Settings
+            Figma Settings
           </Text>
           <Text fontSize="sm" color="gray.500">
-            Configure and manage export settings for different platforms and formats
+            Configure Figma publishing settings and syntax patterns
           </Text>
         </Box>
         
-        <FigmaExportSettings tokenSystem={tokenSystem} />
+        <FigmaSettings tokenSystem={tokenSystem} />
       </Box>
     </VStack>
   );

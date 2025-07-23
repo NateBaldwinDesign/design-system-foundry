@@ -217,40 +217,43 @@ export function validatePlatformExtensionsRegistry(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (!coreData.platformExtensions) {
-    return { isValid: true, errors: [], warnings: [] };
-  }
+  // Find platforms with extension sources
+  const platformsWithExtensions = coreData.platforms.filter(p => p.extensionSource);
 
-  for (const registryEntry of coreData.platformExtensions) {
+  for (const platform of platformsWithExtensions) {
     // Validate required fields
-    if (!registryEntry.platformId) {
-      errors.push('Platform extension registry entry missing platformId');
+    if (!platform.extensionSource?.repositoryUri) {
+      errors.push(`Platform "${platform.id}" missing repositoryUri in extensionSource`);
     }
     
-    if (!registryEntry.repositoryUri) {
-      errors.push('Platform extension registry entry missing repositoryUri');
-    }
-    
-    if (!registryEntry.filePath) {
-      errors.push('Platform extension registry entry missing filePath');
+    if (!platform.extensionSource?.filePath) {
+      errors.push(`Platform "${platform.id}" missing filePath in extensionSource`);
     }
 
     // Validate platform ID format
-    if (registryEntry.platformId && !registryEntry.platformId.startsWith('platform-')) {
-      warnings.push(`Platform ID "${registryEntry.platformId}" should follow the pattern "platform-{name}"`);
+    if (platform.id && !platform.id.startsWith('platform-')) {
+      warnings.push(`Platform ID "${platform.id}" should follow the pattern "platform-{name}"`);
     }
 
     // Validate repository URI format
-    if (registryEntry.repositoryUri && !registryEntry.repositoryUri.includes('/')) {
-      errors.push(`Repository URI "${registryEntry.repositoryUri}" should be in format "owner/repo"`);
+    if (platform.extensionSource?.repositoryUri && !platform.extensionSource.repositoryUri.includes('/')) {
+      errors.push(`Repository URI "${platform.extensionSource.repositoryUri}" should be in format "owner/repo"`);
     }
 
     // Check for duplicate platform IDs
-    const duplicateCount = coreData.platformExtensions.filter(
-      entry => entry.platformId === registryEntry.platformId
+    const duplicateCount = coreData.platforms.filter(
+      p => p.id === platform.id
     ).length;
     if (duplicateCount > 1) {
-      errors.push(`Duplicate platform ID "${registryEntry.platformId}" in platform extensions registry`);
+      errors.push(`Duplicate platform ID "${platform.id}" in platforms array`);
+    }
+
+    // Validate that platforms with extensionSource don't have syntaxPatterns or valueFormatters
+    if (platform.syntaxPatterns) {
+      errors.push(`Platform "${platform.id}" has extensionSource but also includes syntaxPatterns in core data`);
+    }
+    if (platform.valueFormatters) {
+      errors.push(`Platform "${platform.id}" has extensionSource but also includes valueFormatters in core data`);
     }
   }
 

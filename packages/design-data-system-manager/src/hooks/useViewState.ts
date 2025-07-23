@@ -13,7 +13,7 @@ export type ViewId =
   | 'value-types'
   | 'themes'
   | 'platforms'
-  | 'export-settings'
+  | 'figma-settings'
   | 'validation'
   | 'version-history'
   | 'access'

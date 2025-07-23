@@ -26,6 +26,21 @@ export interface DataSnapshot {
   namingRules: { taxonomyOrder: string[] };
   dimensionOrder: string[];
   algorithmFile: Record<string, unknown> | null;
+  // MultiRepositoryManager data
+  linkedRepositories: Array<{
+    id: string;
+    type: 'core' | 'platform-extension' | 'theme-override';
+    repositoryUri: string;
+    branch: string;
+    filePath: string;
+    platformId?: string;
+    themeId?: string;
+    lastSync?: string;
+    status: 'linked' | 'loading' | 'error' | 'synced';
+    error?: string;
+  }>;
+  platformExtensions: Record<string, unknown>;
+  themeOverrides: Record<string, unknown> | null;
 }
 
 export interface DataManagerCallbacks {
@@ -104,11 +119,22 @@ export class DataManager {
         throw new Error(`Unsupported file type: ${fileType}`);
       }
       
+      console.log('[DataManager] Processed snapshot:', {
+        tokens: snapshot.tokens.length,
+        collections: snapshot.collections.length,
+        dimensions: snapshot.dimensions.length,
+        modes: snapshot.modes.length,
+        platforms: snapshot.platforms.length,
+        themes: snapshot.themes.length
+      });
+      
       // Store in localStorage
       this.storeSnapshot(snapshot);
+      console.log('[DataManager] Stored snapshot in localStorage');
       
       // Set new baseline for change tracking - this establishes the new "original" state
       this.setBaseline(snapshot);
+      console.log('[DataManager] Set new baseline for change tracking');
       
       // Notify that data has been loaded with new baseline
       this.callbacks.onDataLoaded?.(snapshot);
@@ -216,6 +242,10 @@ export class DataManager {
       namingRules: { taxonomyOrder: [] },
       dimensionOrder: [],
       algorithmFile: null,
+      // Clear MultiRepositoryManager data
+      linkedRepositories: [],
+      platformExtensions: {},
+      themeOverrides: null,
     };
     
     // Set new baseline
@@ -260,6 +290,10 @@ export class DataManager {
       namingRules: StorageService.getNamingRules(),
       dimensionOrder: StorageService.getDimensionOrder(),
       algorithmFile: StorageService.getAlgorithmFile(),
+      // MultiRepositoryManager data
+      linkedRepositories: StorageService.getLinkedRepositories(),
+      platformExtensions: StorageService.getPlatformExtensions(),
+      themeOverrides: StorageService.getThemeOverrides(),
     };
   }
 
@@ -282,6 +316,11 @@ export class DataManager {
     if (snapshot.algorithmFile) {
       StorageService.setAlgorithmFile(snapshot.algorithmFile);
     }
+
+    // Store MultiRepositoryManager data
+    StorageService.setLinkedRepositories(snapshot.linkedRepositories);
+    StorageService.setPlatformExtensions(snapshot.platformExtensions);
+    StorageService.setThemeOverrides(snapshot.themeOverrides);
   }
 
   /**
@@ -299,6 +338,10 @@ export class DataManager {
       taxonomies: snapshot.taxonomies,
       algorithms: snapshot.algorithms,
       namingRules: snapshot.namingRules,
+      // Include MultiRepositoryManager data in baseline
+      linkedRepositories: snapshot.linkedRepositories,
+      platformExtensions: snapshot.platformExtensions,
+      themeOverrides: snapshot.themeOverrides,
     };
     
     ChangeTrackingService.setBaselineData(baselineData);
@@ -366,6 +409,10 @@ export class DataManager {
       namingRules: normalizedNamingRules,
       dimensionOrder: normalizedDimensions.map(d => d.id),
       algorithmFile: null,
+      // Clear MultiRepositoryManager data when loading from GitHub
+      linkedRepositories: [],
+      platformExtensions: {},
+      themeOverrides: null,
     };
   }
 
@@ -384,28 +431,28 @@ export class DataManager {
    * Process example data
    */
   private processExampleData(dataSourceKey: string, coreData: Record<string, unknown>, algorithmData?: Record<string, unknown>): DataSnapshot {
-    const d = coreData as Record<string, unknown>;
+    const d = coreData;
 
-    const normalizedCollections = d.tokenCollections ?? [];
-    const normalizedDimensions = d.dimensions ?? [];
-    const normalizedTokens = (d.tokens ?? []).map((token: Token) => ({
+    const normalizedCollections = (d.tokenCollections as TokenCollection[]) ?? [];
+    const normalizedDimensions = (d.dimensions as Dimension[]) ?? [];
+    const normalizedTokens = ((d.tokens as Token[]) ?? []).map((token: Token) => ({
       ...token,
       valuesByMode: token.valuesByMode
     }));
-    const normalizedPlatforms = d.platforms ?? [];
-    const normalizedThemes = (d.themes ?? []).map((theme: Theme) => ({
+    const normalizedPlatforms = (d.platforms as Platform[]) ?? [];
+    const normalizedThemes = ((d.themes as Theme[]) ?? []).map((theme: Theme) => ({
       id: theme.id,
       displayName: theme.displayName,
       isDefault: theme.isDefault ?? false,
       description: theme.description
     }));
-    const normalizedTaxonomies = d.taxonomies ?? [];
-    const normalizedResolvedValueTypes = d.resolvedValueTypes ?? [];
+    const normalizedTaxonomies = (d.taxonomies as Taxonomy[]) ?? [];
+    const normalizedResolvedValueTypes = (d.resolvedValueTypes as ResolvedValueType[]) ?? [];
     const normalizedNamingRules = {
-      taxonomyOrder: d.namingRules?.taxonomyOrder ?? []
+      taxonomyOrder: ((d.namingRules as { taxonomyOrder?: string[] })?.taxonomyOrder) ?? []
     };
 
-    const allModes: Mode[] = normalizedDimensions.flatMap((d: Dimension) => (d as { modes?: Mode[] }).modes || []);
+    const allModes: Mode[] = normalizedDimensions.flatMap((dimension: Dimension) => (dimension as { modes?: Mode[] }).modes || []);
 
     // Process algorithm data if available
     let loadedAlgorithms: Algorithm[] = [];
@@ -413,14 +460,14 @@ export class DataManager {
     
     if (algorithmData && algorithmData.default) {
       algorithmFile = algorithmData.default as Record<string, unknown>;
-      loadedAlgorithms = (algorithmData.default.algorithms || []) as Algorithm[];
+      loadedAlgorithms = ((algorithmData.default as Record<string, unknown>).algorithms || []) as Algorithm[];
     }
 
     // Store root-level data
-    const systemName = d.systemName ?? 'Design System';
-    const systemId = d.systemId ?? 'design-system';
-    const description = d.description ?? 'A comprehensive design system with tokens, dimensions, and themes';
-    const version = d.version ?? '1.0.0';
+    const systemName = (d.systemName as string) ?? 'Design System';
+    const systemId = (d.systemId as string) ?? 'design-system';
+    const description = (d.description as string) ?? 'A comprehensive design system with tokens, dimensions, and themes';
+    const version = (d.version as string) ?? '1.0.0';
     const versionHistory = (d.versionHistory ?? []) as Array<{
       version: string;
       dimensions: string[];
@@ -450,8 +497,12 @@ export class DataManager {
       taxonomies: normalizedTaxonomies,
       algorithms: loadedAlgorithms,
       namingRules: normalizedNamingRules,
-      dimensionOrder: normalizedDimensions.map(d => d.id),
+      dimensionOrder: normalizedDimensions.map(dimension => dimension.id),
       algorithmFile,
+      // Clear MultiRepositoryManager data when loading from example source
+      linkedRepositories: [],
+      platformExtensions: {},
+      themeOverrides: null,
     };
   }
 } 

@@ -36,7 +36,7 @@ export class ChangeTrackingService {
     if (!baselineData) return 0;
     
     let totalChanges = 0;
-    const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'taxonomies', 'algorithms'];
+    const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'taxonomies', 'algorithms', 'platforms'];
     
     keyFields.forEach(field => {
       const current = (currentData as Record<string, unknown>)[field] as unknown[] || [];
@@ -176,6 +176,7 @@ export class ChangeTrackingService {
       namingRules: StorageService.getNamingRules(),
       algorithms: StorageService.getAlgorithms(),
       algorithmFile: StorageService.getAlgorithmFile(),
+      platformExtensionFiles: StorageService.getPlatformExtensionFiles(),
     };
   }
 

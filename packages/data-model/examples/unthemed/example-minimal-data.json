@@ -1344,18 +1344,17 @@
       ]
     }
   ],
-  "platforms": [
-    {
-      "id": "platform-000000",
-      "displayName": "Figma",
-      "syntaxPatterns": {
-        "prefix": "",
-        "suffix": "",
-        "delimiter": "/",
-        "capitalization": "capitalize",
-        "formatString": ""
-      }
+  "figmaConfiguration": {
+    "syntaxPatterns": {
+      "prefix": "",
+      "suffix": "",
+      "delimiter": "/",
+      "capitalization": "capitalize",
+      "formatString": ""
     },
+    "fileKey": "default-design-system-figma"
+  },
+  "platforms": [
     {
       "id": "platform-111111",
       "displayName": "Web"

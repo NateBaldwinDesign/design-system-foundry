@@ -1,0 +1,31 @@
+{
+    "systemName": "Empty design system",
+    "systemId": "empty-design-system",
+    "description": "An empty file for from-scratch testing",
+    "version": "1.0.0",
+    "versionHistory": [],
+    "tokenCollections": [],
+    "dimensions": [],
+    "dimensionOrder": [],
+    "tokens": [],
+    "figmaConfiguration": {
+      "syntaxPatterns": {
+        "prefix": "",
+        "suffix": "",
+        "delimiter": "_",
+        "capitalization": "none",
+        "formatString": ""
+      },
+      "fileKey": ""
+    },
+    "platforms": [],
+    "platformExtensions": [],
+    "themes": [],
+    "taxonomies": [],
+    "standardPropertyTypes": [],
+    "propertyTypes": [],
+    "resolvedValueTypes": [],
+    "namingRules": {
+      "taxonomyOrder": []
+    }
+  }

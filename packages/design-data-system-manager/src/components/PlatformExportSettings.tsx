@@ -19,14 +19,9 @@ import {
   AlertIcon,
   useToast
 } from '@chakra-ui/react';
+import { SyntaxPatternsForm, SyntaxPatterns } from './SyntaxPatternsForm';
 
-interface SyntaxPatterns {
-  prefix?: string;
-  suffix?: string;
-  delimiter?: '' | '_' | '-' | '.' | '/' | undefined;
-  capitalization?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
-  formatString?: string;
-}
+
 
 interface ValueFormatters {
   colorFormat?: 'hex' | 'rgb' | 'rgba' | 'hsl' | 'hsla';
@@ -153,78 +148,12 @@ export const PlatformExportSettings: React.FC<PlatformExportSettingsProps> = ({
           </Text>
         </CardHeader>
         <CardBody>
-          <VStack spacing={4} align="stretch">
-            <HStack spacing={4}>
-              <FormControl>
-                <FormLabel fontSize="sm">Prefix</FormLabel>
-                <Input
-                  size="sm"
-                  value={currentSyntaxPatterns.prefix || ''}
-                  onChange={(e) => handleSyntaxPatternChange('prefix', e.target.value)}
-                  placeholder="e.g., $"
-                />
-              </FormControl>
-              
-              <FormControl>
-                <FormLabel fontSize="sm">Suffix</FormLabel>
-                <Input
-                  size="sm"
-                  value={currentSyntaxPatterns.suffix || ''}
-                  onChange={(e) => handleSyntaxPatternChange('suffix', e.target.value)}
-                  placeholder="e.g., ;"
-                />
-              </FormControl>
-            </HStack>
-
-            <HStack spacing={4}>
-              <FormControl>
-                <FormLabel fontSize="sm">Delimiter</FormLabel>
-                <Select
-                  size="sm"
-                  value={currentSyntaxPatterns.delimiter || ''}
-                  onChange={(e) => handleSyntaxPatternChange('delimiter', e.target.value)}
-                >
-                  <option value="">None</option>
-                  <option value="_">Underscore (_)</option>
-                  <option value="-">Hyphen (-)</option>
-                  <option value=".">Dot (.)</option>
-                  <option value="/">Slash (/)</option>
-                </Select>
-              </FormControl>
-              
-              <FormControl>
-                <FormLabel fontSize="sm">Capitalization</FormLabel>
-                <Select
-                  size="sm"
-                  value={currentSyntaxPatterns.capitalization || 'none'}
-                  onChange={(e) => handleSyntaxPatternChange('capitalization', e.target.value)}
-                >
-                  <option value="none">None</option>
-                  <option value="uppercase">Uppercase</option>
-                  <option value="lowercase">Lowercase</option>
-                  <option value="capitalize">Capitalize</option>
-                </Select>
-              </FormControl>
-            </HStack>
-
-            <FormControl>
-              <FormLabel fontSize="sm">Format String</FormLabel>
-              <Input
-                size="sm"
-                value={currentSyntaxPatterns.formatString || ''}
-                onChange={(e) => handleSyntaxPatternChange('formatString', e.target.value)}
-                placeholder="e.g., {prefix}{name}{suffix}"
-              />
-            </FormControl>
-
-            {/* Preview */}
-            <Box p={3} bg="gray.50" borderRadius="md">
-              <Text fontSize="sm" fontWeight="medium" mb={2}>Preview:</Text>
-              <Text fontFamily="mono" fontSize="sm">
-                {getPreviewToken()}
-              </Text>
-            </Box>
-          </VStack>
+          <SyntaxPatternsForm
+            syntaxPatterns={currentSyntaxPatterns}
+            onSyntaxPatternChange={handleSyntaxPatternChange}
+            preview={getPreviewToken()}
+            showTitle={false}
+          />
         </CardBody>
       </Card>
 

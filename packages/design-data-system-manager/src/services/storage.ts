@@ -21,7 +21,13 @@ const STORAGE_KEYS = {
   NAMING_RULES: 'token-model:naming-rules',
   ALGORITHMS: 'token-model:algorithms',
   ALGORITHM_FILE: 'token-model:algorithm-file',
-  ROOT_DATA: 'token-model:root-data'
+  ROOT_DATA: 'token-model:root-data',
+  // MultiRepositoryManager storage keys
+  LINKED_REPOSITORIES: 'token-model:linked-repositories',
+  PLATFORM_EXTENSIONS: 'token-model:platform-extensions',
+  THEME_OVERRIDES: 'token-model:theme-overrides',
+  // Platform extension files storage
+  PLATFORM_EXTENSION_FILES: 'token-model:platform-extension-files'
 } as const;
 
 export class StorageService {
@@ -183,6 +189,97 @@ export class StorageService {
     }>;
   }): void {
     this.setItem(STORAGE_KEYS.ROOT_DATA, rootData);
+  }
+
+  // MultiRepositoryManager storage methods
+  static getLinkedRepositories(): Array<{
+    id: string;
+    type: 'core' | 'platform-extension' | 'theme-override';
+    repositoryUri: string;
+    branch: string;
+    filePath: string;
+    platformId?: string;
+    themeId?: string;
+    lastSync?: string;
+    status: 'linked' | 'loading' | 'error' | 'synced';
+    error?: string;
+  }> {
+    return this.getItem(STORAGE_KEYS.LINKED_REPOSITORIES, []);
+  }
+
+  static setLinkedRepositories(repositories: Array<{
+    id: string;
+    type: 'core' | 'platform-extension' | 'theme-override';
+    repositoryUri: string;
+    branch: string;
+    filePath: string;
+    platformId?: string;
+    themeId?: string;
+    lastSync?: string;
+    status: 'linked' | 'loading' | 'error' | 'synced';
+    error?: string;
+  }>): void {
+    this.setItem(STORAGE_KEYS.LINKED_REPOSITORIES, repositories);
+  }
+
+  static getPlatformExtensions(): Record<string, unknown> {
+    return this.getItem(STORAGE_KEYS.PLATFORM_EXTENSIONS, {});
+  }
+
+  static setPlatformExtensions(extensions: Record<string, unknown>): void {
+    this.setItem(STORAGE_KEYS.PLATFORM_EXTENSIONS, extensions);
+  }
+
+  static getThemeOverrides(): Record<string, unknown> | null {
+    return this.getItem(STORAGE_KEYS.THEME_OVERRIDES, null);
+  }
+
+  static setThemeOverrides(overrides: Record<string, unknown> | null): void {
+    this.setItem(STORAGE_KEYS.THEME_OVERRIDES, overrides);
+  }
+
+  // Platform extension files storage methods
+  static getPlatformExtensionFiles(): Record<string, Record<string, unknown>> {
+    return this.getItem(STORAGE_KEYS.PLATFORM_EXTENSION_FILES, {});
+  }
+
+  static setPlatformExtensionFiles(files: Record<string, Record<string, unknown>>): void {
+    this.setItem(STORAGE_KEYS.PLATFORM_EXTENSION_FILES, files);
+  }
+
+  static getPlatformExtensionFile(platformId: string): Record<string, unknown> | null {
+    const files = this.getPlatformExtensionFiles();
+    return files[platformId] || null;
+  }
+
+  static setPlatformExtensionFile(platformId: string, fileData: Record<string, unknown>): void {
+    const files = this.getPlatformExtensionFiles();
+    files[platformId] = fileData;
+    this.setPlatformExtensionFiles(files);
+  }
+
+  static removePlatformExtensionFile(platformId: string): void {
+    const files = this.getPlatformExtensionFiles();
+    delete files[platformId];
+    this.setPlatformExtensionFiles(files);
+  }
+
+  // Get the actual file content for a platform extension file
+  static getPlatformExtensionFileContent(platformId: string): string | null {
+    const fileKey = `token-model:platform-extension-file:${platformId}`;
+    return localStorage.getItem(fileKey);
+  }
+
+  // Set the actual file content for a platform extension file
+  static setPlatformExtensionFileContent(platformId: string, content: string): void {
+    const fileKey = `token-model:platform-extension-file:${platformId}`;
+    localStorage.setItem(fileKey, content);
+  }
+
+  // Remove the actual file content for a platform extension file
+  static removePlatformExtensionFileContent(platformId: string): void {
+    const fileKey = `token-model:platform-extension-file:${platformId}`;
+    localStorage.removeItem(fileKey);
   }
 
   static clearAll(): void {

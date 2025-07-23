@@ -192,7 +192,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
       case 'platforms':
         return <PlatformsView />;
       
-      case 'export-settings':
+      case 'figma-settings':
         return <ExportSettingsView />;
       
       case 'validation':

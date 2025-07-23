@@ -24,12 +24,16 @@ export type {
   TokenVariant,
   TokenSystem,
   Platform,
-  PlatformExtensionRegistry,
   PlatformExtension,
+  FigmaConfiguration,
   Taxonomy,
   TaxonomyTerm,
   TokenTaxonomyRef
 } from './schema';
+
+// Export validation service
+export { SchemaValidationService } from './validation/schema-validation';
+export type { ValidationResult, SchemaValidationResult } from './validation/schema-validation';
 
 // Re-export schemas for validation
 export {
@@ -48,7 +52,6 @@ export {
   TokenVariant as TokenVariantSchema,
   TokenSystem as TokenSystemSchema,
   Platform as PlatformSchema,
-  PlatformExtensionRegistry as PlatformExtensionRegistrySchema,
   PlatformExtension as PlatformExtensionSchema,
   Taxonomy as TaxonomySchema,
   TokenTaxonomyRef as TokenTaxonomyRefSchema
@@ -105,9 +108,7 @@ export {
   validateTheme,
   validateThemeOverride,
   validateThemeOverrides,
-  validatePlatformExtensionRegistry,
-  validatePlatformExtension,
-  validateTaxonomy
+  validatePlatformExtension
 } from './schema';
 
 // Export platform extension validation

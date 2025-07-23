@@ -6,7 +6,7 @@ import { GitHubCacheService } from './githubCache';
 export interface ValidFile {
   path: string;
   name: string;
-  type: 'schema' | 'theme-override';
+  type: 'schema' | 'theme-override' | 'platform-extension';
   size: number;
   lastModified: string;
 }
@@ -72,8 +72,13 @@ export class GitHubApiService {
     
     const allOrgs = [personalOrg, ...orgs];
     
-    // Cache the organizations
-    GitHubCacheService.setOrganizations(allOrgs);
+    // Cache the organizations (with error handling)
+    try {
+      GitHubCacheService.setOrganizations(allOrgs);
+    } catch (error) {
+      console.warn('Failed to cache organizations, but continuing with API response:', error);
+      // Continue without caching - the data is still available from the API
+    }
     
     return allOrgs;
   }
@@ -124,8 +129,13 @@ export class GitHubApiService {
       }
     }
     
-    // Cache the repositories
-    GitHubCacheService.setRepositories(allRepos);
+    // Cache the repositories (with error handling)
+    try {
+      GitHubCacheService.setRepositories(allRepos);
+    } catch (error) {
+      console.warn('Failed to cache repositories, but continuing with API response:', error);
+      // Continue without caching - the data is still available from the API
+    }
     
     return allRepos;
   }
@@ -157,8 +167,13 @@ export class GitHubApiService {
     
     const branches = await response.json();
     
-    // Cache the branches
-    GitHubCacheService.setBranches(repo, branches);
+    // Cache the branches (with error handling)
+    try {
+      GitHubCacheService.setBranches(repo, branches);
+    } catch (error) {
+      console.warn('Failed to cache branches, but continuing with API response:', error);
+      // Continue without caching - the data is still available from the API
+    }
     
     return branches;
   }
@@ -333,19 +348,40 @@ export class GitHubApiService {
   /**
    * Scan repository for valid JSON files
    */
-  static async scanRepositoryForValidFiles(repo: string, branch: string): Promise<ValidFile[]> {
+  static async scanRepositoryForValidFiles(repo: string, branch: string, systemId?: string): Promise<ValidFile[]> {
     const accessToken = await GitHubAuthService.getValidAccessToken();
+    
+    console.log(`Scanning repository: ${repo} (branch: ${branch})${systemId ? ` for systemId: ${systemId}` : ''}`);
     
     // Get all files in the repository
     const files = await this.getAllJsonFiles(repo, branch, accessToken);
+    console.log(`Found ${files.length} JSON files in repository:`, files.map(f => f.path));
+    
     const validFiles: ValidFile[] = [];
     
     for (const file of files) {
       try {
+        console.log(`Validating file: ${file.path}`);
         const content = await this.getFileContent(repo, file.path, branch);
         const fileType = this.identifyFileType(content.content);
+        console.log(`File ${file.path} identified as: ${fileType}`);
         
         if (fileType !== 'unknown') {
+          // For platform extension files, validate systemId if provided
+          if (fileType === 'platform-extension' && systemId) {
+            try {
+              const data = JSON.parse(content.content);
+              if (data.systemId !== systemId) {
+                console.log(`Skipping platform extension file ${file.path}: systemId mismatch (expected: ${systemId}, found: ${data.systemId})`);
+                continue;
+              }
+              console.log(`Platform extension file ${file.path} has matching systemId: ${data.systemId}`);
+            } catch (error) {
+              console.warn(`Failed to parse systemId from platform extension file ${file.path}:`, error);
+              continue;
+            }
+          }
+          
           validFiles.push({
             path: file.path,
             name: file.name,
@@ -359,6 +395,7 @@ export class GitHubApiService {
       }
     }
     
+    console.log(`Valid files found: ${validFiles.length}`, validFiles.map(f => `${f.path} (${f.type})`));
     return validFiles.sort((a, b) => new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime());
   }
   
@@ -371,7 +408,10 @@ export class GitHubApiService {
     accessToken: string,
     path: string = ''
   ): Promise<Array<{ path: string; name: string; size: number; lastModified?: string }>> {
-    const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}/contents/${path}?ref=${branch}`, {
+    const url = `${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}/contents/${path}?ref=${branch}`;
+    console.log(`Fetching directory contents from: ${url}`);
+    
+    const response = await fetch(url, {
       headers: {
         'Authorization': `token ${accessToken}`,
         'Accept': 'application/vnd.github.v3+json',
@@ -379,10 +419,13 @@ export class GitHubApiService {
     });
     
     if (!response.ok) {
+      console.error(`Failed to fetch directory contents: ${response.status} ${response.statusText}`);
       throw new Error(`Failed to fetch directory contents: ${response.statusText}`);
     }
     
     const contents = await response.json();
+    console.log(`Directory contents for ${path}:`, contents.map((item: { name: string; type: string }) => ({ name: item.name, type: item.type })));
+    
     const files: Array<{ path: string; name: string; size: number; lastModified?: string }> = [];
     
     for (const item of contents) {
@@ -406,7 +449,7 @@ export class GitHubApiService {
   /**
    * Identify if a file content matches our schemas
    */
-  private static identifyFileType(content: string): 'schema' | 'theme-override' | 'unknown' {
+  private static identifyFileType(content: string): 'schema' | 'theme-override' | 'platform-extension' | 'unknown' {
     try {
       const data = JSON.parse(content);
       
@@ -418,6 +461,11 @@ export class GitHubApiService {
       // Check for theme-override.json structure
       if (data.systemId && data.themeId && data.tokenOverrides) {
         return 'theme-override';
+      }
+      
+      // Check for platform-extension.json structure
+      if (data.systemId && data.platformId && data.version) {
+        return 'platform-extension';
       }
       
       return 'unknown';
@@ -433,7 +481,7 @@ export class GitHubApiService {
     fullName: string;
     branch: string;
     filePath: string;
-    fileType: 'schema' | 'theme-override';
+    fileType: 'schema' | 'theme-override' | 'platform-extension';
   } | null {
     try {
       const repoInfoStr = localStorage.getItem('github_selected_repo');

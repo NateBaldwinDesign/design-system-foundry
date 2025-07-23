@@ -1,17 +1,20 @@
 import { GitHubApiService } from './githubApi';
 import { GitHubAuthService } from './githubAuth';
+import { DataManager } from './dataManager';
+import { DataTypeDetector, type DataType } from './dataTypeDetector';
 import type { 
   TokenSystem, 
-  PlatformExtension,
-  ThemeOverrides 
+  ThemeOverrides,
+  PlatformExtension
 } from '@token-model/data-model';
 import { 
   validateTokenSystem, 
-  validatePlatformExtension, 
   validateThemeOverrides,
-  mergeData,
-  validatePlatformExtensionComprehensive
+  validatePlatformExtension
 } from '@token-model/data-model';
+
+// Import data merging functionality
+import { mergeData } from '@token-model/data-model';
 
 export interface RepositoryLink {
   id: string;
@@ -68,13 +71,93 @@ export class MultiRepositoryManager {
     }
   };
 
-  private constructor() {}
+  private constructor() {
+    // Load persisted data on initialization
+    this.loadPersistedData();
+  }
+
+  private dataManager = DataManager.getInstance();
+
+  /**
+   * Detect the current data type based on loaded data
+   */
+  private detectCurrentDataType(snapshot: any): DataType {
+    // Check if we have core data indicators
+    if (snapshot.tokenCollections && snapshot.tokenCollections.length > 0) {
+      return 'core';
+    }
+    
+    // Check if we have extension data indicators
+    if (snapshot.platformExtensions && Object.keys(snapshot.platformExtensions).length > 0) {
+      return 'extension';
+    }
+    
+    // Default to core if we can't determine
+    return 'core';
+  }
 
   static getInstance(): MultiRepositoryManager {
     if (!MultiRepositoryManager.instance) {
       MultiRepositoryManager.instance = new MultiRepositoryManager();
     }
     return MultiRepositoryManager.instance;
+  }
+
+  /**
+   * Load persisted data from DataManager
+   */
+  private loadPersistedData(): void {
+    try {
+      const snapshot = this.dataManager.getCurrentSnapshot();
+      
+      // Load linked repositories
+      this.linkedRepositories.clear();
+      snapshot.linkedRepositories.forEach((repo: any) => {
+        this.linkedRepositories.set(repo.id, repo);
+      });
+
+      // Load platform extensions
+      this.currentData.platformExtensions.clear();
+      Object.entries(snapshot.platformExtensions).forEach(([platformId, extension]) => {
+        this.currentData.platformExtensions.set(platformId, extension as PlatformExtension);
+      });
+
+      // Load theme overrides
+      this.currentData.themeOverrides = snapshot.themeOverrides as ThemeOverrides | null;
+
+      console.log('[MultiRepositoryManager] Loaded persisted data:', {
+        repositories: this.linkedRepositories.size,
+        platformExtensions: this.currentData.platformExtensions.size,
+        hasThemeOverrides: !!this.currentData.themeOverrides
+      });
+    } catch (error) {
+      console.error('[MultiRepositoryManager] Failed to load persisted data:', error);
+    }
+  }
+
+  /**
+   * Persist current data through DataManager
+   */
+  private persistData(): void {
+    try {
+      // Get current snapshot
+      const currentSnapshot = this.dataManager.getCurrentSnapshot();
+      
+      // Update with MultiRepositoryManager data
+      const updatedSnapshot = {
+        ...currentSnapshot,
+        linkedRepositories: Array.from(this.linkedRepositories.values()),
+        platformExtensions: Object.fromEntries(this.currentData.platformExtensions),
+        themeOverrides: this.currentData.themeOverrides
+      };
+
+      // Update through DataManager
+      this.dataManager.updateData(updatedSnapshot);
+
+      console.log('[MultiRepositoryManager] Persisted data through DataManager');
+    } catch (error) {
+      console.error('[MultiRepositoryManager] Failed to persist data:', error);
+    }
   }
 
   /**
@@ -95,6 +178,28 @@ export class MultiRepositoryManager {
     platformId?: string,
     themeId?: string
   ): Promise<RepositoryLink> {
+    // Get current data type to enforce linking restrictions
+    const currentSnapshot = this.dataManager.getCurrentSnapshot();
+    const currentDataType = this.detectCurrentDataType(currentSnapshot);
+    
+    // Enforce linking restrictions based on current data type
+    if (currentDataType === 'core' && type !== 'platform-extension') {
+      throw new Error('Core data can only link to platform extension repositories');
+    }
+    
+    if (currentDataType === 'extension' && type !== 'core') {
+      throw new Error('Extension data can only link to core repositories');
+    }
+    
+    // For extension data, ensure only one core link exists
+    if (currentDataType === 'extension' && type === 'core') {
+      const existingCoreLinks = Array.from(this.linkedRepositories.values())
+        .filter(link => link.type === 'core');
+      if (existingCoreLinks.length > 0) {
+        throw new Error('Extension data can only have one core repository link');
+      }
+    }
+
     const linkId = this.generateLinkId(type, repositoryUri, filePath, platformId, themeId);
     
     const link: RepositoryLink = {
@@ -109,6 +214,7 @@ export class MultiRepositoryManager {
     };
 
     this.linkedRepositories.set(linkId, link);
+    this.persistData(); // Persist the new repository link
     this.callbacks.onRepositoryLinked?.(link);
 
     try {
@@ -120,10 +226,12 @@ export class MultiRepositoryManager {
       
       link.status = 'synced';
       link.lastSync = new Date().toISOString();
+      this.persistData(); // Persist updated status
       
     } catch (error) {
       link.status = 'error';
       link.error = error instanceof Error ? error.message : 'Unknown error';
+      this.persistData(); // Persist error status
       this.callbacks.onError?.(link.error);
     }
 
@@ -138,6 +246,7 @@ export class MultiRepositoryManager {
     if (!link) return;
 
     this.linkedRepositories.delete(linkId);
+    this.persistData(); // Persist the removal
     this.callbacks.onRepositoryUnlinked?.(linkId);
 
     // Remove data associated with this link
@@ -151,6 +260,7 @@ export class MultiRepositoryManager {
 
     // Update merged data
     this.updateMergedData();
+    this.persistData(); // Persist the data changes
   }
 
   /**
@@ -200,17 +310,35 @@ export class MultiRepositoryManager {
 
     const results = [];
     for (const [platformId, extension] of this.currentData.platformExtensions) {
-      const result = validatePlatformExtensionComprehensive({
-        coreData: this.currentData.core,
-        platformExtension: extension
-      });
-      
-      results.push({
-        platformId,
-        isValid: result.isValid,
-        errors: result.errors,
-        warnings: result.warnings
-      });
+      try {
+        // Basic validation - check if extension has required fields
+        const isValid = !!(extension.systemId && extension.platformId && extension.version);
+        const errors: string[] = [];
+        const warnings: string[] = [];
+        
+        if (!extension.systemId) errors.push('Missing systemId');
+        if (!extension.platformId) errors.push('Missing platformId');
+        if (!extension.version) errors.push('Missing version');
+        
+        // Check system ID match if core data exists
+        if (this.currentData.core && extension.systemId !== this.currentData.core.systemId) {
+          errors.push(`System ID mismatch: extension has "${extension.systemId}", core has "${this.currentData.core.systemId}"`);
+        }
+        
+        results.push({
+          platformId,
+          isValid,
+          errors,
+          warnings
+        });
+      } catch (error) {
+        results.push({
+          platformId,
+          isValid: false,
+          errors: [error instanceof Error ? error.message : 'Unknown error'],
+          warnings: []
+        });
+      }
     }
 
     return results;
@@ -254,6 +382,8 @@ export class MultiRepositoryManager {
    * Load data from a specific repository
    */
   private async loadRepositoryData(link: RepositoryLink): Promise<void> {
+    console.log('[MultiRepositoryManager] Loading repository data:', link);
+    
     const accessToken = await GitHubAuthService.getValidAccessToken();
     
     const fileContent = await GitHubApiService.getFileContent(
@@ -262,27 +392,86 @@ export class MultiRepositoryManager {
       link.branch
     );
 
+    console.log('[MultiRepositoryManager] File content received:', {
+      size: fileContent.content.length,
+      encoding: fileContent.encoding
+    });
+
     const content = JSON.parse(fileContent.content);
+    console.log('[MultiRepositoryManager] Parsed content keys:', Object.keys(content));
 
-    switch (link.type) {
-      case 'core':
-        const coreData = validateTokenSystem(content);
-        this.currentData.core = coreData;
-        break;
+    // Auto-detect file type based on content structure
+    const detectedType = this.detectFileType(content);
+    console.log('[MultiRepositoryManager] Detected file type:', detectedType, 'vs requested type:', link.type);
 
-      case 'platform-extension':
-        if (!link.platformId) {
-          throw new Error('Platform ID is required for platform extension repositories');
-        }
-        const platformExtension = validatePlatformExtension(content);
-        this.currentData.platformExtensions.set(link.platformId, platformExtension);
-        break;
-
-      case 'theme-override':
-        const themeOverrides = validateThemeOverrides(content);
-        this.currentData.themeOverrides = themeOverrides;
-        break;
+    // Warn if detected type doesn't match requested type
+    if (detectedType !== link.type) {
+      console.warn(`[MultiRepositoryManager] File type mismatch! Detected: ${detectedType}, Requested: ${link.type}`);
     }
+
+    try {
+      switch (detectedType) {
+        case 'core': {
+          console.log('[MultiRepositoryManager] Validating core data...');
+          const coreData = validateTokenSystem(content);
+          this.currentData.core = coreData;
+          console.log('[MultiRepositoryManager] Core data validated and stored');
+          break;
+        }
+
+        case 'platform-extension': {
+          // Auto-extract platform ID from file content if not provided
+          let platformId = link.platformId;
+          if (!platformId && content.platformId) {
+            platformId = content.platformId;
+            console.log('[MultiRepositoryManager] Auto-extracted platform ID from file:', platformId);
+          }
+          
+          if (!platformId) {
+            throw new Error('Platform ID is required for platform extension repositories. Please provide it in the UI or ensure the file contains a platformId field.');
+          }
+          
+          console.log('[MultiRepositoryManager] Validating platform extension data...');
+          const platformExtension = validatePlatformExtension(content);
+          this.currentData.platformExtensions.set(platformId, platformExtension);
+          console.log('[MultiRepositoryManager] Platform extension validated and stored for platform:', platformId);
+          break;
+        }
+
+        case 'theme-override': {
+          console.log('[MultiRepositoryManager] Validating theme override data...');
+          const themeOverrides = validateThemeOverrides(content);
+          this.currentData.themeOverrides = themeOverrides;
+          console.log('[MultiRepositoryManager] Theme override validated and stored');
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('[MultiRepositoryManager] Validation error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Auto-detect file type based on content structure
+   */
+  private detectFileType(content: Record<string, unknown>): 'core' | 'platform-extension' | 'theme-override' {
+    // Check for core schema structure
+    if (content.tokenCollections && content.dimensions && content.tokens && content.platforms) {
+      return 'core';
+    }
+    
+    // Check for platform extension structure
+    if (content.systemId && content.platformId && content.version) {
+      return 'platform-extension';
+    }
+    
+    // Check for theme override structure
+    if (content.systemId && content.themeId && content.tokenOverrides) {
+      return 'theme-override';
+    }
+    
+    throw new Error('Unable to detect file type. File does not match any known schema structure.');
   }
 
   /**

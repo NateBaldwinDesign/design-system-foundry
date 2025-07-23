@@ -262,7 +262,7 @@ export const TokenVariant = z.object({
 // Add enum for delimiter
 export const PlatformDelimiter = z.enum(['', '_', '-', '.', '/']);
 
-// Update Platform schema to include syntaxPatterns
+// Update Platform schema to include syntaxPatterns and extensionSource
 export const Platform = z.object({
   id: z.string(),
   displayName: z.string(),
@@ -271,21 +271,26 @@ export const Platform = z.object({
     prefix: z.string().optional(),
     suffix: z.string().optional(),
     delimiter: PlatformDelimiter.optional(),
-    capitalization: z.enum(['none', 'uppercase', 'lowercase', 'capitalize']).optional(),
+    capitalization: z.enum(['none', 'camel', 'uppercase', 'lowercase', 'capitalize']).optional(),
     formatString: z.string().optional()
   }).optional(),
   valueFormatters: z.object({
     color: z.enum(['hex', 'rgb', 'rgba', 'hsl', 'hsla']).optional(),
     dimension: z.enum(['px', 'rem', 'em', 'pt', 'dp', 'sp']).optional(),
     numberPrecision: z.number().int().min(0).max(10).optional()
+  }).optional(),
+  extensionSource: z.object({
+    repositoryUri: z.string(),
+    filePath: z.string()
   }).optional()
-});
-
-// Platform Extension Registry Entry
-export const PlatformExtensionRegistry = z.object({
-  platformId: z.string(),
-  repositoryUri: z.string(),
-  filePath: z.string()
+}).refine((data) => {
+  // Platforms can have either syntaxPatterns/valueFormatters OR extensionSource, but not both
+  if (data.extensionSource) {
+    return !data.syntaxPatterns && !data.valueFormatters;
+  }
+  return true;
+}, {
+  message: "Platforms can have either core patterns or extension source, but not both."
 });
 
 // Platform Extension Schema (for standalone platform extension files)
@@ -293,6 +298,7 @@ export const PlatformExtension = z.object({
   systemId: z.string(),
   platformId: z.string(),
   version: z.string(),
+  figmaFileKey: z.string().regex(/^[a-zA-Z0-9-_]+$/),
   metadata: z.object({
     name: z.string().optional(),
     description: z.string().optional(),
@@ -420,6 +426,16 @@ export const TokenSystem = z.object({
   systemName: z.string(),
   systemId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
   description: z.string().optional(),
+  figmaConfiguration: z.object({
+    syntaxPatterns: z.object({
+      prefix: z.string().optional(),
+      suffix: z.string().optional(),
+      delimiter: z.enum(['', '_', '-', '.', '/']).optional(),
+      capitalization: z.enum(['camel', 'uppercase', 'lowercase', 'capitalize']).optional(),
+      formatString: z.string().optional()
+    }).optional(),
+    fileKey: z.string()
+  }).optional(),
   version: z.string(),
   versionHistory: z.array(VersionHistoryEntry),
   dimensionEvolution: DimensionEvolution.optional(),
@@ -428,7 +444,11 @@ export const TokenSystem = z.object({
   tokenCollections: z.array(TokenCollection),
   tokens: z.array(Token),
   platforms: z.array(Platform),
-  platformExtensions: z.array(PlatformExtensionRegistry).optional(),
+  platformExtensions: z.array(z.object({
+    platformId: z.string(),
+    repositoryUri: z.string(),
+    filePath: z.string()
+  })).optional(),
   themes: z.array(Theme).optional(),
   themeOverrides: ThemeOverrides.optional(),
   taxonomies: z.array(Taxonomy),
@@ -516,16 +536,8 @@ export const validateThemeOverrides = (data: unknown): ThemeOverrides => {
   return ThemeOverrides.parse(data);
 };
 
-export const validatePlatformExtensionRegistry = (data: unknown): PlatformExtensionRegistry => {
-  return PlatformExtensionRegistry.parse(data);
-};
-
 export const validatePlatformExtension = (data: unknown): PlatformExtension => {
   return PlatformExtension.parse(data);
-};
-
-export const validateTaxonomy = (data: unknown): Taxonomy => {
-  return Taxonomy.parse(data);
 };
 
 /**
@@ -619,5 +631,18 @@ export type DimensionEvolutionRule = z.infer<typeof DimensionEvolutionRule>;
 export type DimensionEvolution = z.infer<typeof DimensionEvolution>;
 export type TokenTier = z.infer<typeof TokenTier>;
 export type PropertyType = z.infer<typeof PropertyType>;
-export type PlatformExtensionRegistry = z.infer<typeof PlatformExtensionRegistry>;
-export type PlatformExtension = z.infer<typeof PlatformExtension>; 
+export type PlatformExtension = z.infer<typeof PlatformExtension>;
+
+// Figma Configuration type
+export const FigmaConfiguration = z.object({
+  syntaxPatterns: z.object({
+    prefix: z.string().optional(),
+    suffix: z.string().optional(),
+    delimiter: z.enum(['', '_', '-', '.', '/']).optional(),
+    capitalization: z.enum(['camel', 'uppercase', 'lowercase', 'capitalize']).optional(),
+    formatString: z.string().optional()
+  }).optional(),
+  fileKey: z.string()
+});
+
+export type FigmaConfiguration = z.infer<typeof FigmaConfiguration>; 
