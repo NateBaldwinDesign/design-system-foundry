@@ -1,6 +1,7 @@
 {
   "themeId": "theme-brand-a",
   "systemId": "core-design-system",
+  "figmaFileKey": "brand-a-theme-figma-file",
   "tokenOverrides": [
     {
       "tokenId": "token-accent-color",

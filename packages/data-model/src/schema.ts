@@ -382,6 +382,29 @@ export const ThemeOverride = z.object({
 // ThemeOverrides object: { [themeId: string]: ThemeOverride[] }
 export const ThemeOverrides = z.record(z.array(ThemeOverride));
 
+// Theme Override File schema (for standalone theme override files)
+export const ThemeOverrideFile = z.object({
+  systemId: z.string(),
+  themeId: z.string(),
+  figmaFileKey: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  tokenOverrides: z.array(z.object({
+    tokenId: z.string(),
+    valuesByMode: z.array(z.object({
+      modeIds: z.array(z.string()),
+      value: z.union([
+        z.object({ value: z.any() }),
+        z.object({ tokenId: z.string() })
+      ]),
+      platformOverrides: z.array(z.object({
+        platformId: z.string(),
+        value: z.any(),
+        metadata: z.any().optional()
+      })).optional(),
+      metadata: z.any().optional()
+    }))
+  }))
+});
+
 // TaxonomyTerm schema
 export const TaxonomyTerm = z.object({
   id: z.string(),
@@ -536,6 +559,10 @@ export const validateThemeOverrides = (data: unknown): ThemeOverrides => {
   return ThemeOverrides.parse(data);
 };
 
+export const validateThemeOverrideFile = (data: unknown): ThemeOverrideFile => {
+  return ThemeOverrideFile.parse(data);
+};
+
 export const validatePlatformExtension = (data: unknown): PlatformExtension => {
   return PlatformExtension.parse(data);
 };
@@ -621,6 +648,7 @@ export type PlatformOverride = z.infer<typeof PlatformOverride>;
 export type Theme = z.infer<typeof Theme>;
 export type ThemeOverride = z.infer<typeof ThemeOverride>;
 export type ThemeOverrides = z.infer<typeof ThemeOverrides>;
+export type ThemeOverrideFile = z.infer<typeof ThemeOverrideFile>;
 export type TaxonomyTerm = z.infer<typeof TaxonomyTerm>;
 export type Taxonomy = z.infer<typeof Taxonomy>;
 export type TokenSystem = z.infer<typeof TokenSystem>;

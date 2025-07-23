@@ -15,7 +15,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "lint": "eslint src --ext .ts",
-    "test": "node scripts/validate-data.cjs && node scripts/validate-theme-overrides.cjs && node scripts/validate-property-type-mappings.cjs"
+    "test": "node scripts/validate-data.cjs && node scripts/test-theme-override-validation.mjs && node scripts/validate-property-type-mappings.cjs"
   },
   "dependencies": {
     "react-router-dom": "^7.6.1",

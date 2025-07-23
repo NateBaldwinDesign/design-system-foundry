@@ -1,4 +1,4 @@
-import { TokenSystem, PlatformExtension, FigmaConfiguration } from '../schema';
+import { TokenSystem, PlatformExtension, FigmaConfiguration, ThemeOverrideFile } from '../schema';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -292,27 +292,113 @@ export class SchemaValidationService {
   }
 
   /**
+   * Validates a theme override file
+   */
+  static validateThemeOverrideFile(file: ThemeOverrideFile): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Validate figmaFileKey
+    if (!file.figmaFileKey) {
+      errors.push('Theme override file must have a figmaFileKey');
+    } else if (!/^[a-zA-Z0-9-_]+$/.test(file.figmaFileKey)) {
+      errors.push('figmaFileKey must contain only alphanumeric characters, hyphens, and underscores');
+    }
+
+    // Validate required fields
+    if (!file.systemId) {
+      errors.push('Theme override file must have a systemId');
+    }
+    if (!file.themeId) {
+      errors.push('Theme override file must have a themeId');
+    }
+
+    // Validate token overrides
+    if (!file.tokenOverrides || file.tokenOverrides.length === 0) {
+      warnings.push('Theme override file has no token overrides');
+    } else {
+      for (const override of file.tokenOverrides) {
+        if (!override.tokenId) {
+          errors.push('Token override must have a tokenId');
+        }
+        if (!override.valuesByMode || override.valuesByMode.length === 0) {
+          errors.push(`Token override ${override.tokenId} must have at least one value in valuesByMode`);
+        }
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
+   * Validates figmaFileKey uniqueness across platform extensions and theme override files
+   */
+  static validateFigmaFileKeyUniquenessAcrossAll(
+    platformExtensions: PlatformExtension[],
+    themeOverrideFiles: ThemeOverrideFile[] = []
+  ): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    const fileKeys = new Set<string>();
+    
+    // Check platform extensions
+    for (const extension of platformExtensions) {
+      if (extension.figmaFileKey) {
+        if (fileKeys.has(extension.figmaFileKey)) {
+          errors.push(`Duplicate figmaFileKey found: ${extension.figmaFileKey}. Each platform extension must have a unique Figma file key.`);
+        }
+        fileKeys.add(extension.figmaFileKey);
+      }
+    }
+
+    // Check theme override files
+    for (const themeFile of themeOverrideFiles) {
+      if (themeFile.figmaFileKey) {
+        if (fileKeys.has(themeFile.figmaFileKey)) {
+          errors.push(`Duplicate figmaFileKey found: ${themeFile.figmaFileKey}. Theme override file ${themeFile.themeId} conflicts with existing file key.`);
+        }
+        fileKeys.add(themeFile.figmaFileKey);
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
    * Comprehensive validation of the entire system
    */
   static validateSystem(
     coreData: TokenSystem,
-    platformExtensions: PlatformExtension[]
+    platformExtensions: PlatformExtension[],
+    themeOverrideFiles: ThemeOverrideFile[] = []
   ): SchemaValidationResult {
     const coreValidation = this.validateCoreData(coreData);
     const platformValidations = this.validatePlatformExtensions(platformExtensions);
-    const uniquenessValidation = this.validateFigmaFileKeyUniqueness(platformExtensions);
+    const themeValidations = themeOverrideFiles.map(file => this.validateThemeOverrideFile(file));
+    const uniquenessValidation = this.validateFigmaFileKeyUniquenessAcrossAll(platformExtensions, themeOverrideFiles);
 
     // Combine all errors and warnings
     const allErrors = [
       ...coreValidation.errors,
       ...uniquenessValidation.errors,
-      ...platformValidations.flatMap(v => v.errors)
+      ...platformValidations.flatMap(v => v.errors),
+      ...themeValidations.flatMap(v => v.errors)
     ];
 
     const allWarnings = [
       ...coreValidation.warnings,
       ...uniquenessValidation.warnings,
-      ...platformValidations.flatMap(v => v.warnings)
+      ...platformValidations.flatMap(v => v.warnings),
+      ...themeValidations.flatMap(v => v.warnings)
     ];
 
     return {

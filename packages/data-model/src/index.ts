@@ -26,6 +26,7 @@ export type {
   Platform,
   PlatformExtension,
   FigmaConfiguration,
+  ThemeOverrideFile,
   Taxonomy,
   TaxonomyTerm,
   TokenTaxonomyRef
@@ -103,6 +104,7 @@ export {
   validateDurationValue,
   validateCubicBezierValue,
   validateShadowValue,
+  validateThemeOverrideFile,
   validateTypographyValue,
   validateBorderValue,
   validateTheme,

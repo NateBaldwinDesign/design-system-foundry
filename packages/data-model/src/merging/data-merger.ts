@@ -344,4 +344,16 @@ export function getFigmaFileKeyForPlatform(
   }
 
   return extension.figmaFileKey;
+}
+
+/**
+ * Gets the Figma file key for a theme override file
+ */
+export function getFigmaFileKeyForThemeOverride(
+  themeOverrideFile: { figmaFileKey: string; themeId: string }
+): string {
+  if (!themeOverrideFile.figmaFileKey) {
+    throw new Error(`Theme override file ${themeOverrideFile.themeId} must have a figmaFileKey`);
+  }
+  return themeOverrideFile.figmaFileKey;
 } 
