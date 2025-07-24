@@ -5,6 +5,8 @@ export interface PlatformExtensionData {
   systemId: string;
   platformId: string;
   version: string;
+  status?: string;
+  figmaFileKey?: string;
   syntaxPatterns?: {
     prefix: string;
     suffix: string;
@@ -17,6 +19,34 @@ export interface PlatformExtensionData {
     dimension: string;
     numberPrecision: number;
   };
+  algorithmVariableOverrides?: Array<{
+    algorithmId: string;
+    variableId: string;
+    valuesByMode: Array<{
+      modeIds: string[];
+      value: string | number | boolean;
+    }>;
+  }>;
+  tokenOverrides?: Array<{
+    id: string;
+    displayName?: string;
+    description?: string;
+    themeable?: boolean;
+    private?: boolean;
+    status?: string;
+    tokenTier?: string;
+    resolvedValueTypeId?: string;
+    generatedByAlgorithm?: boolean;
+    algorithmId?: string;
+    valuesByMode: Array<{
+      modeIds: string[];
+      value: Record<string, unknown>;
+      metadata?: Record<string, unknown>;
+    }>;
+    omit?: boolean;
+  }>;
+  omittedModes?: string[];
+  omittedDimensions?: string[];
   metadata?: {
     name: string;
     description?: string;

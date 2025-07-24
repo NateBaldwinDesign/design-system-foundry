@@ -1,4 +1,5 @@
 import type { Token, Platform, Theme } from '@token-model/data-model';
+import { PlatformExtensionAnalyticsService } from '../services/platformExtensionAnalyticsService';
 
 export function getTokenStats(tokens: Token[]) {
   const total = tokens.length;
@@ -31,6 +32,25 @@ export function getPlatformOverrideStats(tokens: Token[], platforms: Platform[])
     ).length;
     return { platformId: platform.id, platformName: platform.displayName, count };
   });
+}
+
+export async function getPlatformExtensionStats(platforms: Platform[]) {
+  try {
+    const analyticsService = PlatformExtensionAnalyticsService.getInstance();
+    const analytics = await analyticsService.getCachedPlatformExtensionAnalytics(platforms);
+    return analytics;
+  } catch (error) {
+    console.error('Failed to get platform extension stats:', error);
+    return {
+      totalPlatforms: platforms.length,
+      platformsWithExtensions: 0,
+      totalTokenOverrides: 0,
+      totalAlgorithmOverrides: 0,
+      totalOmittedModes: 0,
+      totalOmittedDimensions: 0,
+      platformAnalytics: []
+    };
+  }
 }
 
 export function getThemeStats(themes: Theme[]) {
