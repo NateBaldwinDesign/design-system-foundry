@@ -6,6 +6,7 @@ export interface PlatformExtensionAnalytics {
   platformName: string;
   repositoryUri: string;
   filePath: string;
+  version?: string;
   tokenOverridesCount: number;
   algorithmVariableOverridesCount: number;
   omittedModesCount: number;
@@ -113,6 +114,7 @@ export class PlatformExtensionAnalyticsService {
       }
 
       analytics.hasExtensionData = true;
+      analytics.version = extensionData.version;
 
       // Count token overrides
       analytics.tokenOverridesCount = Array.isArray(extensionData.tokenOverrides) 

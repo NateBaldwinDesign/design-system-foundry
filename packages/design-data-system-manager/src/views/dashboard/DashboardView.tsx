@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, AlertIcon } from '@chakra-ui/react';
-import { getTokenStats, getPlatformOverrideStats, getPlatformExtensionStats, getThemeStats, getLatestRelease, getRecentActivity } from '../../utils/dashboardStats';
+import { getTokenStats, getPlatformExtensionStats, getThemeStats, getLatestRelease, getRecentActivity } from '../../utils/dashboardStats';
 import type { Platform, Theme } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
 import type { GitHubUser } from '../../config/github';
@@ -20,7 +20,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
   const [platformStatsError, setPlatformStatsError] = useState<string | null>(null);
   
   const tokenStats = getTokenStats(tokens);
-  const platformStats = getPlatformOverrideStats(tokens, platforms);
   const themeStats = getThemeStats(themes);
   const latestRelease = getLatestRelease();
   const recentActivity = getRecentActivity();
@@ -139,6 +138,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
                       <Thead>
                         <Tr>
                           <Th>Platform</Th>
+                          <Th>Version</Th>
                           <Th isNumeric>Token Overrides</Th>
                           <Th isNumeric>Algorithm Overrides</Th>
                           <Th isNumeric>Omitted</Th>
@@ -148,6 +148,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
                         {platformExtensionStats.platformAnalytics.map(platform => (
                           <Tr key={platform.platformId}>
                             <Td>{platform.platformName}</Td>
+                            <Td>{platform.version || 'N/A'}</Td>
                             <Td isNumeric>{platform.tokenOverridesCount}</Td>
                             <Td isNumeric>{platform.algorithmVariableOverridesCount}</Td>
                             <Td isNumeric>{platform.omittedModesCount + platform.omittedDimensionsCount}</Td>
@@ -165,27 +166,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
         </SimpleGrid>
         
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mb={8}>
-          {/* Legacy Platforms Section */}
-          <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
-            <Heading size="md" mb={4}>Legacy Platform Overrides</Heading>
-            <Table size="sm" variant="simple">
-              <Thead>
-                <Tr>
-                  <Th>Platform</Th>
-                  <Th isNumeric>Tokens w/ Overrides</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {platformStats.map(p => (
-                  <Tr key={p.platformId}>
-                    <Td>{p.platformName}</Td>
-                    <Td isNumeric>{p.count}</Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </Box>
-          
           {/* Themes Section */}
           <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
             <Heading size="md" mb={4}>Themes</Heading>
@@ -211,6 +191,16 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
                 ))}
               </Tbody>
             </Table>
+          </Box>
+          
+          {/* Releases Section */}
+          <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
+            <Heading size="md" mb={4}>Releases</Heading>
+            <VStack align="start" spacing={2}>
+              <Text><b>Latest Version:</b> {latestRelease.version}</Text>
+              <Text><b>Date:</b> {latestRelease.date}</Text>
+              <Tag colorScheme="gray">Placeholder</Tag>
+            </VStack>
           </Box>
         </SimpleGrid>
         
