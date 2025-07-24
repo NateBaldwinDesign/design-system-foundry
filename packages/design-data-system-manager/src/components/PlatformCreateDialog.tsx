@@ -49,7 +49,7 @@ import type { GitHubOrganization, GitHubRepo, GitHubBranch } from '../config/git
 import { createUniqueId } from '../utils/id';
 import { SyntaxPatternsEditor, ValueFormattersEditor } from './shared';
 
-export interface ExtensionCreateData {
+export interface PlatformCreateData {
   type: 'core' | 'platform-extension' | 'theme-override';
   repositoryUri: string;
   branch: string;
@@ -81,20 +81,20 @@ export interface ExtensionCreateData {
   newRepositoryVisibility?: 'public' | 'private';
 }
 
-interface ExtensionCreateDialogProps {
+interface PlatformCreateDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: ExtensionCreateData) => void;
+  onSave: (data: PlatformCreateData) => void;
   currentDataType: DataType;
 }
 
-export const ExtensionCreateDialog: React.FC<ExtensionCreateDialogProps> = ({
+export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
   isOpen,
   onClose,
   onSave,
   currentDataType
 }) => {
-  const [formData, setFormData] = useState<ExtensionCreateData>({
+  const [formData, setFormData] = useState<PlatformCreateData>({
     type: 'platform-extension',
     repositoryUri: '',
     branch: 'main',
@@ -565,7 +565,7 @@ export const ExtensionCreateDialog: React.FC<ExtensionCreateDialogProps> = ({
       };
 
       const availableTypes = getAvailableRepositoryTypes();
-      const defaultType = availableTypes.length > 0 ? availableTypes[0].value as ExtensionCreateData['type'] : 'platform-extension';
+      const defaultType = availableTypes.length > 0 ? availableTypes[0].value as PlatformCreateData['type'] : 'platform-extension';
       
       // Update form data with the correct type for current data type
       setFormData(prev => ({
@@ -1056,7 +1056,7 @@ export const ExtensionCreateDialog: React.FC<ExtensionCreateDialogProps> = ({
         Source location
       </Text>
       
-      <RadioGroup value={formData.workflow} onChange={(value) => setFormData({ ...formData, workflow: value as ExtensionCreateData['workflow'] })}>
+                      <RadioGroup value={formData.workflow} onChange={(value) => setFormData({ ...formData, workflow: value as PlatformCreateData['workflow'] })}>
         <Stack spacing={3}>
           <Radio value="link-existing">
             <HStack spacing={2}>

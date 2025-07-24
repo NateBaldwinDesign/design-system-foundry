@@ -198,7 +198,8 @@ export const CoreDataPropertiesTab: React.FC = () => {
           <b>tokens</b> (required): Design tokens with values that can vary by mode.<br />
           Each token references its collection and value type by ID (<Code colorScheme="purple">tokenCollectionId</Code>, <Code colorScheme="purple">resolvedValueTypeId</Code>).<br />
           <b>valuesByMode</b>: Each entry must use <Code colorScheme="purple">modeIds</Code> (array of string IDs). Value type is determined by the token&apos;s <Code colorScheme="purple">resolvedValueTypeId</Code>.<br />
-          <b>Technical note:</b> Never use UPPER_CASE enums for value types; always reference by string ID. Do not add <Code colorScheme="purple">resolvedValueTypeId</Code> to individual values.
+          <b>codeSyntax</b>: Platform-specific naming conventions for this token.<br />
+          <b>Technical note:</b> Never use UPPER_CASE enums for value types; always reference by string ID. Platform-specific overrides are now handled through platform extension files rather than inline <Code colorScheme="purple">platformOverrides</Code>.
         </Text>
         <JsonSyntaxHighlighter code={JSON.stringify({
           tokens: [
@@ -220,7 +221,7 @@ export const CoreDataPropertiesTab: React.FC = () => {
                   formattedName: "--color-blue-500"
                 },
                 {
-                  platformId: "platform-figma",
+                  platformId: "platform-ios",
                   formattedName: "ColorBlue500"
                 }
               ],
@@ -250,11 +251,32 @@ export const CoreDataPropertiesTab: React.FC = () => {
       </Box>
 
       <Box>
+        <Heading size="md" mb={4}>Figma Configuration</Heading>
+        <Text mb={2}>
+          <b>figmaConfiguration</b> (optional): Figma publishing configuration for design tool integration.<br />
+          Contains <Code colorScheme="purple">syntaxPatterns</Code> for generating Figma token names and a <Code colorScheme="purple">fileKey</Code> for the default Figma file.<br />
+          <b>Technical note:</b> Figma is now properly conceptualized as a publishing destination rather than a platform.
+        </Text>
+        <JsonSyntaxHighlighter code={JSON.stringify({
+          figmaConfiguration: {
+            syntaxPatterns: {
+              prefix: "",
+              suffix: "",
+              delimiter: "_",
+              capitalization: "camel",
+              formatString: ""
+            },
+            fileKey: "default-design-system-figma"
+          }
+        }, null, 2)} />
+      </Box>
+
+      <Box>
         <Heading size="md" mb={4}>Platforms</Heading>
         <Text mb={2}>
-          <b>platforms</b> (required): Platforms that can be used to resolve token values.<br />
-          Each platform can specify naming conventions and value formatting rules for code export using <Code colorScheme="purple">syntaxPatterns</Code> and <Code colorScheme="purple">valueFormatters</Code>.<br />
-          <b>Technical note:</b> All platform references use <Code colorScheme="purple">id</Code> fields. Syntax patterns and value formatters follow the schema structure.
+          <b>platforms</b> (required): Runtime platforms that can be used to resolve token values.<br />
+          Each platform can either have <Code colorScheme="purple">syntaxPatterns</Code> and <Code colorScheme="purple">valueFormatters</Code> defined in core data, or reference an external platform extension file via <Code colorScheme="purple">extensionSource</Code>.<br />
+          <b>Technical note:</b> Platforms with <Code colorScheme="purple">extensionSource</Code> cannot have <Code colorScheme="purple">syntaxPatterns</Code> or <Code colorScheme="purple">valueFormatters</Code> in core data.
         </Text>
         <JsonSyntaxHighlighter code={JSON.stringify({
           platforms: [
@@ -272,21 +294,24 @@ export const CoreDataPropertiesTab: React.FC = () => {
                 color: "hex",
                 dimension: "rem",
                 numberPrecision: 2
-              }
+              },
+              status: "active"
             },
             {
-              id: "platform-figma",
-              displayName: "Figma",
-              description: "Figma design tool",
-              syntaxPatterns: {
-                prefix: "",
-                delimiter: "",
-                capitalization: "capitalize"
-              }
+              id: "platform-ios",
+              displayName: "iOS",
+              description: "iOS platform with external extension",
+              extensionSource: {
+                repositoryUri: "ios-team/design-tokens-ios",
+                filePath: "platforms/platform-ios.json"
+              },
+              status: "active"
             }
           ]
         }, null, 2)} />
       </Box>
+
+
 
       <Box>
         <Heading size="md" mb={4}>Themes</Heading>

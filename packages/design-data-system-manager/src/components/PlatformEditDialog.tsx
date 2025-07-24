@@ -35,7 +35,7 @@ import type { RepositoryLink } from '../services/multiRepositoryManager';
 import { SourceSelectionDialog, SourceSelectionData } from './SourceSelectionDialog';
 import { SyntaxPatternsEditor, ValueFormattersEditor } from './shared';
 
-export interface ExtensionEditData {
+export interface PlatformEditData {
   type: 'core' | 'platform-extension' | 'theme-override';
   repositoryUri: string;
   branch: string;
@@ -67,11 +67,11 @@ export interface ExtensionEditData {
   newRepositoryVisibility?: 'public' | 'private';
 }
 
-interface ExtensionEditDialogProps {
+interface PlatformEditDialogProps {
   repository: RepositoryLink;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: ExtensionEditData) => void;
+  onSave: (data: PlatformEditData) => void;
   onDelete?: (repositoryId: string) => void;
   onDeprecate?: (repositoryId: string) => void;
   platforms?: Array<{
@@ -85,7 +85,7 @@ interface ExtensionEditDialogProps {
   }>;
 }
 
-export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
+export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
   repository,
   isOpen,
   onClose,
@@ -94,7 +94,7 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
   onDeprecate,
   platforms = []
 }) => {
-  const [formData, setFormData] = useState<ExtensionEditData>({
+  const [formData, setFormData] = useState<PlatformEditData>({
     type: repository.type,
     repositoryUri: repository.repositoryUri,
     branch: repository.branch,

@@ -34,6 +34,7 @@ import { ValidationView } from '../views/publishing/ValidationView';
 import { ExportSettingsView } from '../views/publishing/ExportSettingsView';
 import CoreDataView from '../views/schemas/CoreDataView';
 import ThemeOverridesView from '../views/schemas/ThemeOverridesView';
+import PlatformOverridesView from '../views/schemas/PlatformOverridesView';
 import AlgorithmDataView from '../views/schemas/AlgorithmDataView';
 import { TokenEditorDialog } from './TokenEditorDialog';
 
@@ -209,6 +210,9 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
       
       case 'theme-overrides':
         return <ThemeOverridesView />;
+      
+      case 'platform-overrides':
+        return <PlatformOverridesView />;
       
       case 'algorithm-data':
         return <AlgorithmDataView />;

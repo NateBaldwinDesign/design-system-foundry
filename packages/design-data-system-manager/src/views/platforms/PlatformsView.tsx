@@ -22,11 +22,11 @@ import {
   TabPanel,
   Badge
 } from '@chakra-ui/react';
-import { ExtensionCreateDialog } from '../../components/ExtensionCreateDialog';
-import { ExtensionEditDialog, ExtensionEditData } from '../../components/ExtensionEditDialog';
+import { PlatformCreateDialog } from '../../components/PlatformCreateDialog';
+import { PlatformEditDialog, PlatformEditData } from '../../components/PlatformEditDialog';
 import { MultiRepositoryManager, MultiRepositoryData, RepositoryLink } from '../../services/multiRepositoryManager';
 import type { Platform, Taxonomy } from '@token-model/data-model';
-import { ExtensionCreateData } from '../../components/ExtensionCreateDialog';
+import { PlatformCreateData } from '../../components/PlatformCreateDialog';
 import { LuPencil, LuPlus, LuUnlink } from 'react-icons/lu';
 import { PlatformAnalytics } from '../../components/PlatformAnalytics';
 import { CacheDebugPanel } from '../../components/CacheDebugPanel';
@@ -186,7 +186,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
     setPlatforms?.(updatedPlatforms);
   };
 
-  const handleLinkRepository = async (linkData: ExtensionCreateData) => {
+  const handleLinkRepository = async (linkData: PlatformCreateData) => {
     try {
       switch (linkData.workflow) {
         case 'link-existing': {
@@ -582,7 +582,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
     }
   };
 
-  const handleUpdateRepository = async (editData: ExtensionEditData) => {
+  const handleUpdateRepository = async (editData: PlatformEditData) => {
     if (!editingRepository) return;
     
     try {
@@ -1151,7 +1151,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
         </Tabs>
       </VStack>
       
-      <ExtensionCreateDialog
+              <PlatformCreateDialog
         isOpen={isLinkDialogOpen}
         onClose={() => setIsLinkDialogOpen(false)}
         onSave={handleLinkRepository}
@@ -1159,7 +1159,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
       />
       
       {editingRepository && (
-        <ExtensionEditDialog
+        <PlatformEditDialog
           repository={editingRepository}
           isOpen={isEditDialogOpen}
           onClose={() => {

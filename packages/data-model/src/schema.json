@@ -348,28 +348,7 @@
           ]
         }
       },
-      "platformExtensions": {
-        "type": "array",
-        "description": "Registry of platform extensions for this design system. This minimal registry enables the UI to pull and analyze platform extension data.",
-        "items": {
-          "type": "object",
-          "required": ["platformId", "repositoryUri", "filePath"],
-          "properties": {
-            "platformId": {
-              "type": "string",
-              "description": "ID of the platform this extension is for (e.g., 'platform-ios')"
-            },
-            "repositoryUri": {
-              "type": "string",
-              "description": "GitHub repository URI (e.g., 'ios-team/design-tokens-ios')"
-            },
-            "filePath": {
-              "type": "string",
-              "description": "Path to the platform extension file within the repository (e.g., 'platform-extension.json')"
-            }
-          }
-        }
-      },
+
       "dimensions": {
         "type": "array",
         "description": "List of dimensions that can be used to organize and resolve token values",

@@ -19,6 +19,7 @@ export type ViewId =
   | 'access'
   | 'core-data'
   | 'theme-overrides'
+  | 'platform-overrides'
   | 'algorithm-data';
 
 export const useViewState = () => {

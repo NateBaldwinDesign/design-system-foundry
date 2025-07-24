@@ -84,6 +84,7 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { id: 'core-data', label: 'Core Data', icon: FileCode },
       { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode },
+      { id: 'platform-overrides', label: 'Platform Extensions', icon: FileCode },
       { id: 'algorithm-data', label: 'Algorithm Data', icon: FileCode },
     ],
   },
