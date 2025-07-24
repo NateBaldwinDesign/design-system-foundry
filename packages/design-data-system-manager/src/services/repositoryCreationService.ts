@@ -1,6 +1,6 @@
 import { GitHubApiService } from './githubApi';
 import { GitHubAuthService } from './githubAuth';
-import { RepositoryScaffoldingService } from './repositoryScaffoldingService';
+import { RepositoryScaffoldingService, RepositoryScaffoldingConfig } from './repositoryScaffoldingService';
 import { StorageService } from './storage';
 import { createUniqueId } from '../utils/id';
 
@@ -67,53 +67,36 @@ export class RepositoryCreationService {
     cloneUrl: string;
     defaultBranch: string;
   }> {
-    // Get current user info
-    const user = GitHubAuthService.getCurrentUser();
-    if (!user) {
-      throw new Error('User not authenticated. Please authenticate with GitHub first.');
+    try {
+      // Get current user info
+      const userInfo = await GitHubAuthService.getCurrentUser();
+      if (!userInfo) {
+        throw new Error('GitHub authentication required. Please sign in to GitHub first.');
+      }
+
+      // Create the repository
+      const repoResult = await GitHubApiService.createFile(
+        config.name,
+        'README.md',
+        `# ${config.name}\n\n${config.description || 'Design system repository'}`,
+        'main',
+        'Initial commit'
+      );
+
+      return {
+        id: repoResult.id,
+        name: repoResult.name,
+        fullName: repoResult.full_name,
+        description: repoResult.description,
+        visibility: repoResult.private ? 'private' : 'public',
+        htmlUrl: repoResult.html_url,
+        cloneUrl: repoResult.clone_url,
+        defaultBranch: repoResult.default_branch
+      };
+    } catch (error) {
+      console.error('GitHub repository creation failed:', error);
+      throw new Error(`Failed to create GitHub repository: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    // Repository will be created under the user's account or specified organization
-    const repoOwner = config.organization || user.login;
-    
-    // Create repository via GitHub API
-    const repoData = {
-      name: config.name,
-      description: config.description || `Design tokens for ${config.schemaType}`,
-      private: config.visibility === 'private',
-      auto_init: true, // Initialize with README
-      gitignore_template: 'Node', // Add .gitignore
-      license_template: 'mit' // Add MIT license
-    };
-
-    const accessToken = await GitHubAuthService.getValidAccessToken();
-    const response = await fetch(`https://api.github.com/user/repos`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `token ${accessToken}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github.v3+json'
-      },
-      body: JSON.stringify(repoData)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`GitHub API error: ${errorData.message || response.statusText}`);
-    }
-
-    const repo = await response.json();
-    
-    return {
-      id: repo.id.toString(),
-      name: repo.name,
-      fullName: repo.full_name,
-      description: repo.description,
-      visibility: repo.private ? 'private' : 'public',
-      htmlUrl: repo.html_url,
-      cloneUrl: repo.clone_url,
-      defaultBranch: repo.default_branch
-    };
   }
 
   /**
@@ -125,10 +108,10 @@ export class RepositoryCreationService {
   ): Promise<void> {
     try {
       // Use existing RepositoryScaffoldingService to scaffold the repository
-      const scaffoldingConfig = {
+      const scaffoldingConfig: RepositoryScaffoldingConfig = {
+        name: config.name,
         systemId: config.systemId || this.getCurrentSystemId(),
         platformId: config.platformId || this.generatePlatformId(),
-        themeId: config.themeId,
         displayName: config.name,
         description: config.description || `Design tokens for ${config.schemaType}`,
         visibility: config.visibility
@@ -175,10 +158,13 @@ export class RepositoryCreationService {
       let fileContent: string;
 
       // Generate appropriate schema file based on type
+      let platformId: string;
+      let themeId: string;
+      
       switch (config.schemaType) {
         case 'platform-extension':
-          const platformId = config.platformId || this.generatePlatformId();
-          fileName = 'platform-extension.json';
+          platformId = config.platformId || this.generatePlatformId();
+          fileName = `platforms/platform-extension.json`;
           fileContent = this.generatePlatformExtensionSchema(systemId, platformId, config);
           break;
         case 'core':
@@ -186,7 +172,7 @@ export class RepositoryCreationService {
           fileContent = this.generateCoreSchema(systemId, config);
           break;
         case 'theme-override':
-          const themeId = config.themeId || this.generateThemeId();
+          themeId = config.themeId || this.generateThemeId();
           fileName = 'theme-override.json';
           fileContent = this.generateThemeOverrideSchema(systemId, themeId, config);
           break;

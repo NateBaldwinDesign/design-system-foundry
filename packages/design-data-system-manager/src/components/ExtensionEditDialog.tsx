@@ -30,8 +30,10 @@ import {
 } from '@chakra-ui/react';
 import { PlatformExtensionValidationService } from '../services/platformExtensionValidation';
 import { StorageService } from '../services/storage';
+import { PlatformExtensionDataService, type PlatformExtensionData } from '../services/platformExtensionDataService';
 import type { RepositoryLink } from '../services/multiRepositoryManager';
 import { SourceSelectionDialog, SourceSelectionData } from './SourceSelectionDialog';
+import { SyntaxPatternsEditor, ValueFormattersEditor } from './shared';
 
 export interface ExtensionEditData {
   type: 'core' | 'platform-extension' | 'theme-override';
@@ -72,6 +74,15 @@ interface ExtensionEditDialogProps {
   onSave: (data: ExtensionEditData) => void;
   onDelete?: (repositoryId: string) => void;
   onDeprecate?: (repositoryId: string) => void;
+  platforms?: Array<{
+    id: string;
+    displayName: string;
+    description?: string;
+    extensionSource?: {
+      repositoryUri: string;
+      filePath: string;
+    };
+  }>;
 }
 
 export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
@@ -80,7 +91,8 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
   onClose,
   onSave,
   onDelete,
-  onDeprecate
+  onDeprecate,
+  platforms = []
 }) => {
   const [formData, setFormData] = useState<ExtensionEditData>({
     type: repository.type,
@@ -93,7 +105,7 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
     displayName: '',
     description: '',
     workflow: 'link-existing',
-    newFileName: 'platform-extension.json',
+    newFileName: '',
     newRepositoryName: '',
     newRepositoryDescription: '',
     newRepositoryVisibility: 'public',
@@ -112,6 +124,8 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [platformExtensionData, setPlatformExtensionData] = useState<PlatformExtensionData | null>(null);
+  const [loadingPlatformData, setLoadingPlatformData] = useState(false);
   const toast = useToast();
   const { colorMode } = useColorMode();
 
@@ -130,12 +144,203 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
     return rootData.systemId || 'system-default';
   };
 
+  // Get canonical platform data from core data
+  const getCanonicalPlatformData = () => {
+    if (repository.type !== 'platform-extension') {
+      console.log('[ExtensionEditDialog] getCanonicalPlatformData: Not a platform extension', {
+        type: repository.type
+      });
+      return null;
+    }
+
+    console.log('[ExtensionEditDialog] getCanonicalPlatformData: Available platforms', {
+      availablePlatforms: platforms.map(p => ({ 
+        id: p.id, 
+        hasExtensionSource: !!p.extensionSource,
+        extensionSource: p.extensionSource 
+      })),
+      totalPlatforms: platforms.length,
+      repositoryPlatformId: repository.platformId,
+      repositoryUri: repository.repositoryUri,
+      repositoryFilePath: repository.filePath
+    });
+
+    // First, try to find a platform that matches the repository's platformId
+    let foundPlatform = platforms.find(platform => platform.id === repository.platformId);
+    
+    if (foundPlatform) {
+      console.log('[ExtensionEditDialog] getCanonicalPlatformData: Found platform by repository.platformId', {
+        platformId: foundPlatform.id,
+        displayName: foundPlatform.displayName,
+        hasExtensionSource: !!foundPlatform.extensionSource,
+        extensionSource: foundPlatform.extensionSource
+      });
+    } else {
+      console.log('[ExtensionEditDialog] getCanonicalPlatformData: No platform found by repository.platformId', {
+        searchedPlatformId: repository.platformId,
+        availablePlatformIds: platforms.map(p => p.id)
+      });
+      
+      // If no platform found by repository.platformId, try to find a platform that has an extensionSource
+      // that matches the repository's URI and file path
+      if (repository.repositoryUri && repository.filePath) {
+        foundPlatform = platforms.find(platform => 
+          platform.extensionSource?.repositoryUri === repository.repositoryUri &&
+          platform.extensionSource?.filePath === repository.filePath
+        );
+        
+        if (foundPlatform) {
+          console.log('[ExtensionEditDialog] getCanonicalPlatformData: Found platform by extensionSource match', {
+            platformId: foundPlatform.id,
+            displayName: foundPlatform.displayName,
+            hasExtensionSource: !!foundPlatform.extensionSource,
+            extensionSource: foundPlatform.extensionSource
+          });
+        } else {
+          console.log('[ExtensionEditDialog] getCanonicalPlatformData: No platform found by extensionSource match', {
+            searchedRepositoryUri: repository.repositoryUri,
+            searchedFilePath: repository.filePath,
+            availableExtensionSources: platforms
+              .filter(p => p.extensionSource)
+              .map(p => ({ 
+                platformId: p.id, 
+                repositoryUri: p.extensionSource?.repositoryUri,
+                filePath: p.extensionSource?.filePath 
+              }))
+          });
+        }
+      }
+    }
+
+    // If we found a platform with extensionSource, return it
+    if (foundPlatform?.extensionSource) {
+      return foundPlatform;
+    }
+
+    // If we found a platform but it doesn't have extensionSource, but the repository itself has source info,
+    // create a platform object with the repository's source info
+    if (foundPlatform && repository.repositoryUri && repository.filePath) {
+      console.log('[ExtensionEditDialog] getCanonicalPlatformData: Using repository source info as fallback', {
+        repositoryUri: repository.repositoryUri,
+        filePath: repository.filePath
+      });
+      
+      return {
+        ...foundPlatform,
+        extensionSource: {
+          repositoryUri: repository.repositoryUri,
+          filePath: repository.filePath
+        }
+      };
+    }
+
+    // If no platform found in core data but repository has source info, create a minimal platform object
+    if (repository.repositoryUri && repository.filePath) {
+      console.log('[ExtensionEditDialog] getCanonicalPlatformData: Creating minimal platform object from repository info', {
+        platformId: repository.platformId,
+        repositoryUri: repository.repositoryUri,
+        filePath: repository.filePath
+      });
+      
+      return {
+        id: repository.platformId || 'unknown-platform',
+        displayName: repository.platformId || 'Unknown Platform',
+        description: '',
+        extensionSource: {
+          repositoryUri: repository.repositoryUri,
+          filePath: repository.filePath
+        }
+      };
+    }
+
+    return foundPlatform;
+  };
+
+  // Load platform extension data from source
+  const loadPlatformExtensionData = async () => {
+    console.log('[ExtensionEditDialog] loadPlatformExtensionData: Starting', {
+      repositoryType: repository.type,
+      platformId: repository.platformId,
+      repositoryUri: repository.repositoryUri,
+      filePath: repository.filePath,
+      branch: repository.branch
+    });
+
+    if (repository.type !== 'platform-extension') {
+      console.log('[ExtensionEditDialog] loadPlatformExtensionData: Not a platform extension');
+      return;
+    }
+
+    const canonicalPlatformData = getCanonicalPlatformData();
+    console.log('[ExtensionEditDialog] loadPlatformExtensionData: Canonical platform data', {
+      found: !!canonicalPlatformData,
+      hasExtensionSource: !!canonicalPlatformData?.extensionSource,
+      extensionSource: canonicalPlatformData?.extensionSource,
+      platformId: canonicalPlatformData?.id
+    });
+
+    if (!canonicalPlatformData?.extensionSource) {
+      console.log('[ExtensionEditDialog] No extension source found, skipping data load');
+      return;
+    }
+
+    setLoadingPlatformData(true);
+    try {
+      // Use the repository's branch if available, otherwise default to 'main'
+      const branch = repository.branch || 'main';
+      
+      console.log('[ExtensionEditDialog] loadPlatformExtensionData: Fetching data from source', {
+        repositoryUri: canonicalPlatformData.extensionSource.repositoryUri,
+        filePath: canonicalPlatformData.extensionSource.filePath,
+        branch: branch,
+        platformId: canonicalPlatformData.id // Use the canonical platform ID, not repository.platformId
+      });
+
+      const data = await PlatformExtensionDataService.getPlatformExtensionData(
+        canonicalPlatformData.extensionSource.repositoryUri,
+        canonicalPlatformData.extensionSource.filePath,
+        branch,
+        canonicalPlatformData.id // Use the canonical platform ID, not repository.platformId
+      );
+      
+      if (data) {
+        setPlatformExtensionData(data);
+        console.log('[ExtensionEditDialog] Loaded platform extension data:', data);
+      } else {
+        console.warn('[ExtensionEditDialog] No platform extension data found');
+      }
+    } catch (error) {
+      console.error('[ExtensionEditDialog] Failed to load platform extension data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load platform extension data from source',
+        status: 'error',
+        duration: 5000,
+        isClosable: true
+      });
+    } finally {
+      setLoadingPlatformData(false);
+    }
+  };
+
   // Use CodeSyntaxService for preview (from PlatformEditorDialog)
   const preview = useMemo(() => {
     if (formData.type !== 'platform-extension') return '';
     
-    // Simple preview generation based on syntax patterns
-    const { prefix = '', suffix = '', delimiter = '_', capitalization = 'none' } = formData.syntaxPatterns || {};
+    // Get canonical platform data to determine if this is a local platform
+    const canonicalPlatformData = getCanonicalPlatformData();
+    const isLocalPlatform = canonicalPlatformData?.extensionSource?.repositoryUri === 'local';
+    
+    // For local platforms, use form data for live preview; otherwise use platform extension data
+    const syntaxPatterns = isLocalPlatform 
+      ? formData.syntaxPatterns 
+      : (platformExtensionData?.syntaxPatterns || formData.syntaxPatterns);
+    
+    const prefix = syntaxPatterns?.prefix || '';
+    const suffix = syntaxPatterns?.suffix || '';
+    const delimiter = syntaxPatterns?.delimiter || '_';
+    const capitalization = syntaxPatterns?.capitalization || 'none';
+    
     let tokenName = 'primary-color-background';
     
     // Apply capitalization
@@ -157,15 +362,29 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
     }
     
     return `${prefix}${tokenName}${suffix}`;
-  }, [formData.syntaxPatterns, formData.type]);
+  }, [formData.syntaxPatterns, formData.type, platformExtensionData]);
 
   // Reset form when repository changes
   useEffect(() => {
+    // Get the canonical platform data from the platforms prop
+    const canonicalPlatformData = getCanonicalPlatformData();
+    
     // Load platform extension data from localStorage if available
     let platformExtensionData: Record<string, unknown> | null = null;
     if (repository.platformId && repository.type === 'platform-extension') {
       platformExtensionData = StorageService.getPlatformExtensionFile(repository.platformId);
     }
+
+    // Determine the display name and description
+    // Priority: 1. Canonical platform data, 2. Platform extension data, 3. Repository platformId
+    const displayName = canonicalPlatformData?.displayName || 
+                       (platformExtensionData?.metadata as Record<string, unknown>)?.name as string || 
+                       (platformExtensionData?.displayName as string) || 
+                       repository.platformId || '';
+    
+    const description = canonicalPlatformData?.description || 
+                       (platformExtensionData?.metadata as Record<string, unknown>)?.description as string || 
+                       (platformExtensionData?.description as string) || '';
 
     setFormData({
       type: repository.type,
@@ -175,12 +394,10 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
       systemId: (platformExtensionData?.systemId as string) || getCurrentSystemId(),
       platformId: repository.platformId || '',
       themeId: repository.themeId || '',
-      displayName: (platformExtensionData?.metadata as Record<string, unknown>)?.name as string || 
-                   (platformExtensionData?.displayName as string) || '',
-      description: (platformExtensionData?.metadata as Record<string, unknown>)?.description as string || 
-                   (platformExtensionData?.description as string) || '',
+      displayName: displayName,
+      description: description,
       workflow: 'link-existing',
-      newFileName: 'platform-extension.json',
+      newFileName: '',
       newRepositoryName: '',
       newRepositoryDescription: '',
       newRepositoryVisibility: 'public',
@@ -198,21 +415,34 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
       }
     });
     setErrors({});
-  }, [repository]);
+    
+    // Load platform extension data from source
+    loadPlatformExtensionData();
+  }, [repository, platforms]);
+
+  // Update form data when platform extension data is loaded
+  useEffect(() => {
+    if (platformExtensionData && formData.type === 'platform-extension') {
+      setFormData(prev => ({
+        ...prev,
+        syntaxPatterns: {
+          prefix: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.prefix as string || '',
+          suffix: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.suffix as string || '',
+          delimiter: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.delimiter as string || '_',
+          capitalization: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.capitalization as string || 'none',
+          formatString: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.formatString as string || ''
+        },
+        valueFormatters: {
+          color: (platformExtensionData.valueFormatters as Record<string, unknown>)?.color as string || 'hex',
+          dimension: (platformExtensionData.valueFormatters as Record<string, unknown>)?.dimension as string || 'px',
+          numberPrecision: (platformExtensionData.valueFormatters as Record<string, unknown>)?.numberPrecision as number || 2
+        }
+      }));
+    }
+  }, [platformExtensionData, formData.type]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
-    // Basic validation for editing
-    if (!formData.repositoryUri.trim()) {
-      newErrors.repositoryUri = 'Repository URI is required';
-    }
-    if (!formData.branch.trim()) {
-      newErrors.branch = 'Branch is required';
-    }
-    if (!formData.filePath.trim()) {
-      newErrors.filePath = 'File path is required';
-    }
 
     // Type-specific validation
     if (formData.type === 'platform-extension') {
@@ -226,7 +456,7 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validateForm()) {
       toast({
         title: 'Validation Error',
@@ -238,7 +468,159 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
       return;
     }
 
-    // Validate against schema
+    // Handle create-file workflow
+    if (formData.workflow === 'create-file' && formData.type === 'platform-extension') {
+      try {
+        // Create the platform extension file data according to platform-extension-schema.json
+        const platformExtensionData = {
+          systemId: formData.systemId || getCurrentSystemId(),
+          platformId: repository.platformId || '',
+          version: '1.0.0',
+          status: 'active',
+          figmaFileKey: `${repository.platformId || 'platform'}-figma-file`,
+          syntaxPatterns: formData.syntaxPatterns || {
+            prefix: '',
+            suffix: '',
+            delimiter: '_',
+            capitalization: 'camel',
+            formatString: ''
+          },
+          valueFormatters: formData.valueFormatters || {
+            color: 'hex',
+            dimension: 'px',
+            numberPrecision: 2
+          },
+          algorithmVariableOverrides: [],
+          tokenOverrides: [],
+          omittedModes: [],
+          omittedDimensions: []
+        };
+        
+        // Create the actual file content as JSON string
+        const fileContent = JSON.stringify(platformExtensionData, null, 2);
+        
+        // According to repository-scaffolding.md, platform extension files should be saved to platforms/ directory
+        // Use user-defined filename from form data
+        const fileName = `platforms/${formData.newFileName || 'platform-extension.json'}`;
+        
+        // Get current repository info
+        const { GitHubApiService } = await import('../services/githubApi');
+        const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+        if (!repoInfo) {
+          throw new Error('No repository selected. Please load a file from GitHub first.');
+        }
+        
+        // Create the file in the platforms/ directory
+        await GitHubApiService.createFile(
+          repoInfo.fullName,
+          fileName,
+          fileContent,
+          repoInfo.branch,
+          `Add platform extension file: ${fileName} for ${repository.platformId}`
+        );
+        
+        // Store the platform extension file in localStorage for local access
+        const { StorageService } = await import('../services/storage');
+        StorageService.setPlatformExtensionFile(repository.platformId || '', platformExtensionData);
+        StorageService.setPlatformExtensionFileContent(repository.platformId || '', fileContent);
+        
+        // Update the platform's extensionSource with the correct path
+        await updatePlatformExtensionSource('local', fileName);
+        
+        toast({
+          title: 'File Created Successfully',
+          description: `Platform extension file "${fileName}" has been created and linked to the platform.`,
+          status: 'success',
+          duration: 3000,
+          isClosable: true
+        });
+        
+        // Close the dialog after successful file creation
+        onClose();
+        return;
+        
+      } catch (error) {
+        console.error('[ExtensionEditDialog] Failed to create platform extension file:', error);
+        toast({
+          title: 'File Creation Failed',
+          description: error instanceof Error ? error.message : 'Failed to create platform extension file',
+          status: 'error',
+          duration: 5000,
+          isClosable: true
+        });
+        return;
+      }
+    }
+
+    // Handle saving changes to local platform files
+    const canonicalPlatformData = getCanonicalPlatformData();
+    const isLocalPlatform = canonicalPlatformData?.extensionSource?.repositoryUri === 'local';
+    
+    if (isLocalPlatform && formData.type === 'platform-extension' && platformExtensionData) {
+      try {
+        // Update the platform extension data with form changes
+        const updatedPlatformExtensionData = {
+          ...platformExtensionData,
+          syntaxPatterns: formData.syntaxPatterns || platformExtensionData.syntaxPatterns,
+          valueFormatters: formData.valueFormatters || platformExtensionData.valueFormatters,
+          metadata: {
+            ...platformExtensionData.metadata,
+            name: formData.displayName || platformExtensionData.metadata?.name || '',
+            description: formData.description || platformExtensionData.metadata?.description || '',
+            lastUpdated: new Date().toISOString().split('T')[0]
+          }
+        };
+        
+        // Create the updated file content
+        const updatedFileContent = JSON.stringify(updatedPlatformExtensionData, null, 2);
+        
+        // Get current repository info
+        const { GitHubApiService } = await import('../services/githubApi');
+        const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+        if (!repoInfo) {
+          throw new Error('No repository selected. Please load a file from GitHub first.');
+        }
+        
+        // Update the file in the repository
+        await GitHubApiService.createOrUpdateFile(
+          repoInfo.fullName,
+          canonicalPlatformData.extensionSource!.filePath,
+          updatedFileContent,
+          repoInfo.branch,
+          `Update platform extension settings for ${repository.platformId}`
+        );
+        
+        // Update localStorage
+        const { StorageService } = await import('../services/storage');
+        StorageService.setPlatformExtensionFile(repository.platformId || '', updatedPlatformExtensionData);
+        StorageService.setPlatformExtensionFileContent(repository.platformId || '', updatedFileContent);
+        
+        toast({
+          title: 'Platform Settings Updated',
+          description: 'Platform extension settings have been saved successfully.',
+          status: 'success',
+          duration: 3000,
+          isClosable: true
+        });
+        
+        // Close the dialog after successful update
+        onClose();
+        return;
+        
+      } catch (error) {
+        console.error('[ExtensionEditDialog] Failed to update platform extension file:', error);
+        toast({
+          title: 'Update Failed',
+          description: error instanceof Error ? error.message : 'Failed to update platform extension file',
+          status: 'error',
+          duration: 5000,
+          isClosable: true
+        });
+        return;
+      }
+    }
+
+    // Validate against schema for other workflows
     try {
       if (formData.type === 'platform-extension') {
         const extensionData = {
@@ -294,14 +676,77 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
     setIsSourceSelectionOpen(true);
   };
 
-  const handleSourceSelected = (sourceData: SourceSelectionData) => {
+  // Update platform's extensionSource after file creation
+  const updatePlatformExtensionSource = async (repositoryUri: string, filePath: string) => {
+    if (!repository.platformId || repository.type !== 'platform-extension') {
+      console.log('[ExtensionEditDialog] updatePlatformExtensionSource: Not a platform extension or no platformId');
+      return;
+    }
+
+    try {
+      // Get current platforms from DataManager
+      const { DataManager } = await import('../services/dataManager');
+      const dataManager = DataManager.getInstance();
+      const snapshot = dataManager.getCurrentSnapshot();
+      const currentPlatforms = snapshot.platforms;
+      
+      // Find the platform to update
+      const platformIndex = currentPlatforms.findIndex(p => p.id === repository.platformId);
+      
+      if (platformIndex !== -1) {
+        // Update existing platform with extension source
+        const updatedPlatforms = [...currentPlatforms];
+        updatedPlatforms[platformIndex] = {
+          ...updatedPlatforms[platformIndex],
+          extensionSource: {
+            repositoryUri: repositoryUri,
+            filePath: filePath
+          }
+        };
+        
+        // Update platforms through DataManager
+        const { DataManager } = await import('../services/dataManager');
+        const dataManager = DataManager.getInstance();
+        dataManager.updateData({ platforms: updatedPlatforms });
+        
+        console.log('[ExtensionEditDialog] Updated platform extensionSource:', {
+          platformId: repository.platformId,
+          repositoryUri: repositoryUri,
+          filePath: filePath
+        });
+        
+        // Reload platform extension data from the new source
+        await loadPlatformExtensionData();
+        
+        toast({
+          title: 'Platform Updated',
+          description: 'Platform extension source has been updated successfully.',
+          status: 'success',
+          duration: 3000,
+          isClosable: true
+        });
+      } else {
+        console.error('[ExtensionEditDialog] Platform not found for update:', repository.platformId);
+      }
+    } catch (error) {
+      console.error('[ExtensionEditDialog] Failed to update platform extensionSource:', error);
+      toast({
+        title: 'Update Failed',
+        description: 'Failed to update platform extension source.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true
+      });
+    }
+  };
+
+  const handleSourceSelected = async (sourceData: SourceSelectionData) => {
     // Update form data with new source information
     setFormData(prev => ({
       ...prev,
       repositoryUri: sourceData.repositoryUri || prev.repositoryUri,
       branch: sourceData.branch || prev.branch,
       filePath: sourceData.filePath || prev.filePath,
-      newFileName: sourceData.newFileName || prev.newFileName,
       newRepositoryName: sourceData.newRepositoryName || prev.newRepositoryName,
       newRepositoryDescription: sourceData.newRepositoryDescription || prev.newRepositoryDescription,
       newRepositoryVisibility: sourceData.newRepositoryVisibility || prev.newRepositoryVisibility,
@@ -313,6 +758,23 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
                       sourceData.repositoryUri !== 'local';
     setIsExternalSource(!!isExternal);
 
+    // Handle linking to existing file workflow
+    if (sourceData.workflow === 'link-existing' && sourceData.repositoryUri && sourceData.filePath) {
+      // Update the platform's extensionSource when linking to an existing file
+      await updatePlatformExtensionSource(sourceData.repositoryUri, sourceData.filePath);
+      
+      // Also update the form data to reflect the new source
+      setFormData(prev => ({
+        ...prev,
+        repositoryUri: sourceData.repositoryUri || prev.repositoryUri,
+        branch: sourceData.branch || prev.branch,
+        filePath: sourceData.filePath || prev.filePath
+      }));
+    }
+
+    // For create-file workflow, just update the form data - file creation will happen on save
+    // For create-repository workflow, the repository creation dialog handles it
+
     toast({
       title: 'Source Updated',
       description: `Source has been updated to ${sourceData.workflow === 'link-existing' ? 'external repository' : sourceData.workflow === 'create-file' ? 'local file' : 'new repository'}`,
@@ -322,162 +784,102 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
     });
   };
 
-  const getTypeDisplayName = (type: RepositoryLink['type']) => {
-    switch (type) {
-      case 'core': return 'Core Data';
-      case 'platform-extension': return 'Platform Extension';
-      case 'theme-override': return 'Theme Override';
-      default: return type;
-    }
+
+
+  const renderSourceConfiguration = () => {
+    const canonicalPlatformData = getCanonicalPlatformData();
+    const hasExtensionSource = canonicalPlatformData?.extensionSource;
+
+    console.log('[ExtensionEditDialog] renderSourceConfiguration', {
+      canonicalPlatformData: !!canonicalPlatformData,
+      hasExtensionSource: !!hasExtensionSource,
+      extensionSource: canonicalPlatformData?.extensionSource,
+      repositoryType: formData.type
+    });
+
+    return (
+      <VStack spacing={4} align="stretch">
+        <HStack justify="space-between" align="center">
+          <Text fontWeight="bold" fontSize="sm" color="gray.600">
+            Source Configuration
+          </Text>
+          <Button
+            size="sm"
+            colorScheme="blue"
+            variant="outline"
+            onClick={handleSelectNewSource}
+          >
+            Select New Source
+          </Button>
+        </HStack>
+        
+        {formData.type === 'platform-extension' && (
+          <Box p={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}>
+            <VStack align="start" spacing={3}>
+              <Text fontWeight="bold" fontSize="sm" color="gray.600">
+                Canonical Platform Data
+              </Text>
+              
+              {hasExtensionSource && canonicalPlatformData?.extensionSource ? (
+                <VStack align="start" spacing={2}>
+                  <HStack>
+                    <Text fontWeight="medium">Repository URI:</Text>
+                    <Text fontFamily="mono" fontSize="sm" color="gray.500">
+                      {canonicalPlatformData.extensionSource.repositoryUri}
+                    </Text>
+                  </HStack>
+                  <HStack>
+                    <Text fontWeight="medium">File Path:</Text>
+                    <Text fontFamily="mono" fontSize="sm" color="gray.500">
+                      {canonicalPlatformData.extensionSource.filePath}
+                    </Text>
+                  </HStack>
+                </VStack>
+              ) : (
+                <Alert status="info" borderRadius="md">
+                  <AlertIcon />
+                  <Text>No source linked</Text>
+                </Alert>
+              )}
+            </VStack>
+          </Box>
+        )}
+        
+        {isExternalSource && (
+          <Alert status="info" borderRadius="md">
+            <AlertIcon />
+            <VStack align="start" spacing={1}>
+              <Text fontWeight="bold">External Source Detected</Text>
+              <Text fontSize="sm">This data comes from an external source file. Most fields are read-only to maintain data integrity.</Text>
+              {/* TODO: Add "Switch source to edit settings" functionality */}
+            </VStack>
+          </Alert>
+        )}
+      </VStack>
+    );
   };
 
-  const renderSourceSelection = () => (
-    <VStack spacing={4} align="stretch">
-      <HStack justify="space-between" align="center">
+  const renderCreateFileFields = () => {
+    return (
+      <VStack spacing={4} align="stretch">
         <Text fontWeight="bold" fontSize="sm" color="gray.600">
-          Source Configuration
+          File Settings
         </Text>
-        <Button
-          size="sm"
-          colorScheme="blue"
-          variant="outline"
-          onClick={handleSelectNewSource}
-        >
-          Select New Source
-        </Button>
-      </HStack>
-      
-      {isExternalSource && (
-        <Alert status="info" borderRadius="md">
-          <AlertIcon />
-          <VStack align="start" spacing={1}>
-            <Text fontWeight="bold">External Source Detected</Text>
-            <Text fontSize="sm">This data comes from an external source file. Most fields are read-only to maintain data integrity.</Text>
-            {/* TODO: Add "Switch source to edit settings" functionality */}
-          </VStack>
-        </Alert>
-      )}
-    </VStack>
-  );
-
-  const renderLinkExistingFields = () => (
-    <VStack spacing={4} align="stretch">
-      <Text fontWeight="bold" fontSize="sm" color="gray.600">
-        Repository Settings
-      </Text>
-      
-      {Object.keys(errors).length > 0 && (
-        <Alert status="error">
-          <AlertIcon />
-          <Text>Please fix the validation errors below</Text>
-        </Alert>
-      )}
-
-      <FormControl isRequired isInvalid={!!errors.repositoryUri}>
-        <FormLabel>Repository URI</FormLabel>
-        {isExternalSource ? (
-          <Box
-            p={3}
-            borderWidth={1}
-            borderRadius="md"
-            bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-            borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-          >
-            <Text fontSize="sm" color="gray.500" fontFamily="mono">
-              {formData.repositoryUri || 'Not set'}
-            </Text>
-          </Box>
-        ) : (
+        
+        <FormControl isRequired isInvalid={!!errors.newFileName}>
+          <FormLabel>File Name</FormLabel>
           <Input
-            value={formData.repositoryUri}
-            onChange={(e) => setFormData({ ...formData, repositoryUri: e.target.value })}
-            placeholder="owner/repository"
+            value={formData.newFileName}
+            onChange={(e) => setFormData({ ...formData, newFileName: e.target.value })}
+            placeholder="platform-extension.json"
           />
-        )}
-      </FormControl>
-
-      <HStack spacing={4}>
-        <FormControl isRequired isInvalid={!!errors.branch}>
-          <FormLabel>Branch</FormLabel>
-          {isExternalSource ? (
-            <Box
-              p={3}
-              borderWidth={1}
-              borderRadius="md"
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-            >
-              <Text fontSize="sm" color="gray.500" fontFamily="mono">
-                {formData.branch || 'Not set'}
-              </Text>
-            </Box>
-          ) : (
-            <Input
-              value={formData.branch}
-              onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
-              placeholder="main"
-            />
-          )}
+          <Text fontSize="xs" color="gray.500" mt={1}>
+            File will be created in the platforms/ directory following repository scaffolding standards
+          </Text>
         </FormControl>
-
-        <FormControl isRequired isInvalid={!!errors.filePath}>
-          <FormLabel>File Path</FormLabel>
-          {isExternalSource ? (
-            <Box
-              p={3}
-              borderWidth={1}
-              borderRadius="md"
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-            >
-              <Text fontSize="sm" color="gray.500" fontFamily="mono">
-                {formData.filePath || 'Not set'}
-              </Text>
-            </Box>
-          ) : (
-            <Input
-              value={formData.filePath}
-              onChange={(e) => setFormData({ ...formData, filePath: e.target.value })}
-              placeholder="path/to/file.json"
-            />
-          )}
-        </FormControl>
-      </HStack>
-
-      {/* Platform ID is now handled in the platform fields section as read-only */}
-
-      {formData.type === 'theme-override' && (
-        <FormControl isRequired isInvalid={!!errors.themeId}>
-          <FormLabel>Theme ID</FormLabel>
-          <Input
-            value={formData.themeId || ''}
-            onChange={(e) => setFormData({ ...formData, themeId: e.target.value })}
-            placeholder="theme-dark"
-          />
-        </FormControl>
-      )}
-    </VStack>
-  );
-
-  const renderCreateFileFields = () => (
-    <VStack spacing={4} align="stretch">
-      <Text fontWeight="bold" fontSize="sm" color="gray.600">
-        File Settings
-      </Text>
-      
-      <FormControl isRequired isInvalid={!!errors.newFileName}>
-        <FormLabel>File Name</FormLabel>
-        <Input
-          value={formData.newFileName}
-          onChange={(e) => setFormData({ ...formData, newFileName: e.target.value })}
-          placeholder="platform-extension.json"
-        />
-        <Text fontSize="xs" color="gray.500" mt={1}>
-          File will be created in the current repository
-        </Text>
-      </FormControl>
-    </VStack>
-  );
+      </VStack>
+    );
+  };
 
   const renderCreateRepositoryFields = () => (
     <VStack spacing={4} align="stretch">
@@ -528,17 +930,17 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
     return (
       <VStack spacing={4} align="stretch">
         <Text fontWeight="bold" fontSize="sm" color="gray.600">
-          Platform Extension Settings
+          Basic Information
         </Text>
         
         {/* Basic Platform Information */}
-        <Box
+        {/* <Box
           p={3}
           borderWidth={1}
           borderRadius="md"
           bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
           borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-        >
+        > */}
           <VStack spacing={3} align="stretch">
             <FormControl isRequired isInvalid={!!errors.displayName}>
               <FormLabel>Display Name</FormLabel>
@@ -585,28 +987,148 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
               )}
             </FormControl>
           </VStack>
-        </Box>
+        {/* </Box> */}
+      </VStack>
+    );
+  };
 
+  const renderPlatformSettings = () => {
+    if (formData.type !== 'platform-extension') {
+      return null;
+    }
+
+    const canonicalPlatformData = getCanonicalPlatformData();
+    const hasExtensionSource = canonicalPlatformData?.extensionSource;
+
+    if (!hasExtensionSource) {
+      return (
+        <VStack spacing={4} align="stretch">
+          <Text fontWeight="bold" fontSize="sm" color="gray.600">
+            Platform Settings
+          </Text>
+          <Alert status="info" borderRadius="md">
+            <AlertIcon />
+            <Text>Select a source to see settings</Text>
+          </Alert>
+        </VStack>
+      );
+    }
+
+    if (loadingPlatformData) {
+      return (
+        <VStack spacing={4} align="stretch">
+          <Text fontWeight="bold" fontSize="sm" color="gray.600">
+            Platform Settings
+          </Text>
+          <Box p={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}>
+            <Text fontSize="sm" color="gray.500">Loading platform settings from source...</Text>
+          </Box>
+        </VStack>
+      );
+    }
+
+    // Use platform extension data if available, otherwise show empty state
+    const data = platformExtensionData;
+    if (!data) {
+      return (
+        <VStack spacing={4} align="stretch">
+          <Text fontWeight="bold" fontSize="sm" color="gray.600">
+            Platform Settings
+          </Text>
+          <Alert status="warning" borderRadius="md">
+            <AlertIcon />
+            <Text>Unable to load platform settings from source</Text>
+          </Alert>
+        </VStack>
+      );
+    }
+
+    // Check if this is a local platform (editable)
+    const isLocalPlatform = canonicalPlatformData.extensionSource?.repositoryUri === 'local';
+
+    return (
+      <VStack spacing={4} align="stretch">
+        <Text fontWeight="bold" fontSize="sm" color="gray.600">
+          Platform Settings
+        </Text>
+        
         {/* Platform ID - Read-only display */}
         <Box p={3} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'} borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}>
+        <Box mb={4}>
           <Text fontSize="sm" fontWeight="medium" mb={2}>Platform ID</Text>
           <Text fontSize="sm" color="gray.500" fontFamily="mono">
-            {formData.platformId || 'Not set'}
+            {data.platformId || 'Not set'}
           </Text>
           <Text fontSize="xs" color="gray.400" mt={1}>
             Platform ID cannot be changed after creation
           </Text>
         </Box>
         
-        {/* System ID is hidden and auto-populated */}
-        <Box p={3} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'} borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}>
+        {/* System ID - Read-only display */}
+        <Box mb={4}>
           <Text fontSize="sm" fontWeight="medium" mb={2}>System ID</Text>
           <Text fontSize="sm" color="gray.500">
-            {formData.systemId || getCurrentSystemId()}
+            {data.systemId || 'Not set'}
           </Text>
           <Text fontSize="xs" color="gray.400" mt={1}>
             Auto-populated from current system
           </Text>
+        </Box>
+
+        {/* Syntax Patterns - Editable for local platforms, read-only for external */}
+        <Box mb={4}>
+          <SyntaxPatternsEditor
+            syntaxPatterns={isLocalPlatform ? (formData.syntaxPatterns || {
+              prefix: '',
+              suffix: '',
+              delimiter: '_',
+              capitalization: 'none',
+              formatString: ''
+            }) : (data.syntaxPatterns || {
+              prefix: '',
+              suffix: '',
+              delimiter: '_',
+              capitalization: 'none',
+              formatString: ''
+            })}
+            onSyntaxPatternsChange={(newSyntaxPatterns) => {
+              if (isLocalPlatform) {
+                setFormData(prev => ({
+                  ...prev,
+                  syntaxPatterns: newSyntaxPatterns
+                }));
+              }
+            }}
+            preview={preview}
+            isReadOnly={!isLocalPlatform}
+            title="Syntax Patterns"
+          />
+        </Box>
+
+        {/* Value Formatters - Editable for local platforms, read-only for external */}
+        <Box mb={4}>
+          <ValueFormattersEditor
+            valueFormatters={isLocalPlatform ? (formData.valueFormatters || {
+              color: 'hex',
+              dimension: 'px',
+              numberPrecision: 2
+            }) : (data.valueFormatters || {
+              color: 'hex',
+              dimension: 'px',
+              numberPrecision: 2
+            })}
+            onValueFormattersChange={(newValueFormatters) => {
+              if (isLocalPlatform) {
+                setFormData(prev => ({
+                  ...prev,
+                  valueFormatters: newValueFormatters
+                }));
+              }
+            }}
+            isReadOnly={!isLocalPlatform}
+            title="Value Formatters"
+          />
+        </Box>
         </Box>
       </VStack>
     );
@@ -614,161 +1136,163 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
 
   const renderWorkflowSpecificFields = () => {
     switch (formData.workflow) {
-      case 'link-existing':
-        return renderLinkExistingFields();
       case 'create-file':
-        return renderCreateFileFields();
+        return (
+          <VStack spacing={6} align="stretch">
+            {renderCreateFileFields()}
+            
+            {/* Syntax Patterns and Value Formatters for create-file workflow */}
+            {formData.type === 'platform-extension' && (
+              <>
+                <Divider />
+                <Text fontWeight="bold" fontSize="sm" color="gray.600">
+                  Syntax Patterns
+                </Text>
+                <Box
+                  p={3}
+                  borderWidth={1}
+                  borderRadius="md"
+                  bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                  borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                >
+                  <HStack spacing={4} align="flex-end">
+                    <FormControl>
+                      <FormLabel>Prefix</FormLabel>
+                      <Input
+                        value={formData.syntaxPatterns?.prefix || ''}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          syntaxPatterns: { ...formData.syntaxPatterns!, prefix: e.target.value }
+                        })}
+                        placeholder="e.g., TKN_"
+                      />
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel>Suffix</FormLabel>
+                      <Input
+                        value={formData.syntaxPatterns?.suffix || ''}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          syntaxPatterns: { ...formData.syntaxPatterns!, suffix: e.target.value }
+                        })}
+                        placeholder="e.g., _SUF"
+                      />
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel>Delimiter</FormLabel>
+                      <Select
+                        value={formData.syntaxPatterns?.delimiter || '_'}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          syntaxPatterns: { ...formData.syntaxPatterns!, delimiter: e.target.value }
+                        })}
+                      >
+                        <option value="">None</option>
+                        <option value="_">Underscore (_)</option>
+                        <option value="-">Hyphen (-)</option>
+                        <option value=".">Dot (.)</option>
+                        <option value="/">Slash (/)</option>
+                      </Select>
+                    </FormControl>
+                    <FormControl>
+                      <FormLabel>Capitalization</FormLabel>
+                      <Select
+                        value={formData.syntaxPatterns?.capitalization || 'none'}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          syntaxPatterns: { ...formData.syntaxPatterns!, capitalization: e.target.value }
+                        })}
+                      >
+                        <option value="none">None</option>
+                        <option value="uppercase">UPPERCASE</option>
+                        <option value="lowercase">lowercase</option>
+                        <option value="capitalize">Capitalize</option>
+                      </Select>
+                    </FormControl>
+                  </HStack>
+                  <VStack spacing={3} align="stretch" mt={4}>
+                    <FormControl>
+                      <FormLabel>Format String</FormLabel>
+                      <Input
+                        value={formData.syntaxPatterns?.formatString || ''}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          syntaxPatterns: { ...formData.syntaxPatterns!, formatString: e.target.value }
+                        })}
+                        placeholder="e.g., {prefix}{name}{suffix}"
+                        width="100%"
+                      />
+                    </FormControl>
+                    <Box mt={2} p={3} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.700' : 'gray.100'}>
+                      <Text fontSize="sm" color="gray.500" mb={1} fontWeight="bold">Preview</Text>
+                      <Text fontFamily="mono" fontSize="md" wordBreak="break-all">{preview}</Text>
+                    </Box>
+                  </VStack>
+                </Box>
+                
+                <Divider />
+                
+                <Text fontWeight="bold" fontSize="sm" color="gray.600">
+                  Value Formatters
+                </Text>
+                <HStack spacing={4}>
+                  <FormControl>
+                    <FormLabel>Color Format</FormLabel>
+                    <Select
+                      value={formData.valueFormatters?.color || 'hex'}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        valueFormatters: { ...formData.valueFormatters!, color: e.target.value }
+                      })}
+                    >
+                      <option value="hex">Hex</option>
+                      <option value="rgb">RGB</option>
+                      <option value="rgba">RGBA</option>
+                      <option value="hsl">HSL</option>
+                      <option value="hsla">HSLA</option>
+                    </Select>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel>Dimension Unit</FormLabel>
+                    <Select
+                      value={formData.valueFormatters?.dimension || 'px'}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        valueFormatters: { ...formData.valueFormatters!, dimension: e.target.value }
+                      })}
+                    >
+                      <option value="px">px</option>
+                      <option value="rem">rem</option>
+                      <option value="em">em</option>
+                      <option value="pt">pt</option>
+                      <option value="dp">dp</option>
+                      <option value="sp">sp</option>
+                    </Select>
+                  </FormControl>
+                </HStack>
+                <FormControl>
+                  <FormLabel>Number Precision</FormLabel>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={formData.valueFormatters?.numberPrecision || 2}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      valueFormatters: { ...formData.valueFormatters!, numberPrecision: parseInt(e.target.value) }
+                    })}
+                  />
+                </FormControl>
+              </>
+            )}
+          </VStack>
+        );
       case 'create-repository':
         return renderCreateRepositoryFields();
       default:
         return null;
     }
   };
-
-  const renderSyntaxPatterns = () => (
-    <VStack spacing={6} align="stretch">
-      <Text fontWeight="bold" fontSize="sm" color="gray.600">
-        Syntax Patterns
-      </Text>
-      <Box
-        p={3}
-        borderWidth={1}
-        borderRadius="md"
-        bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-        borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-      >
-        <HStack spacing={4} align="flex-end">
-          <FormControl>
-            <FormLabel>Prefix</FormLabel>
-            <Input
-              value={formData.syntaxPatterns?.prefix || ''}
-              onChange={(e) => setFormData({
-                ...formData,
-                syntaxPatterns: { ...formData.syntaxPatterns!, prefix: e.target.value }
-              })}
-              placeholder="e.g., TKN_"
-            />
-          </FormControl>
-          <FormControl>
-            <FormLabel>Suffix</FormLabel>
-            <Input
-              value={formData.syntaxPatterns?.suffix || ''}
-              onChange={(e) => setFormData({
-                ...formData,
-                syntaxPatterns: { ...formData.syntaxPatterns!, suffix: e.target.value }
-              })}
-              placeholder="e.g., _SUF"
-            />
-          </FormControl>
-          <FormControl>
-            <FormLabel>Delimiter</FormLabel>
-            <Select
-              value={formData.syntaxPatterns?.delimiter || '_'}
-              onChange={(e) => setFormData({
-                ...formData,
-                syntaxPatterns: { ...formData.syntaxPatterns!, delimiter: e.target.value }
-              })}
-            >
-              <option value="">None</option>
-              <option value="_">Underscore (_)</option>
-              <option value="-">Hyphen (-)</option>
-              <option value=".">Dot (.)</option>
-              <option value="/">Slash (/)</option>
-            </Select>
-          </FormControl>
-          <FormControl>
-            <FormLabel>Capitalization</FormLabel>
-            <Select
-              value={formData.syntaxPatterns?.capitalization || 'none'}
-              onChange={(e) => setFormData({
-                ...formData,
-                syntaxPatterns: { ...formData.syntaxPatterns!, capitalization: e.target.value }
-              })}
-            >
-              <option value="none">None</option>
-              <option value="uppercase">UPPERCASE</option>
-              <option value="lowercase">lowercase</option>
-              <option value="capitalize">Capitalize</option>
-            </Select>
-          </FormControl>
-        </HStack>
-        <VStack spacing={3} align="stretch" mt={4}>
-          <FormControl>
-            <FormLabel>Format String</FormLabel>
-            <Input
-              value={formData.syntaxPatterns?.formatString || ''}
-              onChange={(e) => setFormData({
-                ...formData,
-                syntaxPatterns: { ...formData.syntaxPatterns!, formatString: e.target.value }
-              })}
-              placeholder="e.g., {prefix}{name}{suffix}"
-              width="100%"
-            />
-          </FormControl>
-          <Box mt={2} p={3} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.700' : 'gray.100'}>
-            <Text fontSize="sm" color="gray.500" mb={1} fontWeight="bold">Preview</Text>
-            <Text fontFamily="mono" fontSize="md" wordBreak="break-all">{preview}</Text>
-          </Box>
-        </VStack>
-      </Box>
-    </VStack>
-  );
-
-  const renderValueFormatters = () => (
-    <VStack spacing={6} align="stretch">
-      <Text fontWeight="bold" fontSize="sm" color="gray.600">
-        Value Formatters
-      </Text>
-      <HStack spacing={4}>
-        <FormControl>
-          <FormLabel>Color Format</FormLabel>
-          <Select
-            value={formData.valueFormatters?.color || 'hex'}
-            onChange={(e) => setFormData({
-              ...formData,
-              valueFormatters: { ...formData.valueFormatters!, color: e.target.value }
-            })}
-          >
-            <option value="hex">Hex</option>
-            <option value="rgb">RGB</option>
-            <option value="rgba">RGBA</option>
-            <option value="hsl">HSL</option>
-            <option value="hsla">HSLA</option>
-          </Select>
-        </FormControl>
-        <FormControl>
-          <FormLabel>Dimension Unit</FormLabel>
-          <Select
-            value={formData.valueFormatters?.dimension || 'px'}
-            onChange={(e) => setFormData({
-              ...formData,
-              valueFormatters: { ...formData.valueFormatters!, dimension: e.target.value }
-            })}
-          >
-            <option value="px">px</option>
-            <option value="rem">rem</option>
-            <option value="em">em</option>
-            <option value="pt">pt</option>
-            <option value="dp">dp</option>
-            <option value="sp">sp</option>
-          </Select>
-        </FormControl>
-      </HStack>
-      <FormControl>
-        <FormLabel>Number Precision</FormLabel>
-        <Input
-          type="number"
-          min={0}
-          max={10}
-          value={formData.valueFormatters?.numberPrecision || 2}
-          onChange={(e) => setFormData({
-            ...formData,
-            valueFormatters: { ...formData.valueFormatters!, numberPrecision: parseInt(e.target.value) }
-          })}
-        />
-      </FormControl>
-    </VStack>
-  );
 
   return (
     <>
@@ -777,30 +1301,44 @@ export const ExtensionEditDialog: React.FC<ExtensionEditDialogProps> = ({
       <ModalContent maxW="900px">
         <ModalHeader>
           <VStack align="start" spacing={2}>
-            <Text>Edit Extension</Text>
+            <Text>Edit Platform</Text>
             <HStack spacing={2}>
-              <Badge colorScheme="blue" variant="outline">
-                {getTypeDisplayName(repository.type)}
-              </Badge>
+              {formData.type === 'platform-extension' && (() => {
+                const canonicalPlatformData = getCanonicalPlatformData();
+                if (!canonicalPlatformData?.extensionSource) return null;
+                
+                // Check if this is a local file
+                const repositoryUri = canonicalPlatformData.extensionSource.repositoryUri;
+                const isLocalFile = repositoryUri === 'local';
+                
+                return isLocalFile ? (
+                  <Badge colorScheme="blue" variant="subtle">Local</Badge>
+                ) : (
+                  <Badge colorScheme="green" variant="subtle">External</Badge>
+                );
+              })()}
             </HStack>
           </VStack>
         </ModalHeader>
         <ModalBody>
           <VStack spacing={6} align="stretch">
-            {/* Source Selection */}
-            {renderSourceSelection()}
+            {/* Platform Extension Settings - Only show for platform extensions */}
+            {formData.type === 'platform-extension' && (
+              <>
+                {renderPlatformFields()}
+                <Divider />
+              </>
+            )}
+
+            {/* Source Configuration */}
+            {renderSourceConfiguration()}
             <Divider />
             {renderWorkflowSpecificFields()}
 
             {/* Platform Settings - Only show for platform extensions */}
             {formData.type === 'platform-extension' && (
               <>
-                <Divider />
-                {renderPlatformFields()}
-                <Divider />
-                {renderSyntaxPatterns()}
-                <Divider />
-                {renderValueFormatters()}
+                {renderPlatformSettings()}
               </>
             )}
           </VStack>

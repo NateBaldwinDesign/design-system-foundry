@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Modal,
   ModalOverlay,
@@ -18,7 +18,8 @@ import {
   useColorMode,
   Alert,
   AlertIcon,
-  Box
+  Box,
+  Badge
 } from '@chakra-ui/react';
 import { LuLink, LuFileText, LuGitBranch } from 'react-icons/lu';
 import { GitHubApiService, ValidFile } from '../services/githubApi';
@@ -52,6 +53,11 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
   schemaType
 }) => {
   const [workflow, setWorkflow] = useState<'link-existing' | 'create-file' | 'create-repository'>('link-existing');
+  const [currentSystemId, setCurrentSystemId] = useState<string>('system-default');
+  const [isRepositoryCreationOpen, setIsRepositoryCreationOpen] = useState(false);
+  const [createdRepository, setCreatedRepository] = useState<CreatedRepository | null>(null);
+  
+  // Form data
   const [formData, setFormData] = useState<SourceSelectionData>({
     workflow: 'link-existing',
     repositoryUri: '',
@@ -63,41 +69,49 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
     newRepositoryVisibility: 'public'
   });
 
+  // UI state
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const toast = useToast();
-  const { colorMode } = useColorMode();
+  const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState<'orgs' | 'repos' | 'branches' | 'files' | null>(null);
+  const [error, setError] = useState<string>('');
 
-  // GitHub repository selection state
+  // GitHub data
   const [organizations, setOrganizations] = useState<GitHubOrganization[]>([]);
   const [filteredRepositories, setFilteredRepositories] = useState<GitHubRepo[]>([]);
   const [branches, setBranches] = useState<GitHubBranch[]>([]);
   const [validFiles, setValidFiles] = useState<ValidFile[]>([]);
-  
   const [selectedOrg, setSelectedOrg] = useState<GitHubOrganization | null>(null);
   const [selectedRepo, setSelectedRepo] = useState<GitHubRepo | null>(null);
   const [selectedBranch, setSelectedBranch] = useState<string>('');
   const [selectedFile, setSelectedFile] = useState<ValidFile | null>(null);
-  
-  const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState<'orgs' | 'repos' | 'branches' | 'files' | null>(null);
-  const [error, setError] = useState<string>('');
-  
-  // Repository creation state
-  const [isRepositoryCreationOpen, setIsRepositoryCreationOpen] = useState(false);
 
-  // Get current system ID from storage
-  const getCurrentSystemId = (): string => {
-    // Import StorageService dynamically to avoid circular dependencies
-    const StorageService = require('../services/storage').StorageService;
-    const rootData = StorageService.getRootData();
-    return rootData.systemId || 'system-default';
-  };
+  const toast = useToast();
+  const { colorMode } = useColorMode();
+
+  // Load system ID once on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const { StorageService } = await import('../services/storage');
+        const rootData = StorageService.getRootData();
+        const systemId = rootData.systemId || 'system-default';
+        setCurrentSystemId(systemId);
+      } catch (error) {
+        console.error('Failed to load data:', error);
+      }
+    };
+    
+    if (isOpen) {
+      loadData();
+    }
+  }, [isOpen]);
 
   // Reset form when dialog opens
   useEffect(() => {
     if (isOpen) {
       setWorkflow('link-existing');
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         workflow: 'link-existing',
         repositoryUri: '',
         branch: 'main',
@@ -106,19 +120,28 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
         newRepositoryName: '',
         newRepositoryDescription: '',
         newRepositoryVisibility: 'public'
-      });
+      }));
       setErrors({});
       setError('');
+      setLoading(false);
+      setLoadingStep(null);
+      setOrganizations([]);
+      setFilteredRepositories([]);
+      setBranches([]);
+      setValidFiles([]);
+      setSelectedOrg(null);
+      setSelectedRepo(null);
+      setSelectedBranch('');
+      setSelectedFile(null);
+      setCreatedRepository(null);
       
-      // Load GitHub organizations for repository selection
-      if (organizations.length === 0) {
-        loadOrganizations();
-      }
+      // Load organizations
+      loadOrganizations();
     }
   }, [isOpen, schemaType]);
 
-  // GitHub repository loading functions (reused from ExtensionCreateDialog)
-  const loadOrganizations = async (forceRefresh = false) => {
+  // GitHub loading functions
+  const loadOrganizations = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setLoadingStep('orgs');
     setError('');
@@ -149,9 +172,9 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
       setLoading(false);
       setLoadingStep(null);
     }
-  };
+  }, [toast]);
 
-  const loadRepositoriesForOrg = async (org: GitHubOrganization, forceRefresh = false) => {
+  const loadRepositoriesForOrg = useCallback(async (org: GitHubOrganization, forceRefresh = false) => {
     setLoading(true);
     setLoadingStep('repos');
     setError('');
@@ -182,9 +205,9 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
       setLoading(false);
       setLoadingStep(null);
     }
-  };
+  }, [toast]);
 
-  const handleOrgChange = async (orgLogin: string) => {
+  const handleOrgChange = useCallback(async (orgLogin: string) => {
     const org = organizations.find(o => o.login === orgLogin);
     if (!org) return;
 
@@ -196,9 +219,9 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
     setError('');
 
     await loadRepositoriesForOrg(org);
-  };
+  }, [organizations, loadRepositoriesForOrg]);
 
-  const handleRepoChange = async (repoFullName: string) => {
+  const handleRepoChange = useCallback(async (repoFullName: string) => {
     const repo = filteredRepositories.find(r => r.full_name === repoFullName);
     if (!repo) return;
 
@@ -234,9 +257,9 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
       setLoading(false);
       setLoadingStep(null);
     }
-  };
+  }, [filteredRepositories, toast]);
 
-  const handleBranchChange = async (branchName: string) => {
+  const handleBranchChange = useCallback(async (branchName: string) => {
     if (!selectedRepo) return;
 
     setSelectedBranch(branchName);
@@ -245,15 +268,13 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
     setError('');
 
     await loadAndMatchFiles(selectedRepo.full_name, branchName);
-  };
+  }, [selectedRepo]);
 
-  const loadAndMatchFiles = async (repoFullName: string, branchName: string) => {
+  const loadAndMatchFiles = useCallback(async (repoFullName: string, branchName: string) => {
     setLoading(true);
     setLoadingStep('files');
     
     try {
-      const currentSystemId = getCurrentSystemId();
-      
       const files = await GitHubApiService.scanRepositoryForValidFiles(
         repoFullName, 
         branchName,
@@ -281,9 +302,9 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
       setLoading(false);
       setLoadingStep(null);
     }
-  };
+  }, [schemaType, currentSystemId]);
 
-  const handleFileSelect = (filePath: string) => {
+  const handleFileSelect = useCallback((filePath: string) => {
     const file = validFiles.find(f => f.path === filePath);
     setSelectedFile(file || null);
     
@@ -293,9 +314,9 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
         filePath: file.path
       }));
     }
-  };
+  }, [validFiles]);
 
-  const validateForm = (): boolean => {
+  const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
 
     switch (workflow) {
@@ -316,19 +337,43 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
           newErrors.newFileName = 'File name is required';
         }
         break;
-      
-      case 'create-repository':
-        if (!formData.newRepositoryName?.trim()) {
-          newErrors.newRepositoryName = 'Repository name is required';
-        }
-        break;
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [workflow, formData]);
 
-  const handleConfirm = () => {
+  const handleCreateRepository = useCallback(() => {
+    setIsRepositoryCreationOpen(true);
+  }, []);
+
+  const handleRepositoryCreated = useCallback((repository: CreatedRepository) => {
+    setIsRepositoryCreationOpen(false);
+    setCreatedRepository(repository);
+    
+    // Update form data with the created repository information
+    setFormData(prev => ({
+      ...prev,
+      repositoryUri: repository.fullName,
+      branch: repository.defaultBranch,
+      filePath: repository.initialFilePath || `${schemaType}.json`,
+      newRepositoryName: repository.name,
+      newRepositoryDescription: repository.description || ''
+    }));
+
+    // Keep workflow as 'create-repository' so user can see the read-only repository information
+    // setWorkflow('link-existing'); // REMOVED - keep on create-repository
+
+    toast({
+      title: 'Repository Created',
+      description: `Successfully created ${repository.name}. Repository information is displayed below.`,
+      status: 'success',
+      duration: 5000,
+      isClosable: true
+    });
+  }, [schemaType, toast]);
+
+  const handleConfirm = useCallback(async () => {
     if (!validateForm()) {
       toast({
         title: 'Validation Error',
@@ -353,34 +398,7 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
 
     onSourceSelected(finalData);
     onClose();
-  };
-
-  const handleCreateRepository = () => {
-    setIsRepositoryCreationOpen(true);
-  };
-
-  const handleRepositoryCreated = (repository: CreatedRepository) => {
-    // Update form data with the created repository information
-    setFormData(prev => ({
-      ...prev,
-      repositoryUri: repository.fullName,
-      branch: repository.defaultBranch,
-      filePath: repository.initialFilePath || `${schemaType}.json`,
-      newRepositoryName: repository.name,
-      newRepositoryDescription: repository.description || ''
-    }));
-
-    // Set workflow to link-existing since we now have a repository to link to
-    setWorkflow('link-existing');
-
-    toast({
-      title: 'Repository Created',
-      description: `Successfully created ${repository.name}. You can now link to it.`,
-      status: 'success',
-      duration: 5000,
-      isClosable: true
-    });
-  };
+  }, [workflow, validateForm, formData, onSourceSelected, onClose, toast]);
 
   const renderWorkflowSelector = () => (
     <VStack spacing={4} align="stretch">
@@ -391,7 +409,6 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
       <RadioGroup value={workflow} onChange={(value) => {
         const newWorkflow = value as SourceSelectionData['workflow'];
         setWorkflow(newWorkflow);
-        setFormData(prev => ({ ...prev, workflow: newWorkflow }));
       }}>
         <Stack spacing={3}>
           <Radio value="link-existing">
@@ -453,7 +470,6 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
         </Alert>
       )}
 
-      {/* Organization Selection */}
       <Box>
         <Text fontWeight="medium" mb={2}>Organization</Text>
         <select
@@ -478,7 +494,6 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
         </select>
       </Box>
 
-      {/* Repository Selection */}
       <Box>
         <Text fontWeight="medium" mb={2}>Repository</Text>
         <select
@@ -503,7 +518,6 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
         </select>
       </Box>
 
-      {/* Branch Selection */}
       <Box>
         <Text fontWeight="medium" mb={2}>Branch</Text>
         <select
@@ -528,7 +542,6 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
         </select>
       </Box>
 
-      {/* File Selection */}
       <Box>
         <Text fontWeight="medium" mb={2}>File</Text>
         <select
@@ -554,14 +567,13 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
         {validFiles.length === 0 && selectedBranch && !loading && (
           <Text fontSize="sm" color="gray.500" mt={1}>
             {schemaType === 'platform-extension' 
-              ? `No platform extension files found with matching systemId: ${getCurrentSystemId()}`
+              ? `No platform extension files found with matching systemId: ${currentSystemId}`
               : `No ${schemaType} files found in this branch`
             }
           </Text>
         )}
       </Box>
 
-      {/* Loading Indicator */}
       {loading && (
         <HStack justify="center" py={4}>
           <Text fontSize="sm">
@@ -607,79 +619,76 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
     </VStack>
   );
 
-  const renderCreateRepositoryFields = () => (
-    <VStack spacing={4} align="stretch">
-      <Text fontWeight="bold" fontSize="sm" color="gray.600">
-        Repository Settings
-      </Text>
-      
-      <Box>
-        <Text fontWeight="medium" mb={2}>Repository Name</Text>
-        <input
-          type="text"
-          value={formData.newRepositoryName}
-          onChange={(e) => setFormData({ ...formData, newRepositoryName: e.target.value })}
-          placeholder={`my-${schemaType}`}
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: errors.newRepositoryName ? '1px solid #e53e3e' : '1px solid #e2e8f0',
-            backgroundColor: colorMode === 'dark' ? '#2d3748' : 'white',
-            color: colorMode === 'dark' ? 'white' : 'black'
-          }}
-        />
-        {errors.newRepositoryName && (
-          <Text fontSize="sm" color="red.500" mt={1}>{errors.newRepositoryName}</Text>
-        )}
-        <Text fontSize="xs" color="gray.500" mt={1}>
-          Repository will be created as: {formData.newRepositoryName ? `${formData.newRepositoryName}` : 'your-org/repo-name'}
-        </Text>
-      </Box>
-      
-      <Box>
-        <Text fontWeight="medium" mb={2}>Description</Text>
-        <input
-          type="text"
-          value={formData.newRepositoryDescription}
-          onChange={(e) => setFormData({ ...formData, newRepositoryDescription: e.target.value })}
-          placeholder={`${schemaType === 'platform-extension' ? 'Platform-specific design tokens and overrides' : `${schemaType} design tokens`}`}
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: '1px solid #e2e8f0',
-            backgroundColor: colorMode === 'dark' ? '#2d3748' : 'white',
-            color: colorMode === 'dark' ? 'white' : 'black'
-          }}
-        />
-      </Box>
-      
-      <Box>
-        <Text fontWeight="medium" mb={2}>Visibility</Text>
-        <select
-          value={formData.newRepositoryVisibility}
-          onChange={(e) => setFormData({ ...formData, newRepositoryVisibility: e.target.value as 'public' | 'private' })}
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            borderRadius: '6px',
-            border: '1px solid #e2e8f0',
-            backgroundColor: colorMode === 'dark' ? '#2d3748' : 'white',
-            color: colorMode === 'dark' ? 'white' : 'black'
-          }}
-        >
-          <option value="public">Public</option>
-          <option value="private">Private</option>
-        </select>
-      </Box>
-      
-      <Alert status="info" size="sm">
-        <AlertIcon />
-        Repository will be scaffolded with proper directory structure and initial {schemaType} file
-      </Alert>
-    </VStack>
-  );
+  const renderCreateRepositoryFields = () => {
+    // If repository has been created, show read-only repository information
+    if (createdRepository) {
+      return (
+        <VStack spacing={4} align="stretch">
+          <Text fontWeight="bold" fontSize="sm" color="gray.600">
+            Repository Settings
+          </Text>
+          
+          <Alert status="success" borderRadius="md">
+            <AlertIcon />
+            <Text fontWeight="bold">Repository created successfully!</Text>
+          </Alert>
+
+          <Box p={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}>
+            <VStack align="start" spacing={3}>
+              <HStack>
+                <Text fontWeight="bold">Repository Name:</Text>
+                <Text fontFamily="mono">{createdRepository.name}</Text>
+                <Badge colorScheme={createdRepository.visibility === 'public' ? 'green' : 'orange'}>
+                  {createdRepository.visibility}
+                </Badge>
+              </HStack>
+              
+              {createdRepository.description && (
+                <HStack>
+                  <Text fontWeight="bold">Description:</Text>
+                  <Text>{createdRepository.description}</Text>
+                </HStack>
+              )}
+              
+              <HStack>
+                <Text fontWeight="bold">Organization:</Text>
+                <Text>{createdRepository.fullName.split('/')[0]}</Text>
+              </HStack>
+              
+              <HStack>
+                <Text fontWeight="bold">Repository URL:</Text>
+                <Text color="blue.500" cursor="pointer" onClick={() => window.open(createdRepository.htmlUrl, '_blank')}>
+                  {createdRepository.htmlUrl}
+                </Text>
+              </HStack>
+              
+              <HStack>
+                <Text fontWeight="bold">Default Branch:</Text>
+                <Text>{createdRepository.defaultBranch}</Text>
+              </HStack>
+              
+              {createdRepository.initialFilePath && (
+                <HStack>
+                  <Text fontWeight="bold">Initial File:</Text>
+                  <Text fontFamily="mono">{createdRepository.initialFilePath}</Text>
+                </HStack>
+              )}
+            </VStack>
+          </Box>
+        </VStack>
+      );
+    }
+
+    // If no repository has been created yet, show the create repository button only
+    return (
+      <VStack spacing={4} align="stretch">
+        <Alert status="info">
+          <AlertIcon />
+          <Text>Click &quot;Create Repository&quot; above to create a new repository with scaffolded structure</Text>
+        </Alert>
+      </VStack>
+    );
+  };
 
   const renderWorkflowSpecificFields = () => {
     switch (workflow) {
@@ -719,7 +728,6 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
         </ModalContent>
       </Modal>
 
-      {/* Repository Creation Dialog */}
       <RepositoryCreationDialog
         isOpen={isRepositoryCreationOpen}
         onClose={() => setIsRepositoryCreationOpen(false)}
@@ -728,7 +736,9 @@ export const SourceSelectionDialog: React.FC<SourceSelectionDialogProps> = ({
         prefillData={{
           name: formData.newRepositoryName,
           description: formData.newRepositoryDescription,
-          systemId: getCurrentSystemId()
+          systemId: currentSystemId,
+          platformId: undefined,
+          themeId: undefined
         }}
       />
     </>

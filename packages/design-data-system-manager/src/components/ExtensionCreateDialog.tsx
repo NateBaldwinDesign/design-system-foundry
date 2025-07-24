@@ -47,6 +47,7 @@ import { GitHubApiService, ValidFile } from '../services/githubApi';
 import { GitHubCacheService } from '../services/githubCache';
 import type { GitHubOrganization, GitHubRepo, GitHubBranch } from '../config/github';
 import { createUniqueId } from '../utils/id';
+import { SyntaxPatternsEditor, ValueFormattersEditor } from './shared';
 
 export interface ExtensionCreateData {
   type: 'core' | 'platform-extension' | 'theme-override';
@@ -1240,7 +1241,7 @@ export const ExtensionCreateDialog: React.FC<ExtensionCreateDialogProps> = ({
           placeholder="platform-extension.json"
         />
         <Text fontSize="xs" color="gray.500" mt={1}>
-          File will be created in the current repository
+          File will be created in the platforms/ directory following repository scaffolding standards
         </Text>
       </FormControl>
     </VStack>
@@ -1415,96 +1416,32 @@ export const ExtensionCreateDialog: React.FC<ExtensionCreateDialogProps> = ({
   };
 
   const renderReadOnlySyntaxSummary = () => {
-    const { syntaxPatterns, valueFormatters } = formData;
-    
     return (
       <VStack spacing={6} align="stretch">
-        <Text fontWeight="bold" fontSize="sm" color="gray.600">
-          Syntax Patterns (Read-only from source file)
-        </Text>
-        <Box
-          p={4}
-          borderWidth={1}
-          borderRadius="md"
-          bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-          borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-        >
-          <VStack spacing={4} align="stretch">
-            {/* Syntax Patterns Summary */}
-            <Box>
-              <Text fontSize="sm" fontWeight="medium" mb={3} color="gray.500">
-                Naming Patterns
-              </Text>
-              <VStack spacing={3} align="stretch">
-                <HStack justify="space-between">
-                  <Text fontSize="sm" color="gray.600">Prefix:</Text>
-                  <Text fontSize="sm" fontFamily="mono" color="gray.800" bg="gray.100" px={2} py={1} borderRadius="sm">
-                    {syntaxPatterns?.prefix || 'None'}
-                  </Text>
-                </HStack>
-                <HStack justify="space-between">
-                  <Text fontSize="sm" color="gray.600">Suffix:</Text>
-                  <Text fontSize="sm" fontFamily="mono" color="gray.800" bg="gray.100" px={2} py={1} borderRadius="sm">
-                    {syntaxPatterns?.suffix || 'None'}
-                  </Text>
-                </HStack>
-                <HStack justify="space-between">
-                  <Text fontSize="sm" color="gray.600">Delimiter:</Text>
-                  <Text fontSize="sm" fontFamily="mono" color="gray.800" bg="gray.100" px={2} py={1} borderRadius="sm">
-                    {syntaxPatterns?.delimiter || 'None'}
-                  </Text>
-                </HStack>
-                <HStack justify="space-between">
-                  <Text fontSize="sm" color="gray.600">Capitalization:</Text>
-                  <Text fontSize="sm" fontFamily="mono" color="gray.800" bg="gray.100" px={2} py={1} borderRadius="sm">
-                    {syntaxPatterns?.capitalization || 'None'}
-                  </Text>
-                </HStack>
-                <HStack justify="space-between">
-                  <Text fontSize="sm" color="gray.600">Format String:</Text>
-                  <Text fontSize="sm" fontFamily="mono" color="gray.800" bg="gray.100" px={2} py={1} borderRadius="sm">
-                    {syntaxPatterns?.formatString || 'None'}
-                  </Text>
-                </HStack>
-              </VStack>
-            </Box>
-            
-            <Divider />
-            
-            {/* Value Formatters Summary */}
-            <Box>
-              <Text fontSize="sm" fontWeight="medium" mb={3} color="gray.500">
-                Value Formatting
-              </Text>
-              <VStack spacing={3} align="stretch">
-                <HStack justify="space-between">
-                  <Text fontSize="sm" color="gray.600">Color Format:</Text>
-                  <Text fontSize="sm" fontFamily="mono" color="gray.800" bg="gray.100" px={2} py={1} borderRadius="sm">
-                    {valueFormatters?.color || 'hex'}
-                  </Text>
-                </HStack>
-                <HStack justify="space-between">
-                  <Text fontSize="sm" color="gray.600">Dimension Unit:</Text>
-                  <Text fontSize="sm" fontFamily="mono" color="gray.800" bg="gray.100" px={2} py={1} borderRadius="sm">
-                    {valueFormatters?.dimension || 'px'}
-                  </Text>
-                </HStack>
-                <HStack justify="space-between">
-                  <Text fontSize="sm" color="gray.600">Number Precision:</Text>
-                  <Text fontSize="sm" fontFamily="mono" color="gray.800" bg="gray.100" px={2} py={1} borderRadius="sm">
-                    {valueFormatters?.numberPrecision || 2}
-                  </Text>
-                </HStack>
-              </VStack>
-            </Box>
-            
-            {/* Preview */}
-            <Box mt={2} p={3} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.700' : 'gray.100'}>
-              <Text fontSize="sm" color="gray.500" mb={1} fontWeight="bold">Preview</Text>
-              <Text fontFamily="mono" fontSize="md" wordBreak="break-all">{preview}</Text>
-            </Box>
-          </VStack>
-        </Box>
+        <SyntaxPatternsEditor
+          syntaxPatterns={formData.syntaxPatterns || {
+            prefix: '',
+            suffix: '',
+            delimiter: '_',
+            capitalization: 'none',
+            formatString: ''
+          }}
+          onSyntaxPatternsChange={() => {}} // No-op for read-only
+          preview={preview}
+          isReadOnly={true}
+          title="Syntax Patterns"
+        />
+        <Divider />
+        <ValueFormattersEditor
+          valueFormatters={formData.valueFormatters || {
+            color: 'hex',
+            dimension: 'px',
+            numberPrecision: 2
+          }}
+          onValueFormattersChange={() => {}} // No-op for read-only
+          isReadOnly={true}
+          title="Value Formatters"
+        />
       </VStack>
     );
   };
@@ -1546,144 +1483,42 @@ export const ExtensionCreateDialog: React.FC<ExtensionCreateDialogProps> = ({
                 ) : (
                   // Show editable syntax patterns for create workflows
                   <>
-                    <Text fontWeight="bold" fontSize="sm" color="gray.600">
-                      Syntax Patterns
-                    </Text>
-                    <Box
-                      p={3}
-                      borderWidth={1}
-                      borderRadius="md"
-                      bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-                      borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-                    >
-                      <HStack spacing={4} align="flex-end">
-                        <FormControl>
-                          <FormLabel>Prefix</FormLabel>
-                          <Input
-                            value={formData.syntaxPatterns?.prefix || ''}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              syntaxPatterns: { ...formData.syntaxPatterns!, prefix: e.target.value }
-                            })}
-                            placeholder="e.g., TKN_"
-                          />
-                        </FormControl>
-                        <FormControl>
-                          <FormLabel>Suffix</FormLabel>
-                          <Input
-                            value={formData.syntaxPatterns?.suffix || ''}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              syntaxPatterns: { ...formData.syntaxPatterns!, suffix: e.target.value }
-                            })}
-                            placeholder="e.g., _SUF"
-                          />
-                        </FormControl>
-                        <FormControl>
-                          <FormLabel>Delimiter</FormLabel>
-                          <Select
-                            value={formData.syntaxPatterns?.delimiter || '_'}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              syntaxPatterns: { ...formData.syntaxPatterns!, delimiter: e.target.value }
-                            })}
-                          >
-                            <option value="">None</option>
-                            <option value="_">Underscore (_)</option>
-                            <option value="-">Hyphen (-)</option>
-                            <option value=".">Dot (.)</option>
-                            <option value="/">Slash (/)</option>
-                          </Select>
-                        </FormControl>
-                        <FormControl>
-                          <FormLabel>Capitalization</FormLabel>
-                          <Select
-                            value={formData.syntaxPatterns?.capitalization || 'none'}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              syntaxPatterns: { ...formData.syntaxPatterns!, capitalization: e.target.value }
-                            })}
-                          >
-                            <option value="none">None</option>
-                            <option value="uppercase">UPPERCASE</option>
-                            <option value="lowercase">lowercase</option>
-                            <option value="capitalize">Capitalize</option>
-                          </Select>
-                        </FormControl>
-                      </HStack>
-                      <VStack spacing={3} align="stretch" mt={4}>
-                        <FormControl>
-                          <FormLabel>Format String</FormLabel>
-                          <Input
-                            value={formData.syntaxPatterns?.formatString || ''}
-                            onChange={(e) => setFormData({
-                              ...formData,
-                              syntaxPatterns: { ...formData.syntaxPatterns!, formatString: e.target.value }
-                            })}
-                            placeholder="e.g., {prefix}{name}{suffix}"
-                            width="100%"
-                          />
-                        </FormControl>
-                        <Box mt={2} p={3} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.700' : 'gray.100'}>
-                          <Text fontSize="sm" color="gray.500" mb={1} fontWeight="bold">Preview</Text>
-                          <Text fontFamily="mono" fontSize="md" wordBreak="break-all">{preview}</Text>
-                        </Box>
-                      </VStack>
-                    </Box>
+                    <SyntaxPatternsEditor
+                      syntaxPatterns={formData.syntaxPatterns || {
+                        prefix: '',
+                        suffix: '',
+                        delimiter: '_',
+                        capitalization: 'none',
+                        formatString: ''
+                      }}
+                      onSyntaxPatternsChange={(newSyntaxPatterns) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          syntaxPatterns: newSyntaxPatterns
+                        }));
+                      }}
+                      preview={preview}
+                      isReadOnly={false}
+                      title="Syntax Patterns"
+                    />
                     
                     <Divider />
                     
-                    <Text fontWeight="bold" fontSize="sm" color="gray.600">
-                      Value Formatters
-                    </Text>
-                    <HStack spacing={4}>
-                      <FormControl>
-                        <FormLabel>Color Format</FormLabel>
-                        <Select
-                          value={formData.valueFormatters?.color || 'hex'}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            valueFormatters: { ...formData.valueFormatters!, color: e.target.value }
-                          })}
-                        >
-                          <option value="hex">Hex</option>
-                          <option value="rgb">RGB</option>
-                          <option value="rgba">RGBA</option>
-                          <option value="hsl">HSL</option>
-                          <option value="hsla">HSLA</option>
-                        </Select>
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Dimension Unit</FormLabel>
-                        <Select
-                          value={formData.valueFormatters?.dimension || 'px'}
-                          onChange={(e) => setFormData({
-                            ...formData,
-                            valueFormatters: { ...formData.valueFormatters!, dimension: e.target.value }
-                          })}
-                        >
-                          <option value="px">px</option>
-                          <option value="rem">rem</option>
-                          <option value="em">em</option>
-                          <option value="pt">pt</option>
-                          <option value="dp">dp</option>
-                          <option value="sp">sp</option>
-                        </Select>
-                      </FormControl>
-                    </HStack>
-                    <FormControl>
-                      <FormLabel>Number Precision</FormLabel>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={10}
-                        value={formData.valueFormatters?.numberPrecision || 2}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          valueFormatters: { ...formData.valueFormatters!, numberPrecision: parseInt(e.target.value) }
-                        })}
-                      />
-                    </FormControl>
+                    <ValueFormattersEditor
+                      valueFormatters={formData.valueFormatters || {
+                        color: 'hex',
+                        dimension: 'px',
+                        numberPrecision: 2
+                      }}
+                      onValueFormattersChange={(newValueFormatters) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          valueFormatters: newValueFormatters
+                        }));
+                      }}
+                      isReadOnly={false}
+                      title="Value Formatters"
+                    />
                   </>
                 )}
               </>

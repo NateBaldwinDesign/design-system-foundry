@@ -283,19 +283,13 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
             const { StorageService } = await import('../../services/storage');
             const { GitHubApiService } = await import('../../services/githubApi');
             
-            // Create the platform extension file data conforming to platform-extension-schema.json
+            // Create the platform extension file data according to platform-extension-schema.json
             const platformExtensionData = {
               systemId: linkData.systemId || await getCurrentSystemId(),
               platformId: linkData.platformId,
               version: '1.0.0',
-              figmaFileKey: `${linkData.platformId}-platform-figma-file`,
-              metadata: {
-                name: linkData.displayName || linkData.platformId,
-                description: linkData.description || '',
-                maintainer: '',
-                lastUpdated: new Date().toISOString().split('T')[0],
-                repositoryVisibility: 'public'
-              },
+              status: 'active',
+              figmaFileKey: `${linkData.platformId}-figma-file`,
               syntaxPatterns: linkData.syntaxPatterns || {
                 prefix: '',
                 suffix: '',
@@ -317,8 +311,9 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
             // Create the actual file content as JSON string
             const fileContent = JSON.stringify(platformExtensionData, null, 2);
             
-            // Get the filename from the dialog data
-            const fileName = linkData.newFileName || 'platform-extension.json';
+            // According to repository-scaffolding.md, platform extension files should be saved to platforms/ directory
+            // Use user-defined filename from linkData
+            const fileName = `platforms/${linkData.newFileName || 'platform-extension.json'}`;
             
             try {
               // Get current repository info
@@ -327,7 +322,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                 throw new Error('No repository selected. Please load a file from GitHub first.');
               }
               
-              // Create the file in the repository
+              // Create the file in the platforms/ directory
               await GitHubApiService.createFile(
                 repoInfo.fullName,
                 fileName,
@@ -351,7 +346,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                 updatedPlatforms[platformIndex] = {
                   ...updatedPlatforms[platformIndex],
                   extensionSource: {
-                    repositoryUri: repoInfo.fullName,
+                    repositoryUri: 'local',
                     filePath: fileName
                   }
                 };
@@ -363,7 +358,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                   displayName: linkData.displayName || linkData.platformId,
                   description: linkData.description || '',
                   extensionSource: {
-                    repositoryUri: repoInfo.fullName,
+                    repositoryUri: 'local',
                     filePath: fileName
                   }
                 };
@@ -555,19 +550,35 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
       setEditingRepository(linkedRepository);
       setIsEditDialogOpen(true);
     } else {
-      // For core-only platforms, we need to create a mock repository link for editing
-      // This allows users to link an unlinked platform
-      const mockRepository: RepositoryLink = {
-        id: `mock-${platform.id}`,
-        type: 'platform-extension',
-        repositoryUri: '',
-        branch: 'main',
-        filePath: '',
-        platformId: platform.id,
-        status: 'linked'
-      };
-      setEditingRepository(mockRepository);
-      setIsEditDialogOpen(true);
+      // For platforms without a linked repository, check if they have an extensionSource
+      if (platform.extensionSource) {
+        // Platform has an extensionSource (local or external), create a repository link from it
+        const repositoryFromExtensionSource: RepositoryLink = {
+          id: `extension-${platform.id}`,
+          type: 'platform-extension',
+          repositoryUri: platform.extensionSource.repositoryUri,
+          branch: 'main', // Default branch
+          filePath: platform.extensionSource.filePath,
+          platformId: platform.id,
+          status: 'linked'
+        };
+        setEditingRepository(repositoryFromExtensionSource);
+        setIsEditDialogOpen(true);
+      } else {
+        // For core-only platforms without extensionSource, create a mock repository link for editing
+        // This allows users to link an unlinked platform
+        const mockRepository: RepositoryLink = {
+          id: `mock-${platform.id}`,
+          type: 'platform-extension',
+          repositoryUri: '',
+          branch: 'main',
+          filePath: '',
+          platformId: platform.id,
+          status: 'linked'
+        };
+        setEditingRepository(mockRepository);
+        setIsEditDialogOpen(true);
+      }
     }
   };
 
@@ -577,6 +588,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
     try {
       // Check if this is a mock repository (unlinked platform being linked)
       const isMockRepository = editingRepository.id.startsWith('mock-');
+      const isExtensionRepository = editingRepository.id.startsWith('extension-');
       
       if (isMockRepository) {
         // This is an unlinked platform being linked to a repository
@@ -604,6 +616,57 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
             },
             workflow: 'link-existing'
           });
+        }
+      } else if (isExtensionRepository) {
+        // This is a platform with an extensionSource (local or external) being updated
+        // Update the platform data in local storage
+        const snapshot = dataManager.getCurrentSnapshot();
+        const currentPlatforms = snapshot.platforms;
+        const platformIndex = currentPlatforms.findIndex(p => p.id === editingRepository.platformId);
+        
+        if (platformIndex !== -1) {
+          const updatedPlatforms = [...currentPlatforms];
+          updatedPlatforms[platformIndex] = {
+            ...updatedPlatforms[platformIndex],
+            displayName: editData.displayName || updatedPlatforms[platformIndex].displayName,
+            description: editData.description || updatedPlatforms[platformIndex].description
+          };
+          
+          // Update platforms through DataManager
+          updatePlatformsInDataManager(updatedPlatforms);
+          
+          // If this is a local platform, also update the platform extension file in localStorage
+          if (editingRepository.repositoryUri === 'local' && editingRepository.platformId) {
+            const { StorageService } = await import('../../services/storage');
+            const existingData = StorageService.getPlatformExtensionFile(editingRepository.platformId);
+            
+            if (existingData && typeof existingData === 'object' && existingData !== null) {
+              const typedExistingData = existingData as Record<string, unknown>;
+              const metadata = typedExistingData.metadata as Record<string, unknown> | undefined;
+              
+              const updatedData = {
+                ...typedExistingData,
+                metadata: {
+                  ...metadata,
+                  name: editData.displayName || (metadata?.name as string) || '',
+                  description: editData.description || (metadata?.description as string) || ''
+                }
+              };
+              
+              StorageService.setPlatformExtensionFile(editingRepository.platformId, updatedData);
+              StorageService.setPlatformExtensionFileContent(editingRepository.platformId, JSON.stringify(updatedData, null, 2));
+            }
+          }
+          
+          toast({
+            title: 'Platform Updated',
+            description: 'Platform settings have been updated successfully.',
+            status: 'success',
+            duration: 3000,
+            isClosable: true
+          });
+        } else {
+          throw new Error(`Platform with ID "${editingRepository.platformId}" not found`);
         }
       } else {
         // This is an existing repository being updated
@@ -638,13 +701,14 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
     console.log('🔍 [handleDeleteRepository] Starting delete process for repositoryId:', repositoryId);
     
     try {
-      // Check if this is a mock repository (unlinked platform)
+      // Check if this is a mock repository (unlinked platform) or extension repository
       const isMockRepository = repositoryId.startsWith('mock-');
-      console.log('🔍 [handleDeleteRepository] Is mock repository:', isMockRepository);
+      const isExtensionRepository = repositoryId.startsWith('extension-');
+      console.log('🔍 [handleDeleteRepository] Is mock repository:', isMockRepository, 'Is extension repository:', isExtensionRepository);
       
-      if (isMockRepository) {
-        // Extract platform ID from mock repository ID
-        const platformId = repositoryId.replace('mock-', '');
+      if (isMockRepository || isExtensionRepository) {
+        // Extract platform ID from repository ID
+        const platformId = repositoryId.replace('mock-', '').replace('extension-', '');
         console.log('🔍 [handleDeleteRepository] Extracted platformId from mock repository:', platformId);
         
         // Handle deletion of unlinked platform directly
@@ -1105,6 +1169,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
           onSave={handleUpdateRepository}
           onDelete={handleDeleteRepository}
           onDeprecate={handleDeprecateRepository}
+          platforms={platforms}
         />
       )}
     </Container>
