@@ -130,33 +130,33 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
           },
           onRepositoryLinked: (link) => {
             console.log('🔍 [onRepositoryLinked] Repository linked:', link);
-            toast({
-              title: 'Extension Created',
-              description: `Successfully created ${link.type} extension`,
-              status: 'success',
-              duration: 3000,
-              isClosable: true,
-            });
+            // toast({
+            //   title: 'Extension Created',
+            //   description: `Successfully created ${link.type} extension`,
+            //   status: 'success',
+            //   duration: 3000,
+            //   isClosable: true,
+            // });
           },
           onRepositoryUnlinked: () => {
             console.log('🔍 [onRepositoryUnlinked] Repository unlinked');
-            toast({
-              title: 'Extension Removed',
-              description: 'Extension has been removed',
-              status: 'info',
-              duration: 3000,
-              isClosable: true,
-            });
+            // toast({
+            //   title: 'Extension Removed',
+            //   description: 'Extension has been removed',
+            //   status: 'info',
+            //   duration: 3000,
+            //   isClosable: true,
+            // });
           },
           onError: (error: string) => {
             setError(error);
-            toast({
-              title: 'Error',
-              description: error,
-              status: 'error',
-              duration: 5000,
-              isClosable: true,
-            });
+            // toast({
+            //   title: 'Error',
+            //   description: error,
+            //   status: 'error',
+            //   duration: 5000,
+            //   isClosable: true,
+            // });
           }
         });
 
