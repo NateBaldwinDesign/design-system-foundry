@@ -55,6 +55,12 @@ export interface PlatformExtensionData {
   description?: string;
 }
 
+export interface PlatformExtensionDataResult {
+  data: PlatformExtensionData | null;
+  source: 'github' | 'cache' | 'localStorage' | 'not-found';
+  error?: string;
+}
+
 export class PlatformExtensionDataService {
   private static cache = new Map<string, { data: PlatformExtensionData; timestamp: number }>();
   private static CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -67,14 +73,17 @@ export class PlatformExtensionDataService {
     filePath: string,
     branch: string,
     platformId: string
-  ): Promise<PlatformExtensionData | null> {
+  ): Promise<PlatformExtensionDataResult> {
     const cacheKey = `${repositoryUri}:${filePath}:${branch}:${platformId}`;
     
     // Check cache first
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
       console.log(`[PlatformExtensionDataService] Using cached data for ${platformId}`);
-      return cached.data;
+      return {
+        data: cached.data,
+        source: 'cache'
+      };
     }
 
     try {
@@ -85,7 +94,11 @@ export class PlatformExtensionDataService {
       
       if (!fileContent || !fileContent.content) {
         console.warn(`[PlatformExtensionDataService] No content found for ${platformId}`);
-        return null;
+        return {
+          data: null,
+          source: 'not-found',
+          error: 'No content found'
+        };
       }
 
       // Parse the JSON content
@@ -94,7 +107,11 @@ export class PlatformExtensionDataService {
       // Validate that this is a platform extension file
       if (!data.systemId || !data.platformId || !data.version) {
         console.warn(`[PlatformExtensionDataService] Invalid platform extension data for ${platformId}`);
-        return null;
+        return {
+          data: null,
+          source: 'not-found',
+          error: 'Invalid platform extension data'
+        };
       }
 
       // Cache the data
@@ -105,7 +122,10 @@ export class PlatformExtensionDataService {
       StorageService.setPlatformExtensionFileContent(platformId, fileContent.content);
       
       console.log(`[PlatformExtensionDataService] Successfully fetched and cached data for ${platformId}`);
-      return data;
+      return {
+        data,
+        source: 'github'
+      };
       
     } catch (error) {
       console.error(`[PlatformExtensionDataService] Failed to fetch data for ${platformId}:`, error);
@@ -114,10 +134,18 @@ export class PlatformExtensionDataService {
       const localData = StorageService.getPlatformExtensionFile(platformId);
       if (localData) {
         console.log(`[PlatformExtensionDataService] Using local storage data for ${platformId}`);
-        return localData as unknown as PlatformExtensionData;
+        return {
+          data: localData as unknown as PlatformExtensionData,
+          source: 'localStorage',
+          error: error instanceof Error ? error.message : 'Unknown error'
+        };
       }
       
-      return null;
+      return {
+        data: null,
+        source: 'not-found',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   }
 

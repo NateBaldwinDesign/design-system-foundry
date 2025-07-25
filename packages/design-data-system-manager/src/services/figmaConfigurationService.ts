@@ -1,4 +1,4 @@
-import type { SyntaxPatterns } from '../components/SyntaxPatternsForm';
+import type { SyntaxPatterns } from '../components/shared/SyntaxPatternsEditor';
 
 export interface FigmaConfiguration {
   syntaxPatterns: SyntaxPatterns;

@@ -565,8 +565,8 @@ export const PlatformFields: React.FC<PlatformFieldsProps> = ({
 
 
 
-// Re-export the modularized SyntaxPatternsForm
-export { SyntaxPatternsForm } from '../SyntaxPatternsForm';
+// Re-export the unified SyntaxPatternsEditor
+export { SyntaxPatternsEditor } from './SyntaxPatternsEditor';
 
 // Value Formatters Component
 interface ValueFormattersProps {

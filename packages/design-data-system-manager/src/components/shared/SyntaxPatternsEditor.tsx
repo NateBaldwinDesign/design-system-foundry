@@ -8,47 +8,92 @@ import {
   Input,
   Select,
   Box,
-  useColorMode,
+  useColorMode
 } from '@chakra-ui/react';
 
+// Shared interfaces
 export interface SyntaxPatterns {
-  prefix: string;
-  suffix: string;
-  delimiter: string;
-  capitalization: string;
-  formatString: string;
+  prefix?: string;
+  suffix?: string;
+  delimiter?: '' | '_' | '-' | '.' | '/' | undefined;
+  capitalization?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+  formatString?: string;
 }
 
 interface SyntaxPatternsEditorProps {
   syntaxPatterns: SyntaxPatterns;
-  onSyntaxPatternsChange: (syntaxPatterns: SyntaxPatterns) => void;
-  preview: string;
+  onSyntaxPatternsChange: (patterns: SyntaxPatterns) => void;
+  // Legacy support: individual field updates
+  onSyntaxPatternChange?: (field: keyof SyntaxPatterns, value: string | number | undefined) => void;
+  preview?: string;
   isReadOnly?: boolean;
   title?: string;
+  showTitle?: boolean;
 }
 
 export const SyntaxPatternsEditor: React.FC<SyntaxPatternsEditorProps> = ({
   syntaxPatterns,
   onSyntaxPatternsChange,
+  onSyntaxPatternChange, // Legacy support
   preview,
   isReadOnly = false,
-  title = 'Syntax Patterns'
+  title = 'Syntax Patterns',
+  showTitle = true
 }) => {
   const { colorMode } = useColorMode();
 
+  // Handle both new and legacy callback patterns
   const handleChange = (field: keyof SyntaxPatterns, value: string) => {
-    onSyntaxPatternsChange({
+    const updatedPatterns = {
       ...syntaxPatterns,
       [field]: value
-    });
+    };
+    
+    // Use new callback pattern
+    onSyntaxPatternsChange(updatedPatterns);
+    
+    // Also call legacy callback if provided (for backward compatibility)
+    if (onSyntaxPatternChange) {
+      onSyntaxPatternChange(field, value);
+    }
   };
+
+  // Generate preview if not provided (legacy behavior)
+  const generatedPreview = preview || (() => {
+    const { prefix = '', suffix = '', delimiter = '', capitalization = 'none' } = syntaxPatterns;
+    let tokenName = 'color-primary-500';
+    
+    // Apply capitalization
+    switch (capitalization) {
+      case 'uppercase':
+        tokenName = tokenName.toUpperCase();
+        break;
+      case 'lowercase':
+        tokenName = tokenName.toLowerCase();
+        break;
+      case 'capitalize':
+        tokenName = tokenName.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join('-');
+        break;
+    }
+    
+    // Apply delimiter
+    if (delimiter) {
+      tokenName = tokenName.replace(/-/g, delimiter);
+    }
+    
+    return `${prefix}${tokenName}${suffix}`;
+  })();
+
+  const displayPreview = preview || generatedPreview;
 
   if (isReadOnly) {
     return (
       <VStack spacing={6} align="stretch">
-        <Text fontWeight="bold" fontSize="sm" color="gray.600">
-          {title} (Read-only from source file)
-        </Text>
+        {showTitle && (
+          <Text fontWeight="bold" fontSize="sm" color="gray.600">
+            {title} (Read-only from source file)
+          </Text>
+        )}
         <Box
           p={4}
           borderWidth={1}
@@ -98,7 +143,7 @@ export const SyntaxPatternsEditor: React.FC<SyntaxPatternsEditorProps> = ({
             {/* Preview */}
             <Box mt={2} p={3} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.700' : 'gray.100'}>
               <Text fontSize="sm" color="gray.500" mb={1} fontWeight="bold">Token name formatting preview</Text>
-              <Text fontFamily="mono" fontSize="md" wordBreak="break-all">{preview}</Text>
+              <Text fontFamily="mono" fontSize="md" wordBreak="break-all">{displayPreview}</Text>
             </Box>
           </VStack>
         </Box>
@@ -108,9 +153,11 @@ export const SyntaxPatternsEditor: React.FC<SyntaxPatternsEditorProps> = ({
 
   return (
     <VStack spacing={6} align="stretch">
-      <Text fontWeight="bold" fontSize="sm" color="gray.600">
-        {title}
-      </Text>
+      {showTitle && (
+        <Text fontWeight="bold" fontSize="sm" color="gray.600">
+          {title}
+        </Text>
+      )}
       <Box
         p={3}
         borderWidth={1}
@@ -138,7 +185,7 @@ export const SyntaxPatternsEditor: React.FC<SyntaxPatternsEditorProps> = ({
           <FormControl>
             <FormLabel>Delimiter</FormLabel>
             <Select
-              value={syntaxPatterns?.delimiter || '_'}
+              value={syntaxPatterns?.delimiter || ''}
               onChange={(e) => handleChange('delimiter', e.target.value)}
             >
               <option value="">None</option>
@@ -151,7 +198,7 @@ export const SyntaxPatternsEditor: React.FC<SyntaxPatternsEditorProps> = ({
           <FormControl>
             <FormLabel>Capitalization</FormLabel>
             <Select
-              value={syntaxPatterns?.capitalization || 'none'}
+              value={syntaxPatterns?.capitalization ?? 'none'}
               onChange={(e) => handleChange('capitalization', e.target.value)}
             >
               <option value="none">None</option>
@@ -173,7 +220,7 @@ export const SyntaxPatternsEditor: React.FC<SyntaxPatternsEditorProps> = ({
           </FormControl>
           <Box mt={2} p={3} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.700' : 'gray.100'}>
             <Text fontSize="sm" color="gray.500" mb={1} fontWeight="bold">Preview</Text>
-            <Text fontFamily="mono" fontSize="md" wordBreak="break-all">{preview}</Text>
+            <Text fontFamily="mono" fontSize="md" wordBreak="break-all">{displayPreview}</Text>
           </Box>
         </VStack>
       </Box>

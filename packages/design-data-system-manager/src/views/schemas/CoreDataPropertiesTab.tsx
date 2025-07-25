@@ -275,8 +275,8 @@ export const CoreDataPropertiesTab: React.FC = () => {
         <Heading size="md" mb={4}>Platforms</Heading>
         <Text mb={2}>
           <b>platforms</b> (required): Runtime platforms that can be used to resolve token values.<br />
-          Each platform can either have <Code colorScheme="purple">syntaxPatterns</Code> and <Code colorScheme="purple">valueFormatters</Code> defined in core data, or reference an external platform extension file via <Code colorScheme="purple">extensionSource</Code>.<br />
-          <b>Technical note:</b> Platforms with <Code colorScheme="purple">extensionSource</Code> cannot have <Code colorScheme="purple">syntaxPatterns</Code> or <Code colorScheme="purple">valueFormatters</Code> in core data.
+          Each platform must reference an external platform extension file via <Code colorScheme="purple">extensionSource</Code> containing platform-specific syntax patterns, value formatters, and overrides.<br />
+          <b>Technical note:</b> All platform-specific configuration and data is contained in external platform extension files, keeping the core schema focused on the canonical token structure.
         </Text>
         <JsonSyntaxHighlighter code={JSON.stringify({
           platforms: [
@@ -284,23 +284,16 @@ export const CoreDataPropertiesTab: React.FC = () => {
               id: "platform-web",
               displayName: "Web",
               description: "Web platform for CSS and JavaScript",
-              syntaxPatterns: {
-                prefix: "--",
-                delimiter: "-",
-                capitalization: "lowercase",
-                formatString: "var({name})"
-              },
-              valueFormatters: {
-                color: "hex",
-                dimension: "rem",
-                numberPrecision: 2
+              extensionSource: {
+                repositoryUri: "web-team/design-tokens-web",
+                filePath: "platforms/platform-web.json"
               },
               status: "active"
             },
             {
               id: "platform-ios",
               displayName: "iOS",
-              description: "iOS platform with external extension",
+              description: "iOS platform for Swift and SwiftUI",
               extensionSource: {
                 repositoryUri: "ios-team/design-tokens-ios",
                 filePath: "platforms/platform-ios.json"

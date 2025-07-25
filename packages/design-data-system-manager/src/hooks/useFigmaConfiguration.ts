@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { FigmaConfigurationService, type FigmaConfiguration } from '../services/figmaConfigurationService';
-import type { SyntaxPatterns } from '../components/SyntaxPatternsForm';
+import type { SyntaxPatterns } from '../components/shared/SyntaxPatternsEditor';
 
 export const useFigmaConfiguration = () => {
   const [configuration, setConfiguration] = useState<FigmaConfiguration | null>(null);

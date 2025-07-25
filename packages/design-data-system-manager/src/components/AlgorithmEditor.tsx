@@ -23,7 +23,7 @@ import {
   FormLabel,
   Checkbox
 } from '@chakra-ui/react';
-import { Plus, Trash2, GripVertical, Save, Edit, RotateCcw, Undo2, Redo2 } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Save, Edit, RotateCcw, Undo2, Redo2, TriangleAlert } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Algorithm, Variable, Formula, Condition, AlgorithmStep } from '../types/algorithm';
 import { FormulaEditor } from './FormulaEditor';
@@ -1233,7 +1233,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
         {hasUnsavedChanges && (
           <Box p={2} bg="orange.100" borderRadius="md" borderWidth={1} borderColor="orange.200">
             <Text fontSize="sm" color="orange.700">
-              ⚠️ You have unsaved changes
+              <TriangleAlert size={16} /> You have unsaved changes
             </Text>
           </Box>
         )}
@@ -2128,7 +2128,7 @@ export const AlgorithmEditor: React.FC<AlgorithmEditorProps> = ({
                                 {!tokenGenerationConfigured && (
                                   <Box p={3} bg="orange.50" borderRadius="md" borderWidth={1} borderColor="orange.200">
                                     <Text fontSize="sm" color="orange.700" mb={2}>
-                                      ⚠️ Please complete the following to enable token generation preview:
+                                      <TriangleAlert size={16} /> Please complete the following to enable token generation preview:
                                     </Text>
                                     <VStack spacing={1} align="start">
                                       {!currentAlgorithm.tokenGeneration?.logicalMapping?.taxonomyId && 

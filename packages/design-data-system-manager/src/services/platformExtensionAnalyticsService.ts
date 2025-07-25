@@ -1,20 +1,5 @@
-import type { Platform } from '@token-model/data-model';
 import { PlatformExtensionDataService } from './platformExtensionDataService';
-
-export interface PlatformExtensionAnalytics {
-  platformId: string;
-  platformName: string;
-  repositoryUri: string;
-  filePath: string;
-  version?: string;
-  tokenOverridesCount: number;
-  algorithmVariableOverridesCount: number;
-  omittedModesCount: number;
-  omittedDimensionsCount: number;
-  totalOverrides: number;
-  hasExtensionData: boolean;
-  error?: string;
-}
+import type { Platform } from '@token-model/data-model';
 
 export interface PlatformExtensionAnalyticsSummary {
   totalPlatforms: number;
@@ -23,26 +8,51 @@ export interface PlatformExtensionAnalyticsSummary {
   totalAlgorithmOverrides: number;
   totalOmittedModes: number;
   totalOmittedDimensions: number;
-  platformAnalytics: PlatformExtensionAnalytics[];
+  platformAnalytics: Array<{
+    platformId: string;
+    platformName: string;
+    version?: string;
+    tokenOverridesCount: number;
+    algorithmVariableOverridesCount: number;
+    omittedModesCount: number;
+    omittedDimensionsCount: number;
+    hasError?: boolean;
+    errorType?: 'file-not-found' | 'repository-not-found' | 'validation-error';
+    errorMessage?: string;
+  }>;
 }
 
 export class PlatformExtensionAnalyticsService {
   private static instance: PlatformExtensionAnalyticsService;
+  private cache = new Map<string, { data: PlatformExtensionAnalyticsSummary; timestamp: number }>();
+  private CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-  private constructor() {}
-
-  public static getInstance(): PlatformExtensionAnalyticsService {
+  static getInstance(): PlatformExtensionAnalyticsService {
     if (!PlatformExtensionAnalyticsService.instance) {
       PlatformExtensionAnalyticsService.instance = new PlatformExtensionAnalyticsService();
     }
     return PlatformExtensionAnalyticsService.instance;
   }
 
-  /**
-   * Analyzes all platform extensions for a given set of platforms
-   */
-  public async analyzePlatformExtensions(platforms: Platform[]): Promise<PlatformExtensionAnalyticsSummary> {
-    const platformAnalytics: PlatformExtensionAnalytics[] = [];
+  async getCachedPlatformExtensionAnalytics(platforms: Platform[]): Promise<PlatformExtensionAnalyticsSummary> {
+    const cacheKey = `platform-analytics-${platforms.length}`;
+    
+    // Check cache first
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      return cached.data;
+    }
+
+    const analytics = await this.calculatePlatformExtensionAnalytics(platforms);
+    
+    // Cache the result
+    this.cache.set(cacheKey, { data: analytics, timestamp: Date.now() });
+    
+    return analytics;
+  }
+
+  private async calculatePlatformExtensionAnalytics(platforms: Platform[]): Promise<PlatformExtensionAnalyticsSummary> {
+    const platformAnalytics: PlatformExtensionAnalyticsSummary['platformAnalytics'] = [];
     let totalTokenOverrides = 0;
     let totalAlgorithmOverrides = 0;
     let totalOmittedModes = 0;
@@ -50,15 +60,120 @@ export class PlatformExtensionAnalyticsService {
     let platformsWithExtensions = 0;
 
     for (const platform of platforms) {
-      const analytics = await this.analyzeSinglePlatformExtension(platform);
-      platformAnalytics.push(analytics);
+      // Check if platform has an extension source
+      if (!platform.extensionSource) {
+        platformAnalytics.push({
+          platformId: platform.id,
+          platformName: platform.displayName,
+          tokenOverridesCount: 0,
+          algorithmVariableOverridesCount: 0,
+          omittedModesCount: 0,
+          omittedDimensionsCount: 0,
+          hasError: false
+        });
+        continue;
+      }
 
-      if (analytics.hasExtensionData) {
-        platformsWithExtensions++;
-        totalTokenOverrides += analytics.tokenOverridesCount;
-        totalAlgorithmOverrides += analytics.algorithmVariableOverridesCount;
-        totalOmittedModes += analytics.omittedModesCount;
-        totalOmittedDimensions += analytics.omittedDimensionsCount;
+      try {
+        // Try to load platform extension data
+        const result = await PlatformExtensionDataService.getPlatformExtensionData(
+          platform.extensionSource.repositoryUri,
+          platform.extensionSource.filePath,
+          'main', // Default branch
+          platform.id
+        );
+
+        if (result.data && result.source === 'github') {
+          // Successfully fetched from GitHub
+          platformsWithExtensions++;
+          
+          const tokenOverridesCount = result.data.tokenOverrides?.length || 0;
+          const algorithmVariableOverridesCount = result.data.algorithmVariableOverrides?.length || 0;
+          const omittedModesCount = result.data.omittedModes?.length || 0;
+          const omittedDimensionsCount = result.data.omittedDimensions?.length || 0;
+
+          totalTokenOverrides += tokenOverridesCount;
+          totalAlgorithmOverrides += algorithmVariableOverridesCount;
+          totalOmittedModes += omittedModesCount;
+          totalOmittedDimensions += omittedDimensionsCount;
+
+          platformAnalytics.push({
+            platformId: platform.id,
+            platformName: platform.displayName,
+            version: result.data.version,
+            tokenOverridesCount,
+            algorithmVariableOverridesCount,
+            omittedModesCount,
+            omittedDimensionsCount,
+            hasError: false
+          });
+        } else if (result.data && (result.source === 'cache' || result.source === 'localStorage')) {
+          // Data available but from fallback source - treat as error for UI purposes
+          const isLocalFile = platform.extensionSource.repositoryUri === 'local';
+          const errorType = isLocalFile ? 'file-not-found' : 'repository-not-found';
+          const errorMessage = isLocalFile 
+            ? `File not found: ${platform.extensionSource.filePath}`
+            : `Repository not found: ${platform.extensionSource.repositoryUri}`;
+
+          platformAnalytics.push({
+            platformId: platform.id,
+            platformName: platform.displayName,
+            version: result.data.version,
+            tokenOverridesCount: result.data.tokenOverrides?.length || 0,
+            algorithmVariableOverridesCount: result.data.algorithmVariableOverrides?.length || 0,
+            omittedModesCount: result.data.omittedModes?.length || 0,
+            omittedDimensionsCount: result.data.omittedDimensions?.length || 0,
+            hasError: true,
+            errorType,
+            errorMessage
+          });
+          // Don't count this in totals since it's treated as an error
+        } else {
+          // Data not found - determine if it's a file or repository issue
+          const isLocalFile = platform.extensionSource.repositoryUri === 'local';
+          const errorType = isLocalFile ? 'file-not-found' : 'repository-not-found';
+          const errorMessage = isLocalFile 
+            ? `File not found: ${platform.extensionSource.filePath}`
+            : `Repository not found: ${platform.extensionSource.repositoryUri}`;
+
+          platformAnalytics.push({
+            platformId: platform.id,
+            platformName: platform.displayName,
+            tokenOverridesCount: 0,
+            algorithmVariableOverridesCount: 0,
+            omittedModesCount: 0,
+            omittedDimensionsCount: 0,
+            hasError: true,
+            errorType,
+            errorMessage
+          });
+        }
+      } catch (error) {
+        // Handle validation or other errors
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        
+        // Check if this is a file not found error
+        let errorType: 'file-not-found' | 'repository-not-found' | 'validation-error' = 'validation-error';
+        if (errorMessage.includes('404') || errorMessage.includes('Not Found') || errorMessage.includes('Failed to fetch file content')) {
+          const isLocalFile = platform.extensionSource.repositoryUri === 'local';
+          errorType = isLocalFile ? 'file-not-found' : 'repository-not-found';
+        }
+        
+        platformAnalytics.push({
+          platformId: platform.id,
+          platformName: platform.displayName,
+          tokenOverridesCount: 0,
+          algorithmVariableOverridesCount: 0,
+          omittedModesCount: 0,
+          omittedDimensionsCount: 0,
+          hasError: true,
+          errorType,
+          errorMessage: errorType === 'file-not-found' 
+            ? `File not found: ${platform.extensionSource.filePath}`
+            : errorType === 'repository-not-found'
+            ? `Repository not found: ${platform.extensionSource.repositoryUri}`
+            : errorMessage
+        });
       }
     }
 
@@ -73,85 +188,7 @@ export class PlatformExtensionAnalyticsService {
     };
   }
 
-  /**
-   * Analyzes a single platform extension
-   */
-  private async analyzeSinglePlatformExtension(platform: Platform): Promise<PlatformExtensionAnalytics> {
-    const analytics: PlatformExtensionAnalytics = {
-      platformId: platform.id,
-      platformName: platform.displayName,
-      repositoryUri: '',
-      filePath: '',
-      tokenOverridesCount: 0,
-      algorithmVariableOverridesCount: 0,
-      omittedModesCount: 0,
-      omittedDimensionsCount: 0,
-      totalOverrides: 0,
-      hasExtensionData: false
-    };
-
-    try {
-      // Check if platform has an extension source
-      if (!platform.extensionSource) {
-        analytics.error = 'No extension source defined';
-        return analytics;
-      }
-
-      analytics.repositoryUri = platform.extensionSource.repositoryUri;
-      analytics.filePath = platform.extensionSource.filePath;
-
-      // Fetch platform extension data
-      const extensionData = await PlatformExtensionDataService.getPlatformExtensionData(
-        platform.extensionSource.repositoryUri,
-        platform.extensionSource.filePath,
-        'main', // Default branch
-        platform.id
-      );
-
-      if (!extensionData) {
-        analytics.error = 'Failed to fetch extension data';
-        return analytics;
-      }
-
-      analytics.hasExtensionData = true;
-      analytics.version = extensionData.version;
-
-      // Count token overrides
-      analytics.tokenOverridesCount = Array.isArray(extensionData.tokenOverrides) 
-        ? extensionData.tokenOverrides.length 
-        : 0;
-
-      // Count algorithm variable overrides
-      analytics.algorithmVariableOverridesCount = Array.isArray(extensionData.algorithmVariableOverrides) 
-        ? extensionData.algorithmVariableOverrides.length 
-        : 0;
-
-      // Count omitted modes
-      analytics.omittedModesCount = Array.isArray(extensionData.omittedModes) 
-        ? extensionData.omittedModes.length 
-        : 0;
-
-      // Count omitted dimensions
-      analytics.omittedDimensionsCount = Array.isArray(extensionData.omittedDimensions) 
-        ? extensionData.omittedDimensions.length 
-        : 0;
-
-      // Calculate total overrides
-      analytics.totalOverrides = analytics.tokenOverridesCount + analytics.algorithmVariableOverridesCount;
-
-    } catch (error) {
-      analytics.error = error instanceof Error ? error.message : 'Unknown error';
-    }
-
-    return analytics;
-  }
-
-  /**
-   * Gets cached analytics for platforms (for performance)
-   */
-  public async getCachedPlatformExtensionAnalytics(platforms: Platform[]): Promise<PlatformExtensionAnalyticsSummary> {
-    // For now, always fetch fresh data
-    // In the future, this could implement caching with TTL
-    return this.analyzePlatformExtensions(platforms);
+  clearCache(): void {
+    this.cache.clear();
   }
 } 

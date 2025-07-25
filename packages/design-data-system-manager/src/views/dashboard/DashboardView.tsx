@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, AlertIcon } from '@chakra-ui/react';
+import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, Tooltip } from '@chakra-ui/react';
 import { getTokenStats, getPlatformExtensionStats, getThemeStats, getLatestRelease, getRecentActivity } from '../../utils/dashboardStats';
 import type { Platform, Theme } from '@token-model/data-model';
 import type { ExtendedToken } from '../../components/TokenEditorDialog';
 import type { GitHubUser } from '../../config/github';
 import type { PlatformExtensionAnalyticsSummary } from '../../services/platformExtensionAnalyticsService';
+import { WarningTwoIcon } from '@chakra-ui/icons';
+import { TriangleAlert } from 'lucide-react';
 
 interface DashboardViewProps {
   tokens: ExtendedToken[];
@@ -53,6 +55,21 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
     }
     return 'Dashboard';
   };
+
+  const [errorAnnouncement, setErrorAnnouncement] = React.useState<string>('');
+
+  React.useEffect(() => {
+    if (platformExtensionStats?.platformAnalytics) {
+      const errorPlatform = platformExtensionStats.platformAnalytics.find(p => p.hasError);
+      if (errorPlatform) {
+        setErrorAnnouncement(
+          `${errorPlatform.platformName}: ${errorPlatform.errorMessage || 'File or repository is not found'}`
+        );
+      } else {
+        setErrorAnnouncement('');
+      }
+    }
+  }, [platformExtensionStats]);
 
   return (
     <Box p={0} borderWidth={0} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
@@ -142,16 +159,43 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
                           <Th isNumeric>Token Overrides</Th>
                           <Th isNumeric>Algorithm Overrides</Th>
                           <Th isNumeric>Omitted</Th>
+                          <Th>Status</Th>
                         </Tr>
                       </Thead>
                       <Tbody>
                         {platformExtensionStats.platformAnalytics.map(platform => (
                           <Tr key={platform.platformId}>
-                            <Td>{platform.platformName}</Td>
-                            <Td>{platform.version || 'N/A'}</Td>
-                            <Td isNumeric>{platform.tokenOverridesCount}</Td>
-                            <Td isNumeric>{platform.algorithmVariableOverridesCount}</Td>
-                            <Td isNumeric>{platform.omittedModesCount + platform.omittedDimensionsCount}</Td>
+                            <Td>
+                              <HStack spacing={2}>
+                                <Text>{platform.platformName}</Text>
+                                {platform.hasError && (
+                                  <Tooltip
+                                    label={platform.errorMessage || 'File or repository is not found'}
+                                    aria-label={`Error for ${platform.platformName}: ${platform.errorMessage || 'File or repository is not found'}`}
+                                    hasArrow
+                                    placement="top"
+                                  >
+                                    <Text as="span" color="red.500" fontWeight="bold" aria-live="polite" aria-label={`Error: ${platform.errorMessage || 'File or repository is not found'}`}
+                                      tabIndex={0} // for keyboard accessibility
+                                      ml={1}
+                                    >
+                                      <TriangleAlert size={14} />
+                                    </Text>
+                                  </Tooltip>
+                                )}
+                              </HStack>
+                            </Td>
+                            <Td>{platform.hasError ? '-' : (platform.version || 'N/A')}</Td>
+                            <Td isNumeric>{platform.hasError ? '-' : platform.tokenOverridesCount}</Td>
+                            <Td isNumeric>{platform.hasError ? '-' : platform.algorithmVariableOverridesCount}</Td>
+                            <Td isNumeric>{platform.hasError ? '-' : (platform.omittedModesCount + platform.omittedDimensionsCount)}</Td>
+                            <Td>
+                              {platform.hasError ? (
+                                <Tag colorScheme="red" size="sm">Not found</Tag>
+                              ) : (
+                                <Tag colorScheme="green" size="sm">OK</Tag>
+                              )}
+                            </Td>
                           </Tr>
                         ))}
                       </Tbody>
@@ -230,6 +274,17 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
           </VStack>
         </Box>
       </Box>
+      {/* Add an aria-live region for a11y error announcement */}
+      {platformExtensionStats?.platformAnalytics.some(p => p.hasError) && (
+        <Box position="absolute" width={0} height={0} overflow="hidden" aria-live="polite">
+          {platformExtensionStats.platformAnalytics.filter(p => p.hasError).map(p => (
+            <span key={p.platformId}>{`Error for ${p.platformName}: ${p.errorMessage || 'File or repository is not found'}`}</span>
+          ))}
+        </Box>
+      )}
+      <div aria-live="polite" style={{ position: 'absolute', left: '-9999px', height: '1px', width: '1px', overflow: 'hidden' }}>
+        {errorAnnouncement}
+      </div>
     </Box>
   );
 };

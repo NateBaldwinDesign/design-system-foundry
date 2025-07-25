@@ -19,7 +19,7 @@ import {
   AlertIcon,
   useToast
 } from '@chakra-ui/react';
-import { SyntaxPatternsForm, SyntaxPatterns } from './SyntaxPatternsForm';
+import { SyntaxPatternsEditor, SyntaxPatterns } from './shared/SyntaxPatternsEditor';
 
 
 
@@ -52,11 +52,8 @@ export const PlatformExportSettings: React.FC<PlatformExportSettingsProps> = ({
   const [isDirty, setIsDirty] = useState(false);
   const toast = useToast();
 
-  const handleSyntaxPatternChange = (field: keyof SyntaxPatterns, value: string | number | undefined) => {
-    setCurrentSyntaxPatterns(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleSyntaxPatternsChange = (newPatterns: SyntaxPatterns) => {
+    setCurrentSyntaxPatterns(newPatterns);
     setIsDirty(true);
   };
 
@@ -148,9 +145,9 @@ export const PlatformExportSettings: React.FC<PlatformExportSettingsProps> = ({
           </Text>
         </CardHeader>
         <CardBody>
-          <SyntaxPatternsForm
+          <SyntaxPatternsEditor
             syntaxPatterns={currentSyntaxPatterns}
-            onSyntaxPatternChange={handleSyntaxPatternChange}
+            onSyntaxPatternsChange={handleSyntaxPatternsChange}
             preview={getPreviewToken()}
             showTitle={false}
           />

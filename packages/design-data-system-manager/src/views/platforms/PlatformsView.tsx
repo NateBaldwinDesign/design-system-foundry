@@ -35,6 +35,8 @@ import type { DataType } from '../../services/dataTypeDetector';
 import { DataManager } from '../../services/dataManager';
 import { GitHubApiService } from '../../services/githubApi';
 import { RepositoryCreationService } from '../../services/repositoryCreationService';
+import { PlatformExtensionStatusService, type PlatformExtensionStatus } from '../../services/platformExtensionStatusService';
+import { TriangleAlert } from 'lucide-react';
 
 interface PlatformsViewProps {
   platforms?: Platform[];
@@ -60,6 +62,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
     themeCount: 0
   });
   const [platformExtensions, setPlatformExtensions] = useState<Array<{ platformId: string; isValid: boolean; errors: string[]; warnings: string[] }>>([]);
+  const [platformExtensionStatuses, setPlatformExtensionStatuses] = useState<PlatformExtensionStatus[]>([]);
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingRepository, setEditingRepository] = useState<RepositoryLink | null>(null);
@@ -69,6 +72,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
   const toast = useToast();
   const multiRepoManager = MultiRepositoryManager.getInstance();
   const dataManager = DataManager.getInstance();
+  const platformExtensionStatusService = PlatformExtensionStatusService.getInstance();
 
   // Get current system ID from storage
   const getCurrentSystemId = async (): Promise<string> => {
@@ -180,10 +184,31 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
     console.log('🔍 [platforms state changed] Current platforms:', platforms);
   }, [platforms]);
 
+  // Load platform extension statuses
+  useEffect(() => {
+    const loadPlatformExtensionStatuses = async () => {
+      if (platforms.length > 0) {
+        try {
+          const statuses = await platformExtensionStatusService.getPlatformsExtensionStatus(platforms);
+          setPlatformExtensionStatuses(statuses);
+        } catch (error) {
+          console.error('Failed to load platform extension statuses:', error);
+        }
+      } else {
+        setPlatformExtensionStatuses([]);
+      }
+    };
+
+    loadPlatformExtensionStatuses();
+  }, [platforms, platformExtensionStatusService]);
+
   // Helper function to update platforms through App-level state management
   const updatePlatformsInDataManager = (updatedPlatforms: Platform[]) => {
     console.log('🔍 [updatePlatformsInDataManager] Updating platforms through App-level state management:', updatedPlatforms);
     setPlatforms?.(updatedPlatforms);
+    
+    // Clear platform extension status cache to force refresh
+    platformExtensionStatusService.clearCache();
   };
 
   const handleLinkRepository = async (linkData: PlatformCreateData) => {
@@ -1062,6 +1087,9 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                     const linkedRepository = multiRepoManager.getLinkedRepositories()
                       .find(link => link.platformId === platform.id);
                     
+                    // Find platform extension status
+                    const platformStatus = platformExtensionStatuses.find(status => status.platformId === platform.id);
+                    
                     return (
                       <Box
                         key={platform.id}
@@ -1069,11 +1097,23 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                         borderWidth={1}
                         borderRadius="md"
                         bg={cardBg}
-                        borderColor={cardBorder}
+                        borderColor={platformStatus?.hasError ? 'red.300' : cardBorder}
                       >
                         <HStack justify="space-between" align="flex-start">
                           <Box flex={1} minW={0}>
-                            <Text fontSize="lg" fontWeight="medium">{platform.displayName}</Text>
+                            <HStack spacing={2} align="center" mb={1}>
+                              <Text fontSize="lg" fontWeight="medium">{platform.displayName}</Text>
+                              {platformStatus?.hasError && (
+                                <Tooltip 
+                                  label={platformStatus.errorMessage || 'File or repository is not found'} 
+                                  aria-label={`Error for ${platform.displayName}: ${platformStatus.errorMessage || 'File or repository is not found'}`}
+                                >
+                                  <Text color="red.500" fontWeight="bold" fontSize="sm">
+                                    <TriangleAlert size={16} />
+                                  </Text>
+                                </Tooltip>
+                              )}
+                            </HStack>
                             <Text fontSize="sm" color="gray.500">ID: {platform.id}</Text>
                             {platform.description && (
                               <Text fontSize="sm" color="gray.500">{platform.description}</Text>
@@ -1083,18 +1123,25 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                                 Syntax: {platform.syntaxPatterns.prefix || ''}{platform.syntaxPatterns.delimiter || '_'}name{platform.syntaxPatterns.suffix || ''}
                               </Text>
                             )}
-                            {linkedRepository && (
-                              <Text fontSize="sm" color="blue.500">
-                                Extension: {linkedRepository.repositoryUri} → {linkedRepository.filePath}
+                            {platform.extensionSource && (
+                              <Text fontSize="sm" color={platformStatus?.hasError ? 'red.500' : 'blue.500'}>
+                                Extension: {platform.extensionSource.repositoryUri} → {platform.extensionSource.filePath}
                               </Text>
                             )}
-                            {linkedRepository && (
+                            {platformStatus?.hasError && (
+                              <Text fontSize="sm" color="red.500" fontWeight="medium">
+                                {platformStatus.errorMessage || 'File or repository is not found'}
+                              </Text>
+                            )}
+                            {linkedRepository && !platformStatus?.hasError && (
                               <Text fontSize="sm" color="gray.500">Status: {linkedRepository.status}</Text>
                             )}
                           </Box>
                           <HStack spacing={2} align="flex-start">
                             {platform.extensionSource ? (
-                              platform.extensionSource.repositoryUri === 'local' ? (
+                              platformStatus?.hasError ? (
+                                <Badge colorScheme="red" variant="subtle">Error</Badge>
+                              ) : platform.extensionSource.repositoryUri === 'local' ? (
                                 <Badge colorScheme="blue" variant="subtle">Local</Badge>
                               ) : (
                                 <Badge colorScheme="green" variant="subtle">External</Badge>

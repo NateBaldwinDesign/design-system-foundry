@@ -35,7 +35,7 @@ import { createSchemaJsonFromLocalStorage } from '../services/createJson';
 import { ChangeTrackingService, ChangeTrackingState } from '../services/changeTrackingService';
 import { FigmaConfigurationService } from '../services/figmaConfigurationService';
 import { CardTitle } from './CardTitle';
-import { SyntaxPatternsForm, SyntaxPatterns } from './SyntaxPatternsForm';
+import { SyntaxPatternsEditor, SyntaxPatterns } from './shared/SyntaxPatternsEditor';
 
 interface FigmaSettingsProps {
   tokenSystem: TokenSystem;
@@ -403,11 +403,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
   };
 
   // Handle syntax pattern changes
-  const handleSyntaxPatternChange = (field: keyof SyntaxPatterns, value: string | number | undefined) => {
-    const newPatterns = {
-      ...syntaxPatterns,
-      [field]: value
-    };
+  const handleSyntaxPatternsChange = (newPatterns: SyntaxPatterns) => {
     setSyntaxPatterns(newPatterns);
     
     // Auto-save syntax patterns
@@ -526,9 +522,9 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
             {/* Syntax Patterns */}
             <Box>
               <Heading size="sm" mb={4}>Syntax Patterns</Heading>
-              <SyntaxPatternsForm
+              <SyntaxPatternsEditor
                 syntaxPatterns={syntaxPatterns}
-                onSyntaxPatternChange={handleSyntaxPatternChange}
+                onSyntaxPatternsChange={handleSyntaxPatternsChange}
                 showTitle={false}
               />
             </Box>

@@ -48,6 +48,7 @@ import { GitHubCacheService } from '../services/githubCache';
 import type { GitHubOrganization, GitHubRepo, GitHubBranch } from '../config/github';
 import { createUniqueId } from '../utils/id';
 import { SyntaxPatternsEditor, ValueFormattersEditor } from './shared';
+import { PlatformSourceValidationService } from '../services/platformSourceValidationService';
 
 export interface PlatformCreateData {
   type: 'core' | 'platform-extension' | 'theme-override';
@@ -687,7 +688,7 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
     if (formData.type !== 'platform-extension') return '';
     
     // Simple preview generation based on syntax patterns
-    const { prefix = '', suffix = '', delimiter = '_', capitalization = 'none' } = formData.syntaxPatterns || {};
+    const { prefix = '', suffix = '', delimiter = '', capitalization = 'none' } = formData.syntaxPatterns || {};
     let tokenName = 'primary-color-background';
     
     // Apply capitalization
@@ -704,8 +705,11 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
     }
     
     // Apply delimiter
-    if (delimiter) {
+    if (delimiter && delimiter !== '') {
       tokenName = tokenName.replace(/-/g, delimiter);
+    } else {
+      // Remove hyphens when no delimiter is selected
+      tokenName = tokenName.replace(/-/g, '');
     }
     
     return `${prefix}${tokenName}${suffix}`;
@@ -736,6 +740,18 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
         }
         if (!formData.filePath.trim()) {
           newErrors.filePath = 'File path is required';
+        }
+        
+        // Validate extension source uniqueness
+        if (formData.repositoryUri.trim() && formData.filePath.trim()) {
+          const validation = PlatformSourceValidationService.validateExtensionSource(
+            formData.repositoryUri,
+            formData.filePath
+          );
+          
+          if (!validation.isValid) {
+            newErrors.filePath = validation.error || 'This extension source is already in use by another platform';
+          }
         }
         break;
       
@@ -904,6 +920,25 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
     
     if (file) {
       console.log('🔍 [DEBUG] File found, updating formData with filePath:', file.path);
+      
+      // Validate that this extension source is not already in use
+      const validation = PlatformSourceValidationService.validateExtensionSource(
+        selectedRepo!.full_name,
+        file.path
+      );
+      
+      if (!validation.isValid) {
+        setError(validation.error || 'Invalid extension source');
+        toast({
+          title: 'Validation Error',
+          description: validation.error || 'This extension source is already in use',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+      
       setFormData(prev => {
         const updated = {
           ...prev,
@@ -1422,7 +1457,7 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
           syntaxPatterns={formData.syntaxPatterns || {
             prefix: '',
             suffix: '',
-            delimiter: '_',
+            delimiter: '',
             capitalization: 'none',
             formatString: ''
           }}
@@ -1487,7 +1522,7 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
                       syntaxPatterns={formData.syntaxPatterns || {
                         prefix: '',
                         suffix: '',
-                        delimiter: '_',
+                        delimiter: '',
                         capitalization: 'none',
                         formatString: ''
                       }}

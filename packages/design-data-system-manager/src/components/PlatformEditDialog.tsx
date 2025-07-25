@@ -31,6 +31,7 @@ import {
 import { PlatformExtensionValidationService } from '../services/platformExtensionValidation';
 import { StorageService } from '../services/storage';
 import { PlatformExtensionDataService, type PlatformExtensionData } from '../services/platformExtensionDataService';
+import { PlatformSourceValidationService } from '../services/platformSourceValidationService';
 import type { RepositoryLink } from '../services/multiRepositoryManager';
 import { SourceSelectionDialog, SourceSelectionData } from './SourceSelectionDialog';
 import { SyntaxPatternsEditor, ValueFormattersEditor } from './shared';
@@ -126,6 +127,12 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [platformExtensionData, setPlatformExtensionData] = useState<PlatformExtensionData | null>(null);
   const [loadingPlatformData, setLoadingPlatformData] = useState(false);
+  const [sourceValidationResult, setSourceValidationResult] = useState<{
+    isValid: boolean;
+    error?: string;
+    updatedPath?: string;
+    showSourceSelection: boolean;
+  } | null>(null);
   const toast = useToast();
   const { colorMode } = useColorMode();
 
@@ -285,7 +292,77 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
     }
 
     setLoadingPlatformData(true);
+    setSourceValidationResult(null);
+    
     try {
+      const { repositoryUri, filePath } = canonicalPlatformData.extensionSource;
+      const isLocalSource = repositoryUri === 'local';
+      
+      // Validate source existence
+      let validationResult;
+      if (isLocalSource) {
+        // Validate local file
+        const currentSystemId = getCurrentSystemId();
+        validationResult = await PlatformSourceValidationService.validateLocalFile(
+          filePath,
+          canonicalPlatformData.id,
+          currentSystemId
+        );
+      } else {
+        // Validate external repository
+        const branch = repository.branch || 'main';
+        validationResult = await PlatformSourceValidationService.validateExternalRepository(
+          repositoryUri,
+          filePath,
+          branch
+        );
+      }
+
+      if (!validationResult.exists) {
+        // Source doesn't exist, prompt user to select new source
+        setSourceValidationResult({
+          isValid: false,
+          error: validationResult.error,
+          showSourceSelection: true
+        });
+        
+        toast({
+          title: 'Source Not Found',
+          description: validationResult.error || 'The platform source could not be found. Please select a new source.',
+          status: 'warning',
+          duration: 8000,
+          isClosable: true
+        });
+        
+        return;
+      }
+
+      // If local file was found at a different path, update the platform data
+      if (validationResult.updatedPath && isLocalSource) {
+        console.log('[ExtensionEditDialog] File found at new path, updating platform data:', validationResult.updatedPath);
+        
+        // Update the platform's extensionSource with the new path
+        await updatePlatformExtensionSource('local', validationResult.updatedPath);
+        
+        // Show soft alert to user
+        toast({
+          title: 'File Location Updated',
+          description: `Platform extension file was found at a new location and has been updated automatically.`,
+          status: 'info',
+          duration: 5000,
+          isClosable: true
+        });
+        
+        // Update the canonical platform data with the new path
+        canonicalPlatformData.extensionSource.filePath = validationResult.updatedPath;
+      }
+
+      // Source exists, proceed with loading data
+      setSourceValidationResult({
+        isValid: true,
+        showSourceSelection: false
+      });
+
       // Use the repository's branch if available, otherwise default to 'main'
       const branch = repository.branch || 'main';
       
@@ -296,21 +373,29 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
         platformId: canonicalPlatformData.id // Use the canonical platform ID, not repository.platformId
       });
 
-      const data = await PlatformExtensionDataService.getPlatformExtensionData(
+      const result = await PlatformExtensionDataService.getPlatformExtensionData(
         canonicalPlatformData.extensionSource.repositoryUri,
         canonicalPlatformData.extensionSource.filePath,
         branch,
         canonicalPlatformData.id // Use the canonical platform ID, not repository.platformId
       );
       
-      if (data) {
-        setPlatformExtensionData(data);
-        console.log('[ExtensionEditDialog] Loaded platform extension data:', data);
+      if (result.data) {
+        setPlatformExtensionData(result.data);
+        console.log('[ExtensionEditDialog] Loaded platform extension data:', result.data);
       } else {
         console.warn('[ExtensionEditDialog] No platform extension data found');
       }
     } catch (error) {
       console.error('[ExtensionEditDialog] Failed to load platform extension data:', error);
+      
+      // Set validation result to show source selection
+      setSourceValidationResult({
+        isValid: false,
+        error: 'Failed to load platform extension data from source',
+        showSourceSelection: true
+      });
+      
       toast({
         title: 'Error',
         description: 'Failed to load platform extension data from source',
@@ -338,7 +423,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
     
     const prefix = syntaxPatterns?.prefix || '';
     const suffix = syntaxPatterns?.suffix || '';
-    const delimiter = syntaxPatterns?.delimiter || '_';
+    const delimiter = syntaxPatterns?.delimiter || '';
     const capitalization = syntaxPatterns?.capitalization || 'none';
     
     let tokenName = 'primary-color-background';
@@ -357,8 +442,11 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
     }
     
     // Apply delimiter
-    if (delimiter) {
+    if (delimiter && delimiter !== '') {
       tokenName = tokenName.replace(/-/g, delimiter);
+    } else {
+      // Remove hyphens when no delimiter is selected
+      tokenName = tokenName.replace(/-/g, '');
     }
     
     return `${prefix}${tokenName}${suffix}`;
@@ -404,7 +492,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
       syntaxPatterns: {
         prefix: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.prefix as string || '',
         suffix: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.suffix as string || '',
-        delimiter: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.delimiter as string || '_',
+        delimiter: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.delimiter as string || '',
         capitalization: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.capitalization as string || 'none',
         formatString: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.formatString as string || ''
       },
@@ -428,7 +516,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
         syntaxPatterns: {
           prefix: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.prefix as string || '',
           suffix: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.suffix as string || '',
-          delimiter: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.delimiter as string || '_',
+          delimiter: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.delimiter as string || '',
           capitalization: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.capitalization as string || 'none',
           formatString: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.formatString as string || ''
         },
@@ -441,6 +529,18 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
     }
   }, [platformExtensionData, formData.type]);
 
+  // Auto-open source selection dialog when validation fails
+  useEffect(() => {
+    if (sourceValidationResult && !sourceValidationResult.isValid && sourceValidationResult.showSourceSelection) {
+      // Small delay to ensure the dialog state is properly set
+      const timer = setTimeout(() => {
+        setIsSourceSelectionOpen(true);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [sourceValidationResult]);
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -450,6 +550,19 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
         newErrors.displayName = 'Display name is required for platform extensions';
       }
       // Platform ID validation removed since it's read-only
+      
+      // Validate extension source uniqueness for link-existing workflow
+      if (formData.workflow === 'link-existing' && formData.repositoryUri && formData.filePath) {
+        const validation = PlatformSourceValidationService.validateExtensionSource(
+          formData.repositoryUri,
+          formData.filePath,
+          repository.platformId // Exclude the current platform being edited
+        );
+        
+        if (!validation.isValid) {
+          newErrors.filePath = validation.error || 'This extension source is already in use by another platform';
+        }
+      }
     }
 
     setErrors(newErrors);
@@ -747,6 +860,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
       repositoryUri: sourceData.repositoryUri || prev.repositoryUri,
       branch: sourceData.branch || prev.branch,
       filePath: sourceData.filePath || prev.filePath,
+      newFileName: sourceData.newFileName || prev.newFileName,
       newRepositoryName: sourceData.newRepositoryName || prev.newRepositoryName,
       newRepositoryDescription: sourceData.newRepositoryDescription || prev.newRepositoryDescription,
       newRepositoryVisibility: sourceData.newRepositoryVisibility || prev.newRepositoryVisibility,
@@ -760,6 +874,24 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
 
     // Handle linking to existing file workflow
     if (sourceData.workflow === 'link-existing' && sourceData.repositoryUri && sourceData.filePath) {
+      // Validate that this extension source is not already in use by another platform
+      const validation = PlatformSourceValidationService.validateExtensionSource(
+        sourceData.repositoryUri,
+        sourceData.filePath,
+        repository.platformId // Exclude the current platform being edited
+      );
+      
+      if (!validation.isValid) {
+        toast({
+          title: 'Validation Error',
+          description: validation.error || 'This extension source is already in use by another platform',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+      
       // Update the platform's extensionSource when linking to an existing file
       await updatePlatformExtensionSource(sourceData.repositoryUri, sourceData.filePath);
       
@@ -794,7 +926,8 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
       canonicalPlatformData: !!canonicalPlatformData,
       hasExtensionSource: !!hasExtensionSource,
       extensionSource: canonicalPlatformData?.extensionSource,
-      repositoryType: formData.type
+      repositoryType: formData.type,
+      sourceValidationResult: sourceValidationResult
     });
 
     return (
@@ -812,6 +945,26 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
             Select New Source
           </Button>
         </HStack>
+        
+        {/* Source Validation Alert */}
+        {sourceValidationResult && !sourceValidationResult.isValid && (
+          <Alert status="warning" borderRadius="md">
+            <AlertIcon />
+            <VStack align="start" spacing={2} flex={1}>
+              <Text fontWeight="bold">Source Validation Failed</Text>
+              <Text fontSize="sm">{sourceValidationResult.error}</Text>
+              {sourceValidationResult.showSourceSelection && (
+                <Button
+                  size="sm"
+                  colorScheme="blue"
+                  onClick={handleSelectNewSource}
+                >
+                  Select New Source
+                </Button>
+              )}
+            </VStack>
+          </Alert>
+        )}
         
         {formData.type === 'platform-extension' && (
           <Box p={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}>
@@ -834,6 +987,12 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
                       {canonicalPlatformData.extensionSource.filePath}
                     </Text>
                   </HStack>
+                  {sourceValidationResult?.isValid && (
+                    <HStack>
+                      <Text fontWeight="medium">Status:</Text>
+                      <Badge colorScheme="green" variant="subtle">Valid</Badge>
+                    </HStack>
+                  )}
                 </VStack>
               ) : (
                 <Alert status="info" borderRadius="md">
@@ -1078,13 +1237,13 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
         {/* Syntax Patterns - Editable for local platforms, read-only for external */}
         <Box mb={4}>
           <SyntaxPatternsEditor
-            syntaxPatterns={isLocalPlatform ? (formData.syntaxPatterns || {
+            syntaxPatterns={isLocalPlatform ? (formData.syntaxPatterns ?? {
               prefix: '',
               suffix: '',
               delimiter: '_',
               capitalization: 'none',
               formatString: ''
-            }) : (data.syntaxPatterns || {
+            }) : (data.syntaxPatterns ?? {
               prefix: '',
               suffix: '',
               delimiter: '_',
@@ -1181,7 +1340,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
                     <FormControl>
                       <FormLabel>Delimiter</FormLabel>
                       <Select
-                        value={formData.syntaxPatterns?.delimiter || '_'}
+                        value={formData.syntaxPatterns?.delimiter || ''}
                         onChange={(e) => setFormData({
                           ...formData,
                           syntaxPatterns: { ...formData.syntaxPatterns!, delimiter: e.target.value }
@@ -1197,7 +1356,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
                     <FormControl>
                       <FormLabel>Capitalization</FormLabel>
                       <Select
-                        value={formData.syntaxPatterns?.capitalization || 'none'}
+                        value={formData.syntaxPatterns?.capitalization ?? 'none'}
                         onChange={(e) => setFormData({
                           ...formData,
                           syntaxPatterns: { ...formData.syntaxPatterns!, capitalization: e.target.value }

@@ -2308,32 +2308,33 @@
   "platforms": [
     {
       "id": "platform-web",
-      "displayName": "Web"
+      "displayName": "Web",
+      "description": "Web platform for CSS and web applications",
+      "extensionSource": {
+        "repositoryUri": "company/design-system-web",
+        "filePath": "platform-extension.json"
+      },
+      "status": "active"
     },
     {
       "id": "platform-ios",
-      "displayName": "iOS"
+      "displayName": "iOS",
+      "description": "iOS platform for Swift and SwiftUI applications",
+      "extensionSource": {
+        "repositoryUri": "company/design-system-ios",
+        "filePath": "platform-extension.json"
+      },
+      "status": "active"
     },
     {
       "id": "platform-android",
-      "displayName": "Android"
-    }
-  ],
-  "platformExtensions": [
-    {
-      "platformId": "platform-web",
-      "repositoryUri": "company/design-system-web",
-      "filePath": "platform-extension.json"
-    },
-    {
-      "platformId": "platform-ios",
-      "repositoryUri": "company/design-system-ios",
-      "filePath": "platform-extension.json"
-    },
-    {
-      "platformId": "platform-android",
-      "repositoryUri": "company/design-system-android",
-      "filePath": "platform-extension.json"
+      "displayName": "Android",
+      "description": "Android platform for Kotlin and Jetpack Compose applications",
+      "extensionSource": {
+        "repositoryUri": "company/design-system-android",
+        "filePath": "platform-extension.json"
+      },
+      "status": "active"
     }
   ],
   "taxonomies": [
