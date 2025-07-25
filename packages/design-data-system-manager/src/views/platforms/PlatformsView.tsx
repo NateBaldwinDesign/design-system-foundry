@@ -27,7 +27,7 @@ import { PlatformEditDialog, PlatformEditData } from '../../components/PlatformE
 import { MultiRepositoryManager, MultiRepositoryData, RepositoryLink } from '../../services/multiRepositoryManager';
 import type { Platform, Taxonomy } from '@token-model/data-model';
 import { PlatformCreateData } from '../../components/PlatformCreateDialog';
-import { LuPencil, LuPlus, LuUnlink } from 'react-icons/lu';
+import { LuPencil, LuPlus, LuExternalLink } from 'react-icons/lu';
 import { PlatformAnalytics } from '../../components/PlatformAnalytics';
 import { CacheDebugPanel } from '../../components/CacheDebugPanel';
 import { ExtendedToken } from '../../components/TokenEditorDialog';
@@ -486,43 +486,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
     }
   };
 
-  const handleUnlinkRepository = async (linkId: string) => {
-    // Get the repository link to find the platform ID
-    const linkedRepositories = multiRepoManager.getLinkedRepositories();
-    const repository = linkedRepositories.find(link => link.id === linkId);
-    
-    // Unlink from MultiRepositoryManager
-    multiRepoManager.unlinkRepository(linkId);
-    
-    // Remove extension source from core data's platforms array
-    if (repository?.platformId) {
-      // Get current platforms from DataManager
-      const snapshot = dataManager.getCurrentSnapshot();
-      const currentPlatforms = snapshot.platforms;
-      
-      // Find the platform to update
-      const platformIndex = currentPlatforms.findIndex(p => p.id === repository.platformId);
-      
-      if (platformIndex !== -1) {
-        // Remove extension source from the platform
-        const updatedPlatforms = [...currentPlatforms];
-        const platformWithoutExtension = { ...updatedPlatforms[platformIndex] };
-        delete platformWithoutExtension.extensionSource;
-        updatedPlatforms[platformIndex] = platformWithoutExtension;
-        
-        // Update platforms through DataManager
-        updatePlatformsInDataManager(updatedPlatforms);
-      }
-    }
-    
-    toast({
-      title: 'Extension Removed',
-      description: 'Extension has been removed',
-      status: 'info',
-      duration: 3000,
-      isClosable: true
-    });
-  };
+
 
   const handleEditPlatform = (platform: Platform, linkedRepository?: RepositoryLink) => {
     // If there's a linked repository, use it for editing
@@ -1354,6 +1318,19 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                                 <Badge colorScheme="green" variant="subtle">External</Badge>
                               )
                             ) : null}
+                            {platform.extensionSource && platform.extensionSource.repositoryUri !== 'local' && (
+                              <Tooltip label="Open Repository on GitHub">
+                                <IconButton
+                                  aria-label="Open repository on GitHub"
+                                  size="sm"
+                                  icon={<LuExternalLink />}
+                                  onClick={() => {
+                                    const repoUrl = `https://github.com/${platform.extensionSource!.repositoryUri}`;
+                                    window.open(repoUrl, '_blank');
+                                  }}
+                                />
+                              </Tooltip>
+                            )}
                             <Tooltip label="Edit Platform">
                               <IconButton
                                 aria-label="Edit platform"
@@ -1362,17 +1339,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                                 onClick={() => handleEditPlatform(platform, linkedRepository)}
                               />
                             </Tooltip>
-                            {linkedRepository && (
-                              <Tooltip label="Remove Extension">
-                                <IconButton
-                                  aria-label="Remove extension"
-                                  colorScheme="red"
-                                  size="sm"
-                                  icon={<LuUnlink />}
-                                  onClick={() => handleUnlinkRepository(linkedRepository.id)}
-                                />
-                              </Tooltip>
-                            )}
+                            
                           </HStack>
                         </HStack>
                       </Box>
