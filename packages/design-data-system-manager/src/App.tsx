@@ -39,6 +39,7 @@ import { useViewState } from './hooks/useViewState';
 import { ViewRenderer } from './components/ViewRenderer';
 import { ChangeTrackingService } from './services/changeTrackingService';
 import { DataManager, type DataSnapshot } from './services/dataManager';
+import { MultiRepositoryManager } from './services/multiRepositoryManager';
 
 const App = () => {
   const { schema } = useSchema();
@@ -70,7 +71,7 @@ const App = () => {
     fullName: string;
     branch: string;
     filePath: string;
-    fileType: 'schema' | 'theme-override';
+    fileType: 'schema' | 'theme-override' | 'platform-extension';
   } | null>(null);
   const toast = useToast();
 
@@ -80,6 +81,16 @@ const App = () => {
 
   // Helper function to create a data snapshot for change tracking
   const createDataSnapshot = useCallback(() => {
+    // Get platform extensions from MultiRepositoryManager
+    const multiRepoManager = MultiRepositoryManager.getInstance();
+    const multiRepoData = multiRepoManager.getCurrentData();
+    
+    // Convert Map to plain object for serialization
+    const platformExtensions: Record<string, unknown> = {};
+    multiRepoData.platformExtensions.forEach((extension, platformId) => {
+      platformExtensions[platformId] = extension;
+    });
+
     return {
       collections: StorageService.getCollections(),
       modes: StorageService.getModes(),
@@ -93,6 +104,7 @@ const App = () => {
       namingRules: StorageService.getNamingRules(),
       dimensionOrder: StorageService.getDimensionOrder(),
       algorithmFile: StorageService.getAlgorithmFile(),
+      platformExtensions,
     };
   }, []);
 
@@ -101,9 +113,13 @@ const App = () => {
     const currentSnapshot = createDataSnapshot();
     // Get the current baseline data from ChangeTrackingService to ensure we have the latest
     const baselineSnapshot = ChangeTrackingService.getBaselineDataSnapshot();
+    
+    // If no baseline exists, use current data as baseline (this should only happen on initial load)
+    const effectiveBaseline = baselineSnapshot || currentSnapshot;
+    
     setChangeLogData({
       currentData: currentSnapshot,
-      baselineData: baselineSnapshot
+      baselineData: effectiveBaseline
     });
   }, [createDataSnapshot]);
 
@@ -135,11 +151,8 @@ const App = () => {
             setTaxonomyOrder(snapshot.namingRules.taxonomyOrder);
             setDimensionOrder(snapshot.dimensionOrder);
             
-            // Update change log data
-            setChangeLogData({
-              currentData: snapshot as unknown as Record<string, unknown>,
-              baselineData: snapshot as unknown as Record<string, unknown>
-            });
+            // Update change log data - use the baseline that was set by DataManager
+            updateChangeLogData();
             
             setLoading(false);
           },
@@ -208,6 +221,8 @@ const App = () => {
     // Listen for GitHub file loaded events from GitHubCallback
     const handleGitHubFileLoaded = () => {
       checkGitHubConnection();
+      // Refresh App component state from storage to reflect the new GitHub data
+      refreshDataFromStorage();
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -435,6 +450,9 @@ const App = () => {
       
       // Load data via DataManager
       await dataManager.loadFromGitHub(fileContent, fileType);
+      
+      // Refresh App component state from storage to reflect the new GitHub data
+      refreshDataFromStorage();
       
       toast({
         title: 'Data Loaded',

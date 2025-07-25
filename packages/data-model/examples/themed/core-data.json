@@ -2295,46 +2295,46 @@
       ]
     }
   ],
-  "platforms": [
-    {
-      "id": "platform-figma",
-      "displayName": "Figma",
-      "syntaxPatterns": {
-        "prefix": "",
-        "suffix": "",
-        "delimiter": "/",
-        "capitalization": "capitalize"
-      }
+  "figmaConfiguration": {
+    "syntaxPatterns": {
+      "prefix": "",
+      "suffix": "",
+      "delimiter": "/",
+      "capitalization": "capitalize",
+      "formatString": ""
     },
+    "fileKey": "default-design-system-figma"
+  },
+  "platforms": [
     {
       "id": "platform-web",
       "displayName": "Web",
-      "syntaxPatterns": {
-        "prefix": "--",
-        "suffix": "",
-        "delimiter": "-",
-        "capitalization": "lowercase"
-      }
+      "description": "Web platform for CSS and web applications",
+      "extensionSource": {
+        "repositoryUri": "company/design-system-web",
+        "filePath": "platform-extension.json"
+      },
+      "status": "active"
     },
     {
       "id": "platform-ios",
       "displayName": "iOS",
-      "syntaxPatterns": {
-        "prefix": "",
-        "suffix": "",
-        "delimiter": "",
-        "capitalization": "capitalize"
-      }
+      "description": "iOS platform for Swift and SwiftUI applications",
+      "extensionSource": {
+        "repositoryUri": "company/design-system-ios",
+        "filePath": "platform-extension.json"
+      },
+      "status": "active"
     },
     {
       "id": "platform-android",
       "displayName": "Android",
-      "syntaxPatterns": {
-        "prefix": "",
-        "suffix": "",
-        "delimiter": ".",
-        "capitalization": "uppercase"
-      }
+      "description": "Android platform for Kotlin and Jetpack Compose applications",
+      "extensionSource": {
+        "repositoryUri": "company/design-system-android",
+        "filePath": "platform-extension.json"
+      },
+      "status": "active"
     }
   ],
   "taxonomies": [

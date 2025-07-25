@@ -262,7 +262,7 @@ export const TokenVariant = z.object({
 // Add enum for delimiter
 export const PlatformDelimiter = z.enum(['', '_', '-', '.', '/']);
 
-// Update Platform schema to include syntaxPatterns
+// Update Platform schema to include syntaxPatterns and extensionSource
 export const Platform = z.object({
   id: z.string(),
   displayName: z.string(),
@@ -271,14 +271,87 @@ export const Platform = z.object({
     prefix: z.string().optional(),
     suffix: z.string().optional(),
     delimiter: PlatformDelimiter.optional(),
-    capitalization: z.enum(['none', 'uppercase', 'lowercase', 'capitalize']).optional(),
+    capitalization: z.enum(['none', 'camel', 'uppercase', 'lowercase', 'capitalize']).optional(),
     formatString: z.string().optional()
   }).optional(),
   valueFormatters: z.object({
     color: z.enum(['hex', 'rgb', 'rgba', 'hsl', 'hsla']).optional(),
     dimension: z.enum(['px', 'rem', 'em', 'pt', 'dp', 'sp']).optional(),
     numberPrecision: z.number().int().min(0).max(10).optional()
+  }).optional(),
+  extensionSource: z.object({
+    repositoryUri: z.string(),
+    filePath: z.string()
   }).optional()
+}).refine((data) => {
+  // Platforms can have either syntaxPatterns/valueFormatters OR extensionSource, but not both
+  if (data.extensionSource) {
+    return !data.syntaxPatterns && !data.valueFormatters;
+  }
+  return true;
+}, {
+  message: "Platforms can have either core patterns or extension source, but not both."
+});
+
+// Platform Extension Schema (for standalone platform extension files)
+export const PlatformExtension = z.object({
+  systemId: z.string(),
+  platformId: z.string(),
+  version: z.string(),
+  figmaFileKey: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  metadata: z.object({
+    name: z.string().optional(),
+    description: z.string().optional(),
+    maintainer: z.string().optional(),
+    lastUpdated: z.string().optional(),
+    repositoryVisibility: z.enum(['public', 'private']).optional()
+  }).optional(),
+  syntaxPatterns: z.object({
+    prefix: z.string().optional(),
+    suffix: z.string().optional(),
+    delimiter: PlatformDelimiter.optional(),
+    capitalization: z.enum(['camel', 'uppercase', 'lowercase', 'capitalize']).optional(),
+    formatString: z.string().optional()
+  }).optional(),
+  valueFormatters: z.object({
+    color: z.enum(['hex', 'rgb', 'rgba', 'hsl', 'hsla']).optional(),
+    dimension: z.enum(['px', 'rem', 'em', 'pt', 'dp', 'sp']).optional(),
+    numberPrecision: z.number().int().min(0).max(10).optional()
+  }).optional(),
+  algorithmVariableOverrides: z.array(z.object({
+    algorithmId: z.string(),
+    variableId: z.string(),
+    valuesByMode: z.array(z.object({
+      modeIds: z.array(z.string()),
+      value: z.union([z.string(), z.number(), z.boolean()])
+    }))
+  })).optional(),
+  tokenOverrides: z.array(z.object({
+    id: z.string(),
+    displayName: z.string().optional(),
+    description: z.string().optional(),
+    themeable: z.boolean().optional(),
+    private: z.boolean().optional(),
+    status: z.string().optional(),
+    tokenTier: z.string().optional(),
+    resolvedValueTypeId: z.string().optional(),
+    generatedByAlgorithm: z.boolean().optional(),
+    algorithmId: z.string().optional(),
+    taxonomies: z.array(z.any()).optional(),
+    propertyTypes: z.array(z.any()).optional(),
+    codeSyntax: z.array(z.any()).optional(),
+    valuesByMode: z.array(z.object({
+      modeIds: z.array(z.string()),
+      value: z.union([
+        z.object({ value: z.any() }),
+        z.object({ tokenId: z.string() })
+      ]),
+      metadata: z.any().optional()
+    })),
+    omit: z.boolean().optional()
+  })).optional(),
+  omittedModes: z.array(z.string()).optional(),
+  omittedDimensions: z.array(z.string()).optional()
 });
 
 // Theme schema
@@ -308,6 +381,29 @@ export const ThemeOverride = z.object({
 
 // ThemeOverrides object: { [themeId: string]: ThemeOverride[] }
 export const ThemeOverrides = z.record(z.array(ThemeOverride));
+
+// Theme Override File schema (for standalone theme override files)
+export const ThemeOverrideFile = z.object({
+  systemId: z.string(),
+  themeId: z.string(),
+  figmaFileKey: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  tokenOverrides: z.array(z.object({
+    tokenId: z.string(),
+    valuesByMode: z.array(z.object({
+      modeIds: z.array(z.string()),
+      value: z.union([
+        z.object({ value: z.any() }),
+        z.object({ tokenId: z.string() })
+      ]),
+      platformOverrides: z.array(z.object({
+        platformId: z.string(),
+        value: z.any(),
+        metadata: z.any().optional()
+      })).optional(),
+      metadata: z.any().optional()
+    }))
+  }))
+});
 
 // TaxonomyTerm schema
 export const TaxonomyTerm = z.object({
@@ -348,11 +444,21 @@ export const DimensionEvolution = z.object({
   rules: z.array(DimensionEvolutionRule)
 });
 
-// Update TokenSystem to require platforms
+// Update TokenSystem to require platforms and include platform extensions registry
 export const TokenSystem = z.object({
   systemName: z.string(),
   systemId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
   description: z.string().optional(),
+  figmaConfiguration: z.object({
+    syntaxPatterns: z.object({
+      prefix: z.string().optional(),
+      suffix: z.string().optional(),
+      delimiter: z.enum(['', '_', '-', '.', '/']).optional(),
+      capitalization: z.enum(['camel', 'uppercase', 'lowercase', 'capitalize']).optional(),
+      formatString: z.string().optional()
+    }).optional(),
+    fileKey: z.string()
+  }).optional(),
   version: z.string(),
   versionHistory: z.array(VersionHistoryEntry),
   dimensionEvolution: DimensionEvolution.optional(),
@@ -361,6 +467,11 @@ export const TokenSystem = z.object({
   tokenCollections: z.array(TokenCollection),
   tokens: z.array(Token),
   platforms: z.array(Platform),
+  platformExtensions: z.array(z.object({
+    platformId: z.string(),
+    repositoryUri: z.string(),
+    filePath: z.string()
+  })).optional(),
   themes: z.array(Theme).optional(),
   themeOverrides: ThemeOverrides.optional(),
   taxonomies: z.array(Taxonomy),
@@ -448,8 +559,12 @@ export const validateThemeOverrides = (data: unknown): ThemeOverrides => {
   return ThemeOverrides.parse(data);
 };
 
-export const validateTaxonomy = (data: unknown): Taxonomy => {
-  return Taxonomy.parse(data);
+export const validateThemeOverrideFile = (data: unknown): ThemeOverrideFile => {
+  return ThemeOverrideFile.parse(data);
+};
+
+export const validatePlatformExtension = (data: unknown): PlatformExtension => {
+  return PlatformExtension.parse(data);
 };
 
 /**
@@ -533,6 +648,7 @@ export type PlatformOverride = z.infer<typeof PlatformOverride>;
 export type Theme = z.infer<typeof Theme>;
 export type ThemeOverride = z.infer<typeof ThemeOverride>;
 export type ThemeOverrides = z.infer<typeof ThemeOverrides>;
+export type ThemeOverrideFile = z.infer<typeof ThemeOverrideFile>;
 export type TaxonomyTerm = z.infer<typeof TaxonomyTerm>;
 export type Taxonomy = z.infer<typeof Taxonomy>;
 export type TokenSystem = z.infer<typeof TokenSystem>;
@@ -542,4 +658,19 @@ export type VersionHistoryEntry = z.infer<typeof VersionHistoryEntry>;
 export type DimensionEvolutionRule = z.infer<typeof DimensionEvolutionRule>;
 export type DimensionEvolution = z.infer<typeof DimensionEvolution>;
 export type TokenTier = z.infer<typeof TokenTier>;
-export type PropertyType = z.infer<typeof PropertyType>; 
+export type PropertyType = z.infer<typeof PropertyType>;
+export type PlatformExtension = z.infer<typeof PlatformExtension>;
+
+// Figma Configuration type
+export const FigmaConfiguration = z.object({
+  syntaxPatterns: z.object({
+    prefix: z.string().optional(),
+    suffix: z.string().optional(),
+    delimiter: z.enum(['', '_', '-', '.', '/']).optional(),
+    capitalization: z.enum(['camel', 'uppercase', 'lowercase', 'capitalize']).optional(),
+    formatString: z.string().optional()
+  }).optional(),
+  fileKey: z.string()
+});
+
+export type FigmaConfiguration = z.infer<typeof FigmaConfiguration>; 

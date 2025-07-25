@@ -55,6 +55,9 @@ const getEntityIcon = (entityType: string) => {
     case 'algorithm': return FunctionSquareIcon;
     case 'collection': return Database;
     case 'platform': return Settings;
+    case 'platformExtension': return Settings;
+    case 'platformExtensionFile': return FileCode;
+    case 'repository': return Database;
     default: return FileCode;
   }
 };
@@ -264,6 +267,122 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
   // Handle null/undefined data
   if (!previousData || !currentData) {
     return changes;
+  }
+
+  // Compare linked repositories
+  const oldRepositories = (previousData.linkedRepositories as unknown[]) || [];
+  const newRepositories = (currentData.linkedRepositories as unknown[]) || [];
+  
+  const oldRepoMap = new Map();
+  const newRepoMap = new Map();
+
+  oldRepositories.forEach((r: unknown) => {
+    if (typeof r === 'object' && r !== null) {
+      const repo = r as { id?: string };
+      if (repo.id) {
+        oldRepoMap.set(repo.id, repo);
+      }
+    }
+  });
+
+  newRepositories.forEach((r: unknown) => {
+    if (typeof r === 'object' && r !== null) {
+      const repo = r as { id?: string };
+      if (repo.id) {
+        newRepoMap.set(repo.id, repo);
+      }
+    }
+  });
+
+  // Check for added repositories
+  for (const [id, repo] of newRepoMap) {
+    if (!oldRepoMap.has(id)) {
+      const repoObj = repo as { type?: string; repositoryUri?: string };
+      changes.push({
+        type: 'added',
+        entityType: 'repository',
+        entityId: id,
+        entityName: `${repoObj.type || 'unknown'} repository`,
+        changes: [{
+          field: 'repository',
+          newValue: `Added ${repoObj.type || 'unknown'} repository: ${repoObj.repositoryUri || id}`,
+        }],
+      });
+    }
+  }
+
+  // Check for removed repositories
+  for (const [id, repo] of oldRepoMap) {
+    if (!newRepoMap.has(id)) {
+      const repoObj = repo as { type?: string; repositoryUri?: string };
+      changes.push({
+        type: 'removed',
+        entityType: 'repository',
+        entityId: id,
+        entityName: `${repoObj.type || 'unknown'} repository`,
+        changes: [{
+          field: 'repository',
+          oldValue: `Removed ${repoObj.type || 'unknown'} repository: ${repoObj.repositoryUri || id}`,
+        }],
+      });
+    }
+  }
+
+  // Compare platform extensions
+  const oldExtensions = Object.values(previousData.platformExtensions as Record<string, unknown> || {});
+  const newExtensions = Object.values(currentData.platformExtensions as Record<string, unknown> || {});
+  
+  const oldExtMap = new Map();
+  const newExtMap = new Map();
+
+  oldExtensions.forEach((e: unknown) => {
+    if (typeof e === 'object' && e !== null) {
+      const ext = e as { platformId?: string };
+      if (ext.platformId) {
+        oldExtMap.set(ext.platformId, ext);
+      }
+    }
+  });
+
+  newExtensions.forEach((e: unknown) => {
+    if (typeof e === 'object' && e !== null) {
+      const ext = e as { platformId?: string };
+      if (ext.platformId) {
+        newExtMap.set(ext.platformId, ext);
+      }
+    }
+  });
+
+  // Check for added extensions
+  for (const [id] of newExtMap) {
+    if (!oldExtMap.has(id)) {
+      changes.push({
+        type: 'added',
+        entityType: 'platformExtension',
+        entityId: id,
+        entityName: `Platform Extension: ${id}`,
+        changes: [{
+          field: 'extension',
+          newValue: `Added platform extension for: ${id}`,
+        }],
+      });
+    }
+  }
+
+  // Check for removed extensions
+  for (const [id] of oldExtMap) {
+    if (!newExtMap.has(id)) {
+      changes.push({
+        type: 'removed',
+        entityType: 'platformExtension',
+        entityId: id,
+        entityName: `Platform Extension: ${id}`,
+        changes: [{
+          field: 'extension',
+          oldValue: `Removed platform extension for: ${id}`,
+        }],
+      });
+    }
   }
 
   // Compare tokens
@@ -841,6 +960,438 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
     }
   }
 
+  // Compare platform extensions
+  const oldPlatformExtensions = (previousData.platformExtensions as Record<string, unknown>) || {};
+  const newPlatformExtensions = (currentData.platformExtensions as Record<string, unknown>) || {};
+  
+  const oldPlatformExtensionIds = Object.keys(oldPlatformExtensions);
+  const newPlatformExtensionIds = Object.keys(newPlatformExtensions);
+  
+  // Check for added platform extensions
+  for (const platformId of newPlatformExtensionIds) {
+    if (!oldPlatformExtensionIds.includes(platformId)) {
+      const platformExtension = newPlatformExtensions[platformId] as { platformId?: string; metadata?: { name?: string } };
+      const displayName = platformExtension.metadata?.name || platformExtension.platformId || platformId;
+      changes.push({
+        type: 'added',
+        entityType: 'platformExtension',
+        entityId: platformId,
+        entityName: displayName,
+        changes: [{
+          field: 'platformExtension',
+          newValue: `Added platform extension: ${displayName}`,
+        }],
+      });
+    } else {
+      // Check for modified platform extensions
+      const oldExtension = oldPlatformExtensions[platformId] as Record<string, unknown>;
+      const newExtension = newPlatformExtensions[platformId] as Record<string, unknown>;
+      
+      const extensionChanges: Array<{
+        field: string;
+        oldValue?: unknown;
+        newValue?: unknown;
+        context?: string;
+      }> = [];
+
+      // Compare metadata
+      const oldMetadata = oldExtension.metadata as Record<string, unknown> || {};
+      const newMetadata = newExtension.metadata as Record<string, unknown> || {};
+      
+      ['name', 'description', 'maintainer', 'lastUpdated'].forEach(field => {
+        if (oldMetadata[field] !== newMetadata[field]) {
+          extensionChanges.push({
+            field: `metadata.${field}`,
+            oldValue: formatValue(oldMetadata[field]),
+            newValue: formatValue(newMetadata[field]),
+          });
+        }
+      });
+
+      // Compare version
+      if (oldExtension.version !== newExtension.version) {
+        extensionChanges.push({
+          field: 'version',
+          oldValue: formatValue(oldExtension.version),
+          newValue: formatValue(newExtension.version),
+        });
+      }
+
+      // Compare syntax patterns
+      const oldSyntaxPatterns = oldExtension.syntaxPatterns as Record<string, unknown> || {};
+      const newSyntaxPatterns = newExtension.syntaxPatterns as Record<string, unknown> || {};
+      
+      ['prefix', 'suffix', 'delimiter', 'capitalization', 'formatString'].forEach(field => {
+        if (oldSyntaxPatterns[field] !== newSyntaxPatterns[field]) {
+          extensionChanges.push({
+            field: `syntaxPatterns.${field}`,
+            oldValue: formatValue(oldSyntaxPatterns[field]),
+            newValue: formatValue(newSyntaxPatterns[field]),
+          });
+        }
+      });
+
+      // Compare value formatters
+      const oldValueFormatters = oldExtension.valueFormatters as Record<string, unknown> || {};
+      const newValueFormatters = newExtension.valueFormatters as Record<string, unknown> || {};
+      
+      ['color', 'dimension', 'numberPrecision'].forEach(field => {
+        if (oldValueFormatters[field] !== newValueFormatters[field]) {
+          extensionChanges.push({
+            field: `valueFormatters.${field}`,
+            oldValue: formatValue(oldValueFormatters[field]),
+            newValue: formatValue(newValueFormatters[field]),
+          });
+        }
+      });
+
+      // Compare algorithm variable overrides
+      const oldAlgorithmOverrides = oldExtension.algorithmVariableOverrides as unknown[] || [];
+      const newAlgorithmOverrides = newExtension.algorithmVariableOverrides as unknown[] || [];
+      
+      if (oldAlgorithmOverrides.length !== newAlgorithmOverrides.length) {
+        extensionChanges.push({
+          field: 'algorithmVariableOverrides',
+          oldValue: `${oldAlgorithmOverrides.length} overrides`,
+          newValue: `${newAlgorithmOverrides.length} overrides`,
+        });
+      }
+
+      // Compare token overrides
+      const oldTokenOverrides = oldExtension.tokenOverrides as unknown[] || [];
+      const newTokenOverrides = newExtension.tokenOverrides as unknown[] || [];
+      
+      if (oldTokenOverrides.length !== newTokenOverrides.length) {
+        extensionChanges.push({
+          field: 'tokenOverrides',
+          oldValue: `${oldTokenOverrides.length} overrides`,
+          newValue: `${newTokenOverrides.length} overrides`,
+        });
+      }
+
+      // Compare omitted modes and dimensions
+      const oldOmittedModes = oldExtension.omittedModes as string[] || [];
+      const newOmittedModes = newExtension.omittedModes as string[] || [];
+      
+      if (JSON.stringify(oldOmittedModes.sort()) !== JSON.stringify(newOmittedModes.sort())) {
+        extensionChanges.push({
+          field: 'omittedModes',
+          oldValue: oldOmittedModes.length > 0 ? oldOmittedModes.join(', ') : 'none',
+          newValue: newOmittedModes.length > 0 ? newOmittedModes.join(', ') : 'none',
+        });
+      }
+
+      const oldOmittedDimensions = oldExtension.omittedDimensions as string[] || [];
+      const newOmittedDimensions = newExtension.omittedDimensions as string[] || [];
+      
+      if (JSON.stringify(oldOmittedDimensions.sort()) !== JSON.stringify(newOmittedDimensions.sort())) {
+        extensionChanges.push({
+          field: 'omittedDimensions',
+          oldValue: oldOmittedDimensions.length > 0 ? oldOmittedDimensions.join(', ') : 'none',
+          newValue: newOmittedDimensions.length > 0 ? newOmittedDimensions.join(', ') : 'none',
+        });
+      }
+
+      if (extensionChanges.length > 0) {
+        const newMetadata = newExtension.metadata as Record<string, unknown> || {};
+        const displayName = (newMetadata.name as string) || (newExtension.platformId as string) || platformId;
+        changes.push({
+          type: 'modified',
+          entityType: 'platformExtension',
+          entityId: platformId,
+          entityName: displayName,
+          changes: extensionChanges,
+        });
+      }
+    }
+  }
+
+  // Check for removed platform extensions
+  for (const platformId of oldPlatformExtensionIds) {
+    if (!newPlatformExtensionIds.includes(platformId)) {
+      const platformExtension = oldPlatformExtensions[platformId] as { platformId?: string; metadata?: { name?: string } };
+      const displayName = platformExtension.metadata?.name || platformExtension.platformId || platformId;
+      changes.push({
+        type: 'removed',
+        entityType: 'platformExtension',
+        entityId: platformId,
+        entityName: displayName,
+        changes: [{
+          field: 'platformExtension',
+          oldValue: `Removed platform extension: ${displayName}`,
+        }],
+      });
+    }
+  }
+
+  // Compare platform extensions
+  const oldPlatformExtensionFiles = (previousData.platformExtensionFiles as Record<string, unknown>) || {};
+  const newPlatformExtensionFiles = (currentData.platformExtensionFiles as Record<string, unknown>) || {};
+  
+  const oldPlatformExtensionFileIds = Object.keys(oldPlatformExtensionFiles);
+  const newPlatformExtensionFileIds = Object.keys(newPlatformExtensionFiles);
+  
+  // Check for added platform extension files
+  for (const platformId of newPlatformExtensionFileIds) {
+    if (!oldPlatformExtensionFileIds.includes(platformId)) {
+      const platformExtensionFile = newPlatformExtensionFiles[platformId] as { platformId?: string; metadata?: { name?: string } };
+      const displayName = platformExtensionFile.metadata?.name || platformExtensionFile.platformId || platformId;
+      changes.push({
+        type: 'added',
+        entityType: 'platformExtensionFile',
+        entityId: platformId,
+        entityName: displayName,
+        changes: [{
+          field: 'platformExtensionFile',
+          newValue: `Added platform extension file: ${displayName}`,
+        }],
+      });
+    } else {
+      // Check for modified platform extension files
+      const oldFile = oldPlatformExtensionFiles[platformId] as Record<string, unknown>;
+      const newFile = newPlatformExtensionFiles[platformId] as Record<string, unknown>;
+      
+      const fileChanges: Array<{
+        field: string;
+        oldValue?: unknown;
+        newValue?: unknown;
+        context?: string;
+      }> = [];
+
+      // Compare metadata
+      const oldMetadata = oldFile.metadata as Record<string, unknown> || {};
+      const newMetadata = newFile.metadata as Record<string, unknown> || {};
+      
+      ['name', 'description', 'maintainer', 'lastUpdated'].forEach(field => {
+        if (oldMetadata[field] !== newMetadata[field]) {
+          fileChanges.push({
+            field: `metadata.${field}`,
+            oldValue: formatValue(oldMetadata[field]),
+            newValue: formatValue(newMetadata[field]),
+          });
+        }
+      });
+
+      // Compare version
+      if (oldFile.version !== newFile.version) {
+        fileChanges.push({
+          field: 'version',
+          oldValue: formatValue(oldFile.version),
+          newValue: formatValue(newFile.version),
+        });
+      }
+
+      // Compare syntax patterns
+      const oldSyntaxPatterns = oldFile.syntaxPatterns as Record<string, unknown> || {};
+      const newSyntaxPatterns = newFile.syntaxPatterns as Record<string, unknown> || {};
+      
+      ['prefix', 'suffix', 'delimiter', 'capitalization', 'formatString'].forEach(field => {
+        if (oldSyntaxPatterns[field] !== newSyntaxPatterns[field]) {
+          fileChanges.push({
+            field: `syntaxPatterns.${field}`,
+            oldValue: formatValue(oldSyntaxPatterns[field]),
+            newValue: formatValue(newSyntaxPatterns[field]),
+          });
+        }
+      });
+
+      // Compare value formatters
+      const oldValueFormatters = oldFile.valueFormatters as Record<string, unknown> || {};
+      const newValueFormatters = newFile.valueFormatters as Record<string, unknown> || {};
+      
+      ['color', 'dimension', 'numberPrecision'].forEach(field => {
+        if (oldValueFormatters[field] !== newValueFormatters[field]) {
+          fileChanges.push({
+            field: `valueFormatters.${field}`,
+            oldValue: formatValue(oldValueFormatters[field]),
+            newValue: formatValue(newValueFormatters[field]),
+          });
+        }
+      });
+
+      if (fileChanges.length > 0) {
+        const newMetadata = newFile.metadata as Record<string, unknown> || {};
+        const displayName = (newMetadata.name as string) || (newFile.platformId as string) || platformId;
+        changes.push({
+          type: 'modified',
+          entityType: 'platformExtensionFile',
+          entityId: platformId,
+          entityName: displayName,
+          changes: fileChanges,
+        });
+      }
+    }
+  }
+
+  // Check for removed platform extension files
+  for (const platformId of oldPlatformExtensionFileIds) {
+    if (!newPlatformExtensionFileIds.includes(platformId)) {
+      const platformExtensionFile = oldPlatformExtensionFiles[platformId] as { platformId?: string; metadata?: { name?: string } };
+      const displayName = platformExtensionFile.metadata?.name || platformExtensionFile.platformId || platformId;
+      changes.push({
+        type: 'removed',
+        entityType: 'platformExtensionFile',
+        entityId: platformId,
+        entityName: displayName,
+        changes: [{
+          field: 'platformExtensionFile',
+          oldValue: `Removed platform extension file: ${displayName}`,
+        }],
+      });
+    }
+  }
+
+  // Compare platforms (core data platforms array)
+  const oldPlatforms = (previousData.platforms as unknown[]) || [];
+  const newPlatforms = (currentData.platforms as unknown[]) || [];
+  
+
+  
+  const oldPlatformMap = new Map();
+  const newPlatformMap = new Map();
+
+  oldPlatforms.forEach((p: unknown) => {
+    if (typeof p === 'object' && p !== null) {
+      const platform = p as { id?: string };
+      if (platform.id) {
+        oldPlatformMap.set(platform.id, platform);
+      }
+    }
+  });
+
+  newPlatforms.forEach((p: unknown) => {
+    if (typeof p === 'object' && p !== null) {
+      const platform = p as { id?: string };
+      if (platform.id) {
+        newPlatformMap.set(platform.id, platform);
+      }
+    }
+  });
+
+  // Check for added platforms
+  for (const [id, platform] of newPlatformMap) {
+    if (!oldPlatformMap.has(id)) {
+      const platformObj = platform as { displayName?: string };
+
+      changes.push({
+        type: 'added',
+        entityType: 'platform',
+        entityId: id,
+        entityName: platformObj.displayName || id,
+        changes: [{
+          field: 'platform',
+          newValue: `Added platform: ${platformObj.displayName || id}`,
+        }],
+      });
+    } else {
+      // Check for modified platforms
+      const oldPlatform = oldPlatformMap.get(id);
+      const platformChanges: Array<{
+        field: string;
+        oldValue?: unknown;
+        newValue?: unknown;
+        context?: string;
+      }> = [];
+
+      const oldPlatformObj = oldPlatform as Record<string, unknown>;
+      const platformObj = platform as Record<string, unknown>;
+
+      // Compare basic fields
+      ['displayName', 'description'].forEach(field => {
+        if (oldPlatformObj[field] !== platformObj[field]) {
+          platformChanges.push({
+            field,
+            oldValue: formatValue(oldPlatformObj[field]),
+            newValue: formatValue(platformObj[field]),
+          });
+        }
+      });
+
+      // Compare syntax patterns
+      const oldSyntaxPatterns = oldPlatformObj.syntaxPatterns as Record<string, unknown> || {};
+      const newSyntaxPatterns = platformObj.syntaxPatterns as Record<string, unknown> || {};
+      
+      ['prefix', 'suffix', 'delimiter', 'capitalization', 'formatString'].forEach(field => {
+        if (oldSyntaxPatterns[field] !== newSyntaxPatterns[field]) {
+          platformChanges.push({
+            field: `syntaxPatterns.${field}`,
+            oldValue: formatValue(oldSyntaxPatterns[field]),
+            newValue: formatValue(newSyntaxPatterns[field]),
+          });
+        }
+      });
+
+      // Compare value formatters
+      const oldValueFormatters = oldPlatformObj.valueFormatters as Record<string, unknown> || {};
+      const newValueFormatters = platformObj.valueFormatters as Record<string, unknown> || {};
+      
+      ['color', 'dimension', 'numberPrecision'].forEach(field => {
+        if (oldValueFormatters[field] !== newValueFormatters[field]) {
+          platformChanges.push({
+            field: `valueFormatters.${field}`,
+            oldValue: formatValue(oldValueFormatters[field]),
+            newValue: formatValue(newValueFormatters[field]),
+          });
+        }
+      });
+
+      // Compare extension source (this is the key change from PlatformsView)
+      const oldExtensionSource = oldPlatformObj.extensionSource as Record<string, unknown> | undefined;
+      const newExtensionSource = platformObj.extensionSource as Record<string, unknown> | undefined;
+      
+      if (!oldExtensionSource && newExtensionSource) {
+        // Extension source was added
+        platformChanges.push({
+          field: 'extensionSource',
+          newValue: `Linked to extension: ${newExtensionSource.repositoryUri || 'unknown'} - ${newExtensionSource.filePath || 'unknown'}`,
+        });
+      } else if (oldExtensionSource && !newExtensionSource) {
+        // Extension source was removed
+        platformChanges.push({
+          field: 'extensionSource',
+          oldValue: `Unlinked from extension: ${oldExtensionSource.repositoryUri || 'unknown'} - ${oldExtensionSource.filePath || 'unknown'}`,
+        });
+      } else if (oldExtensionSource && newExtensionSource) {
+        // Extension source was modified
+        if (oldExtensionSource.repositoryUri !== newExtensionSource.repositoryUri || 
+            oldExtensionSource.filePath !== newExtensionSource.filePath) {
+          platformChanges.push({
+            field: 'extensionSource',
+            oldValue: `${oldExtensionSource.repositoryUri || 'unknown'} - ${oldExtensionSource.filePath || 'unknown'}`,
+            newValue: `${newExtensionSource.repositoryUri || 'unknown'} - ${newExtensionSource.filePath || 'unknown'}`,
+          });
+        }
+      }
+
+      if (platformChanges.length > 0) {
+        changes.push({
+          type: 'modified',
+          entityType: 'platform',
+          entityId: id,
+          entityName: platformObj.displayName as string || id,
+          changes: platformChanges,
+        });
+      }
+    }
+  }
+
+  // Check for removed platforms
+  for (const [id, platform] of oldPlatformMap) {
+    if (!newPlatformMap.has(id)) {
+      const platformObj = platform as { displayName?: string };
+      changes.push({
+        type: 'removed',
+        entityType: 'platform',
+        entityId: id,
+        entityName: platformObj.displayName || id,
+        changes: [{
+          field: 'platform',
+          oldValue: `Removed platform: ${platformObj.displayName || id}`,
+        }],
+      });
+    }
+  }
+
   return changes;
 };
 
@@ -855,6 +1406,8 @@ export const ChangeLog: React.FC<ChangeLogProps> = ({ previousData, currentData 
       </Box>
     );
   }
+  
+
   
   // Use the previousData prop directly instead of managing internal baseline
   const changes = detectChanges(previousData, currentData);

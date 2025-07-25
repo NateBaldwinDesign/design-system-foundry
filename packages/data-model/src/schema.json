@@ -19,6 +19,52 @@
         "type": "string",
         "description": "Description of the design system"
       },
+      "figmaConfiguration": {
+        "type": "object",
+        "description": "Figma publishing configuration for design tool integration",
+        "required": ["fileKey"],
+        "properties": {
+          "syntaxPatterns": {
+            "type": "object",
+            "description": "Patterns for generating Figma token names",
+            "properties": {
+              "prefix": {
+                "type": "string",
+                "description": "Prefix to add before token names"
+              },
+              "suffix": {
+                "type": "string",
+                "description": "Suffix to add after token names"
+              },
+              "delimiter": {
+                "type": "string",
+                "description": "Delimiter to use between token name parts.",
+                "enum": ["", "_", "-", ".", "/"],
+                "enumDescriptions": [
+                  "None (no delimiter)",
+                  "Underscore (_)",
+                  "Hyphen (-)",
+                  "Dot (.)",
+                  "Forward slash (/)"
+                ]
+              },
+              "capitalization": {
+                "type": "string",
+                "enum": ["camel", "uppercase", "lowercase", "capitalize"],
+                "description": "Capitalization style for token names"
+              },
+              "formatString": {
+                "type": "string",
+                "description": "Template string for formatting token names, using {name} as placeholder"
+              }
+            }
+          },
+          "fileKey": {
+            "type": "string",
+            "description": "Default Figma file key for publishing core tokens"
+          }
+        }
+      },
       "version": {
         "type": "string",
         "description": "Semantic version of the token set",
@@ -194,77 +240,62 @@
       },
       "platforms": {
         "type": "array",
-        "description": "Platforms that can be used to resolve token values",
+        "description": "Runtime platforms that can be used to resolve token values. Each platform must reference an external platform extension file containing platform-specific syntax patterns, value formatters, and overrides.",
         "items": {
           "type": "object",
-          "required": ["id", "displayName"],
+          "required": ["id", "displayName", "extensionSource"],
           "properties": {
-            "id": { "type": "string" },
-            "displayName": { "type": "string" },
+            "id": { 
+              "type": "string",
+              "description": "Unique identifier for the platform"
+            },
+            "displayName": { 
+              "type": "string",
+              "description": "Human-readable name for the platform"
+            },
             "description": { 
               "type": "string",
               "description": "Detailed description of the platform"
             },
-            "syntaxPatterns": {
+            "extensionSource": {
               "type": "object",
-              "description": "Patterns for generating code syntax for this platform",
+              "description": "Reference to external platform extension file containing platform-specific configuration and overrides.",
               "properties": {
-                "prefix": {
+                "repositoryUri": {
                   "type": "string",
-                  "description": "Prefix to add before token names"
+                  "description": "GitHub repository URI (e.g., 'owner/repo')"
                 },
-                "suffix": {
+                "filePath": {
                   "type": "string",
-                  "description": "Suffix to add after token names"
-                },
-                "delimiter": {
-                  "type": "string",
-                  "description": "Delimiter to use between token name parts.",
-                  "enum": ["", "_", "-", ".", "/"],
-                  "enumDescriptions": [
-                    "None (no delimiter)",
-                    "Underscore (_)",
-                    "Hyphen (-)",
-                    "Dot (.)",
-                    "Forward slash (/)"
-                  ]
-                },
-                "capitalization": {
-                  "type": "string",
-                  "enum": ["camel", "uppercase", "lowercase", "capitalize"],
-                  "description": "Capitalization style for token names"
-                },
-                "formatString": {
-                  "type": "string",
-                  "description": "Template string for formatting token names, using {name} as placeholder"
+                  "description": "Path to the platform extension file within the repository"
                 }
-              }
+              },
+              "required": ["repositoryUri", "filePath"]
             },
-            "valueFormatters": {
-              "type": "object",
-              "description": "Rules for formatting values for this platform",
-              "properties": {
-                "color": {
-                  "type": "string",
-                  "enum": ["hex", "rgb", "rgba", "hsl", "hsla"],
-                  "description": "Preferred color format for this platform"
-                },
-                "dimension": {
-                  "type": "string",
-                  "enum": ["px", "rem", "em", "pt", "dp", "sp"],
-                  "description": "Preferred dimension unit for this platform"
-                },
-                "numberPrecision": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "maximum": 10,
-                  "description": "Number of decimal places to use for numeric values"
-                }
+            "status": {
+              "type": "string",
+              "enum": ["active", "deprecated"],
+              "description": "Lifecycle status of this platform",
+              "default": "active"
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "type": "array",
+              "minItems": 1
+            },
+            "then": {
+              "custom": {
+                "function": "validateUniqueExtensionSources",
+                "description": "Platforms with extensionSource must have unique combinations of repositoryUri and filePath"
               }
             }
           }
-        }
+        ]
       },
+
       "dimensions": {
         "type": "array",
         "description": "List of dimensions that can be used to organize and resolve token values",

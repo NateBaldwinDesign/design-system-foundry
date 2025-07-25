@@ -83,26 +83,42 @@ export const GitHubCallback: React.FC = () => {
     handleCallback();
   }, [navigate, toast]);
 
-  const handleFileSelected = (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => {
-    toast({
-      title: 'Data Loaded',
-      description: `Successfully loaded ${fileType === 'schema' ? 'core data' : 'theme override'} from GitHub`,
-      status: 'success',
-      duration: 5000,
-      isClosable: true,
-    });
-    
-    // Update last GitHub sync timestamp
-    ChangeTrackingService.updateLastGitHubSync();
-    
-    // Dispatch event to notify the main app that GitHub data has been loaded
-    window.dispatchEvent(new CustomEvent('github:file-loaded'));
-    
-    // Dispatch data change event to update change log
-    window.dispatchEvent(new CustomEvent('token-model:data-change'));
-    
-    // Redirect to the main app
-    navigate('/');
+  const handleFileSelected = async (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => {
+    try {
+      // Load data via DataManager to ensure it's properly stored
+      const { DataManager } = await import('../services/dataManager');
+      const dataManager = DataManager.getInstance();
+      await dataManager.loadFromGitHub(fileContent, fileType);
+      
+      // Update last GitHub sync timestamp
+      ChangeTrackingService.updateLastGitHubSync();
+      
+      // Dispatch event to notify the main app that GitHub data has been loaded
+      window.dispatchEvent(new CustomEvent('github:file-loaded'));
+      
+      // Dispatch data change event to update change log
+      window.dispatchEvent(new CustomEvent('token-model:data-change'));
+      
+      toast({
+        title: 'Data Loaded',
+        description: `Successfully loaded ${fileType === 'schema' ? 'core data' : 'theme override'} from GitHub`,
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+      
+      // Redirect to the main app
+      navigate('/');
+    } catch (error) {
+      console.error('[GitHubCallback] Error loading file data:', error);
+      toast({
+        title: 'Error Loading Data',
+        description: 'Failed to load data from GitHub. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
   };
 
   const handleRepoSelectorClose = () => {

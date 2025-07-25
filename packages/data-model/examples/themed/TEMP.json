@@ -424,50 +424,46 @@
         ]
       }
     ],
-    "platforms": [
-      {
-        "id": "platform-000000",
-        "displayName": "Figma",
-        "syntaxPatterns": {
-          "prefix": "",
-          "suffix": "",
-          "delimiter": "/",
-          "capitalization": "capitalize",
-          "formatString": ""
-        }
+    "figmaConfiguration": {
+      "syntaxPatterns": {
+        "prefix": "",
+        "suffix": "",
+        "delimiter": "/",
+        "capitalization": "capitalize",
+        "formatString": ""
       },
+      "fileKey": "default-design-system-figma"
+    },
+    "platforms": [
       {
         "id": "platform-111111",
         "displayName": "Web",
-        "syntaxPatterns": {
-          "prefix": "--sp",
-          "suffix": "",
-          "delimiter": "-",
-          "capitalization": "lowercase",
-          "formatString": ""
-        }
+        "description": "Web platform for CSS and web applications",
+        "extensionSource": {
+          "repositoryUri": "company/design-system-web",
+          "filePath": "platform-extension.json"
+        },
+        "status": "active"
       },
       {
         "id": "platform-222222",
         "displayName": "iOS",
-        "syntaxPatterns": {
-          "prefix": "sp",
-          "suffix": "",
-          "delimiter": "_",
-          "capitalization": "capitalize",
-          "formatString": ""
-        }
+        "description": "iOS platform for Swift and SwiftUI applications",
+        "extensionSource": {
+          "repositoryUri": "company/design-system-ios",
+          "filePath": "platform-extension.json"
+        },
+        "status": "active"
       },
       {
         "id": "platform-333333",
         "displayName": "Android",
-        "syntaxPatterns": {
-          "prefix": "sp",
-          "suffix": "",
-          "delimiter": "_",
-          "capitalization": "uppercase",
-          "formatString": ""
-        }
+        "description": "Android platform for Kotlin and Jetpack Compose applications",
+        "extensionSource": {
+          "repositoryUri": "company/design-system-android",
+          "filePath": "platform-extension.json"
+        },
+        "status": "active"
       }
     ],
     "themes": [

@@ -28,11 +28,13 @@ import { ClassificationView } from '../views/setup/ClassificationView';
 import { NamingRulesView } from '../views/setup/NamingRulesView';
 import { ValueTypesView } from '../views/setup/ValueTypesView';
 import ThemesView from '../views/themes/ThemesView';
-import { PlatformsView } from '../views/publishing/PlatformsView';
+
+import { PlatformsView } from '../views/platforms/PlatformsView';
 import { ValidationView } from '../views/publishing/ValidationView';
 import { ExportSettingsView } from '../views/publishing/ExportSettingsView';
 import CoreDataView from '../views/schemas/CoreDataView';
 import ThemeOverridesView from '../views/schemas/ThemeOverridesView';
+import PlatformOverridesView from '../views/schemas/PlatformOverridesView';
 import AlgorithmDataView from '../views/schemas/AlgorithmDataView';
 import { TokenEditorDialog } from './TokenEditorDialog';
 
@@ -189,9 +191,9 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <ThemesView themes={themes} setThemes={onUpdateThemes} />;
       
       case 'platforms':
-        return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} tokens={tokens} setTokens={onUpdateTokens} taxonomies={taxonomies} />;
+        return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} />;
       
-      case 'export-settings':
+      case 'figma-settings':
         return <ExportSettingsView />;
       
       case 'validation':
@@ -209,11 +211,14 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
       case 'theme-overrides':
         return <ThemeOverridesView />;
       
+      case 'platform-overrides':
+        return <PlatformOverridesView />;
+      
       case 'algorithm-data':
         return <AlgorithmDataView />;
       
       default:
-        return <DashboardView tokens={tokens} platforms={platforms} themes={themes} />;
+        return <DashboardView tokens={tokens} platforms={platforms} themes={themes} githubUser={githubUser} />;
     }
   };
 

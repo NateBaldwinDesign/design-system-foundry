@@ -13,12 +13,13 @@ export type ViewId =
   | 'value-types'
   | 'themes'
   | 'platforms'
-  | 'export-settings'
+  | 'figma-settings'
   | 'validation'
   | 'version-history'
   | 'access'
   | 'core-data'
   | 'theme-overrides'
+  | 'platform-overrides'
   | 'algorithm-data';
 
 export const useViewState = () => {

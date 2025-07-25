@@ -167,7 +167,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     if (hasAnyChanges) {
       // Count changes by comparing arrays
       let totalChanges = 0;
-      const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'taxonomies', 'algorithms'];
+      const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'taxonomies', 'algorithms', 'platforms'];
       
       keyFields.forEach(field => {
         const current = (currentDataSnapshot as Record<string, unknown>)[field] as unknown[] || [];

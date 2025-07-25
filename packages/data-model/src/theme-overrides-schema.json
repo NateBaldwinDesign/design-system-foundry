@@ -14,6 +14,11 @@
       "type": "string",
       "description": "ID of the theme these overrides belong to"
     },
+    "figmaFileKey": {
+      "type": "string",
+      "description": "Unique Figma file key for this platform extension. Must be unique across all platform extensions and cannot be overridden.",
+      "pattern": "^[a-zA-Z0-9-_]+$"
+    },
     "tokenOverrides": {
       "type": "array",
       "description": "Overrides for tokens in this theme.",

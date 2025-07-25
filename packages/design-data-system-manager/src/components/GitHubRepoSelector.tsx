@@ -235,13 +235,16 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
       const repoBranches = await GitHubApiService.getBranches(repo.full_name);
       setBranches(repoBranches);
       
+      // Auto-select "main" branch if it exists
+      const mainBranch = repoBranches.find(branch => branch.name === 'main');
+      if (mainBranch) {
+        setSelectedBranch('main');
+        // Automatically trigger file loading for main branch
+        await loadAndMatchFiles(repo.full_name, 'main', previousFile);
+      }
+      
       // Update cache stats
       setCacheStats(GitHubCacheService.getCacheStats());
-      
-      // Try to match and select the previous file if it exists
-      if (previousFile) {
-        await matchAndSelectFile(validFiles, previousFile);
-      }
     } catch (error) {
       console.error('Failed to load branches:', error);
       setError('Failed to load branches. Please try again.');
@@ -364,7 +367,12 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
       localStorage.setItem('github_selected_repo', JSON.stringify(repoInfo));
       
       // Call the callback with the file content
-      onFileSelected(fileContent, selectedFile.type);
+      // Type guard to ensure we only pass valid file types for this component
+      if (selectedFile.type === 'schema' || selectedFile.type === 'theme-override') {
+        onFileSelected(fileContent, selectedFile.type);
+      } else {
+        throw new Error(`Unsupported file type: ${selectedFile.type}`);
+      }
       
       toast({
         title: 'File Loaded',

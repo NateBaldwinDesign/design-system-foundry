@@ -72,7 +72,7 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Publishing',
     children: [
       { id: 'platforms', label: 'Platforms', icon: MonitorSmartphone },
-      { id: 'export-settings', label: 'Export Settings', icon: Settings },
+      { id: 'figma-settings', label: 'Figma Settings', icon: Settings },
       { id: 'validation', label: 'Validation', icon: CircleCheckBig },
       { id: 'version-history', label: 'Version History', icon: History },
     ],
@@ -84,6 +84,7 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { id: 'core-data', label: 'Core Data', icon: FileCode },
       { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode },
+      { id: 'platform-overrides', label: 'Platform Extensions', icon: FileCode },
       { id: 'algorithm-data', label: 'Algorithm Data', icon: FileCode },
     ],
   },

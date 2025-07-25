@@ -52,7 +52,7 @@ const codeSyntaxPreview = Object.entries(codeSyntax).map(([key, value]) => (
 - **Top-level navigation** is handled by a tab/view system, with each view in `src/views/{Name}View.tsx` (e.g., `TokensView`, `SetupView`, `DashboardView`).
 - **Header navigation** (`Header.tsx`) uses a `NAV_VIEWS` array to define available tabs, and navigation is handled by `onViewChange`.
 - **Each view** is a React component, typically exporting a default functional component.
-- **Chakra UI** is the standard for all UI primitives (e.g., `Select`, `Button`, `Box`, `FormControl`).
+- **Chakra UI v2** is the standard for all UI primitives (e.g., `Select`, `Button`, `Box`, `FormControl`).
 - **All filter controls and dropdowns** use Chakra UI's `Select` component, never custom or native HTML selects.
 - **Component patterns:**
   - UI mapping logic (e.g., code syntax preview) is assigned to a constant above the return statement, not inlined in JSX, unless performance requires memoization.
@@ -73,7 +73,7 @@ const codeSyntaxPreview = Object.entries(codeSyntax).map(([key, value]) => (
 ## Best Practices
 - Favor clarity, modularity, and reusability in all UI and data logic.
 - Always align new features and UI organization with the schema and technical decisions documented here.
-- Use Chakra UI for all UI primitives and controls.
+- Use Chakra UI v2 for all UI primitives and controls.
 - Validate all user input and data changes using schema-defined constraints. 
 
 # TypeScript and Environmental Issues

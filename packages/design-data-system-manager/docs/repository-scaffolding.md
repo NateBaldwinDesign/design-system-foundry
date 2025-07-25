@@ -16,6 +16,8 @@ Both repository types follow the same structure for consistency:
 ```
 repository-name/
 ├── design-system.json          # Main data file (core or theme override)
+├── platforms/                  # Platform extension files (core only)
+│   └── {platformId}.json      # Platform-specific extension files
 ├── algorithms/                 # Algorithm definitions (core only)
 │   └── core-algorithms.json
 ├── .figma/                     # Figma integration metadata (auto-managed)
