@@ -12,6 +12,11 @@ This is a list of UX workflows that must be tested and validated in order to ens
         i. **Linked source**: Follow the "Linking existing source" worfklow
         ii. **New local file**: Follow the "Creating new local extension file" workflow
         iii. **New repository**: Follow the "Creating a new repository" workflow
+    b. **When source repository does not exist**
+        - User is shown alert 
+        - Follow "Changing linked source" flow
+    c. **When source file does not exist**
+        - User is shown alert that data has been updated to match
 2. **Linking existing source** 
     - Select "Link Existing Extension". 
     - Select the Organization, Repository, Branch, and File within the Repository settings.
@@ -42,6 +47,7 @@ This is a list of UX workflows that must be tested and validated in order to ens
     - Review and edit the syntax patterns and value formatters
     - Click "Create repository & platform extension"
     - See new platform in the Platform View
+
 
 ## Theme management
 

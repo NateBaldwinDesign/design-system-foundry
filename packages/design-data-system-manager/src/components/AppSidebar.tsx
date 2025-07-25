@@ -10,22 +10,21 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
-  Settings,
   LayoutDashboard,
   Folders,
-  SquareFunction,
   Tag,
   SquareStack,
   ListOrdered,
   PencilRuler,
-  Palette,
   MonitorSmartphone,
   CircleCheckBig,
-  History,
-  Users,
   FileCode,
   ChartNetwork,
-  Blend
+  Blend,
+  Shapes,
+  PaletteIcon,
+  FigmaIcon,
+  Waypoints
 } from 'lucide-react';
 import Logo from './Logo';
 import TokenIcon from '../icons/TokenIcon';
@@ -45,49 +44,22 @@ interface AppSidebarProps {
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  {
-    id: 'tokens',
-    label: 'Tokens',
-    children: [
-      { id: 'tokens', label: 'Tokens', icon: TokenIcon },
-      { id: 'collections', label: 'Collections', icon: Folders },
-      { id: 'system-variables', label: 'System Variables', icon: Blend },
-      { id: 'algorithms', label: 'Algorithms', icon: SquareFunction },
-      { id: 'analysis', label: 'Analysis', icon: ChartNetwork },
-    ],
-  },
-  {
-    id: 'dimensions',
-    label: 'Setup',
-    children: [
-      { id: 'dimensions', label: 'Dimensions', icon: SquareStack },
-      { id: 'classification', label: 'Classification', icon: Tag },
-      { id: 'naming-rules', label: 'Naming Rules', icon: ListOrdered },
-      { id: 'value-types', label: 'Value Types', icon: PencilRuler },
-    ],
-  },
-  { id: 'themes', label: 'Themes', icon: Palette },
-  {
-    id: 'platforms',
-    label: 'Publishing',
-    children: [
-      { id: 'platforms', label: 'Platforms', icon: MonitorSmartphone },
-      { id: 'figma-settings', label: 'Figma Settings', icon: Settings },
-      { id: 'validation', label: 'Validation', icon: CircleCheckBig },
-      { id: 'version-history', label: 'Version History', icon: History },
-    ],
-  },
-  { id: 'access', label: 'Access', icon: Users },
-  {
-    id: 'core-data',
-    label: 'Schemas',
-    children: [
-      { id: 'core-data', label: 'Core Data', icon: FileCode },
-      { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode },
-      { id: 'platform-overrides', label: 'Platform Extensions', icon: FileCode },
-      { id: 'algorithm-data', label: 'Algorithm Data', icon: FileCode },
-    ],
-  },
+  { id: 'algorithms', label: 'Foundations', icon: Shapes },
+  { id: 'tokens', label: 'Tokens', icon: TokenIcon },
+  { id: 'themes', label: 'Themes', icon: PaletteIcon },
+  { id: 'platforms', label: 'Platforms', icon: MonitorSmartphone },
+  { id: 'figma-settings', label: 'Figma', icon: FigmaIcon },
+  { id: 'system', label: 'System', icon: Waypoints },
+  
+  { id: 'validation', label: 'Validation', icon: CircleCheckBig },
+  { id: 'collections', label: 'Collections', icon: Folders },
+  { id: 'system-variables', label: 'System Variables', icon: Blend },
+  { id: 'analysis', label: 'Analysis', icon: ChartNetwork },
+
+  { id: 'core-data', label: 'Core Data', icon: FileCode },
+  { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode },
+  { id: 'platform-overrides', label: 'Platform Extensions', icon: FileCode },
+  { id: 'algorithm-data', label: 'Algorithm Data', icon: FileCode },
 ];
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, onNavigate }) => {
@@ -130,10 +102,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, onNavigate 
         alignItems="center"
         p={2}
         borderRadius="md"
-        bg={isActive ? 'blue.500' : 'transparent'}
+        bg={isActive ? 'gray.600' : 'transparent'}
         color={isActive ? 'white' : 'inherit'}
         _hover={{
-          bg: isActive ? 'blue.600' : colorMode === 'dark' ? 'gray.700' : 'gray.100',
+          bg: isActive ? 'gray.800' : colorMode === 'dark' ? 'gray.700' : 'gray.100',
         }}
         cursor="pointer"
         role="menuitem"

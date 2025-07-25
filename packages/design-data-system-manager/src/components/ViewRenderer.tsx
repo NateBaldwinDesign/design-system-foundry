@@ -36,6 +36,7 @@ import CoreDataView from '../views/schemas/CoreDataView';
 import ThemeOverridesView from '../views/schemas/ThemeOverridesView';
 import PlatformOverridesView from '../views/schemas/PlatformOverridesView';
 import AlgorithmDataView from '../views/schemas/AlgorithmDataView';
+import { SystemView } from '../views/system/SystemView';
 import { TokenEditorDialog } from './TokenEditorDialog';
 
 interface ViewRendererProps {
@@ -216,6 +217,9 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
       
       case 'algorithm-data':
         return <AlgorithmDataView />;
+      
+      case 'system':
+        return <SystemView />;
       
       default:
         return <DashboardView tokens={tokens} platforms={platforms} themes={themes} githubUser={githubUser} />;

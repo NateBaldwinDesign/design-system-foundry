@@ -20,7 +20,8 @@ export type ViewId =
   | 'core-data'
   | 'theme-overrides'
   | 'platform-overrides'
-  | 'algorithm-data';
+  | 'algorithm-data'
+  | 'system';
 
 export const useViewState = () => {
   const [currentView, setCurrentView] = useState<ViewId>('dashboard');
