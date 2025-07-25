@@ -78,6 +78,14 @@ export class ChangeTrackingService {
       }
     });
     
+    // Check namingRules (object, not array)
+    const currentNamingRules = (currentData as Record<string, unknown>).namingRules as Record<string, unknown> || {};
+    const baselineNamingRules = (baselineData as Record<string, unknown>).namingRules as Record<string, unknown> || {};
+    
+    if (JSON.stringify(currentNamingRules) !== JSON.stringify(baselineNamingRules)) {
+      totalChanges += 1; // Count as one change for namingRules modifications
+    }
+    
     return totalChanges;
   }
 
@@ -121,6 +129,15 @@ export class ChangeTrackingService {
         console.log(`[ChangeTrackingService] Baseline ${field} count:`, baseline.length);
         return true; // Divergence detected
       }
+    }
+    
+    // Check namingRules (object, not array)
+    const localNamingRules = (localData as Record<string, unknown>).namingRules as Record<string, unknown> || {};
+    const baselineNamingRules = (baselineData as Record<string, unknown>).namingRules as Record<string, unknown> || {};
+    
+    if (JSON.stringify(localNamingRules) !== JSON.stringify(baselineNamingRules)) {
+      console.log('[ChangeTrackingService] Divergence detected in field: namingRules');
+      return true; // Divergence detected
     }
     
     console.log('[ChangeTrackingService] No divergence detected');

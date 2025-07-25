@@ -209,6 +209,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         }
       });
       
+      // Check namingRules (object, not array)
+      const currentNamingRules = (currentDataSnapshot as Record<string, unknown>).namingRules as Record<string, unknown> || {};
+      const baselineNamingRules = (baselineSnapshot as Record<string, unknown>).namingRules as Record<string, unknown> || {};
+      
+      if (JSON.stringify(currentNamingRules) !== JSON.stringify(baselineNamingRules)) {
+        totalChanges += 1; // Count as one change for namingRules modifications
+      }
+      
       setHasChanges(true);
       setChangeCount(totalChanges);
     } else {

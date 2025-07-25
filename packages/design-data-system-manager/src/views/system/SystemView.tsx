@@ -12,9 +12,8 @@ import {
   TabPanel,
 } from '@chakra-ui/react';
 import { DimensionsView } from '../setup/DimensionsView';
-import { ClassificationView } from '../setup/ClassificationView';
+import { TaxonomyView } from '../setup/TaxonomyView';
 import { ValueTypesView } from '../setup/ValueTypesView';
-import { NamingRulesView } from '../setup/NamingRulesView';
 import { StorageService } from '../../services/storage';
 
 interface SystemViewProps {
@@ -24,9 +23,7 @@ interface SystemViewProps {
 export const SystemView: React.FC<SystemViewProps> = () => {
   // Get data directly from storage for each component
   const dimensions = StorageService.getDimensions();
-  const dimensionOrder = StorageService.getDimensionOrder();
   const taxonomies = StorageService.getTaxonomies();
-  const taxonomyOrder = StorageService.getNamingRules()?.taxonomyOrder || [];
   const resolvedValueTypes = StorageService.getValueTypes();
   const tokens = StorageService.getTokens();
   const collections = StorageService.getCollections();
@@ -48,7 +45,6 @@ export const SystemView: React.FC<SystemViewProps> = () => {
           <TabList>
             <Tab>Dimensions</Tab>
             <Tab>Taxonomies</Tab>
-            <Tab>Naming Rules</Tab>
             <Tab>Value Types</Tab>
           </TabList>
 
@@ -57,13 +53,11 @@ export const SystemView: React.FC<SystemViewProps> = () => {
               <DimensionsView
                 dimensions={dimensions}
                 setDimensions={(dims) => StorageService.setDimensions(dims)}
-                dimensionOrder={dimensionOrder}
-                setDimensionOrder={(order) => StorageService.setDimensionOrder(order)}
               />
             </TabPanel>
             
             <TabPanel>
-              <ClassificationView
+              <TaxonomyView
                 taxonomies={taxonomies}
                 setTaxonomies={(tax) => StorageService.setTaxonomies(tax)}
                 tokens={tokens}
@@ -71,14 +65,6 @@ export const SystemView: React.FC<SystemViewProps> = () => {
                 dimensions={dimensions}
                 platforms={platforms}
                 resolvedValueTypes={resolvedValueTypes}
-              />
-            </TabPanel>
-            
-            <TabPanel>
-              <NamingRulesView
-                taxonomies={taxonomies}
-                taxonomyOrder={taxonomyOrder}
-                setTaxonomyOrder={(order) => StorageService.setNamingRules({ taxonomyOrder: order })}
               />
             </TabPanel>
             

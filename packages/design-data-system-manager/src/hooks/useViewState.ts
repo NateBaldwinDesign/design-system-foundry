@@ -9,7 +9,6 @@ export type ViewId =
   | 'analysis'
   | 'dimensions'
   | 'classification'
-  | 'naming-rules'
   | 'value-types'
   | 'themes'
   | 'platforms'

@@ -24,8 +24,7 @@ import { SystemVariablesView } from '../views/tokens/SystemVariablesView';
 import AlgorithmsView from '../views/tokens/AlgorithmsView';
 import { TokenAnalysis } from '../views/tokens/TokenAnalysis';
 import { DimensionsView } from '../views/setup/DimensionsView';
-import { ClassificationView } from '../views/setup/ClassificationView';
-import { NamingRulesView } from '../views/setup/NamingRulesView';
+import { TaxonomyView } from '../views/setup/TaxonomyView';
 import { ValueTypesView } from '../views/setup/ValueTypesView';
 import ThemesView from '../views/themes/ThemesView';
 
@@ -51,8 +50,6 @@ interface ViewRendererProps {
   themes: Theme[];
   taxonomies: Taxonomy[];
   algorithms: Algorithm[];
-  dimensionOrder: string[];
-  taxonomyOrder: string[];
   schema: Schema | null;
   // GitHub user info
   githubUser: GitHubUser | null;
@@ -65,8 +62,6 @@ interface ViewRendererProps {
   onUpdateThemes: (themes: Theme[]) => void;
   onUpdateTaxonomies: (taxonomies: Taxonomy[]) => void;
   onUpdateAlgorithms: (algorithms: Algorithm[]) => void;
-  setDimensionOrder: (order: string[]) => void;
-  setTaxonomyOrder: (order: string[]) => void;
   // Token editor props
   selectedToken: ExtendedToken | null;
   isEditorOpen: boolean;
@@ -88,8 +83,6 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   themes,
   taxonomies,
   algorithms,
-  dimensionOrder,
-  taxonomyOrder,
   schema,
   githubUser,
   onUpdateTokens,
@@ -100,8 +93,6 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   onUpdateThemes,
   onUpdateTaxonomies,
   onUpdateAlgorithms,
-  setDimensionOrder,
-  setTaxonomyOrder,
   selectedToken,
   isEditorOpen,
   onAddToken,
@@ -170,20 +161,11 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
           <DimensionsView 
             dimensions={dimensions} 
             setDimensions={onUpdateDimensions}
-            dimensionOrder={dimensionOrder}
-            setDimensionOrder={setDimensionOrder}
-            onDataChange={(data) => {
-              onUpdateDimensions(data.dimensions);
-              setDimensionOrder(data.dimensionOrder);
-            }}
           />
         );
       
       case 'classification':
-        return <ClassificationView taxonomies={taxonomies} setTaxonomies={onUpdateTaxonomies} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} resolvedValueTypes={resolvedValueTypes} />;
-      
-      case 'naming-rules':
-        return <NamingRulesView taxonomies={taxonomies} taxonomyOrder={taxonomyOrder} setTaxonomyOrder={setTaxonomyOrder} />;
+        return <TaxonomyView taxonomies={taxonomies} setTaxonomies={onUpdateTaxonomies} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} resolvedValueTypes={resolvedValueTypes} />;
       
       case 'value-types':
         return <ValueTypesView valueTypes={resolvedValueTypes} onUpdate={onUpdateResolvedValueTypes} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} themes={themes} />;

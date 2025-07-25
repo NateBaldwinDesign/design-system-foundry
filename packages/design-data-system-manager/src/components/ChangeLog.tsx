@@ -58,6 +58,7 @@ const getEntityIcon = (entityType: string) => {
     case 'platformExtension': return Settings;
     case 'platformExtensionFile': return FileCode;
     case 'repository': return Database;
+    case 'namingRules': return Settings;
     default: return FileCode;
   }
 };
@@ -1390,6 +1391,28 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
         }],
       });
     }
+  }
+
+  // Compare naming rules
+  const oldNamingRules = previousData.namingRules as { taxonomyOrder?: string[] } || {};
+  const newNamingRules = currentData.namingRules as { taxonomyOrder?: string[] } || {};
+  
+  const oldTaxonomyOrder = oldNamingRules.taxonomyOrder || [];
+  const newTaxonomyOrder = newNamingRules.taxonomyOrder || [];
+  
+  if (JSON.stringify(oldTaxonomyOrder) !== JSON.stringify(newTaxonomyOrder)) {
+    changes.push({
+      type: 'modified',
+      entityType: 'namingRules',
+      entityId: 'taxonomyOrder',
+      entityName: 'Taxonomy Order',
+      changes: [{
+        field: 'taxonomyOrder',
+        oldValue: oldTaxonomyOrder.length > 0 ? oldTaxonomyOrder.join(', ') : 'none',
+        newValue: newTaxonomyOrder.length > 0 ? newTaxonomyOrder.join(', ') : 'none',
+        context: 'Taxonomy ordering for code syntax generation',
+      }],
+    });
   }
 
   return changes;
