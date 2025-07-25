@@ -40,8 +40,14 @@ export class RepositoryCreationService {
       // Step 2: Scaffold the repository structure
       await this.scaffoldRepository(repoInfo, config);
       
-      // Step 3: Create initial schema file
-      const initialFilePath = await this.createInitialSchemaFile(repoInfo, config);
+      // Step 3: Create initial schema file (skip for platform-extension since scaffolding creates it)
+      let initialFilePath: string | undefined;
+      if (config.schemaType !== 'platform-extension') {
+        initialFilePath = await this.createInitialSchemaFile(repoInfo, config);
+      } else {
+        // For platform extensions, the scaffolding already creates the file
+        initialFilePath = 'platforms/platform-extension.json';
+      }
       
       return {
         ...repoInfo,
@@ -74,14 +80,14 @@ export class RepositoryCreationService {
         throw new Error('GitHub authentication required. Please sign in to GitHub first.');
       }
 
-      // Create the repository
-      const repoResult = await GitHubApiService.createFile(
-        config.name,
-        'README.md',
-        `# ${config.name}\n\n${config.description || 'Design system repository'}`,
-        'main',
-        'Initial commit'
-      );
+      // Create the repository using the proper GitHub API
+      const repoResult = await GitHubApiService.createRepository({
+        name: config.name,
+        description: config.description || 'Design system repository',
+        private: config.visibility === 'private',
+        autoInit: true, // Initialize with README to create initial commit
+        organization: config.organization
+      });
 
       return {
         id: repoResult.id,
@@ -120,9 +126,19 @@ export class RepositoryCreationService {
       // Scaffold based on schema type
       switch (config.schemaType) {
         case 'platform-extension': {
-          // For now, we'll create the platform extension file directly
-          // since the scaffolding service doesn't have the methods we need
-          await this.createPlatformExtensionFile(repoInfo.fullName, scaffoldingConfig, repoInfo.defaultBranch);
+          // Create the basic platform extension structure
+          await this.createPlatformExtensionFile(repoInfo.fullName, scaffoldingConfig);
+          
+          // Optionally create additional directory structure (non-blocking)
+          try {
+            await RepositoryScaffoldingService.createAdditionalDirectoryStructure(
+              repoInfo.fullName, 
+              scaffoldingConfig
+            );
+          } catch (error) {
+            console.warn('Failed to create additional directory structure:', error);
+            // Don't fail the entire process for optional files
+          }
           break;
         }
         case 'core': {
@@ -331,15 +347,47 @@ export class RepositoryCreationService {
    */
   private static async createPlatformExtensionFile(
     repoFullName: string,
-    config: RepositoryScaffoldingConfig,
-    _branch: string
+    config: RepositoryScaffoldingConfig
   ): Promise<void> {
     try {
-      await RepositoryScaffoldingService.createPlatformExtensionFile(
-        'platform-extension.json',
-        config,
-        `Add initial platform extension file`
-      );
+      // Use the RepositoryScaffoldingService to create the full repository structure
+      // This will create all necessary directories and files including the platform extension file
+      const files = RepositoryScaffoldingService.generateRepositoryFiles(config);
+      
+      // Create files sequentially to avoid conflicts
+      // Each file creation depends on the previous commit SHA
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const commitMessage = i === 0 
+          ? `Initial commit: Scaffold platform extension repository for ${config.platformId}`
+          : `Add ${file.path} for platform extension repository`;
+        
+        try {
+          await GitHubApiService.createFile(
+            repoFullName,
+            file.path,
+            file.content,
+            'main', // Default branch for new repositories
+            commitMessage
+          );
+        } catch (error) {
+          // If file already exists (like README.md from autoInit), update it instead
+          if (error instanceof Error && (error.message.includes('409') || error.message.includes('Conflict'))) {
+            console.log(`File ${file.path} already exists, updating instead...`);
+            await GitHubApiService.createOrUpdateFile(
+              repoFullName,
+              file.path,
+              file.content,
+              'main',
+              `Update ${file.path} for platform extension repository`
+            );
+          } else {
+            throw error;
+          }
+        }
+        
+        // No artificial delays - let GitHub API handle rate limiting naturally
+      }
     } catch (error) {
       console.error('Failed to create platform extension file:', error);
       throw new Error(`Failed to create platform extension file: ${error instanceof Error ? error.message : 'Unknown error'}`);

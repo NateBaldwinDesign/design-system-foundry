@@ -238,7 +238,7 @@ export class GitHubApiService {
 
     const body: CreateFileBody = {
       message,
-      content: btoa(content), // Base64 encode content
+      content: this.encodeToBase64(content), // Base64 encode content with UTF-8 support
       branch,
     };
 
@@ -257,7 +257,9 @@ export class GitHubApiService {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to create/update file: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = `Failed to create/update file: ${response.status} ${response.statusText}${errorData.message ? ` - ${errorData.message}` : ''}`;
+      throw new Error(errorMessage);
     }
   }
 
@@ -348,6 +350,66 @@ export class GitHubApiService {
     return response.json();
   }
   
+  /**
+   * Encode string to base64 with UTF-8 support
+   */
+  private static encodeToBase64(str: string): string {
+    // Convert string to UTF-8 bytes, then to base64
+    const encoder = new TextEncoder();
+    const bytes = encoder.encode(str);
+    const base64 = btoa(String.fromCharCode(...bytes));
+    return base64;
+  }
+
+  /**
+   * Create a new repository
+   */
+  static async createRepository(config: {
+    name: string;
+    description?: string;
+    private?: boolean;
+    autoInit?: boolean;
+    organization?: string;
+  }): Promise<{
+    id: string;
+    name: string;
+    full_name: string;
+    description?: string;
+    private: boolean;
+    html_url: string;
+    clone_url: string;
+    default_branch: string;
+  }> {
+    const accessToken = await GitHubAuthService.getValidAccessToken();
+    
+    // Determine the endpoint based on whether it's for an organization or user
+    const endpoint = config.organization 
+      ? `${GITHUB_CONFIG.apiBaseUrl}/orgs/${config.organization}/repos`
+      : `${GITHUB_CONFIG.apiBaseUrl}/user/repos`;
+    
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `token ${accessToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: config.name,
+        description: config.description || '',
+        private: config.private || false,
+        auto_init: config.autoInit || false,
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to create repository: ${response.statusText} - ${errorText}`);
+    }
+    
+    return response.json();
+  }
+
   /**
    * Create a new branch
    */

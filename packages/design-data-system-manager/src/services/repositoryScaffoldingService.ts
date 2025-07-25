@@ -87,54 +87,71 @@ export class RepositoryScaffoldingService {
   ): Promise<void> {
     const files = this.generateRepositoryFiles(config);
 
-    // Create all files in parallel
-    const filePromises = files.map(file => 
-      GitHubApiService.createFile(
-        repo,
-        file.path,
-        file.content,
-        'main',
-        `Initial commit: Scaffold platform extension repository for ${config.platformId}`
-      )
-    );
-
-    await Promise.all(filePromises);
+        // Create files sequentially to avoid conflicts in empty repositories
+    // Each file creation depends on the previous commit SHA
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const commitMessage = i === 0 
+        ? `Initial commit: Scaffold platform extension repository for ${config.platformId}`
+        : `Add ${file.path} for platform extension repository`;
+      
+      try {
+        await GitHubApiService.createFile(
+          repo,
+          file.path,
+          file.content,
+          'main',
+          commitMessage
+        );
+      } catch (error) {
+        // If file already exists (like README.md from autoInit), update it instead
+        if (error instanceof Error && (error.message.includes('409') || error.message.includes('Conflict'))) {
+          console.log(`File ${file.path} already exists, updating instead...`);
+          await GitHubApiService.createOrUpdateFile(
+            repo,
+            file.path,
+            file.content,
+            'main',
+            `Update ${file.path} for platform extension repository`
+          );
+        } else {
+          throw error;
+        }
+      }
+      
+              // No artificial delays - let GitHub API handle rate limiting naturally
+    }
   }
 
   /**
    * Generate all files needed for a scaffolded platform extension repository
    */
-  private static generateRepositoryFiles(config: RepositoryScaffoldingConfig) {
+  static generateRepositoryFiles(config: RepositoryScaffoldingConfig) {
     const files = [];
 
-    // 1. Main platform extension file
+    // 1. Main platform extension file (most important)
     const platformExtensionContent = this.generatePlatformExtensionFile(config);
     files.push({
-      path: 'platform-extension.json',
+      path: 'platforms/platform-extension.json',
       content: platformExtensionContent
     });
 
-    // 2. README.md
+    // 2. README.md (will be updated if autoInit created one)
     const readmeContent = this.generateReadmeFile(config);
     files.push({
       path: 'README.md',
       content: readmeContent
     });
 
-    // 3. .gitignore
+    // 3. .gitignore (essential for any repository)
     const gitignoreContent = this.generateGitignoreFile();
     files.push({
       path: '.gitignore',
       content: gitignoreContent
     });
 
-    // 4. .figma directory structure
-    const figmaFiles = this.generateFigmaDirectoryFiles(config);
-    files.push(...figmaFiles);
-
-    // 5. platforms directory structure
-    const platformsFiles = this.generatePlatformsDirectoryFiles();
-    files.push(...platformsFiles);
+    // Note: We'll skip the .figma directory structure and .gitkeep files for now
+    // to reduce complexity and potential conflicts. These can be added later if needed.
 
     return files;
   }
@@ -142,11 +159,12 @@ export class RepositoryScaffoldingService {
   /**
    * Generate the main platform extension JSON file
    */
-  private static generatePlatformExtensionFile(config: RepositoryScaffoldingConfig): string {
+  static generatePlatformExtensionFile(config: RepositoryScaffoldingConfig): string {
     const extensionData = {
       systemId: config.systemId,
       platformId: config.platformId,
       version: '1.0.0',
+      figmaFileKey: `${config.platformId}-figma-file`,
       metadata: {
         name: config.displayName || config.platformId,
         description: config.description || `Platform extension for ${config.platformId}`,
@@ -158,7 +176,7 @@ export class RepositoryScaffoldingService {
         prefix: '',
         suffix: '',
         delimiter: '_',
-        capitalization: 'none',
+        capitalization: 'camel',
         formatString: ''
       },
       valueFormatters: config.valueFormatters || {
@@ -364,6 +382,46 @@ temp/
     } catch (error) {
       console.error('Failed to create platform extension file:', error);
       throw new Error(`Failed to create file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Create additional directory structure files (optional)
+   * This can be called after the basic scaffolding is complete
+   */
+  static async createAdditionalDirectoryStructure(
+    repoFullName: string,
+    config: RepositoryScaffoldingConfig
+  ): Promise<void> {
+    try {
+      const figmaFiles = this.generateFigmaDirectoryFiles(config);
+      const platformsFiles = this.generatePlatformsDirectoryFiles();
+      const additionalFiles = [...figmaFiles, ...platformsFiles];
+
+      for (let i = 0; i < additionalFiles.length; i++) {
+        const file = additionalFiles[i];
+        try {
+          await GitHubApiService.createFile(
+            repoFullName,
+            file.path,
+            file.content,
+            'main',
+            `Add ${file.path} for directory structure`
+          );
+        } catch (error) {
+          // If file already exists, skip it
+          if (error instanceof Error && (error.message.includes('409') || error.message.includes('Conflict'))) {
+            console.log(`File ${file.path} already exists, skipping...`);
+          } else {
+            throw error;
+          }
+        }
+        
+        // No artificial delays - let GitHub API handle rate limiting naturally
+      }
+    } catch (error) {
+      console.error('Failed to create additional directory structure:', error);
+      // Don't throw - this is optional
     }
   }
 } 

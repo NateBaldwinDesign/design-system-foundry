@@ -154,11 +154,14 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
     totalSize: number;
   } | null>(null);
 
-  // Stepper configuration
+  const GITHUB_REPO_NAME_REGEX = /^[a-zA-Z0-9._-]{1,100}$/;
+  const [checkingRepoExists, setCheckingRepoExists] = useState(false);
+  const [repoExistsError, setRepoExistsError] = useState<string | null>(null);
+
+  // Stepper configuration - simplified to 2 steps
   const steps = [
-    { title: 'Source', description: 'Select the source of your data' },
-    { title: 'Overview', description: 'Name and ID for linking data' },
-    { title: 'Finish', description: 'Complete and save your platform' }
+    { title: 'Source', description: 'Select repository and workflow' },
+    { title: 'Settings', description: 'Configure platform settings' }
   ];
 
   const { activeStep, setActiveStep } = useSteps({
@@ -224,6 +227,8 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
     setLoading(false);
     setLoadingStep(null);
     setCacheStats(null);
+    setCheckingRepoExists(false);
+    setRepoExistsError(null);
 
     // Reset stepper to first step
     setActiveStep(0);
@@ -783,8 +788,30 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  // Step-specific validation
-  const validateCurrentStep = (): boolean => {
+  const validateRepositoryName = (name: string): string | null => {
+    if (!name.trim()) return 'Repository name is required';
+    if (!GITHUB_REPO_NAME_REGEX.test(name)) {
+      return 'Repository name can only contain letters, numbers, hyphens, underscores, and periods (1-100 chars)';
+    }
+    return null;
+  };
+
+  const checkRepositoryExists = async (name: string): Promise<boolean> => {
+    setCheckingRepoExists(true);
+    setRepoExistsError(null);
+    try {
+      const repos = await GitHubApiService.getRepositories();
+      return repos.some(repo => repo.name.toLowerCase() === name.toLowerCase());
+    } catch (e) {
+      setRepoExistsError('Failed to check if repository exists. Please try again.');
+      return false;
+    } finally {
+      setCheckingRepoExists(false);
+    }
+  };
+
+  // Step-specific validation (update for repo name and existence)
+  const validateCurrentStep = async (): Promise<boolean> => {
     const newErrors: Record<string, string> = {};
 
     switch (activeStep) {
@@ -807,15 +834,28 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
               newErrors.newFileName = 'File name is required';
             }
             break;
-          case 'create-repository':
-            if (!formData.newRepositoryName?.trim()) {
-              newErrors.newRepositoryName = 'Repository name is required';
+          case 'create-repository': {
+            const repoNameError = validateRepositoryName(formData.newRepositoryName || '');
+            if (repoNameError) {
+              newErrors.newRepositoryName = repoNameError;
+              setErrors(newErrors);
+              return false;
+            }
+            // Check existence
+            if (!checkingRepoExists) {
+              const exists = await checkRepositoryExists(formData.newRepositoryName || '');
+              if (exists) {
+                newErrors.newRepositoryName = 'A repository with this name already exists.';
+                setErrors(newErrors);
+                return false;
+              }
             }
             break;
+          }
         }
         break;
       
-      case 1: // Overview step
+      case 1: // Settings step
         // Validate platform extension settings
         if (formData.type === 'platform-extension') {
           if (!formData.displayName?.trim()) {
@@ -827,28 +867,30 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
           }
         }
         break;
-      
-      case 2: // Settings step
-        // Settings are optional, so no validation needed
-        break;
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // Navigation functions
-  const goToNextStep = () => {
-    if (validateCurrentStep()) {
+  // Navigation functions (update goToNextStep to handle async validation)
+  const goToNextStep = async () => {
+    const valid = await validateCurrentStep();
+    if (valid) {
       if (activeStep < steps.length - 1) {
         setActiveStep(activeStep + 1);
       }
     } else {
+      const errorMessages = Object.values(errors).filter(Boolean);
+      const errorDescription = errorMessages.length > 0 
+        ? `Please fix: ${errorMessages.join(', ')}`
+        : 'Please fix the errors before continuing';
+      
       toast({
         title: 'Validation Error',
-        description: 'Please fix the errors before continuing',
+        description: errorDescription,
         status: 'error',
-        duration: 3000,
+        duration: 5000,
         isClosable: true
       });
     }
@@ -862,11 +904,16 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
 
   const handleSave = () => {
     if (!validateForm()) {
+      const errorMessages = Object.values(errors).filter(Boolean);
+      const errorDescription = errorMessages.length > 0 
+        ? `Please fix: ${errorMessages.join(', ')}`
+        : 'Please fix the errors before saving';
+      
       toast({
         title: 'Validation Error',
-        description: 'Please fix the errors before saving',
+        description: errorDescription,
         status: 'error',
-        duration: 3000,
+        duration: 5000,
         isClosable: true
       });
       return;
@@ -1288,13 +1335,37 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
         Repository Settings
       </Text>
       
-      <FormControl isRequired isInvalid={!!errors.newRepositoryName}>
+      <FormControl isRequired isInvalid={!!errors.newRepositoryName || !!repoExistsError}>
         <FormLabel>Repository Name</FormLabel>
         <Input
           value={formData.newRepositoryName}
-          onChange={(e) => setFormData({ ...formData, newRepositoryName: e.target.value })}
+          onChange={(e) => {
+            setFormData({ ...formData, newRepositoryName: e.target.value });
+            setErrors({ ...errors, newRepositoryName: undefined });
+            setRepoExistsError(null);
+          }}
           placeholder="my-platform-extension"
+          onBlur={async () => {
+            const name = formData.newRepositoryName || '';
+            const error = validateRepositoryName(name);
+            if (error) {
+              setErrors({ ...errors, newRepositoryName: error });
+              return;
+            }
+            if (name) {
+              setCheckingRepoExists(true);
+              const exists = await checkRepositoryExists(name);
+              setCheckingRepoExists(false);
+              if (exists) {
+                setErrors({ ...errors, newRepositoryName: 'A repository with this name already exists.' });
+              }
+            }
+          }}
+          isDisabled={checkingRepoExists}
         />
+        {checkingRepoExists && <HStack mt={2}><Spinner size="xs" /><Text fontSize="xs">Checking availability…</Text></HStack>}
+        {errors.newRepositoryName && <Text color="red.500" fontSize="xs">{errors.newRepositoryName}</Text>}
+        {repoExistsError && <Text color="red.500" fontSize="xs">{repoExistsError}</Text>}
         <Text fontSize="xs" color="gray.500" mt={1}>
           Repository will be created as: {formData.newRepositoryName ? `${formData.newRepositoryName}` : 'your-org/repo-name'}
         </Text>
@@ -1500,18 +1571,13 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
           </VStack>
         );
       
-      case 1: // Overview step
-        return (
-          <VStack spacing={6} align="stretch">
-            {formData.type === 'platform-extension' && renderPlatformFields()}
-          </VStack>
-        );
-      
-      case 2: // Settings step
+      case 1: // Settings step
         return (
           <VStack spacing={6} align="stretch">
             {formData.type === 'platform-extension' && (
               <>
+                {renderPlatformFields()}
+                <Divider />
                 {formData.workflow === 'link-existing' ? (
                   // Show read-only summary for link-existing workflow
                   renderReadOnlySyntaxSummary()
@@ -1522,8 +1588,8 @@ export const PlatformCreateDialog: React.FC<PlatformCreateDialogProps> = ({
                       syntaxPatterns={formData.syntaxPatterns || {
                         prefix: '',
                         suffix: '',
-                        delimiter: '',
-                        capitalization: 'none',
+                        delimiter: '_',
+                        capitalization: 'camel',
                         formatString: ''
                       }}
                       onSyntaxPatternsChange={(newSyntaxPatterns) => {

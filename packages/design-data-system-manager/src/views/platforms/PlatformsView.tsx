@@ -34,7 +34,7 @@ import { ExtendedToken } from '../../components/TokenEditorDialog';
 import type { DataType } from '../../services/dataTypeDetector';
 import { DataManager } from '../../services/dataManager';
 import { GitHubApiService } from '../../services/githubApi';
-import { RepositoryCreationService } from '../../services/repositoryCreationService';
+import { SimpleRepositoryCreationService } from '../../services/simpleRepositoryCreationService';
 import { PlatformExtensionStatusService, type PlatformExtensionStatus } from '../../services/platformExtensionStatusService';
 import { TriangleAlert } from 'lucide-react';
 
@@ -303,62 +303,32 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
         }
           
         case 'create-file':
-          // Create new file in current repository
+          // Create new file in current repository using simplified approach
           if (linkData.platformId && linkData.type === 'platform-extension') {
-            const { StorageService } = await import('../../services/storage');
-            const { GitHubApiService } = await import('../../services/githubApi');
-            
-            // Create the platform extension file data according to platform-extension-schema.json
-            const platformExtensionData = {
-              systemId: linkData.systemId || await getCurrentSystemId(),
-              platformId: linkData.platformId,
-              version: '1.0.0',
-              status: 'active',
-              figmaFileKey: `${linkData.platformId}-figma-file`,
-              syntaxPatterns: linkData.syntaxPatterns || {
-                prefix: '',
-                suffix: '',
-                delimiter: '_',
-                capitalization: 'camel',
-                formatString: ''
-              },
-              valueFormatters: linkData.valueFormatters || {
-                color: 'hex',
-                dimension: 'px',
-                numberPrecision: 2
-              },
-              algorithmVariableOverrides: [],
-              tokenOverrides: [],
-              omittedModes: [],
-              omittedDimensions: []
-            };
-            
-            // Create the actual file content as JSON string
-            const fileContent = JSON.stringify(platformExtensionData, null, 2);
-            
-            // According to repository-scaffolding.md, platform extension files should be saved to platforms/ directory
-            // Use user-defined filename from linkData
-            const fileName = `platforms/${linkData.newFileName || 'platform-extension.json'}`;
-            
             try {
-              // Get current repository info
+              // Get the filename from the dialog data
+              const fileName = linkData.newFileName || 'platform-extension.json';
+              
+              // Create the file using simplified service
+              const fileConfig = {
+                name: '', // Not used for file creation
+                description: linkData.description || `Platform extension for ${linkData.platformId}`,
+                visibility: 'public' as const, // Not used for file creation
+                systemId: linkData.systemId || await getCurrentSystemId(),
+                platformId: linkData.platformId,
+                displayName: linkData.displayName,
+                syntaxPatterns: linkData.syntaxPatterns,
+                valueFormatters: linkData.valueFormatters
+              };
+              
+              await SimpleRepositoryCreationService.createPlatformExtensionFile(fileName, fileConfig);
+              
+              // Get current repository info for platform array update
+              const { GitHubApiService } = await import('../../services/githubApi');
               const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
               if (!repoInfo) {
                 throw new Error('No repository selected. Please load a file from GitHub first.');
               }
-              
-              // Create the file in the platforms/ directory
-              await GitHubApiService.createFile(
-                repoInfo.fullName,
-                fileName,
-                fileContent,
-                repoInfo.branch,
-                `Add platform extension file: ${fileName} for ${linkData.platformId}`
-              );
-              
-              // Store the platform extension file in localStorage for local access
-              StorageService.setPlatformExtensionFile(linkData.platformId, platformExtensionData);
-              StorageService.setPlatformExtensionFileContent(linkData.platformId, fileContent);
               
               // Add to core data's platforms array with extensionSource pointing to the created file
               const snapshot = dataManager.getCurrentSnapshot();
@@ -372,7 +342,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                   ...updatedPlatforms[platformIndex],
                   extensionSource: {
                     repositoryUri: 'local',
-                    filePath: fileName
+                    filePath: `platforms/${fileName}`
                   }
                 };
                 updatePlatformsInDataManager(updatedPlatforms);
@@ -384,7 +354,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                   description: linkData.description || '',
                   extensionSource: {
                     repositoryUri: 'local',
-                    filePath: fileName
+                    filePath: `platforms/${fileName}`
                   }
                 };
                 updatePlatformsInDataManager([...currentPlatforms, newPlatform]);
@@ -413,110 +383,95 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
           break;
           
         case 'create-repository':
-          // Create new repository with scaffolded structure
+          // Create new repository with simplified approach (based on f9cd4df)
           if (linkData.platformId && linkData.type === 'platform-extension') {
-            const { StorageService } = await import('../../services/storage');
-            
             try {
+              console.log('🔍 [PlatformsView] Creating repository with simplified approach');
               
-              // Create the repository with scaffolding using the new RepositoryCreationService
+              // Create the repository using simplified service
               const repositoryConfig = {
-                name: linkData.newRepositoryName || linkData.platformId,
+                name: linkData.newRepositoryName || `${linkData.platformId}-${Date.now()}`,
                 description: linkData.newRepositoryDescription || `Platform extension for ${linkData.platformId}`,
                 visibility: (linkData.newRepositoryVisibility as 'public' | 'private') || 'public',
                 organization: '', // Will use user's personal account
-                schemaType: 'platform-extension' as const,
-                systemId: linkData.systemId || await getCurrentSystemId(),
-                platformId: linkData.platformId
-              };
-              
-              const createdRepository = await RepositoryCreationService.createRepository(repositoryConfig);
-              
-              // The platform extension file is already created by RepositoryCreationService
-              // We just need to store it in localStorage and update the platforms array
-              
-              // Get the platform extension data from the created repository
-              const platformExtensionData = {
                 systemId: linkData.systemId || await getCurrentSystemId(),
                 platformId: linkData.platformId,
-                version: '1.0.0',
-                figmaFileKey: `${linkData.platformId}-platform-figma-file`,
-                metadata: {
-                  name: linkData.displayName || linkData.platformId,
-                  description: linkData.description || '',
-                  maintainer: '',
-                  lastUpdated: new Date().toISOString().split('T')[0],
-                  repositoryVisibility: linkData.newRepositoryVisibility || 'public'
-                },
-                syntaxPatterns: linkData.syntaxPatterns || {
-                  prefix: '',
-                  suffix: '',
-                  delimiter: '_',
-                  capitalization: 'camel',
-                  formatString: ''
-                },
-                valueFormatters: linkData.valueFormatters || {
-                  color: 'hex',
-                  dimension: 'px',
-                  numberPrecision: 2
-                },
-                algorithmVariableOverrides: [],
-                tokenOverrides: [],
-                omittedModes: [],
-                omittedDimensions: []
+                displayName: linkData.displayName,
+                syntaxPatterns: linkData.syntaxPatterns,
+                valueFormatters: linkData.valueFormatters
               };
               
-              // Store the platform extension file in localStorage for local access
-              StorageService.setPlatformExtensionFile(linkData.platformId, platformExtensionData);
+              console.log('🔍 [PlatformsView] Repository config:', repositoryConfig);
+              
+              const createdRepository = await SimpleRepositoryCreationService.createPlatformExtensionRepository(repositoryConfig);
+              
+              console.log('🔍 [PlatformsView] Repository created successfully:', createdRepository);
+              
+              // Platform extension file is already created and stored by SimpleRepositoryCreationService
+              // Just need to update the platforms array
               
               // Add to core data's platforms array with extensionSource pointing to new repository
               const snapshot = dataManager.getCurrentSnapshot();
               const currentPlatforms = snapshot.platforms;
-              const platformIndex = currentPlatforms.findIndex(p => p.id === linkData.platformId);
               
-              if (platformIndex !== -1) {
-                // Update existing platform with extension source
-                const updatedPlatforms = [...currentPlatforms];
-                updatedPlatforms[platformIndex] = {
-                  ...updatedPlatforms[platformIndex],
-                  extensionSource: {
-                    repositoryUri: createdRepository.fullName,
-                    filePath: createdRepository.initialFilePath || 'platform-extension.json'
-                  }
-                };
-                updatePlatformsInDataManager(updatedPlatforms);
-              } else {
-                // Create new platform entry
-                const newPlatform = {
-                  id: linkData.platformId,
-                  displayName: linkData.displayName || linkData.platformId,
-                  description: linkData.description || '',
-                  extensionSource: {
-                    repositoryUri: createdRepository.fullName,
-                    filePath: createdRepository.initialFilePath || 'platform-extension.json'
-                  }
-                };
-                updatePlatformsInDataManager([...currentPlatforms, newPlatform]);
-              }
+              const newPlatform: Platform = {
+                id: linkData.platformId,
+                displayName: linkData.displayName || linkData.platformId,
+                description: linkData.description || '',
+                extensionSource: {
+                  repositoryUri: createdRepository.fullName,
+                  filePath: createdRepository.initialFilePath
+                }
+              };
+              
+              const updatedPlatforms = [...currentPlatforms, newPlatform];
+              updatePlatformsInDataManager(updatedPlatforms);
+              
+              // Link the repository via MultiRepositoryManager
+              await multiRepoManager.linkRepository(
+                'platform-extension',
+                createdRepository.fullName,
+                createdRepository.defaultBranch,
+                createdRepository.initialFilePath || 'platforms/platform-extension.json',
+                linkData.platformId
+              );
+              
+              // Update platform extensions validation
+              const validationResults = multiRepoManager.validatePlatformExtensions();
+              setPlatformExtensions(validationResults);
               
               toast({
                 title: 'Repository Created Successfully',
-                description: `Repository "${createdRepository.htmlUrl}" has been created with schema-compliant platform extension file`,
+                description: `Created ${createdRepository.name} and linked it to platform ${linkData.platformId}`,
                 status: 'success',
-                duration: 3000,
+                duration: 5000,
                 isClosable: true
               });
               
             } catch (error) {
-              console.error('Failed to create repository:', error);
+              console.error('🔍 [PlatformsView] Repository creation failed:', error);
+              
+              // Provide more specific error messages
+              let errorMessage = 'Failed to create repository';
+              if (error instanceof Error) {
+                if (error.message.includes('name already exists')) {
+                  errorMessage = 'Repository name already exists. Please choose a different name.';
+                } else if (error.message.includes('authentication')) {
+                  errorMessage = 'GitHub authentication required. Please sign in to GitHub first.';
+                } else if (error.message.includes('permission')) {
+                  errorMessage = 'Insufficient permissions to create repository. Please check your GitHub permissions.';
+                } else {
+                  errorMessage = error.message;
+                }
+              }
+              
               toast({
                 title: 'Repository Creation Failed',
-                description: error instanceof Error ? error.message : 'Failed to create repository',
+                description: errorMessage,
                 status: 'error',
-                duration: 5000,
+                duration: 8000,
                 isClosable: true
               });
-              throw error;
             }
           }
           break;
@@ -627,17 +582,17 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
             systemId: await getCurrentSystemId(),
             displayName: editData.displayName || editData.platformId,
             description: editData.description || '',
-            syntaxPatterns: editData.syntaxPatterns || {
-              prefix: '',
-              suffix: '',
-              delimiter: '_',
-              capitalization: 'none',
-              formatString: ''
+            syntaxPatterns: {
+              prefix: editData.syntaxPatterns?.prefix || '',
+              suffix: editData.syntaxPatterns?.suffix || '',
+              delimiter: editData.syntaxPatterns?.delimiter || '_' as const,
+              capitalization: editData.syntaxPatterns?.capitalization || 'none' as const,
+              formatString: editData.syntaxPatterns?.formatString || ''
             },
-            valueFormatters: editData.valueFormatters || {
-              color: 'hex',
-              dimension: 'px',
-              numberPrecision: 2
+            valueFormatters: {
+              color: editData.valueFormatters?.color || 'hex',
+              dimension: editData.valueFormatters?.dimension || 'px',
+              numberPrecision: editData.valueFormatters?.numberPrecision || 2
             },
             workflow: 'link-existing'
           });
@@ -765,44 +720,60 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
               // LOCAL FILE: Delete the file from filesystem + remove from core data
               console.log('🔍 [handleDeleteRepository] Deleting local file...');
               
-              try {
-                // Get current repository info for local file deletion
-                const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
-                if (!repoInfo) {
-                  throw new Error('No repository selected for local file deletion');
-                }
-                
-                // Delete the local file from GitHub
-                await GitHubApiService.deleteFile(
-                  repoInfo.fullName,
-                  platform.extensionSource.filePath,
-                  repoInfo.branch,
-                  `Delete local platform extension: ${platformId}`
-                );
-                console.log('🔍 [handleDeleteRepository] Local file successfully deleted from GitHub');
-              } catch (error) {
-                console.error('🔍 [handleDeleteRepository] Failed to delete local file:', error);
-                
-                // Check if it's a "file not found" or "access denied" error
-                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-                if (errorMessage.includes('not found') || errorMessage.includes('cannot be accessed')) {
-                  toast({
-                    title: 'Cannot Delete Platform',
-                    description: `File not found or you don't have access: ${platform.extensionSource.filePath}`,
-                    status: 'error',
-                    duration: 5000,
-                    isClosable: true
-                  });
-                  return; // Don't proceed with core data removal if file deletion fails
-                } else {
-                  toast({
-                    title: 'Local File Delete Failed',
-                    description: `Failed to delete local file: ${errorMessage}. The platform will still be removed from core data.`,
-                    status: 'warning',
-                    duration: 5000,
-                    isClosable: true
-                  });
-                  // Continue with core data removal even if file deletion fails
+              // Check if we know the file is missing (from platformStatus)
+              const platformStatus = platformExtensionStatuses.find(status => status.platformId === platformId);
+              const isFileKnownMissing = platformStatus?.hasError && 
+                (platformStatus.errorType === 'file-not-found' || platformStatus.errorType === 'repository-not-found');
+              
+              if (isFileKnownMissing) {
+                console.log('🔍 [handleDeleteRepository] File is known to be missing, skipping file deletion');
+                toast({
+                  title: 'File Already Missing',
+                  description: 'The platform file was already missing. Removing platform from core data only.',
+                  status: 'info',
+                  duration: 3000,
+                  isClosable: true
+                });
+              } else {
+                try {
+                  // Get current repository info for local file deletion
+                  const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+                  if (!repoInfo) {
+                    throw new Error('No repository selected for local file deletion');
+                  }
+                  
+                  // Delete the local file from GitHub
+                  await GitHubApiService.deleteFile(
+                    repoInfo.fullName,
+                    platform.extensionSource.filePath,
+                    repoInfo.branch,
+                    `Delete local platform extension: ${platformId}`
+                  );
+                  console.log('🔍 [handleDeleteRepository] Local file successfully deleted from GitHub');
+                } catch (error) {
+                  console.error('🔍 [handleDeleteRepository] Failed to delete local file:', error);
+                  
+                  // Check if it's a "file not found" or "access denied" error
+                  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                  if (errorMessage.includes('not found') || errorMessage.includes('cannot be accessed')) {
+                    toast({
+                      title: 'File Not Found',
+                      description: `File not found or you don't have access: ${platform.extensionSource.filePath}. The platform will still be removed from core data.`,
+                      status: 'warning',
+                      duration: 5000,
+                      isClosable: true
+                    });
+                    // Continue with core data removal even if file deletion fails
+                  } else {
+                    toast({
+                      title: 'Local File Delete Failed',
+                      description: `Failed to delete local file: ${errorMessage}. The platform will still be removed from core data.`,
+                      status: 'warning',
+                      duration: 5000,
+                      isClosable: true
+                    });
+                    // Continue with core data removal even if file deletion fails
+                  }
                 }
               }
             } else {
@@ -969,24 +940,260 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
   };
 
   const handleDeprecateRepository = async (repositoryId: string) => {
+    console.log('🔍 [handleDeprecateRepository] Starting deprecate process for repositoryId:', repositoryId);
+    
     try {
-      // Get the repository to update its status
-      const repository = multiRepoManager.getRepositoryLink(repositoryId);
-      if (repository) {
-        // For now, we'll just mark it as deprecated in the UI
-        // The actual status update would need to be implemented in MultiRepositoryManager
-        toast({
-          title: 'Extension Deprecated',
-          description: 'Extension has been marked as deprecated.',
-          status: 'warning',
-          duration: 3000,
-          isClosable: true
-        });
+      // Check if this is a mock repository (unlinked platform) or extension repository
+      const isMockRepository = repositoryId.startsWith('mock-');
+      const isExtensionRepository = repositoryId.startsWith('extension-');
+      console.log('🔍 [handleDeprecateRepository] Is mock repository:', isMockRepository, 'Is extension repository:', isExtensionRepository);
+      
+      if (isMockRepository || isExtensionRepository) {
+        // Extract platform ID from repository ID
+        const platformId = repositoryId.replace('mock-', '').replace('extension-', '');
+        console.log('🔍 [handleDeprecateRepository] Extracted platformId from mock repository:', platformId);
+        
+        // Handle deprecation of unlinked platform directly
+        const { StorageService } = await import('../../services/storage');
+        
+        // Get current platforms from DataManager
+        const snapshot = dataManager.getCurrentSnapshot();
+        const currentPlatforms = snapshot.platforms;
+        console.log('🔍 [handleDeprecateRepository] Current platforms from DataManager:', currentPlatforms);
+        
+        // Find the platform to deprecate
+        const platformIndex = currentPlatforms.findIndex(p => p.id === platformId);
+        console.log('🔍 [handleDeprecateRepository] Platform index found:', platformIndex);
+        
+        if (platformIndex !== -1) {
+          const platform = currentPlatforms[platformIndex];
+          console.log('🔍 [handleDeprecateRepository] Found platform:', platform);
+          console.log('🔍 [handleDeprecateRepository] Platform has extensionSource:', !!platform.extensionSource);
+          
+          // Check if this platform has an extensionSource
+          if (platform.extensionSource) {
+            console.log('🔍 [handleDeprecateRepository] Platform has extensionSource, checking if local or external');
+            
+            // Determine if this is a local file or external repository
+            const isLocalFile = platform.extensionSource.repositoryUri === 'local';
+            console.log('🔍 [handleDeprecateRepository] Is local file:', isLocalFile);
+            
+            if (isLocalFile) {
+              // LOCAL FILE: Delete the file from filesystem + remove from core data
+              console.log('🔍 [handleDeprecateRepository] Deleting local file...');
+              
+              // Check if we know the file is missing (from platformStatus)
+              const platformStatus = platformExtensionStatuses.find(status => status.platformId === platformId);
+              const isFileKnownMissing = platformStatus?.hasError && 
+                (platformStatus.errorType === 'file-not-found' || platformStatus.errorType === 'repository-not-found');
+              
+              if (isFileKnownMissing) {
+                console.log('🔍 [handleDeprecateRepository] File is known to be missing, skipping file deletion');
+                toast({
+                  title: 'File Already Missing',
+                  description: 'The platform file was already missing. Removing platform from core data only.',
+                  status: 'info',
+                  duration: 3000,
+                  isClosable: true
+                });
+              } else {
+                try {
+                  // Get current repository info for local file deletion
+                  const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+                  if (!repoInfo) {
+                    throw new Error('No repository selected for local file deletion');
+                  }
+                  
+                  // Delete the local file from GitHub
+                  await GitHubApiService.deleteFile(
+                    repoInfo.fullName,
+                    platform.extensionSource.filePath,
+                    repoInfo.branch,
+                    `Deprecate local platform extension: ${platformId}`
+                  );
+                  console.log('🔍 [handleDeprecateRepository] Local file successfully deleted from GitHub');
+                } catch (error) {
+                  console.error('🔍 [handleDeprecateRepository] Failed to delete local file:', error);
+                  
+                  // Check if it's a "file not found" or "access denied" error
+                  const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                  if (errorMessage.includes('not found') || errorMessage.includes('cannot be accessed')) {
+                    toast({
+                      title: 'File Not Found',
+                      description: `File not found or you don't have access: ${platform.extensionSource.filePath}. The platform will still be removed from core data.`,
+                      status: 'warning',
+                      duration: 5000,
+                      isClosable: true
+                    });
+                    // Continue with core data removal even if file deletion fails
+                  } else {
+                    toast({
+                      title: 'Local File Delete Failed',
+                      description: `Failed to delete local file: ${errorMessage}. The platform will still be removed from core data.`,
+                      status: 'warning',
+                      duration: 5000,
+                      isClosable: true
+                    });
+                    // Continue with core data removal even if file deletion fails
+                  }
+                }
+              }
+            } else {
+              // EXTERNAL REPOSITORY: Only remove from core data, don't delete external file
+              console.log('🔍 [handleDeprecateRepository] External repository - only removing from core data');
+            }
+            
+            // Remove the entire platform from core data (for both local and external)
+            const updatedPlatforms = currentPlatforms.filter((_, index) => index !== platformIndex);
+            console.log('🔍 [handleDeprecateRepository] Updated platforms after removal:', updatedPlatforms);
+            
+            // Update platforms through DataManager (saves to localStorage)
+            updatePlatformsInDataManager(updatedPlatforms);
+            
+            // Also remove the platform extension file from localStorage
+            console.log('🔍 [handleDeprecateRepository] Removing platform extension files from localStorage...');
+            StorageService.removePlatformExtensionFile(platformId);
+            StorageService.removePlatformExtensionFileContent(platformId);
+            
+            console.log('🔍 [handleDeprecateRepository] Platform extension files removed from localStorage');
+          } else {
+            console.log('🔍 [handleDeprecateRepository] Platform has no extensionSource - removing only extensionSource (core platform)');
+            
+            // Platform was from core data, just remove the extensionSource
+            const updatedPlatforms = [...currentPlatforms];
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { extensionSource, ...platformWithoutExtension } = platform;
+            updatedPlatforms[platformIndex] = platformWithoutExtension;
+            console.log('🔍 [handleDeprecateRepository] Updated platform without extensionSource:', platformWithoutExtension);
+            
+            // Update platforms through DataManager
+            updatePlatformsInDataManager(updatedPlatforms);
+          }
+          
+          // Verify the update worked
+          const verifySnapshot = dataManager.getCurrentSnapshot();
+          console.log('🔍 [handleDeprecateRepository] Verification - platforms in DataManager after update:', verifySnapshot.platforms);
+          
+          console.log('✅ [handleDeprecateRepository] Mock repository deprecate process completed successfully');
+        } else {
+          console.error('❌ [handleDeprecateRepository] Platform not found in storage for platformId:', platformId);
+          toast({
+            title: 'Deprecate Failed',
+            description: `Platform with ID "${platformId}" not found in storage.`,
+            status: 'error',
+            duration: 5000,
+            isClosable: true
+          });
+          return;
+        }
+      } else {
+        // Handle real repository links
+        // Get the repository before removing it
+        const repository = multiRepoManager.getRepositoryLink(repositoryId);
+        console.log('🔍 [handleDeprecateRepository] Found repository:', repository);
+        
+        if (!repository) {
+          console.error('❌ [handleDeprecateRepository] No repository found for ID:', repositoryId);
+          toast({
+            title: 'Deprecate Failed',
+            description: 'Repository not found.',
+            status: 'error',
+            duration: 5000,
+            isClosable: true
+          });
+          return;
+        }
+        
+        // For real repository links, we only remove from core data (external files are not deleted)
+        console.log('🔍 [handleDeprecateRepository] Real repository link - only removing from core data');
+        
+        // Remove from MultiRepositoryManager
+        console.log('🔍 [handleDeprecateRepository] Removing from MultiRepositoryManager...');
+        multiRepoManager.unlinkRepository(repositoryId);
+        
+        if (repository.platformId) {
+          console.log('🔍 [handleDeprecateRepository] Processing platform extension for platformId:', repository.platformId);
+          const { StorageService } = await import('../../services/storage');
+          
+          // Get current platforms from DataManager
+          const snapshot = dataManager.getCurrentSnapshot();
+          const currentPlatforms = snapshot.platforms;
+          console.log('🔍 [handleDeprecateRepository] Current platforms from DataManager:', currentPlatforms);
+          
+          // Find the platform to update
+          const platformIndex = currentPlatforms.findIndex(p => p.id === repository.platformId);
+          console.log('🔍 [handleDeprecateRepository] Platform index found:', platformIndex);
+          
+          if (platformIndex !== -1) {
+            const platform = currentPlatforms[platformIndex];
+            console.log('🔍 [handleDeprecateRepository] Found platform:', platform);
+            console.log('🔍 [handleDeprecateRepository] Platform has extensionSource:', !!platform.extensionSource);
+            
+            // Check if this platform was created as an extension (has extensionSource)
+            if (platform.extensionSource) {
+              console.log('🔍 [handleDeprecateRepository] Removing entire platform (created as extension)');
+              
+              // Remove the entire platform since it was created as an extension
+              const updatedPlatforms = currentPlatforms.filter((_, index) => index !== platformIndex);
+              console.log('🔍 [handleDeprecateRepository] Updated platforms after removal:', updatedPlatforms);
+              
+              // Update platforms through DataManager
+              updatePlatformsInDataManager(updatedPlatforms);
+              
+              // Also remove the platform extension file from localStorage
+              console.log('🔍 [handleDeprecateRepository] Removing platform extension files from localStorage...');
+              StorageService.removePlatformExtensionFile(repository.platformId);
+              StorageService.removePlatformExtensionFileContent(repository.platformId);
+              
+              console.log('🔍 [handleDeprecateRepository] Platform extension files removed from localStorage');
+            } else {
+              console.log('🔍 [handleDeprecateRepository] Removing only extensionSource (core platform)');
+              
+              // Platform was from core data, just remove the extensionSource
+              const updatedPlatforms = [...currentPlatforms];
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              const { extensionSource, ...platformWithoutExtension } = platform;
+              updatedPlatforms[platformIndex] = platformWithoutExtension;
+              console.log('🔍 [handleDeprecateRepository] Updated platform without extensionSource:', platformWithoutExtension);
+              
+              // Update platforms through DataManager
+              updatePlatformsInDataManager(updatedPlatforms);
+            }
+            
+            // Verify the update worked
+            const verifySnapshot = dataManager.getCurrentSnapshot();
+            console.log('🔍 [handleDeprecateRepository] Verification - platforms in DataManager after update:', verifySnapshot.platforms);
+            
+            console.log('✅ [handleDeprecateRepository] Real repository deprecate process completed successfully');
+          } else {
+            console.error('❌ [handleDeprecateRepository] Platform not found in storage for platformId:', repository.platformId);
+            toast({
+              title: 'Deprecate Failed',
+              description: `Platform with ID "${repository.platformId}" not found in storage.`,
+              status: 'error',
+              duration: 5000,
+              isClosable: true
+            });
+            return;
+          }
+        } else {
+          console.log('🔍 [handleDeprecateRepository] No platformId in repository, skipping platform cleanup');
+        }
       }
+      
+      // Show success message following the same pattern as Token deletion
+      toast({
+        title: 'Platform Deprecated',
+        description: 'Platform has been deprecated and removed from local storage. Changes will be saved to GitHub when you commit or create a PR.',
+        status: 'info',
+        duration: 3000,
+        isClosable: true
+      });
     } catch (error) {
+      console.error('❌ [handleDeprecateRepository] Error during deprecate process:', error);
       toast({
         title: 'Deprecate Failed',
-        description: error instanceof Error ? error.message : 'Failed to deprecate extension.',
+        description: error instanceof Error ? error.message : 'Failed to deprecate platform.',
         status: 'error',
         duration: 5000,
         isClosable: true
@@ -1217,6 +1424,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
           onDelete={handleDeleteRepository}
           onDeprecate={handleDeprecateRepository}
           platforms={platforms}
+          platformStatus={platformExtensionStatuses.find(status => status.platformId === editingRepository.platformId)}
         />
       )}
     </Container>

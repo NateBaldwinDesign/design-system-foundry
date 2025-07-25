@@ -35,6 +35,7 @@ import { PlatformSourceValidationService } from '../services/platformSourceValid
 import type { RepositoryLink } from '../services/multiRepositoryManager';
 import { SourceSelectionDialog, SourceSelectionData } from './SourceSelectionDialog';
 import { SyntaxPatternsEditor, ValueFormattersEditor } from './shared';
+import type { PlatformExtensionStatus } from '../services/platformExtensionStatusService';
 
 export interface PlatformEditData {
   type: 'core' | 'platform-extension' | 'theme-override';
@@ -46,16 +47,16 @@ export interface PlatformEditData {
   // Core schema fields for platformExtensions
   systemId?: string;
   syntaxPatterns?: {
-    prefix: string;
-    suffix: string;
-    delimiter: string;
-    capitalization: string;
-    formatString: string;
+    prefix?: string;
+    suffix?: string;
+    delimiter?: '' | '_' | '-' | '.' | '/' | undefined;
+    capitalization?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
+    formatString?: string;
   };
   valueFormatters?: {
-    color: string;
-    dimension: string;
-    numberPrecision: number;
+    color?: string;
+    dimension?: string;
+    numberPrecision?: number;
   };
   // Platform management fields
   displayName?: string;
@@ -84,6 +85,7 @@ interface PlatformEditDialogProps {
       filePath: string;
     };
   }>;
+  platformStatus?: PlatformExtensionStatus;
 }
 
 export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
@@ -93,7 +95,8 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
   onSave,
   onDelete,
   onDeprecate,
-  platforms = []
+  platforms = [],
+  platformStatus
 }) => {
   const [formData, setFormData] = useState<PlatformEditData>({
     type: repository.type,
@@ -454,6 +457,15 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
 
   // Reset form when repository changes
   useEffect(() => {
+    if (platformStatus?.hasError && (platformStatus.errorType === 'file-not-found' || platformStatus.errorType === 'repository-not-found')) {
+      setSourceValidationResult({
+        isValid: false,
+        error: platformStatus.errorMessage || 'File or repository is not found',
+        showSourceSelection: true
+      });
+      setLoadingPlatformData(false);
+      return;
+    }
     // Get the canonical platform data from the platforms prop
     const canonicalPlatformData = getCanonicalPlatformData();
     
@@ -492,8 +504,8 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
       syntaxPatterns: {
         prefix: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.prefix as string || '',
         suffix: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.suffix as string || '',
-        delimiter: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.delimiter as string || '',
-        capitalization: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.capitalization as string || 'none',
+        delimiter: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.delimiter as '' | '_' | '-' | '.' | '/' | undefined || '',
+        capitalization: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.capitalization as 'none' | 'uppercase' | 'lowercase' | 'capitalize' || 'none',
         formatString: (platformExtensionData?.syntaxPatterns as Record<string, unknown>)?.formatString as string || ''
       },
       valueFormatters: {
@@ -506,7 +518,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
     
     // Load platform extension data from source
     loadPlatformExtensionData();
-  }, [repository, platforms]);
+  }, [repository, platforms, platformStatus]);
 
   // Update form data when platform extension data is loaded
   useEffect(() => {
@@ -516,8 +528,8 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
         syntaxPatterns: {
           prefix: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.prefix as string || '',
           suffix: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.suffix as string || '',
-          delimiter: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.delimiter as string || '',
-          capitalization: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.capitalization as string || 'none',
+          delimiter: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.delimiter as '' | '_' | '-' | '.' | '/' | undefined || '',
+          capitalization: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.capitalization as 'none' | 'uppercase' | 'lowercase' | 'capitalize' || 'none',
           formatString: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.formatString as string || ''
         },
         valueFormatters: {
@@ -1240,16 +1252,16 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
             syntaxPatterns={isLocalPlatform ? (formData.syntaxPatterns ?? {
               prefix: '',
               suffix: '',
-              delimiter: '_',
-              capitalization: 'none',
+              delimiter: '_' as const,
+              capitalization: 'none' as const,
               formatString: ''
-            }) : (data.syntaxPatterns ?? {
-              prefix: '',
-              suffix: '',
-              delimiter: '_',
-              capitalization: 'none',
-              formatString: ''
-            })}
+            }) : {
+              prefix: (data.syntaxPatterns as Record<string, unknown>)?.prefix as string || '',
+              suffix: (data.syntaxPatterns as Record<string, unknown>)?.suffix as string || '',
+              delimiter: (data.syntaxPatterns as Record<string, unknown>)?.delimiter as '' | '_' | '-' | '.' | '/' | undefined || '_' as const,
+              capitalization: (data.syntaxPatterns as Record<string, unknown>)?.capitalization as 'none' | 'uppercase' | 'lowercase' | 'capitalize' || 'none' as const,
+              formatString: (data.syntaxPatterns as Record<string, unknown>)?.formatString as string || ''
+            }}
             onSyntaxPatternsChange={(newSyntaxPatterns) => {
               if (isLocalPlatform) {
                 setFormData(prev => ({
@@ -1267,15 +1279,15 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
         {/* Value Formatters - Editable for local platforms, read-only for external */}
         <Box mb={4}>
           <ValueFormattersEditor
-            valueFormatters={isLocalPlatform ? (formData.valueFormatters || {
-              color: 'hex',
-              dimension: 'px',
-              numberPrecision: 2
-            }) : (data.valueFormatters || {
-              color: 'hex',
-              dimension: 'px',
-              numberPrecision: 2
-            })}
+            valueFormatters={isLocalPlatform ? {
+              color: formData.valueFormatters?.color || 'hex',
+              dimension: formData.valueFormatters?.dimension || 'px',
+              numberPrecision: formData.valueFormatters?.numberPrecision || 2
+            } : {
+              color: (data.valueFormatters as Record<string, unknown>)?.color as string || 'hex',
+              dimension: (data.valueFormatters as Record<string, unknown>)?.dimension as string || 'px',
+              numberPrecision: (data.valueFormatters as Record<string, unknown>)?.numberPrecision as number || 2
+            }}
             onValueFormattersChange={(newValueFormatters) => {
               if (isLocalPlatform) {
                 setFormData(prev => ({
@@ -1343,7 +1355,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
                         value={formData.syntaxPatterns?.delimiter || ''}
                         onChange={(e) => setFormData({
                           ...formData,
-                          syntaxPatterns: { ...formData.syntaxPatterns!, delimiter: e.target.value }
+                          syntaxPatterns: { ...formData.syntaxPatterns!, delimiter: e.target.value as '' | '_' | '-' | '.' | '/' | undefined }
                         })}
                       >
                         <option value="">None</option>
@@ -1359,7 +1371,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
                         value={formData.syntaxPatterns?.capitalization ?? 'none'}
                         onChange={(e) => setFormData({
                           ...formData,
-                          syntaxPatterns: { ...formData.syntaxPatterns!, capitalization: e.target.value }
+                          syntaxPatterns: { ...formData.syntaxPatterns!, capitalization: e.target.value as 'none' | 'uppercase' | 'lowercase' | 'capitalize' }
                         })}
                       >
                         <option value="none">None</option>
@@ -1559,10 +1571,20 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
                 <AlertIcon />
                 <VStack align="start" spacing={1}>
                   <Text fontWeight="bold">Warning: This action will:</Text>
-                  <Text>• Delete the file from GitHub repository</Text>
-                  <Text>• Remove the repository link</Text>
-                  <Text>• Remove the platform from local data</Text>
-                  <Text>• Clean up all associated files</Text>
+                  {platformStatus?.hasError && (platformStatus.errorType === 'file-not-found' || platformStatus.errorType === 'repository-not-found') ? (
+                    <>
+                      <Text>• Remove the platform from local data (file already missing)</Text>
+                      <Text>• Remove the repository link</Text>
+                      <Text>• Clean up all associated files</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text>• Delete the file from GitHub repository</Text>
+                      <Text>• Remove the repository link</Text>
+                      <Text>• Remove the platform from local data</Text>
+                      <Text>• Clean up all associated files</Text>
+                    </>
+                  )}
                   <Text fontWeight="bold" color="red.500">• This action cannot be undone</Text>
                 </VStack>
               </Alert>
