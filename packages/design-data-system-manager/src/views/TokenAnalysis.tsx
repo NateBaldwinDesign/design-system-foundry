@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, Button, HStack } from '@chakra-ui/react';
 import * as d3 from 'd3';
-import { ValidationService } from '../../services/validation';
+import { ValidationService } from '../services/validation';
 import type { TokenCollection, Dimension, Platform, Taxonomy, ResolvedValueType } from '@token-model/data-model';
-import type { ExtendedToken } from '../../components/TokenEditorDialog';
+import type { ExtendedToken } from '../components/TokenEditorDialog';
 
 interface TokenNode extends d3.SimulationNodeDatum {
   id: string;

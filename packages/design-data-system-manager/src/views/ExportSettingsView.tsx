@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text, VStack, useColorMode } from '@chakra-ui/react';
-import { FigmaSettings } from '../../components/FigmaSettings';
-import { createSchemaJsonFromLocalStorage } from '../../services/createJson';
+import { FigmaSettings } from '../components/FigmaSettings';
+import { createSchemaJsonFromLocalStorage } from '../services/createJson';
 import type { TokenSystem } from '@token-model/data-model';
 
 interface ExportSettingsViewProps {

@@ -13,9 +13,9 @@ import {
   Badge
 } from '@chakra-ui/react';
 import { LuTrash2, LuPencil, LuPlus, LuSettings } from 'react-icons/lu';
-import { SystemVariableEditorDialog } from '../../components/SystemVariableEditorDialog';
-import { SystemVariableService, SystemVariable } from '../../services/systemVariableService';
-import { CardTitle } from '../../components/CardTitle';
+import { SystemVariableEditorDialog } from '../components/SystemVariableEditorDialog';
+import { SystemVariableService, SystemVariable } from '../services/systemVariableService';
+import { CardTitle } from '../components/CardTitle';
 import type { Dimension } from '@token-model/data-model';
 
 interface SystemVariablesViewProps {

@@ -21,8 +21,8 @@ import {
   useColorMode
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
-import { StorageService } from '../../services/storage';
-import { ValidationService } from '../../services/validation';
+import { StorageService } from '../services/storage';
+import { ValidationService } from '../services/validation';
 import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 
 interface Theme {

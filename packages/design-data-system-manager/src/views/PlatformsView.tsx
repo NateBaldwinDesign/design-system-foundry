@@ -22,20 +22,20 @@ import {
   TabPanel,
   Badge
 } from '@chakra-ui/react';
-import { PlatformCreateDialog } from '../../components/PlatformCreateDialog';
-import { PlatformEditDialog, PlatformEditData } from '../../components/PlatformEditDialog';
-import { MultiRepositoryManager, MultiRepositoryData, RepositoryLink } from '../../services/multiRepositoryManager';
+import { PlatformCreateDialog } from '../components/PlatformCreateDialog';
+import { PlatformEditDialog, PlatformEditData } from '../components/PlatformEditDialog';
+import { MultiRepositoryManager, MultiRepositoryData, RepositoryLink } from '../services/multiRepositoryManager';
 import type { Platform, Taxonomy } from '@token-model/data-model';
-import { PlatformCreateData } from '../../components/PlatformCreateDialog';
+import { PlatformCreateData } from '../components/PlatformCreateDialog';
 import { LuPencil, LuPlus, LuExternalLink } from 'react-icons/lu';
-import { PlatformAnalytics } from '../../components/PlatformAnalytics';
-import { CacheDebugPanel } from '../../components/CacheDebugPanel';
-import { ExtendedToken } from '../../components/TokenEditorDialog';
-import type { DataType } from '../../services/dataTypeDetector';
-import { DataManager } from '../../services/dataManager';
-import { GitHubApiService } from '../../services/githubApi';
-import { SimpleRepositoryCreationService } from '../../services/simpleRepositoryCreationService';
-import { PlatformExtensionStatusService, type PlatformExtensionStatus } from '../../services/platformExtensionStatusService';
+import { PlatformAnalytics } from '../components/PlatformAnalytics';
+import { CacheDebugPanel } from '../components/CacheDebugPanel';
+import { ExtendedToken } from '../components/TokenEditorDialog';
+import type { DataType } from '../services/dataTypeDetector';
+import { DataManager } from '../services/dataManager';
+import { GitHubApiService } from '../services/githubApi';
+import { SimpleRepositoryCreationService } from '../services/simpleRepositoryCreationService';
+import { PlatformExtensionStatusService, type PlatformExtensionStatus } from '../services/platformExtensionStatusService';
 import { TriangleAlert } from 'lucide-react';
 
 interface PlatformsViewProps {
@@ -76,7 +76,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
 
   // Get current system ID from storage
   const getCurrentSystemId = async (): Promise<string> => {
-    const { StorageService } = await import('../../services/storage');
+    const { StorageService } = await import('../services/storage');
     const rootData = StorageService.getRootData();
     return rootData.systemId || 'system-default';
   };
@@ -227,8 +227,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
           
           // For platform extensions, ensure local data is stored for immediate access
           if (linkData.platformId && linkData.type === 'platform-extension') {
-            const { StorageService } = await import('../../services/storage');
-            const { GitHubApiService } = await import('../../services/githubApi');
+                  const { StorageService } = await import('../services/storage');
+      const { GitHubApiService } = await import('../services/githubApi');
             
             try {
               // Fetch the platform extension data from the repository
@@ -324,7 +324,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
               await SimpleRepositoryCreationService.createPlatformExtensionFile(fileName, fileConfig);
               
               // Get current repository info for platform array update
-              const { GitHubApiService } = await import('../../services/githubApi');
+              const { GitHubApiService } = await import('../services/githubApi');
               const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
               if (!repoInfo) {
                 throw new Error('No repository selected. Please load a file from GitHub first.');
@@ -581,7 +581,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
           
           // If this is a local platform, also update the platform extension file in localStorage
           if (editingRepository.repositoryUri === 'local' && editingRepository.platformId) {
-            const { StorageService } = await import('../../services/storage');
+            const { StorageService } = await import('../services/storage');
             const existingData = StorageService.getPlatformExtensionFile(editingRepository.platformId);
             
             if (existingData && typeof existingData === 'object' && existingData !== null) {
@@ -656,7 +656,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
         console.log('🔍 [handleDeleteRepository] Extracted platformId from mock repository:', platformId);
         
         // Handle deletion of unlinked platform directly
-        const { StorageService } = await import('../../services/storage');
+        const { StorageService } = await import('../services/storage');
         
         // Get current platforms from DataManager
         const snapshot = dataManager.getCurrentSnapshot();
@@ -815,7 +815,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
         
         if (repository.platformId) {
           console.log('🔍 [handleDeleteRepository] Processing platform extension for platformId:', repository.platformId);
-          const { StorageService } = await import('../../services/storage');
+          const { StorageService } = await import('../services/storage');
           
           // Get current platforms from DataManager
           const snapshot = dataManager.getCurrentSnapshot();
@@ -918,7 +918,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
         console.log('🔍 [handleDeprecateRepository] Extracted platformId from mock repository:', platformId);
         
         // Handle deprecation of unlinked platform directly
-        const { StorageService } = await import('../../services/storage');
+        const { StorageService } = await import('../services/storage');
         
         // Get current platforms from DataManager
         const snapshot = dataManager.getCurrentSnapshot();
@@ -1077,7 +1077,7 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
         
         if (repository.platformId) {
           console.log('🔍 [handleDeprecateRepository] Processing platform extension for platformId:', repository.platformId);
-          const { StorageService } = await import('../../services/storage');
+          const { StorageService } = await import('../services/storage');
           
           // Get current platforms from DataManager
           const snapshot = dataManager.getCurrentSnapshot();

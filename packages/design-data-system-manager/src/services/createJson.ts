@@ -18,6 +18,7 @@ export function createSchemaJsonFromLocalStorage() {
   const resolvedValueTypes = StorageService.getValueTypes() as (string | ResolvedValueType)[];
   const taxonomyOrder = StorageService.getTaxonomyOrder();
   const dimensionOrder = JSON.parse(localStorage.getItem('token-model:dimension-order') || '[]') as string[];
+  const figmaConfiguration = StorageService.getFigmaConfiguration();
 
   // Read root-level data from localStorage
   const rootData = StorageService.getRootData();
@@ -115,7 +116,8 @@ export function createSchemaJsonFromLocalStorage() {
     themes: normalizedThemes,
     taxonomies,
     resolvedValueTypes: resolvedValueTypesArray,
-    taxonomyOrder: taxonomyOrder || []
+    taxonomyOrder: taxonomyOrder || [],
+    figmaConfiguration: figmaConfiguration || {}
   };
 
   return schemaJson;

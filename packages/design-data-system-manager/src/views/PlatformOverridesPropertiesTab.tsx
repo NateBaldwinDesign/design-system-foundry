@@ -6,7 +6,7 @@ import {
   Text,
   Code,
 } from '@chakra-ui/react';
-import { JsonSyntaxHighlighter } from '../../components/JsonSyntaxHighlighter';
+import { JsonSyntaxHighlighter } from '../components/JsonSyntaxHighlighter';
 
 export const PlatformOverridesPropertiesTab: React.FC = () => {
   return (

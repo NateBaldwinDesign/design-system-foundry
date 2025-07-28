@@ -3,26 +3,29 @@ import {
   Box,
   Spinner,
   Text,
-  useColorMode,
 } from '@chakra-ui/react';
-import { JsonSyntaxHighlighter } from '../../components/JsonSyntaxHighlighter';
-import { exampleData as dataModelExamples } from '@token-model/data-model';
+import { JsonSyntaxHighlighter } from '../components/JsonSyntaxHighlighter';
+import { algorithmData } from '@token-model/data-model';
 
-export const CoreDataExampleTab: React.FC = () => {
+export const AlgorithmDataExampleTab: React.FC = () => {
   const [exampleData, setExampleData] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { colorMode } = useColorMode();
 
   useEffect(() => {
     const loadExampleData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const data = await dataModelExamples.core();
-        setExampleData(JSON.stringify(data.default, null, 2));
+        const data = await algorithmData.minimal();
+        if (data) {
+          setExampleData(JSON.stringify(data.default, null, 2));
+        } else {
+          throw new Error('No algorithm example data available');
+        }
       } catch (err) {
         setError('Failed to load example data');
+        console.error('Error loading algorithm example data:', err);
       } finally {
         setLoading(false);
       }

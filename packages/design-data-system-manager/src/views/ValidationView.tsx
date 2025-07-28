@@ -30,8 +30,8 @@ import {
   TabPanel
 } from '@chakra-ui/react';
 import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
-import { ValidationService } from '../../services/validation';
-import { createSchemaJsonFromLocalStorage, createAlgorithmJsonFromLocalStorage } from '../../services/createJson';
+import { ValidationService } from '../services/validation';
+import { createSchemaJsonFromLocalStorage, createAlgorithmJsonFromLocalStorage } from '../services/createJson';
 
 interface ValidationViewProps {
   tokens: Token[];

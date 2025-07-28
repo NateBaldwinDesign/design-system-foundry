@@ -17,24 +17,24 @@ import type { Schema } from '../hooks/useSchema';
 import type { GitHubUser } from '../config/github';
 
 // Import all view components
-import DashboardView from '../views/dashboard/DashboardView';
-import { TokensView } from '../views/tokens/TokensView';
-import { CollectionsView } from '../views/tokens/CollectionsView';
-import { SystemVariablesView } from '../views/tokens/SystemVariablesView';
-import AlgorithmsView from '../views/tokens/AlgorithmsView';
-import { TokenAnalysis } from '../views/tokens/TokenAnalysis';
-import { DimensionsView } from '../views/setup/DimensionsView';
-import { TaxonomyView } from '../views/setup/TaxonomyView';
-import { ValueTypesView } from '../views/setup/ValueTypesView';
-import ThemesView from '../views/themes/ThemesView';
+import DashboardView from '../views/DashboardView';
+import { TokensView } from '../views/TokensView';
+import { CollectionsView } from '../views/CollectionsView';
+import { SystemVariablesView } from '../views/SystemVariablesView';
+import AlgorithmsView from '../views/AlgorithmsView';
+import { TokenAnalysis } from '../views/TokenAnalysis';
+import { DimensionsView } from '../views/system/DimensionsView';
+import { TaxonomyView } from '../views/system/TaxonomyView';
+import { ValueTypesView } from '../views/system/ValueTypesView';
+import ThemesView from '../views/ThemesView';
 
-import { PlatformsView } from '../views/platforms/PlatformsView';
-import { ValidationView } from '../views/publishing/ValidationView';
-import { ExportSettingsView } from '../views/publishing/ExportSettingsView';
-import CoreDataView from '../views/schemas/CoreDataView';
-import ThemeOverridesView from '../views/schemas/ThemeOverridesView';
-import PlatformOverridesView from '../views/schemas/PlatformOverridesView';
-import AlgorithmDataView from '../views/schemas/AlgorithmDataView';
+import { PlatformsView } from '../views/PlatformsView';
+import { ValidationView } from '../views/ValidationView';
+import { ExportSettingsView } from '../views/ExportSettingsView';
+import CoreDataView from '../views/CoreDataView';
+import ThemeOverridesView from '../views/ThemeOverridesView';
+import PlatformOverridesView from '../views/PlatformOverridesView';
+import AlgorithmDataView from '../views/AlgorithmDataView';
 import { SystemView } from '../views/system/SystemView';
 import { TokenEditorDialog } from './TokenEditorDialog';
 

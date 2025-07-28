@@ -8,7 +8,8 @@ import type {
   Platform, 
   Taxonomy, 
   Theme, 
-  ResolvedValueType 
+  ResolvedValueType,
+  FigmaConfiguration
 } from '@token-model/data-model';
 import type { Algorithm } from '../types/algorithm';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
@@ -41,6 +42,7 @@ export interface DataSnapshot {
   }>;
   platformExtensions: Record<string, unknown>;
   themeOverrides: Record<string, unknown> | null;
+  figmaConfiguration: FigmaConfiguration | null;
 }
 
 export interface DataManagerCallbacks {
@@ -246,6 +248,7 @@ export class DataManager {
       linkedRepositories: [],
       platformExtensions: {},
       themeOverrides: null,
+      figmaConfiguration: null,
     };
     
     // Set new baseline
@@ -294,6 +297,7 @@ export class DataManager {
       linkedRepositories: StorageService.getLinkedRepositories(),
       platformExtensions: StorageService.getPlatformExtensions(),
       themeOverrides: StorageService.getThemeOverrides(),
+      figmaConfiguration: StorageService.getFigmaConfiguration(),
     };
   }
 
@@ -321,6 +325,7 @@ export class DataManager {
     StorageService.setLinkedRepositories(snapshot.linkedRepositories);
     StorageService.setPlatformExtensions(snapshot.platformExtensions);
     StorageService.setThemeOverrides(snapshot.themeOverrides);
+    StorageService.setFigmaConfiguration(snapshot.figmaConfiguration);
   }
 
   /**
@@ -342,6 +347,7 @@ export class DataManager {
       linkedRepositories: snapshot.linkedRepositories,
       platformExtensions: snapshot.platformExtensions,
       themeOverrides: snapshot.themeOverrides,
+      figmaConfiguration: snapshot.figmaConfiguration,
     };
     
     ChangeTrackingService.setBaselineData(baselineData);
@@ -394,6 +400,9 @@ export class DataManager {
       versionHistory
     });
 
+    // Process figmaConfiguration from schema
+    const figmaConfiguration = (fileContent.figmaConfiguration as FigmaConfiguration) ?? null;
+
     return {
       collections: normalizedCollections,
       modes: allModes,
@@ -411,6 +420,7 @@ export class DataManager {
       linkedRepositories: [],
       platformExtensions: {},
       themeOverrides: null,
+      figmaConfiguration,
     };
   }
 
@@ -499,6 +509,7 @@ export class DataManager {
       linkedRepositories: [],
       platformExtensions: {},
       themeOverrides: null,
+      figmaConfiguration: null,
     };
   }
 } 

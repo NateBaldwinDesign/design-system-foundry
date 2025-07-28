@@ -8,7 +8,7 @@ import {
   ListItem,
   Code,
 } from '@chakra-ui/react';
-import { JsonSyntaxHighlighter } from '../../components/JsonSyntaxHighlighter';
+import { JsonSyntaxHighlighter } from '../components/JsonSyntaxHighlighter';
 
 export const ThemeOverridesPropertiesTab: React.FC = () => {
   return (

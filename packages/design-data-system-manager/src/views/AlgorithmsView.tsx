@@ -16,9 +16,9 @@ import {
   ModalCloseButton
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
-import { AlgorithmEditor } from '../../components/AlgorithmEditor';
-import { Algorithm } from '../../types/algorithm';
-import { CardTitle } from '../../components/CardTitle';
+import { AlgorithmEditor } from '../components/AlgorithmEditor';
+import { Algorithm } from '../types/algorithm';
+import { CardTitle } from '../components/CardTitle';
 import type { Token } from '@token-model/data-model';
 
 interface AlgorithmsViewProps {

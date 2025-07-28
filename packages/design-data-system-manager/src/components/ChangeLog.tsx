@@ -58,6 +58,7 @@ const getEntityIcon = (entityType: string) => {
     case 'platformExtension': return Settings;
     case 'platformExtensionFile': return FileCode;
     case 'repository': return Database;
+    case 'figmaConfiguration': return Settings;
     default: return FileCode;
   }
 };
@@ -1429,6 +1430,47 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
       }],
     });
   }
+
+  // Compare figmaConfiguration
+  const oldFigmaConfig = (previousData.figmaConfiguration as Record<string, unknown>) || {};
+  const newFigmaConfig = (currentData.figmaConfiguration as Record<string, unknown>) || {};
+  
+  // Compare fileKey
+  if (oldFigmaConfig.fileKey !== newFigmaConfig.fileKey) {
+    changes.push({
+      type: 'modified',
+      entityType: 'figmaConfiguration',
+      entityId: 'figmaConfiguration',
+      entityName: 'Figma Configuration',
+      changes: [{
+        field: 'fileKey',
+        oldValue: formatValue(oldFigmaConfig.fileKey),
+        newValue: formatValue(newFigmaConfig.fileKey),
+        context: 'Figma file key for publishing',
+      }],
+    });
+  }
+
+  // Compare syntaxPatterns
+  const oldSyntaxPatterns = (oldFigmaConfig.syntaxPatterns as Record<string, unknown>) || {};
+  const newSyntaxPatterns = (newFigmaConfig.syntaxPatterns as Record<string, unknown>) || {};
+  
+  ['prefix', 'suffix', 'delimiter', 'capitalization', 'formatString'].forEach(field => {
+    if (oldSyntaxPatterns[field] !== newSyntaxPatterns[field]) {
+      changes.push({
+        type: 'modified',
+        entityType: 'figmaConfiguration',
+        entityId: 'figmaConfiguration',
+        entityName: 'Figma Configuration',
+        changes: [{
+          field: `syntaxPatterns.${field}`,
+          oldValue: formatValue(oldSyntaxPatterns[field]),
+          newValue: formatValue(newSyntaxPatterns[field]),
+          context: 'Figma token naming patterns',
+        }],
+      });
+    }
+  });
 
   return changes;
 };

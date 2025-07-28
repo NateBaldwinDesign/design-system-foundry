@@ -1,4 +1,14 @@
-import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy, Theme, ResolvedValueType } from '@token-model/data-model';
+import type { 
+  TokenCollection, 
+  Mode, 
+  Token, 
+  Dimension, 
+  Platform, 
+  Taxonomy, 
+  Theme, 
+  ResolvedValueType,
+  FigmaConfiguration
+} from '@token-model/data-model';
 import { generateDefaultValueTypes } from '../utils/defaultValueTypes';
 import { Algorithm } from '../types/algorithm';
 
@@ -27,7 +37,8 @@ const STORAGE_KEYS = {
   PLATFORM_EXTENSIONS: 'token-model:platform-extensions',
   THEME_OVERRIDES: 'token-model:theme-overrides',
   // Platform extension files storage
-  PLATFORM_EXTENSION_FILES: 'token-model:platform-extension-files'
+  PLATFORM_EXTENSION_FILES: 'token-model:platform-extension-files',
+  FIGMA_CONFIGURATION: 'token-model:figma-configuration'
 } as const;
 
 export class StorageService {
@@ -235,6 +246,14 @@ export class StorageService {
 
   static setThemeOverrides(overrides: Record<string, unknown> | null): void {
     this.setItem(STORAGE_KEYS.THEME_OVERRIDES, overrides);
+  }
+
+  static getFigmaConfiguration(): FigmaConfiguration | null {
+    return this.getItem(STORAGE_KEYS.FIGMA_CONFIGURATION, null);
+  }
+
+  static setFigmaConfiguration(config: FigmaConfiguration | null): void {
+    this.setItem(STORAGE_KEYS.FIGMA_CONFIGURATION, config);
   }
 
   // Platform extension files storage methods

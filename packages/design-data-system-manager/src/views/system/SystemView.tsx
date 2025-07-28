@@ -11,9 +11,9 @@ import {
   Tab,
   TabPanel,
 } from '@chakra-ui/react';
-import { DimensionsView } from '../setup/DimensionsView';
-import { TaxonomyView } from '../setup/TaxonomyView';
-import { ValueTypesView } from '../setup/ValueTypesView';
+import { DimensionsView } from './DimensionsView';
+import { TaxonomyView } from './TaxonomyView';
+import { ValueTypesView } from './ValueTypesView';
 import { StorageService } from '../../services/storage';
 
 interface SystemViewProps {
