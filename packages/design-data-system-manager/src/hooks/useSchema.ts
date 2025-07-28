@@ -18,7 +18,8 @@ import type {
   TokenStatus,
   TokenTier,
   TokenValue,
-  PropertyType
+  PropertyType,
+  ComponentProperty
 } from '@token-model/data-model';
 
 export interface Schema {
@@ -31,6 +32,7 @@ export interface Schema {
   platforms: Platform[];
   taxonomies: Taxonomy[];
   themes: Theme[];
+  componentProperties: ComponentProperty[];
   tokens: Array<{
     id: string;
     displayName: string;

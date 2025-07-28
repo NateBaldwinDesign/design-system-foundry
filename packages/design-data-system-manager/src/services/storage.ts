@@ -7,7 +7,8 @@ import type {
   Taxonomy, 
   Theme, 
   ResolvedValueType,
-  FigmaConfiguration
+  FigmaConfiguration,
+  ComponentProperty
 } from '@token-model/data-model';
 import { generateDefaultValueTypes } from '../utils/defaultValueTypes';
 import { Algorithm } from '../types/algorithm';
@@ -38,7 +39,8 @@ const STORAGE_KEYS = {
   THEME_OVERRIDES: 'token-model:theme-overrides',
   // Platform extension files storage
   PLATFORM_EXTENSION_FILES: 'token-model:platform-extension-files',
-  FIGMA_CONFIGURATION: 'token-model:figma-configuration'
+  FIGMA_CONFIGURATION: 'token-model:figma-configuration',
+  COMPONENT_PROPERTIES: 'token-model:component-properties'
 } as const;
 
 export class StorageService {
@@ -298,6 +300,14 @@ export class StorageService {
   static removePlatformExtensionFileContent(platformId: string): void {
     const fileKey = `token-model:platform-extension-file:${platformId}`;
     localStorage.removeItem(fileKey);
+  }
+
+  static getComponentProperties(): ComponentProperty[] {
+    return this.getItem(STORAGE_KEYS.COMPONENT_PROPERTIES, []);
+  }
+
+  static setComponentProperties(properties: ComponentProperty[]): void {
+    this.setItem(STORAGE_KEYS.COMPONENT_PROPERTIES, properties);
   }
 
   static clearAll(): void {

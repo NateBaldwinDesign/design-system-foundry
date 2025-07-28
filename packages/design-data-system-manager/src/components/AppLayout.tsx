@@ -78,6 +78,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       taxonomyOrder: StorageService.getTaxonomyOrder(),
       algorithms: StorageService.getAlgorithms(),
       algorithmFile: StorageService.getAlgorithmFile(),
+      componentProperties: StorageService.getComponentProperties(),
     };
   }, []);
 
@@ -87,7 +88,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     if (!currentData) return false;
     
     // Compare key data arrays to detect significant changes that indicate a new source
-    const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes'];
+    const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'componentProperties'];
     
     for (const field of keyFields) {
       const current = currentData[field] as unknown[] | undefined;
@@ -167,7 +168,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     if (hasAnyChanges) {
       // Count changes by comparing arrays
       let totalChanges = 0;
-      const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'taxonomies', 'algorithms', 'platforms'];
+      const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'taxonomies', 'algorithms', 'platforms', 'componentProperties'];
       
       keyFields.forEach(field => {
         const current = (currentDataSnapshot as Record<string, unknown>)[field] as unknown[] || [];
@@ -286,6 +287,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         algorithms: newBaseline.algorithms,
         taxonomyOrder: newBaseline.taxonomyOrder,
         dimensionOrder: newBaseline.dimensionOrder,
+        componentProperties: newBaseline.componentProperties,
       };
       
       // Update AppLayout's baseline state

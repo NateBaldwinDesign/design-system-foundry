@@ -14,6 +14,7 @@ import {
 import { DimensionsView } from './DimensionsView';
 import { TaxonomyView } from './TaxonomyView';
 import { ValueTypesView } from './ValueTypesView';
+import { ComponentPropertiesView } from './ComponentPropertiesView';
 import { StorageService } from '../../services/storage';
 
 interface SystemViewProps {
@@ -29,6 +30,7 @@ export const SystemView: React.FC<SystemViewProps> = () => {
   const collections = StorageService.getCollections();
   const platforms = StorageService.getPlatforms();
   const themes = StorageService.getThemes();
+  const componentProperties = StorageService.getComponentProperties();
 
   return (
     <Container maxW="container.xl" py={8}>
@@ -46,6 +48,7 @@ export const SystemView: React.FC<SystemViewProps> = () => {
             <Tab>Dimensions</Tab>
             <Tab>Taxonomies</Tab>
             <Tab>Value Types</Tab>
+            <Tab>Component Properties</Tab>
           </TabList>
 
           <TabPanels mt={4}>
@@ -78,6 +81,18 @@ export const SystemView: React.FC<SystemViewProps> = () => {
                 platforms={platforms}
                 taxonomies={taxonomies}
                 themes={themes}
+              />
+            </TabPanel>
+
+            <TabPanel>
+              <ComponentPropertiesView
+                componentProperties={componentProperties}
+                setComponentProperties={(props) => StorageService.setComponentProperties(props)}
+                tokens={tokens}
+                collections={collections}
+                dimensions={dimensions}
+                platforms={platforms}
+                resolvedValueTypes={resolvedValueTypes}
               />
             </TabPanel>
           </TabPanels>

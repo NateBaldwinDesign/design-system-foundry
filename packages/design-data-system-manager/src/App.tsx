@@ -40,6 +40,7 @@ import { ViewRenderer } from './components/ViewRenderer';
 import { ChangeTrackingService } from './services/changeTrackingService';
 import { DataManager, type DataSnapshot } from './services/dataManager';
 import { MultiRepositoryManager } from './services/multiRepositoryManager';
+import { ComponentProperty } from '@token-model/data-model';
 
 const App = () => {
   const { schema } = useSchema();
@@ -52,6 +53,7 @@ const App = () => {
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
+  const [componentProperties, setComponentProperties] = useState<ComponentProperty[]>([]);
   const [algorithms, setAlgorithms] = useState<Algorithm[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataOptions, setDataOptions] = useState<{ label: string; value: string; hasAlgorithms: boolean }[]>([]);
@@ -100,6 +102,7 @@ const App = () => {
       themes: StorageService.getThemes(),
       tokens: StorageService.getTokens(),
       taxonomies: StorageService.getTaxonomies(),
+      componentProperties: StorageService.getComponentProperties(),
       algorithms: StorageService.getAlgorithms(),
       taxonomyOrder: StorageService.getTaxonomyOrder(),
       dimensionOrder: StorageService.getDimensionOrder(),
@@ -147,6 +150,7 @@ const App = () => {
             setThemes(snapshot.themes);
             setTokens(snapshot.tokens);
             setTaxonomies(snapshot.taxonomies);
+            setComponentProperties(snapshot.componentProperties);
             setAlgorithms(snapshot.algorithms);
             setTaxonomyOrder(snapshot.taxonomyOrder);
             setDimensionOrder(snapshot.dimensionOrder);
@@ -166,6 +170,7 @@ const App = () => {
             setThemes(snapshot.themes);
             setTokens(snapshot.tokens);
             setTaxonomies(snapshot.taxonomies);
+            setComponentProperties(snapshot.componentProperties);
             setAlgorithms(snapshot.algorithms);
             setTaxonomyOrder(snapshot.taxonomyOrder);
             setDimensionOrder(snapshot.dimensionOrder);
@@ -311,6 +316,7 @@ const App = () => {
     const storedThemes = StorageService.getThemes();
     const storedTokens = StorageService.getTokens();
     const storedTaxonomies = StorageService.getTaxonomies();
+    const storedComponentProperties = StorageService.getComponentProperties();
     const storedAlgorithms = StorageService.getAlgorithms();
     const storedTaxonomyOrder = StorageService.getTaxonomyOrder();
 
@@ -322,6 +328,7 @@ const App = () => {
     setThemes(storedThemes);
     setTokens(storedTokens);
     setTaxonomies(storedTaxonomies);
+    setComponentProperties(storedComponentProperties);
     setAlgorithms(storedAlgorithms);
     setTaxonomyOrder(storedTaxonomyOrder);
 
@@ -335,6 +342,7 @@ const App = () => {
       themes: storedThemes,
       tokens: storedTokens,
       taxonomies: storedTaxonomies,
+      componentProperties: storedComponentProperties,
       algorithms: storedAlgorithms,
       taxonomyOrder: storedTaxonomyOrder,
     };
@@ -686,6 +694,7 @@ const App = () => {
                 platforms={platforms}
                 themes={themes}
                 taxonomies={taxonomies}
+                componentProperties={componentProperties}
                 algorithms={algorithms}
                 dimensionOrder={dimensionOrder}
                 taxonomyOrder={taxonomyOrder}

@@ -9,7 +9,8 @@ import type {
   Taxonomy, 
   Theme, 
   ResolvedValueType,
-  FigmaConfiguration
+  FigmaConfiguration,
+  ComponentProperty
 } from '@token-model/data-model';
 import type { Algorithm } from '../types/algorithm';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
@@ -23,6 +24,7 @@ export interface DataSnapshot {
   themes: Theme[];
   tokens: ExtendedToken[];
   taxonomies: Taxonomy[];
+  componentProperties: ComponentProperty[];
   algorithms: Algorithm[];
   taxonomyOrder: string[];
   dimensionOrder: string[];
@@ -240,6 +242,7 @@ export class DataManager {
       themes: [],
       tokens: [],
       taxonomies: [],
+      componentProperties: [],
       algorithms: [],
       taxonomyOrder: [],
       dimensionOrder: [],
@@ -289,6 +292,7 @@ export class DataManager {
       themes: StorageService.getThemes(),
       tokens: StorageService.getTokens(),
       taxonomies: StorageService.getTaxonomies(),
+      componentProperties: StorageService.getComponentProperties(),
       algorithms: StorageService.getAlgorithms(),
       taxonomyOrder: StorageService.getTaxonomyOrder(),
       dimensionOrder: StorageService.getDimensionOrder(),
@@ -313,6 +317,7 @@ export class DataManager {
     StorageService.setPlatforms(snapshot.platforms);
     StorageService.setThemes(snapshot.themes);
     StorageService.setTaxonomies(snapshot.taxonomies);
+    StorageService.setComponentProperties(snapshot.componentProperties);
     StorageService.setAlgorithms(snapshot.algorithms);
     StorageService.setTaxonomyOrder(snapshot.taxonomyOrder);
     StorageService.setDimensionOrder(snapshot.dimensionOrder);
@@ -341,6 +346,7 @@ export class DataManager {
       themes: snapshot.themes,
       tokens: snapshot.tokens,
       taxonomies: snapshot.taxonomies,
+      componentProperties: snapshot.componentProperties,
       algorithms: snapshot.algorithms,
       taxonomyOrder: snapshot.taxonomyOrder,
       // Include MultiRepositoryManager data in baseline
@@ -374,6 +380,7 @@ export class DataManager {
     const normalizedTaxonomies = (fileContent.taxonomies as Taxonomy[]) ?? [];
     const normalizedResolvedValueTypes = (fileContent.resolvedValueTypes as ResolvedValueType[]) ?? [];
     const normalizedTaxonomyOrder = ((fileContent.taxonomyOrder as string[]) ?? []);
+    const normalizedComponentProperties = (fileContent.componentProperties as ComponentProperty[]) ?? [];
 
     const allModes: Mode[] = normalizedDimensions.flatMap((d: Dimension) => (d as { modes?: Mode[] }).modes || []);
 
@@ -412,6 +419,7 @@ export class DataManager {
       themes: normalizedThemes,
       tokens: normalizedTokens as ExtendedToken[],
       taxonomies: normalizedTaxonomies,
+      componentProperties: normalizedComponentProperties,
       algorithms: [],
       taxonomyOrder: normalizedTaxonomyOrder,
       dimensionOrder: normalizedDimensions.map(d => d.id),
@@ -457,6 +465,7 @@ export class DataManager {
     const normalizedTaxonomies = (d.taxonomies as Taxonomy[]) ?? [];
     const normalizedResolvedValueTypes = (d.resolvedValueTypes as ResolvedValueType[]) ?? [];
     const normalizedTaxonomyOrder = ((d.taxonomyOrder as string[]) ?? []);
+    const normalizedComponentProperties = (d.componentProperties as ComponentProperty[]) ?? [];
 
     const allModes: Mode[] = normalizedDimensions.flatMap((dimension: Dimension) => (dimension as { modes?: Mode[] }).modes || []);
 
@@ -501,6 +510,7 @@ export class DataManager {
       themes: normalizedThemes,
       tokens: normalizedTokens as ExtendedToken[],
       taxonomies: normalizedTaxonomies,
+      componentProperties: normalizedComponentProperties,
       algorithms: loadedAlgorithms,
       taxonomyOrder: normalizedTaxonomyOrder,
       dimensionOrder: normalizedDimensions.map(dimension => dimension.id),

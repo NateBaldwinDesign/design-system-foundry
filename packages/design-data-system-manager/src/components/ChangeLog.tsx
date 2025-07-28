@@ -59,6 +59,7 @@ const getEntityIcon = (entityType: string) => {
     case 'platformExtensionFile': return FileCode;
     case 'repository': return Database;
     case 'figmaConfiguration': return Settings;
+    case 'componentProperty': return Tag;
     default: return FileCode;
   }
 };
@@ -956,6 +957,165 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
         changes: [{
           field: 'algorithm',
           oldValue: `Removed algorithm: ${algorithmObj.name || id}`,
+        }],
+      });
+    }
+  }
+
+  // Compare component properties
+  const oldComponentProperties = (previousData.componentProperties as unknown[]) || [];
+  const newComponentProperties = (currentData.componentProperties as unknown[]) || [];
+  
+  const oldComponentPropertyMap = new Map();
+  const newComponentPropertyMap = new Map();
+
+  oldComponentProperties.forEach((cp: unknown) => {
+    if (typeof cp === 'object' && cp !== null) {
+      const componentProperty = cp as { id?: string };
+      if (componentProperty.id) {
+        oldComponentPropertyMap.set(componentProperty.id, componentProperty);
+      }
+    }
+  });
+
+  newComponentProperties.forEach((cp: unknown) => {
+    if (typeof cp === 'object' && cp !== null) {
+      const componentProperty = cp as { id?: string };
+      if (componentProperty.id) {
+        newComponentPropertyMap.set(componentProperty.id, componentProperty);
+      }
+    }
+  });
+
+  // Check for added component properties
+  for (const [id, componentProperty] of newComponentPropertyMap) {
+    if (!oldComponentPropertyMap.has(id)) {
+      const componentPropertyObj = componentProperty as { displayName?: string; type?: string };
+      changes.push({
+        type: 'added',
+        entityType: 'componentProperty',
+        entityId: id,
+        entityName: componentPropertyObj.displayName || id,
+        changes: [{
+          field: 'componentProperty',
+          newValue: `Added component property: ${componentPropertyObj.displayName || id} (${componentPropertyObj.type || 'unknown'})`,
+        }],
+      });
+    } else {
+      // Check for modified component properties
+      const oldComponentProperty = oldComponentPropertyMap.get(id);
+      const componentPropertyChanges: Array<{
+        field: string;
+        oldValue?: unknown;
+        newValue?: unknown;
+        context?: string;
+      }> = [];
+
+      const oldComponentPropertyObj = oldComponentProperty as Record<string, unknown>;
+      const componentPropertyObj = componentProperty as Record<string, unknown>;
+
+      // Compare basic fields
+      ['displayName', 'description', 'type', 'default'].forEach(field => {
+        if (oldComponentPropertyObj[field] !== componentPropertyObj[field]) {
+          componentPropertyChanges.push({
+            field,
+            oldValue: formatValue(oldComponentPropertyObj[field]),
+            newValue: formatValue(componentPropertyObj[field]),
+          });
+        }
+      });
+
+      // Compare options for list type properties
+      if (componentPropertyObj.type === 'list') {
+        const oldOptions = oldComponentPropertyObj.options as unknown[] || [];
+        const newOptions = componentPropertyObj.options as unknown[] || [];
+        
+        const oldOptionsMap = new Map();
+        const newOptionsMap = new Map();
+
+        oldOptions.forEach((opt: unknown) => {
+          if (typeof opt === 'object' && opt !== null) {
+            const option = opt as { id?: string };
+            if (option.id) {
+              oldOptionsMap.set(option.id, option);
+            }
+          }
+        });
+
+        newOptions.forEach((opt: unknown) => {
+          if (typeof opt === 'object' && opt !== null) {
+            const option = opt as { id?: string };
+            if (option.id) {
+              newOptionsMap.set(option.id, option);
+            }
+          }
+        });
+
+        // Check for added options
+        for (const [optionId, option] of newOptionsMap) {
+          if (!oldOptionsMap.has(optionId)) {
+            const optionObj = option as { displayName?: string };
+            componentPropertyChanges.push({
+              field: 'options',
+              newValue: `Added option: ${optionObj.displayName || optionId}`,
+              context: 'Component property option',
+            });
+          } else {
+            // Check for modified options
+            const oldOption = oldOptionsMap.get(optionId);
+            const oldOptionObj = oldOption as Record<string, unknown>;
+            const optionObj = option as Record<string, unknown>;
+
+            ['displayName', 'description'].forEach(field => {
+              if (oldOptionObj[field] !== optionObj[field]) {
+                componentPropertyChanges.push({
+                  field: `options.${field}`,
+                  oldValue: formatValue(oldOptionObj[field]),
+                  newValue: formatValue(optionObj[field]),
+                  context: `Option: ${optionObj.displayName || optionId}`,
+                });
+              }
+            });
+          }
+        }
+
+        // Check for removed options
+        for (const [optionId, option] of oldOptionsMap) {
+          if (!newOptionsMap.has(optionId)) {
+            const optionObj = option as { displayName?: string };
+            componentPropertyChanges.push({
+              field: 'options',
+              oldValue: `Removed option: ${optionObj.displayName || optionId}`,
+              context: 'Component property option',
+            });
+          }
+        }
+      }
+
+      if (componentPropertyChanges.length > 0) {
+        changes.push({
+          type: 'modified',
+          entityType: 'componentProperty',
+          entityId: id,
+          entityName: componentPropertyObj.displayName as string || id,
+          changes: componentPropertyChanges,
+        });
+      }
+    }
+  }
+
+  // Check for removed component properties
+  for (const [id, componentProperty] of oldComponentPropertyMap) {
+    if (!newComponentPropertyMap.has(id)) {
+      const componentPropertyObj = componentProperty as { displayName?: string };
+      changes.push({
+        type: 'removed',
+        entityType: 'componentProperty',
+        entityId: id,
+        entityName: componentPropertyObj.displayName || id,
+        changes: [{
+          field: 'componentProperty',
+          oldValue: `Removed component property: ${componentPropertyObj.displayName || id}`,
         }],
       });
     }

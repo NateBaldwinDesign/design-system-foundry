@@ -85,6 +85,13 @@ export class SchemaValidationService {
       }
     }
 
+    // Validate component properties if present
+    if (data.componentProperties) {
+      const componentPropertiesValidation = this.validateComponentProperties(data.componentProperties);
+      errors.push(...componentPropertiesValidation.errors);
+      warnings.push(...componentPropertiesValidation.warnings);
+    }
+
     return {
       isValid: errors.length === 0,
       errors,

@@ -9,7 +9,8 @@ import type {
   Platform, 
   Taxonomy, 
   Theme, 
-  ResolvedValueType
+  ResolvedValueType,
+  ComponentProperty
 } from '@token-model/data-model';
 import type { ExtendedToken } from './TokenEditorDialog';
 import type { Algorithm } from '../types/algorithm';
@@ -46,6 +47,7 @@ interface ViewRendererProps {
   platforms: Platform[];
   themes: Theme[];
   taxonomies: Taxonomy[];
+  componentProperties: ComponentProperty[];
   algorithms: Algorithm[];
   schema: Schema | null;
   // GitHub user info
@@ -79,6 +81,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   platforms,
   themes,
   taxonomies,
+  componentProperties,
   algorithms,
   schema,
   githubUser,
