@@ -9,7 +9,6 @@ export type ViewId =
   | 'analysis'
   | 'dimensions'
   | 'classification'
-  | 'naming-rules'
   | 'value-types'
   | 'themes'
   | 'platforms'
@@ -17,10 +16,8 @@ export type ViewId =
   | 'validation'
   | 'version-history'
   | 'access'
-  | 'core-data'
-  | 'theme-overrides'
-  | 'platform-overrides'
-  | 'algorithm-data';
+  | 'schemas'
+  | 'system';
 
 export const useViewState = () => {
   const [currentView, setCurrentView] = useState<ViewId>('dashboard');

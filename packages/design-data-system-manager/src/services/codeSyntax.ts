@@ -1,7 +1,7 @@
 import type { Token, Taxonomy, Platform as PlatformType } from '@token-model/data-model';
 
 interface Schema {
-  namingRules?: { taxonomyOrder?: string[] };
+  taxonomyOrder?: string[];
   taxonomies: Taxonomy[];
   platforms: PlatformType[];
 }
@@ -11,14 +11,14 @@ export class CodeSyntaxService {
     // Find the platform object
     const platform = (schema.platforms || []).find(p => p.id === platformId);
     const syntax = platform?.syntaxPatterns || {};
-    const taxonomyOrder = schema.namingRules?.taxonomyOrder || [];
+    const taxonomyOrder = schema.taxonomyOrder || [];
     const taxonomies = schema.taxonomies || [];
 
     // Build parts in taxonomy order
     const parts: string[] = [];
     const usedTaxonomyIds = new Set<string>();
     if (Array.isArray(token.taxonomies) && token.taxonomies.length > 0) {
-      // Always use taxonomyOrder from schema.namingRules
+      // Always use taxonomyOrder from schema
       taxonomyOrder.forEach((taxId: string) => {
         const ref = token.taxonomies.find((t: { taxonomyId: string }) => t.taxonomyId === taxId);
         if (ref) {

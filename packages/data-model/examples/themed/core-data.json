@@ -2489,14 +2489,12 @@
       "overrideFileUri": "themed/brand-b-overrides.json"
     }
   ],
-  "namingRules": {
-    "taxonomyOrder": [
-      "taxonomy-color-family",
-      "taxonomy-prominance",
-      "taxonomy-element",
-      "taxonomy-scale"
-    ]
-  },
+  "taxonomyOrder": [
+    "taxonomy-color-family",
+    "taxonomy-prominance",
+    "taxonomy-element",
+    "taxonomy-scale"
+  ],
   "standardPropertyTypes": [
     {
       "id": "background-color",

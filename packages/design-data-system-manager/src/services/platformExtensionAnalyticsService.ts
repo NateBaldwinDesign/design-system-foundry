@@ -1,5 +1,6 @@
 import { PlatformExtensionDataService } from './platformExtensionDataService';
 import type { Platform } from '@token-model/data-model';
+import { GitHubAuthService } from './githubAuth';
 
 export interface PlatformExtensionAnalyticsSummary {
   totalPlatforms: number;
@@ -75,6 +76,25 @@ export class PlatformExtensionAnalyticsService {
       }
 
       try {
+        // Check if user is authenticated with GitHub before attempting to fetch data
+        const isAuthenticated = GitHubAuthService.isAuthenticated();
+        
+        if (!isAuthenticated) {
+          // User is not authenticated - skip GitHub API calls and show authentication required
+          platformAnalytics.push({
+            platformId: platform.id,
+            platformName: platform.displayName,
+            tokenOverridesCount: 0,
+            algorithmVariableOverridesCount: 0,
+            omittedModesCount: 0,
+            omittedDimensionsCount: 0,
+            hasError: true,
+            errorType: 'repository-not-found',
+            errorMessage: 'GitHub authentication required to access platform extension data'
+          });
+          continue;
+        }
+
         // Try to load platform extension data
         const result = await PlatformExtensionDataService.getPlatformExtensionData(
           platform.extensionSource.repositoryUri,

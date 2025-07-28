@@ -1,4 +1,14 @@
-import type { Token, TokenCollection, Mode, Dimension, Platform, Taxonomy, Theme, ResolvedValueType } from '@token-model/data-model';
+import type { 
+  TokenCollection, 
+  Mode, 
+  Token, 
+  Dimension, 
+  Platform, 
+  Taxonomy, 
+  Theme, 
+  ResolvedValueType,
+  FigmaConfiguration
+} from '@token-model/data-model';
 import { generateDefaultValueTypes } from '../utils/defaultValueTypes';
 import { Algorithm } from '../types/algorithm';
 
@@ -18,7 +28,7 @@ const STORAGE_KEYS = {
   PLATFORMS: 'token-model:platforms',
   THEMES: 'token-model:themes',
   TAXONOMIES: 'token-model:taxonomies',
-  NAMING_RULES: 'token-model:naming-rules',
+  TAXONOMY_ORDER: 'token-model:taxonomy-order',
   ALGORITHMS: 'token-model:algorithms',
   ALGORITHM_FILE: 'token-model:algorithm-file',
   ROOT_DATA: 'token-model:root-data',
@@ -27,7 +37,8 @@ const STORAGE_KEYS = {
   PLATFORM_EXTENSIONS: 'token-model:platform-extensions',
   THEME_OVERRIDES: 'token-model:theme-overrides',
   // Platform extension files storage
-  PLATFORM_EXTENSION_FILES: 'token-model:platform-extension-files'
+  PLATFORM_EXTENSION_FILES: 'token-model:platform-extension-files',
+  FIGMA_CONFIGURATION: 'token-model:figma-configuration'
 } as const;
 
 export class StorageService {
@@ -119,23 +130,22 @@ export class StorageService {
     localStorage.setItem(STORAGE_KEYS.TAXONOMIES, JSON.stringify(taxonomies));
   }
 
-  static getNamingRules(): { taxonomyOrder: string[] } {
-    return this.getItem(STORAGE_KEYS.NAMING_RULES, { taxonomyOrder: [] });
+  static getTaxonomyOrder(): string[] {
+    return this.getItem(STORAGE_KEYS.TAXONOMY_ORDER, []);
   }
 
-  static setNamingRules(rules: { taxonomyOrder: string[] }): void {
-    // Clean up naming rules by removing references to non-existent taxonomies
+  static setTaxonomyOrder(taxonomyOrder: string[]): void {
+    // Clean up taxonomy order by removing references to non-existent taxonomies
     const taxonomies = this.getTaxonomies();
     const taxonomyIds = new Set(taxonomies.map(t => t.id));
-    const cleanedTaxonomyOrder = rules.taxonomyOrder.filter(id => taxonomyIds.has(id));
+    const cleanedTaxonomyOrder = taxonomyOrder.filter(id => taxonomyIds.has(id));
     
-    if (cleanedTaxonomyOrder.length !== rules.taxonomyOrder.length) {
-      console.warn('[StorageService] Removed invalid taxonomy IDs from naming rules:', 
-        rules.taxonomyOrder.filter(id => !taxonomyIds.has(id)));
+    if (cleanedTaxonomyOrder.length !== taxonomyOrder.length) {
+      console.warn('[StorageService] Removed invalid taxonomy IDs from taxonomy order:', 
+        taxonomyOrder.filter(id => !taxonomyIds.has(id)));
     }
     
-    const cleanedRules = { taxonomyOrder: cleanedTaxonomyOrder };
-    this.setItem(STORAGE_KEYS.NAMING_RULES, cleanedRules);
+    this.setItem(STORAGE_KEYS.TAXONOMY_ORDER, cleanedTaxonomyOrder);
   }
 
   static getAlgorithms(): Algorithm[] {
@@ -236,6 +246,14 @@ export class StorageService {
 
   static setThemeOverrides(overrides: Record<string, unknown> | null): void {
     this.setItem(STORAGE_KEYS.THEME_OVERRIDES, overrides);
+  }
+
+  static getFigmaConfiguration(): FigmaConfiguration | null {
+    return this.getItem(STORAGE_KEYS.FIGMA_CONFIGURATION, null);
+  }
+
+  static setFigmaConfiguration(config: FigmaConfiguration | null): void {
+    this.setItem(STORAGE_KEYS.FIGMA_CONFIGURATION, config);
   }
 
   // Platform extension files storage methods

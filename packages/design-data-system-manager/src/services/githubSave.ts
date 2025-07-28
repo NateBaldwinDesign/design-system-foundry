@@ -170,9 +170,7 @@ export class GitHubSaveService {
         themes: StorageService.getThemes(),
         taxonomies: StorageService.getTaxonomies(),
         resolvedValueTypes: StorageService.getValueTypes(),
-        namingRules: {
-          taxonomyOrder: StorageService.getNamingRules()?.taxonomyOrder || []
-        },
+              taxonomyOrder: StorageService.getTaxonomyOrder(),
         versionHistory: rootData.versionHistory || [],
         systemName: rootData.systemName || 'Design System',
         systemId: rootData.systemId || 'design-system',

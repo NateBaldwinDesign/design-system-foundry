@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, Tooltip } from '@chakra-ui/react';
-import { getTokenStats, getPlatformExtensionStats, getThemeStats, getLatestRelease, getRecentActivity } from '../../utils/dashboardStats';
+import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, AlertIcon, Tooltip } from '@chakra-ui/react';
+import { getTokenStats, getPlatformExtensionStats, getThemeStats, getLatestRelease, getRecentActivity } from '../utils/dashboardStats';
 import type { Platform, Theme } from '@token-model/data-model';
-import type { ExtendedToken } from '../../components/TokenEditorDialog';
-import type { GitHubUser } from '../../config/github';
-import type { PlatformExtensionAnalyticsSummary } from '../../services/platformExtensionAnalyticsService';
-import { WarningTwoIcon } from '@chakra-ui/icons';
+import type { ExtendedToken } from '../components/TokenEditorDialog';
+import type { GitHubUser } from '../config/github';
+import type { PlatformExtensionAnalyticsSummary } from '../services/platformExtensionAnalyticsService';
 import { TriangleAlert } from 'lucide-react';
 
 interface DashboardViewProps {

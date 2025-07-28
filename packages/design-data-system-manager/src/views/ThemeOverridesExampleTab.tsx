@@ -5,7 +5,7 @@ import {
   Text,
   useColorMode,
 } from '@chakra-ui/react';
-import { JsonSyntaxHighlighter } from '../../components/JsonSyntaxHighlighter';
+import { JsonSyntaxHighlighter } from '../components/JsonSyntaxHighlighter';
 import { exampleData as dataModelExamples } from '@token-model/data-model';
 
 export const ThemeOverridesExampleTab: React.FC = () => {

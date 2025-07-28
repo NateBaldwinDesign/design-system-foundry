@@ -61,8 +61,8 @@ export const GitHubCallback: React.FC = () => {
         setStatus('success');
         
         toast({
-          title: 'GitHub Connected',
-          description: `Successfully connected to GitHub as ${user.login}`,
+          title: 'Signed in',
+          description: `Successfully signed in as ${user.login}`,
           status: 'success',
           duration: 5000,
           isClosable: true,
@@ -98,14 +98,6 @@ export const GitHubCallback: React.FC = () => {
       
       // Dispatch data change event to update change log
       window.dispatchEvent(new CustomEvent('token-model:data-change'));
-      
-      toast({
-        title: 'Data Loaded',
-        description: `Successfully loaded ${fileType === 'schema' ? 'core data' : 'theme override'} from GitHub`,
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
-      });
       
       // Redirect to the main app
       navigate('/');

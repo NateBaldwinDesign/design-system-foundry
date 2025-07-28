@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Button } from '@chakra-ui/react';
+import { Button } from '@chakra-ui/react';
 import { Plus } from 'lucide-react';
 import type { ViewId } from '../hooks/useViewState';
 import type { 
@@ -17,26 +17,23 @@ import type { Schema } from '../hooks/useSchema';
 import type { GitHubUser } from '../config/github';
 
 // Import all view components
-import DashboardView from '../views/dashboard/DashboardView';
-import { TokensView } from '../views/tokens/TokensView';
-import { CollectionsView } from '../views/tokens/CollectionsView';
-import { SystemVariablesView } from '../views/tokens/SystemVariablesView';
-import AlgorithmsView from '../views/tokens/AlgorithmsView';
-import { TokenAnalysis } from '../views/tokens/TokenAnalysis';
-import { DimensionsView } from '../views/setup/DimensionsView';
-import { ClassificationView } from '../views/setup/ClassificationView';
-import { NamingRulesView } from '../views/setup/NamingRulesView';
-import { ValueTypesView } from '../views/setup/ValueTypesView';
-import ThemesView from '../views/themes/ThemesView';
-
-import { PlatformsView } from '../views/platforms/PlatformsView';
-import { ValidationView } from '../views/publishing/ValidationView';
-import { ExportSettingsView } from '../views/publishing/ExportSettingsView';
-import CoreDataView from '../views/schemas/CoreDataView';
-import ThemeOverridesView from '../views/schemas/ThemeOverridesView';
-import PlatformOverridesView from '../views/schemas/PlatformOverridesView';
-import AlgorithmDataView from '../views/schemas/AlgorithmDataView';
+import DashboardView from '../views/DashboardView';
+import { TokensView } from '../views/TokensView';
+import { SystemVariablesView } from '../views/SystemVariablesView';
+import AlgorithmsView from '../views/AlgorithmsView';
+import { TokenAnalysis } from '../views/TokenAnalysis';
+import { DimensionsView } from '../views/system/DimensionsView';
+import { TaxonomyView } from '../views/system/TaxonomyView';
+import { ValueTypesView } from '../views/system/ValueTypesView';
+import ThemesView from '../views/ThemesView';
+import { PlatformsView } from '../views/PlatformsView';
+import { ValidationView } from '../views/ValidationView';
+import { SystemView } from '../views/system/SystemView';
 import { TokenEditorDialog } from './TokenEditorDialog';
+import { FigmaSettings } from './FigmaSettings';
+import { createSchemaJsonFromLocalStorage } from '../services/createJson';
+import type { TokenSystem } from '@token-model/data-model';
+import SchemasView from '../views/SchemasView';
 
 interface ViewRendererProps {
   currentView: ViewId;
@@ -50,8 +47,6 @@ interface ViewRendererProps {
   themes: Theme[];
   taxonomies: Taxonomy[];
   algorithms: Algorithm[];
-  dimensionOrder: string[];
-  taxonomyOrder: string[];
   schema: Schema | null;
   // GitHub user info
   githubUser: GitHubUser | null;
@@ -64,8 +59,6 @@ interface ViewRendererProps {
   onUpdateThemes: (themes: Theme[]) => void;
   onUpdateTaxonomies: (taxonomies: Taxonomy[]) => void;
   onUpdateAlgorithms: (algorithms: Algorithm[]) => void;
-  setDimensionOrder: (order: string[]) => void;
-  setTaxonomyOrder: (order: string[]) => void;
   // Token editor props
   selectedToken: ExtendedToken | null;
   isEditorOpen: boolean;
@@ -87,20 +80,15 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   themes,
   taxonomies,
   algorithms,
-  dimensionOrder,
-  taxonomyOrder,
   schema,
   githubUser,
   onUpdateTokens,
-  onUpdateCollections,
   onUpdateDimensions,
   onUpdateResolvedValueTypes,
   onUpdatePlatforms,
   onUpdateThemes,
   onUpdateTaxonomies,
   onUpdateAlgorithms,
-  setDimensionOrder,
-  setTaxonomyOrder,
   selectedToken,
   isEditorOpen,
   onAddToken,
@@ -151,10 +139,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
             )}
           </>
         );
-      
-      case 'collections':
-        return <CollectionsView collections={collections} onUpdate={onUpdateCollections} tokens={tokens} resolvedValueTypes={resolvedValueTypes} />;
-      
+
       case 'system-variables':
         return <SystemVariablesView dimensions={dimensions} />;
       
@@ -169,20 +154,11 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
           <DimensionsView 
             dimensions={dimensions} 
             setDimensions={onUpdateDimensions}
-            dimensionOrder={dimensionOrder}
-            setDimensionOrder={setDimensionOrder}
-            onDataChange={(data) => {
-              onUpdateDimensions(data.dimensions);
-              setDimensionOrder(data.dimensionOrder);
-            }}
           />
         );
       
       case 'classification':
-        return <ClassificationView taxonomies={taxonomies} setTaxonomies={onUpdateTaxonomies} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} resolvedValueTypes={resolvedValueTypes} />;
-      
-      case 'naming-rules':
-        return <NamingRulesView taxonomies={taxonomies} taxonomyOrder={taxonomyOrder} setTaxonomyOrder={setTaxonomyOrder} />;
+        return <TaxonomyView taxonomies={taxonomies} setTaxonomies={onUpdateTaxonomies} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} resolvedValueTypes={resolvedValueTypes} />;
       
       case 'value-types':
         return <ValueTypesView valueTypes={resolvedValueTypes} onUpdate={onUpdateResolvedValueTypes} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} themes={themes} />;
@@ -194,28 +170,16 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} />;
       
       case 'figma-settings':
-        return <ExportSettingsView />;
+        return <FigmaSettings tokenSystem={createSchemaJsonFromLocalStorage() as unknown as TokenSystem} />;
       
       case 'validation':
         return <ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />;
       
-      case 'version-history':
-        return <Box p={4}>Version history content coming soon...</Box>;
+      case 'schemas':
+        return <SchemasView />;
       
-      case 'access':
-        return <Box p={4}>Access management coming soon...</Box>;
-      
-      case 'core-data':
-        return <CoreDataView />;
-      
-      case 'theme-overrides':
-        return <ThemeOverridesView />;
-      
-      case 'platform-overrides':
-        return <PlatformOverridesView />;
-      
-      case 'algorithm-data':
-        return <AlgorithmDataView />;
+      case 'system':
+        return <SystemView />;
       
       default:
         return <DashboardView tokens={tokens} platforms={platforms} themes={themes} githubUser={githubUser} />;

@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { Box, Text, HStack, Flex, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Heading, Tabs, TabList, Tab, InputGroup, InputRightElement, Center, Icon, InputLeftElement, useColorMode } from '@chakra-ui/react';
 import { Edit, Columns, Filter, X, Search } from 'lucide-react';
 import type { TokenCollection, ResolvedValueType, Taxonomy, Mode } from '@token-model/data-model';
-import type { ExtendedToken } from '../../components/TokenEditorDialog';
-import TokenTag from '../../components/TokenTag';
-import TokenResolvedValueTag from '../../components/TokenResolvedValueTag';
-import { formatValueForDisplay } from '../../utils/valueTypeUtils';
-import { getValueTypeIcon } from '../../utils/getValueTypeIcon';
-import TokenIcon from '../../icons/TokenIcon';
+import type { ExtendedToken } from '../components/TokenEditorDialog';
+import TokenTag from '../components/TokenTag';
+import TokenResolvedValueTag from '../components/TokenResolvedValueTag';
+import { formatValueForDisplay } from '../utils/valueTypeUtils';
+import { getValueTypeIcon } from '../utils/getValueTypeIcon';
+import TokenIcon from '../icons/TokenIcon';
 
 interface TokensViewProps {
   tokens: ExtendedToken[];

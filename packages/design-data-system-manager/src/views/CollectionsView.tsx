@@ -17,8 +17,8 @@ import {
 } from '@chakra-ui/react';
 import { LuTrash2, LuPencil, LuPlus } from 'react-icons/lu';
 import type { TokenCollection, Token, ResolvedValueType } from '@token-model/data-model';
-import { CollectionEditorDialog } from '../../components/CollectionEditorDialog';
-import { CardTitle } from '../../components/CardTitle';
+import { CollectionEditorDialog } from '../components/CollectionEditorDialog';
+import { CardTitle } from '../components/CardTitle';
 
 interface CollectionsViewProps {
   collections: TokenCollection[];

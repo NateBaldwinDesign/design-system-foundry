@@ -15,7 +15,7 @@ import {
 import { LuPlus, LuTrash2, LuPencil, LuGripVertical } from 'react-icons/lu';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import type { Dimension, Mode, ResolvedValueType } from '@token-model/data-model';
-import { ValidationService } from '../../services/validation';
+
 import { DimensionsEditor } from '../../components/DimensionsEditor';
 import { StorageService } from '../../services/storage';
 import { CardTitle } from '../../components/CardTitle';
@@ -23,42 +23,38 @@ import { CardTitle } from '../../components/CardTitle';
 interface DimensionsViewProps {
   dimensions: Dimension[];
   setDimensions: (dims: Dimension[]) => void;
-  dimensionOrder: string[];
-  setDimensionOrder: (order: string[]) => void;
-  onDataChange?: (data: { dimensions: Dimension[], dimensionOrder: string[] }) => void;
 }
 
 export function DimensionsView({ 
   dimensions, 
-  setDimensions, 
-  dimensionOrder, 
-  setDimensionOrder,
-  onDataChange
+  setDimensions
 }: DimensionsViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [dimensionOrder, setDimensionOrder] = useState<string[]>([]);
   const toast = useToast();
 
   // Get resolvedValueTypes from storage for validation
   const resolvedValueTypes = StorageService.getValueTypes();
 
+  // Get dimensionOrder from storage and sync with state
+  useEffect(() => {
+    const storedOrder = StorageService.getDimensionOrder() || [];
+    setDimensionOrder(storedOrder);
+  }, []);
+
   // Initialize dimension order if not present
   useEffect(() => {
     if (!dimensionOrder || dimensionOrder.length === 0) {
       const initialOrder = dimensions.map(d => d.id);
-      if (typeof setDimensionOrder === 'function') {
+      if (initialOrder.length > 0) {
         console.log('Initializing dimension order:', initialOrder);
-        setDimensionOrder(initialOrder);
         StorageService.setDimensionOrder(initialOrder);
-        if (onDataChange) {
-          onDataChange({ dimensions, dimensionOrder: initialOrder });
-        }
-      } else {
-        console.warn('setDimensionOrder is not a function, skipping initialization');
+        setDimensionOrder(initialOrder);
       }
     }
-  }, [dimensions, dimensionOrder, setDimensionOrder, onDataChange]);
+  }, [dimensions, dimensionOrder]);
 
   // Save dimensions to localStorage whenever they change
   useEffect(() => {
@@ -91,35 +87,15 @@ export function DimensionsView({
       }
     });
 
-    // Validate the new order
-    const validationData = {
-      systemName: "Design System",
-      systemId: "design-system",
-      dimensions,
-      dimensionOrder: newOrder,
-      tokenCollections: [],
-      tokens: [],
-      platforms: [],
-      taxonomies: [],
-      resolvedValueTypes,
-      version: "1.0.0",
-      versionHistory: []
-    };
-
-    console.log('[ValidationService] Data being validated:', validationData);
-    const validationResult = ValidationService.validateData(validationData);
-    console.log('Validation result:', validationResult);
-
-    if (!validationResult.isValid) {
-      console.log('Validation failed:', validationResult.errors);
-      const errorMessages = validationResult.errors.map(error => 
-        typeof error === 'object' && error !== null && 'message' in error 
-          ? error.message 
-          : String(error)
-      );
+    // Validate the new order - simple validation for dimension reordering
+    const existingDimensionIds = new Set(dimensions.map(d => d.id));
+    const invalidIds = newOrder.filter(id => !existingDimensionIds.has(id));
+    
+    if (invalidIds.length > 0) {
+      console.log('Validation failed: Invalid dimension IDs:', invalidIds);
       toast({
         title: "Validation Error",
-        description: errorMessages.join('\n'),
+        description: `Invalid dimension IDs in order: ${invalidIds.join(', ')}`,
         status: "error",
         duration: 5000,
         isClosable: true,
@@ -127,25 +103,15 @@ export function DimensionsView({
       return;
     }
 
-    // Update state and notify parent
+    // Update storage and local state
+    StorageService.setDimensionOrder(newOrder);
     setDimensionOrder(newOrder);
-    if (onDataChange) {
-      onDataChange({
-        dimensions,
-        dimensionOrder: newOrder
-      });
-    }
+    
+    // Dispatch event to notify change detection system
+    window.dispatchEvent(new CustomEvent('token-model:data-change'));
   };
 
-  // Add effect to sync with localStorage
-  useEffect(() => {
-    const storedOrder = StorageService.getDimensionOrder();
-    console.log('Initial dimension order from localStorage:', storedOrder);
-    if (storedOrder && Array.isArray(storedOrder) && storedOrder.length > 0 && typeof setDimensionOrder === 'function') {
-      console.log('Setting initial dimension order:', storedOrder);
-      setDimensionOrder(storedOrder);
-    }
-  }, [setDimensionOrder]);
+
 
   // Add effect to log dimension order changes
   useEffect(() => {
@@ -172,23 +138,15 @@ export function DimensionsView({
     const newDims = dimensions.filter((_, i) => i !== index);
     // Remove the deleted dimension from the order
     const newOrder = dimensionOrder.filter(id => id !== dimToDelete.id);
-    // Validate the changes
-    const validationData = {
-      dimensions: newDims,
-      dimensionOrder: newOrder,
-      tokenCollections: [],
-      tokens: [],
-      platforms: [],
-      taxonomies: [],
-      resolvedValueTypes,
-      version: '1.0.0',
-      versionHistory: []
-    };
-    const validationResult = ValidationService.validateData(validationData);
-    if (!validationResult.isValid) {
+    // Validate the changes - simple validation for dimension deletion
+    const existingDimensionIds = new Set(newDims.map(d => d.id));
+    const invalidIds = newOrder.filter(id => !existingDimensionIds.has(id));
+    
+    if (invalidIds.length > 0) {
+      console.log('Validation failed: Invalid dimension IDs after deletion:', invalidIds);
       toast({
         title: 'Cannot Delete Dimension',
-        description: validationResult.errors?.join('\n'),
+        description: `Invalid dimension IDs in order: ${invalidIds.join(', ')}`,
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -196,13 +154,11 @@ export function DimensionsView({
       return;
     }
     setDimensions(newDims);
-    if (typeof setDimensionOrder === 'function') {
-      setDimensionOrder(newOrder);
-      StorageService.setDimensionOrder(newOrder);
-    }
-    if (onDataChange) {
-      onDataChange({ dimensions: newDims, dimensionOrder: newOrder });
-    }
+    StorageService.setDimensionOrder(newOrder);
+    setDimensionOrder(newOrder);
+    
+    // Dispatch event to notify change detection system
+    window.dispatchEvent(new CustomEvent('token-model:data-change'));
     toast({ 
       title: 'Dimension Deleted', 
       description: `Successfully deleted dimension "${dimToDelete.displayName}"`,
@@ -229,7 +185,9 @@ export function DimensionsView({
 
   return (
     <Box>
-      <Text fontSize="2xl" fontWeight="bold" mb={4}>Dimensions</Text>
+      <Text fontSize="2xl" fontWeight="bold" mb={2}>Dimensions</Text>
+      <Text fontSize="sm" color="gray.600" mb={6}>Dimensions are groups of related modes. Ordering them will affect generated token structure.</Text>
+
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
         <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
           Add Dimension

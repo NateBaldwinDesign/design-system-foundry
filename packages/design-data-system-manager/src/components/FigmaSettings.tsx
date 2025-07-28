@@ -17,15 +17,17 @@ import {
   Spinner,
   InputGroup,
   InputRightElement,
-  Checkbox,
-  RadioGroup,
-  Radio,
-  FormHelperText,
   Card,
   CardHeader,
   CardBody,
   Heading,
-  Divider
+  Divider,
+  Container,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel
 } from '@chakra-ui/react';
 import { Download, Copy, Eye, EyeOff, AlertTriangle, TestTube } from 'lucide-react';
 import type { TokenSystem } from '@token-model/data-model';
@@ -34,8 +36,9 @@ import { FigmaPrePublishDialog } from './FigmaPrePublishDialog';
 import { createSchemaJsonFromLocalStorage } from '../services/createJson';
 import { ChangeTrackingService, ChangeTrackingState } from '../services/changeTrackingService';
 import { FigmaConfigurationService } from '../services/figmaConfigurationService';
-import { CardTitle } from './CardTitle';
 import { SyntaxPatternsEditor, SyntaxPatterns } from './shared/SyntaxPatternsEditor';
+import { StorageService } from '../services/storage';
+import { CollectionsView } from '../views/CollectionsView';
 
 interface FigmaSettingsProps {
   tokenSystem: TokenSystem;
@@ -52,11 +55,8 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
   const [showPrePublishDialog, setShowPrePublishDialog] = useState(false);
   const [changeTrackingState, setChangeTrackingState] = useState<ChangeTrackingState | null>(null);
   const [checkingChanges, setCheckingChanges] = useState(true);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [exportResult, setExportResult] = useState<FigmaExportResult | null>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [autoPublish, setAutoPublish] = useState(false);
-  const [publishStrategy, setPublishStrategy] = useState<'merge' | 'commit'>('merge');
   const [syntaxPatterns, setSyntaxPatterns] = useState<SyntaxPatterns>({
     prefix: '',
     suffix: '',
@@ -65,19 +65,34 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
     formatString: ''
   });
 
+  // Get data for CollectionsView
+  const collections = StorageService.getCollections();
+  const tokens = StorageService.getTokens();
+  const resolvedValueTypes = StorageService.getValueTypes();
+
   // Load configuration and check change tracking state on mount
   useEffect(() => {
     const initializeSettings = async () => {
       setCheckingChanges(true);
       
-      // Load Figma configuration
+      // Load Figma configuration from main data system
+      const currentFigmaConfig = tokenSystem.figmaConfiguration;
+      if (currentFigmaConfig) {
+        setFileKey(currentFigmaConfig.fileKey || '');
+        const schemaPatterns = currentFigmaConfig.syntaxPatterns || {};
+        setSyntaxPatterns({
+          prefix: schemaPatterns.prefix || '',
+          suffix: schemaPatterns.suffix || '',
+          delimiter: schemaPatterns.delimiter || '_',
+          capitalization: schemaPatterns.capitalization === 'camel' ? 'none' : (schemaPatterns.capitalization || 'none'),
+          formatString: schemaPatterns.formatString || ''
+        });
+      }
+      
+      // Load access token from separate storage (not part of schema)
       const config = FigmaConfigurationService.getConfiguration();
       if (config) {
         setAccessToken(config.accessToken || '');
-        setFileKey(config.fileKey || '');
-        setAutoPublish(config.autoPublish || false);
-        setPublishStrategy(config.publishStrategy || 'merge');
-        setSyntaxPatterns(config.syntaxPatterns);
       }
       
       // Check change tracking state
@@ -109,18 +124,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
     return () => {
       window.removeEventListener('token-model:data-change', handleDataChange);
     };
-  }, []);
-
-  // Check for unsaved changes
-  useEffect(() => {
-    const currentSyntaxPatterns = tokenSystem.figmaConfiguration?.syntaxPatterns || {};
-    const currentFileKey = tokenSystem.figmaConfiguration?.fileKey || '';
-    
-    setHasUnsavedChanges(
-      JSON.stringify(syntaxPatterns) !== JSON.stringify(currentSyntaxPatterns) ||
-      fileKey !== currentFileKey
-    );
-  }, [syntaxPatterns, fileKey, tokenSystem.figmaConfiguration]);
+  }, [tokenSystem.figmaConfiguration]);
 
   // Test Figma access token and file
   const testTokenManually = async () => {
@@ -389,25 +393,40 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
     });
   };
 
-  // Save settings
-  const handleSave = () => {
-    // TODO: Implement save to storage
-    setHasUnsavedChanges(false);
-    toast({
-      title: 'Settings saved',
-      description: 'Figma settings have been updated',
-      status: 'success',
-      duration: 3000,
-      isClosable: true,
-    });
-  };
-
   // Handle syntax pattern changes
   const handleSyntaxPatternsChange = (newPatterns: SyntaxPatterns) => {
     setSyntaxPatterns(newPatterns);
     
-    // Auto-save syntax patterns
-    FigmaConfigurationService.updateSyntaxPatterns(newPatterns);
+    // Convert 'none' back to 'camel' for schema compatibility
+    const schemaPatterns = {
+      ...newPatterns,
+      capitalization: newPatterns.capitalization === 'none' ? 'camel' as const : newPatterns.capitalization
+    };
+    
+    // Update the main data system
+    const updatedFigmaConfig = {
+      fileKey: tokenSystem.figmaConfiguration?.fileKey || '',
+      syntaxPatterns: schemaPatterns
+    };
+    
+    // Save to storage and trigger change tracking
+    StorageService.setFigmaConfiguration(updatedFigmaConfig);
+    window.dispatchEvent(new CustomEvent('token-model:data-change'));
+  };
+
+  // Handle file key changes
+  const handleFileKeyChange = (newFileKey: string) => {
+    setFileKey(newFileKey);
+    
+    // Update the main data system
+    const updatedFigmaConfig = {
+      fileKey: newFileKey,
+      syntaxPatterns: tokenSystem.figmaConfiguration?.syntaxPatterns
+    };
+    
+    // Save to storage and trigger change tracking
+    StorageService.setFigmaConfiguration(updatedFigmaConfig);
+    window.dispatchEvent(new CustomEvent('token-model:data-change'));
   };
 
   // Render change tracking status
@@ -429,10 +448,10 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         <Alert status="error" borderRadius="md">
           <AlertIcon as={AlertTriangle} />
           <AlertDescription>
-            {changeTrackingState.hasLocalChanges && changeTrackingState.hasGitHubDivergence
-              ? `Export blocked: ${changeTrackingState.changeCount} local changes detected AND data has diverged from baseline. Please save your changes first.`
-              : changeTrackingState.hasLocalChanges
-              ? `Export blocked: ${changeTrackingState.changeCount} local changes detected. Please save your changes first.`
+            {changeTrackingState?.hasLocalChanges && changeTrackingState?.hasGitHubDivergence
+              ? `Export blocked: ${changeTrackingState?.changeCount} local changes detected AND data has diverged from baseline. Please save your changes first.`
+              : changeTrackingState?.hasLocalChanges
+              ? `Export blocked: ${changeTrackingState?.changeCount} local changes detected. Please save your changes first.`
               : 'Export blocked: Local data has diverged from baseline. Please sync with GitHub first.'
             }
           </AlertDescription>
@@ -444,24 +463,13 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
     return null;
   };
 
-  return (
+  // Publishing tab content
+  const renderPublishingTab = () => (
     <VStack spacing={6} align="stretch">
       {/* Figma Configuration Card */}
       <Card>
-        <CardHeader>
-          <HStack justify="space-between" align="center">
-            <Box>
-              <CardTitle title="Figma" cardType="figma" />
-              <Text fontSize="sm" color="gray.600">
-                Configure Figma publishing settings and syntax patterns
-              </Text>
-            </Box>
-            {hasUnsavedChanges && (
-              <Badge colorScheme="orange" variant="subtle">
-                Unsaved Changes
-              </Badge>
-            )}
-          </HStack>
+        <CardHeader pb={0}>
+          <Heading size="md" mb={0}>Figma Credentials</Heading>
         </CardHeader>
         <CardBody>
           <VStack spacing={6} align="stretch">
@@ -470,9 +478,8 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
 
             {/* Figma Credentials */}
             <Box>
-              <Heading size="sm" mb={4}>Figma Credentials</Heading>
               <VStack spacing={4} align="stretch">
-                <FormControl>
+                <FormControl isRequired>
                   <FormLabel>Figma Access Token</FormLabel>
                   <InputGroup>
                     <Input
@@ -496,24 +503,15 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
                   </InputGroup>
                 </FormControl>
 
-                <FormControl>
+                <FormControl isRequired>
                   <FormLabel>Figma File Key</FormLabel>
                   <Input
                     value={fileKey}
-                    onChange={(e) => setFileKey(e.target.value)}
+                    onChange={(e) => handleFileKeyChange(e.target.value)}
                     placeholder="yTy5ytxeFPRiGou5Poed8a"
                     fontFamily="mono"
                   />
                 </FormControl>
-
-                {(!accessToken || !fileKey) && (
-                  <Alert status="info" borderRadius="md">
-                    <AlertIcon />
-                    <AlertDescription>
-                      Access token and file key are required for publishing and exporting.
-                    </AlertDescription>
-                  </Alert>
-                )}
               </VStack>
             </Box>
 
@@ -527,38 +525,6 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
                 onSyntaxPatternsChange={handleSyntaxPatternsChange}
                 showTitle={false}
               />
-            </Box>
-
-            <Divider />
-
-            {/* Auto Publish Settings */}
-            <Box>
-              <Heading size="sm" mb={4}>Auto Publish Settings</Heading>
-              <VStack spacing={4} align="stretch">
-                <FormControl>
-                  <Checkbox
-                    isChecked={autoPublish}
-                    onChange={(e) => setAutoPublish(e.target.checked)}
-                  >
-                    Auto publish
-                  </Checkbox>
-                  <FormHelperText ml={6}>
-                    If you have Github actions enabled, this will publish your changes to Figma automatically when you commit or merge.
-                  </FormHelperText>
-                </FormControl>
-
-                {autoPublish && (
-                  <FormControl ml={6}>
-                    <FormLabel>Publish Strategy</FormLabel>
-                    <RadioGroup value={publishStrategy} onChange={(value: 'merge' | 'commit') => setPublishStrategy(value)}>
-                      <VStack align="start" spacing={2}>
-                        <Radio value="merge">Publish on merge with main</Radio>
-                        <Radio value="commit">Publish every commit</Radio>
-                      </VStack>
-                    </RadioGroup>
-                  </FormControl>
-                )}
-              </VStack>
             </Box>
 
             <Divider />
@@ -584,14 +550,6 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
                 isDisabled={!accessToken || !fileKey || !changeTrackingState?.canExport}
               >
                 Publish to Figma
-              </Button>
-              
-              <Button
-                colorScheme="blue"
-                onClick={handleSave}
-                isDisabled={!hasUnsavedChanges}
-              >
-                Save Settings
               </Button>
             </HStack>
 
@@ -671,5 +629,41 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         />
       )}
     </VStack>
+  );
+
+  return (
+    <Container maxW="container.xl" py={8}>
+      <VStack spacing={8} align="stretch">
+        {/* Header */}
+        <Box>
+          <HStack spacing={4} align="center" mb={2}>
+            <Heading size="lg">Figma</Heading>
+          </HStack>
+        </Box>
+
+        {/* Tabs */}
+        <Tabs>
+          <TabList>
+            <Tab>Publishing</Tab>
+            <Tab>Variable Collections</Tab>
+          </TabList>
+
+          <TabPanels mt={4}>
+            <TabPanel>
+              {renderPublishingTab()}
+            </TabPanel>
+            
+            <TabPanel>
+              <CollectionsView
+                collections={collections}
+                onUpdate={(collections) => StorageService.setCollections(collections)}
+                tokens={tokens}
+                resolvedValueTypes={resolvedValueTypes}
+              />
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
+      </VStack>
+    </Container>
   );
 }; 

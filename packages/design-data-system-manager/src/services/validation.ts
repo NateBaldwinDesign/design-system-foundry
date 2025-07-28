@@ -27,9 +27,7 @@ interface TokenSystem {
     displayName: string;
     isDefault: boolean;
   }>;
-  namingRules?: {
-    taxonomyOrder?: string[];
-  };
+  taxonomyOrder?: string[];
 }
 
 interface SystemVariableByMode {
@@ -304,14 +302,14 @@ export class ValidationService {
           }
         }
 
-        // Validate namingRules if present
-        if (tokenSystem.namingRules?.taxonomyOrder) {
+        // Validate taxonomyOrder if present
+        if (tokenSystem.taxonomyOrder) {
           const taxonomyIds = new Set(tokenSystem.taxonomies?.map(t => t.id) || []);
-          for (const taxonomyId of tokenSystem.namingRules.taxonomyOrder) {
+          for (const taxonomyId of tokenSystem.taxonomyOrder) {
             if (!taxonomyIds.has(taxonomyId)) {
               return {
                 isValid: false,
-                errors: [`namingRules.taxonomyOrder contains ID "${taxonomyId}" that does not exist in taxonomies`]
+                errors: [`taxonomyOrder contains ID "${taxonomyId}" that does not exist in taxonomies`]
               };
             }
           }

@@ -61,7 +61,7 @@ export interface Schema {
       }>;
     }>;
   }>;
-  namingRules: { taxonomyOrder: string[] };
+  taxonomyOrder: string[];
   resolvedValueTypes: ResolvedValueType[];
   standardPropertyTypes: PropertyType[];
   versionHistory: Array<{
@@ -94,19 +94,17 @@ export const useSchema = () => {
   const { getItem, setItem } = useStorage();
   const toast = useToast();
 
-  // Helper function to clean up naming rules by removing references to non-existent taxonomies
-  const cleanNamingRules = (namingRules: { taxonomyOrder: string[] }, taxonomies: Array<{ id: string }>) => {
+  // Helper function to clean up taxonomy order by removing references to non-existent taxonomies
+  const cleanTaxonomyOrder = (taxonomyOrder: string[], taxonomies: Array<{ id: string }>) => {
     const taxonomyIds = new Set(taxonomies.map(t => t.id));
-    const cleanedTaxonomyOrder = namingRules.taxonomyOrder.filter(id => taxonomyIds.has(id));
+    const cleanedTaxonomyOrder = taxonomyOrder.filter(id => taxonomyIds.has(id));
     
-    if (cleanedTaxonomyOrder.length !== namingRules.taxonomyOrder.length) {
-      console.warn('[useSchema] Removed invalid taxonomy IDs from naming rules:', 
-        namingRules.taxonomyOrder.filter(id => !taxonomyIds.has(id)));
+    if (cleanedTaxonomyOrder.length !== taxonomyOrder.length) {
+      console.warn('[useSchema] Removed invalid taxonomy IDs from taxonomy order:', 
+        taxonomyOrder.filter(id => !taxonomyIds.has(id)));
     }
     
-    return {
-      taxonomyOrder: cleanedTaxonomyOrder
-    };
+    return cleanedTaxonomyOrder;
   };
 
   // Helper function to migrate old string-based propertyTypes to new object-based format
@@ -178,15 +176,15 @@ export const useSchema = () => {
           return null; // This will trigger loading of new example data
         }
         
-        // Ensure naming rules are included from storage
-        const namingRules = StorageService.getNamingRules();
+        // Ensure taxonomy order is included from storage
+        const taxonomyOrder = StorageService.getTaxonomyOrder();
         const taxonomies = StorageService.getTaxonomies();
-        const cleanedNamingRules = cleanNamingRules(namingRules, taxonomies);
+        const cleanedTaxonomyOrder = cleanTaxonomyOrder(taxonomyOrder, taxonomies);
         
         // Apply migrations to stored schema
         const migratedSchema = {
           ...parsed,
-          namingRules: cleanedNamingRules,
+          taxonomyOrder: cleanedTaxonomyOrder,
           tokens: migratePropertyTypes(parsed.tokens || []),
           ...ensureStandardPropertyTypes(parsed)
         };

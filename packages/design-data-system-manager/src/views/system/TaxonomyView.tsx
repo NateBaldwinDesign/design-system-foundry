@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Text,
@@ -12,15 +12,17 @@ import {
   TagLabel,
   Wrap
 } from '@chakra-ui/react';
-import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
+import { LuPlus, LuTrash2, LuPencil, LuGripVertical } from 'react-icons/lu';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import type { Taxonomy, Token, TokenCollection, Dimension, Platform, ResolvedValueType } from '@token-model/data-model';
 import { createUniqueId } from '../../utils/id';
 import { ValidationService } from '../../services/validation';
 import { TaxonomyEditorDialog } from '../../components/TaxonomyEditorDialog';
 import { TermEditorDialog } from '../../components/TermEditorDialog';
 import { CardTitle } from '../../components/CardTitle';
+import { StorageService } from '../../services/storage';
 
-interface ClassificationViewProps {
+interface TaxonomyViewProps {
   taxonomies: Taxonomy[];
   setTaxonomies: (taxonomies: Taxonomy[]) => void;
   tokens: Token[];
@@ -37,7 +39,7 @@ function normalizeTerms(terms: { id: string; name: string; description?: string 
   }));
 }
 
-export function ClassificationView({ 
+export function TaxonomyView({ 
   taxonomies, 
   setTaxonomies, 
   tokens, 
@@ -45,7 +47,7 @@ export function ClassificationView({
   dimensions, 
   platforms, 
   resolvedValueTypes 
-}: ClassificationViewProps) {
+}: TaxonomyViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -59,7 +61,97 @@ export function ClassificationView({
   const [termForm, setTermForm] = useState({ id: '', name: '', description: '' });
   const [termDialogOpen, setTermDialogOpen] = useState(false);
   const [termEditIndex, setTermEditIndex] = useState<number | null>(null);
+  const [taxonomyOrder, setTaxonomyOrder] = useState<string[]>([]);
   const toast = useToast();
+
+  // Get taxonomyOrder from storage and sync with state
+  useEffect(() => {
+    const storedOrder = StorageService.getTaxonomyOrder() || [];
+    setTaxonomyOrder(storedOrder);
+  }, []);
+
+  // Initialize taxonomy order if not present
+  useEffect(() => {
+    if (!taxonomyOrder || taxonomyOrder.length === 0) {
+      const initialOrder = taxonomies.map(t => t.id);
+      if (initialOrder.length > 0) {
+        console.log('Initializing taxonomy order:', initialOrder);
+        StorageService.setTaxonomyOrder(initialOrder);
+        setTaxonomyOrder(initialOrder);
+      }
+    }
+  }, [taxonomies, taxonomyOrder]);
+
+  // Save taxonomies to localStorage whenever they change
+  useEffect(() => {
+    StorageService.setTaxonomies(taxonomies);
+  }, [taxonomies]);
+
+  const handleDragEnd = (result: DropResult) => {
+    console.log('Drag end result:', result);
+    console.log('Current taxonomyOrder:', taxonomyOrder);
+
+    if (!result.destination || !taxonomyOrder) {
+      console.log('No destination or taxonomyOrder is undefined');
+      return;
+    }
+
+    // Create new order array
+    const newOrder = Array.from(taxonomyOrder);
+    const [removed] = newOrder.splice(result.source.index, 1);
+    newOrder.splice(result.destination.index, 0, removed);
+
+    console.log('New order after drag:', newOrder);
+
+    // Ensure all taxonomies are included in the order
+    const taxonomyIds = new Set(taxonomies.map(t => t.id));
+    const currentOrderIds = new Set(newOrder);
+    // Add any missing taxonomies to the end
+    taxonomyIds.forEach(id => {
+      if (!currentOrderIds.has(id)) {
+        newOrder.push(id);
+      }
+    });
+
+    // Validate the new order - simple validation for taxonomy reordering
+    const existingTaxonomyIds = new Set(taxonomies.map(t => t.id));
+    const invalidIds = newOrder.filter(id => !existingTaxonomyIds.has(id));
+    
+    if (invalidIds.length > 0) {
+      console.log('Validation failed: Invalid taxonomy IDs:', invalidIds);
+      toast({
+        title: "Validation Error",
+        description: `Invalid taxonomy IDs in order: ${invalidIds.join(', ')}`,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    // Update storage and local state
+    StorageService.setTaxonomyOrder(newOrder);
+    setTaxonomyOrder(newOrder);
+    
+    // Dispatch event to notify change detection system
+    window.dispatchEvent(new CustomEvent('token-model:data-change'));
+  };
+
+  // Add effect to sync with localStorage
+  useEffect(() => {
+    const storedOrder = StorageService.getTaxonomyOrder();
+    console.log('Initial taxonomy order from localStorage:', storedOrder);
+  }, []);
+
+  // Add effect to log taxonomy order changes
+  useEffect(() => {
+    console.log('Taxonomy order changed:', taxonomyOrder);
+  }, [taxonomyOrder]);
+
+  // Add effect to log taxonomies changes
+  useEffect(() => {
+    console.log('Taxonomies changed:', taxonomies);
+  }, [taxonomies]);
 
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
@@ -125,11 +217,11 @@ export function ClassificationView({
         versionHistory
       };
 
-      console.log('[ClassificationView] Validation data:', JSON.stringify(data, null, 2));
+      console.log('[TaxonomyView] Validation data:', JSON.stringify(data, null, 2));
       const result = ValidationService.validateData(data);
-      console.log('[ClassificationView] Validation result:', result);
+      console.log('[TaxonomyView] Validation result:', result);
       if (!result.isValid) {
-        console.error('[ClassificationView] Validation errors:', result.errors);
+        console.error('[TaxonomyView] Validation errors:', result.errors);
         toast({
           title: "Validation Error",
           description: `Schema Validation Failed: ${Array.isArray(result.errors) ? result.errors.join(', ') : 'See console for details.'}`,
@@ -143,7 +235,7 @@ export function ClassificationView({
       localStorage.setItem('token-model:taxonomies', JSON.stringify(taxonomies));
       setTaxonomies(taxonomies);
     } catch (error) {
-      console.error('[ClassificationView] Validation error:', error);
+      console.error('[TaxonomyView] Validation error:', error);
       toast({
         title: 'Validation Error',
         description: 'An error occurred while validating the data',
@@ -195,6 +287,15 @@ export function ClassificationView({
       newTaxonomies[editingIndex] = taxonomyToSave;
     } else {
       newTaxonomies.push(taxonomyToSave);
+      // Add new taxonomy to the order if it's not already there
+      if (!taxonomyOrder.includes(taxonomyId)) {
+        const newOrder = [...taxonomyOrder, taxonomyId];
+        StorageService.setTaxonomyOrder(newOrder);
+        setTaxonomyOrder(newOrder);
+        
+        // Dispatch event to notify change detection system
+        window.dispatchEvent(new CustomEvent('token-model:data-change'));
+      }
     }
     if (!validateAndSetTaxonomies(newTaxonomies)) {
       return;
@@ -205,8 +306,31 @@ export function ClassificationView({
   };
 
   const handleDelete = (index: number) => {
+    const taxonomyToDelete = taxonomies[index];
     const updated = taxonomies.filter((_: Taxonomy, i: number) => i !== index);
-    if (!validateAndSetTaxonomies(updated)) return;
+    // Remove the deleted taxonomy from the order
+    const newOrder = taxonomyOrder.filter(id => id !== taxonomyToDelete.id);
+    // Validate the changes - simple validation for taxonomy deletion
+    const existingTaxonomyIds = new Set(updated.map(t => t.id));
+    const invalidIds = newOrder.filter(id => !existingTaxonomyIds.has(id));
+    
+    if (invalidIds.length > 0) {
+      console.log('Validation failed: Invalid taxonomy IDs after deletion:', invalidIds);
+      toast({
+        title: 'Cannot Delete Taxonomy',
+        description: `Invalid taxonomy IDs in order: ${invalidIds.join(', ')}`,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    setTaxonomies(updated);
+    StorageService.setTaxonomyOrder(newOrder);
+    setTaxonomyOrder(newOrder);
+    
+    // Dispatch event to notify change detection system
+    window.dispatchEvent(new CustomEvent('token-model:data-change'));
     toast({ title: 'Taxonomy deleted', status: 'info', duration: 2000 });
   };
 
@@ -273,51 +397,92 @@ export function ClassificationView({
     }));
   };
 
+  // Sort taxonomies according to taxonomyOrder
+  const sortedTaxonomies = [...taxonomies].sort((a, b) => {
+    if (!taxonomyOrder || taxonomyOrder.length === 0) {
+      console.log('No taxonomy order, using original order');
+      return 0;
+    }
+    const indexA = taxonomyOrder.indexOf(a.id);
+    const indexB = taxonomyOrder.indexOf(b.id);
+    if (indexA === -1) return 1;
+    if (indexB === -1) return -1;
+    return indexA - indexB;
+  });
+
+  console.log('Sorted taxonomies:', sortedTaxonomies);
+
   return (
     <Box>
-      <Text fontSize="2xl" fontWeight="bold" mb={4}>Classification</Text>
+      <Text fontSize="2xl" fontWeight="bold" mb={2}>Taxonomies</Text>
+      <Text fontSize="sm" color="gray.600" mb={6}>Taxonomies are used to classify tokens. Ordering them will affect how names are generated in published tokens.</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
         <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
           Add Taxonomy
         </Button>
-        <VStack align="stretch" spacing={2}>
-          {taxonomies.map((taxonomy, i) => {
-            return (
-              <Box 
-                key={taxonomy.id} 
-                p={3} 
-                borderWidth={1} 
-                borderRadius="md" 
-                bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-                borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <Droppable droppableId="taxonomies">
+            {(provided) => (
+              <VStack
+                {...provided.droppableProps}
+                ref={provided.innerRef}
+                align="stretch"
+                spacing={2}
               >
-                <HStack justify="space-between" align="center">
-                  <Box>
-                    <CardTitle title={taxonomy.name} cardType="taxonomy" />
-                    <Text fontSize="sm" color="gray.600">{taxonomy.description}</Text>
-                    <Text fontSize="sm" color="gray.600">Terms: {taxonomy.terms.map((t: { name: string }) => t.name).join(', ')}</Text>
-                    {Array.isArray(taxonomy.resolvedValueTypeIds) && taxonomy.resolvedValueTypeIds.length > 0 && (
-                      <Wrap mt={2} spacing={2}>
-                        {taxonomy.resolvedValueTypeIds.map((typeId: string) => {
-                          const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
-                          return type ? (
-                            <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">
-                              <TagLabel>{type.displayName}</TagLabel>
-                            </Tag>
-                          ) : null;
-                        })}
-                      </Wrap>
+                {sortedTaxonomies.map((taxonomy: Taxonomy, i: number) => (
+                  <Draggable key={taxonomy.id} draggableId={taxonomy.id} index={i}>
+                    {(provided, snapshot) => (
+                      <Box
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        p={3}
+                        borderWidth={1}
+                        borderRadius="md"
+                        bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                        borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                        boxShadow={snapshot.isDragging ? "md" : "sm"}
+                        transition="all 0.2s"
+                      >
+                        <HStack justify="space-between" align="center">
+                          <HStack spacing={2}>
+                            <Box w="32px" textAlign="center" fontWeight="bold" color="gray.500">
+                              {i + 1}
+                            </Box>
+                            <Box {...provided.dragHandleProps} cursor="grab">
+                              <LuGripVertical />
+                            </Box>
+                            <Box>
+                              <CardTitle title={taxonomy.name} cardType="taxonomy" />
+                              <Text fontSize="sm" color="gray.600">{taxonomy.description}</Text>
+                              <Text fontSize="sm" color="gray.600">Terms: {taxonomy.terms.map((t: { name: string }) => t.name).join(', ')}</Text>
+                              {Array.isArray(taxonomy.resolvedValueTypeIds) && taxonomy.resolvedValueTypeIds.length > 0 && (
+                                <Wrap mt={2} spacing={2}>
+                                  {taxonomy.resolvedValueTypeIds.map((typeId: string) => {
+                                    const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
+                                    return type ? (
+                                      <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">
+                                        <TagLabel>{type.displayName}</TagLabel>
+                                      </Tag>
+                                    ) : null;
+                                  })}
+                                </Wrap>
+                              )}
+                            </Box>
+                          </HStack>
+                          <HStack>
+                            <IconButton aria-label="Edit taxonomy" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
+                            <IconButton aria-label="Delete taxonomy" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
+                          </HStack>
+                        </HStack>
+                      </Box>
                     )}
-                  </Box>
-                  <HStack>
-                    <IconButton aria-label="Edit taxonomy" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
-                    <IconButton aria-label="Delete taxonomy" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
-                  </HStack>
-                </HStack>
-              </Box>
-            );
-          })}
-        </VStack>
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </VStack>
+            )}
+          </Droppable>
+        </DragDropContext>
       </Box>
 
       <TaxonomyEditorDialog

@@ -78,6 +78,14 @@ export class ChangeTrackingService {
       }
     });
     
+    // Check taxonomyOrder (array)
+    const currentTaxonomyOrder = (currentData as Record<string, unknown>).taxonomyOrder as string[] || [];
+    const baselineTaxonomyOrder = (baselineData as Record<string, unknown>).taxonomyOrder as string[] || [];
+    
+    if (JSON.stringify(currentTaxonomyOrder) !== JSON.stringify(baselineTaxonomyOrder)) {
+      totalChanges += 1; // Count as one change for taxonomyOrder modifications
+    }
+    
     return totalChanges;
   }
 
@@ -121,6 +129,15 @@ export class ChangeTrackingService {
         console.log(`[ChangeTrackingService] Baseline ${field} count:`, baseline.length);
         return true; // Divergence detected
       }
+    }
+    
+    // Check taxonomyOrder (array)
+    const localTaxonomyOrder = (localData as Record<string, unknown>).taxonomyOrder as string[] || [];
+    const baselineTaxonomyOrder = (baselineData as Record<string, unknown>).taxonomyOrder as string[] || [];
+    
+    if (JSON.stringify(localTaxonomyOrder) !== JSON.stringify(baselineTaxonomyOrder)) {
+      console.log('[ChangeTrackingService] Divergence detected in field: taxonomyOrder');
+      return true; // Divergence detected
     }
     
     console.log('[ChangeTrackingService] No divergence detected');
@@ -173,7 +190,7 @@ export class ChangeTrackingService {
       platforms: StorageService.getPlatforms(),
       themes: StorageService.getThemes(),
       taxonomies: StorageService.getTaxonomies(),
-      namingRules: StorageService.getNamingRules(),
+      taxonomyOrder: StorageService.getTaxonomyOrder(),
       algorithms: StorageService.getAlgorithms(),
       algorithmFile: StorageService.getAlgorithmFile(),
       platformExtensionFiles: StorageService.getPlatformExtensionFiles(),
