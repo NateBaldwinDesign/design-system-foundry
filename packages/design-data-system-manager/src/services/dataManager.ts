@@ -379,7 +379,7 @@ export class DataManager {
     }));
     const normalizedTaxonomies = (fileContent.taxonomies as Taxonomy[]) ?? [];
     const normalizedResolvedValueTypes = (fileContent.resolvedValueTypes as ResolvedValueType[]) ?? [];
-    const normalizedTaxonomyOrder = ((fileContent.taxonomyOrder as string[]) ?? []);
+    const normalizedTaxonomyOrder = ((fileContent.taxonomyOrder as string[]) ?? normalizedTaxonomies.map(t => t.id));
     const normalizedComponentProperties = (fileContent.componentProperties as ComponentProperty[]) ?? [];
 
     const allModes: Mode[] = normalizedDimensions.flatMap((d: Dimension) => (d as { modes?: Mode[] }).modes || []);
@@ -435,9 +435,9 @@ export class DataManager {
   /**
    * Process theme override data from GitHub
    */
-  private processThemeOverrideData(_fileContent: Record<string, unknown>): DataSnapshot {
+  private processThemeOverrideData(fileContent: Record<string, unknown>): DataSnapshot {
     // TODO: Implement theme override processing
-    console.log('[DataManager] Theme override processing not yet implemented');
+    console.log('[DataManager] Theme override processing not yet implemented for:', fileContent);
     
     // For now, return current data
     return this.getCurrentSnapshot();
@@ -464,7 +464,7 @@ export class DataManager {
     }));
     const normalizedTaxonomies = (d.taxonomies as Taxonomy[]) ?? [];
     const normalizedResolvedValueTypes = (d.resolvedValueTypes as ResolvedValueType[]) ?? [];
-    const normalizedTaxonomyOrder = ((d.taxonomyOrder as string[]) ?? []);
+    const normalizedTaxonomyOrder = ((d.taxonomyOrder as string[]) ?? normalizedTaxonomies.map(t => t.id));
     const normalizedComponentProperties = (d.componentProperties as ComponentProperty[]) ?? [];
 
     const allModes: Mode[] = normalizedDimensions.flatMap((dimension: Dimension) => (dimension as { modes?: Mode[] }).modes || []);
