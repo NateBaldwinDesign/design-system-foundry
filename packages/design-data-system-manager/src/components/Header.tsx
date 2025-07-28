@@ -40,6 +40,10 @@ import {
   Undo2,
   UserRound,
   GitBranch,
+  BookMarked,
+  RefreshCw,
+  GitCommitVertical,
+  GitPullRequestArrow,
 } from 'lucide-react';
 import { ChangeLog } from './ChangeLog';
 import { GitHubAuthService } from '../services/githubAuth';
@@ -239,13 +243,7 @@ export const Header: React.FC<HeaderProps> = ({
         onFileSelected(parsedData, selectedRepoInfo.fileType);
       }
 
-      toast({
-        title: 'Reloaded',
-        description: `Successfully reloaded ${selectedRepoInfo.filePath}`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
+      // Toast is now handled by the onFileSelected callback in App.tsx
     } catch (error) {
       toast({
         title: 'Reload Failed',
@@ -291,13 +289,7 @@ export const Header: React.FC<HeaderProps> = ({
     if (selectedRepoInfo && githubUser) {
       try {
         await handleReloadCurrentFile();
-        toast({
-          title: 'Data Reset',
-          description: `Data has been reset to ${selectedRepoInfo.filePath} from GitHub.`,
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
+        // Toast is now handled by the onFileSelected callback in App.tsx
       } catch (error) {
         toast({
           title: 'Reset Failed',
@@ -336,13 +328,7 @@ export const Header: React.FC<HeaderProps> = ({
   const handleConfirmRefresh = async () => {
     try {
       await handleReloadCurrentFile();
-      toast({
-        title: 'Data Refreshed',
-        description: `Data has been refreshed from ${selectedRepoInfo?.filePath} on GitHub.`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
+      // Toast is now handled by the onFileSelected callback in App.tsx
     } catch (error) {
       toast({
         title: 'Refresh Failed',
@@ -437,6 +423,7 @@ export const Header: React.FC<HeaderProps> = ({
                         size="sm"
                         justifyContent="flex-start"
                         borderRadius={0}
+                        leftIcon={<BookMarked size={16} />}
                         onClick={() => {
                           setShowRepoSelector(true);
                           setIsGitHubWorkflowMenuOpen(false);
@@ -451,6 +438,7 @@ export const Header: React.FC<HeaderProps> = ({
                             size="sm"
                             justifyContent="flex-start"
                             borderRadius={0}
+                            leftIcon={<RefreshCw size={16} />}
                             onClick={() => {
                               handleRefreshData();
                               setIsGitHubWorkflowMenuOpen(false);
@@ -463,6 +451,7 @@ export const Header: React.FC<HeaderProps> = ({
                             size="sm"
                             justifyContent="flex-start"
                             borderRadius={0}
+                            leftIcon={<GitCommitVertical size={16} />}
                             onClick={() => {
                               handleSaveToGitHub();
                               setIsGitHubWorkflowMenuOpen(false);
@@ -475,6 +464,7 @@ export const Header: React.FC<HeaderProps> = ({
                             size="sm"
                             justifyContent="flex-start"
                             borderRadius={0}
+                            leftIcon={<GitPullRequestArrow size={16} />}
                             onClick={() => {
                               handleCreatePullRequest();
                               setIsGitHubWorkflowMenuOpen(false);
@@ -514,17 +504,6 @@ export const Header: React.FC<HeaderProps> = ({
                     size="sm"
                     variant="ghost"
                     onClick={handleExportData}
-                  />
-                </Tooltip>
-              )}
-              {onResetData && (
-                <Tooltip label="Reset Data">
-                  <IconButton
-                    aria-label="Reset Data"
-                    icon={<Undo2 size={16} />}
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleResetData}
                   />
                 </Tooltip>
               )}
