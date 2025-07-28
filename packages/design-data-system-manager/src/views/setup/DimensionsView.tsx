@@ -106,6 +106,9 @@ export function DimensionsView({
     // Update storage and local state
     StorageService.setDimensionOrder(newOrder);
     setDimensionOrder(newOrder);
+    
+    // Dispatch event to notify change detection system
+    window.dispatchEvent(new CustomEvent('token-model:data-change'));
   };
 
 
@@ -153,6 +156,9 @@ export function DimensionsView({
     setDimensions(newDims);
     StorageService.setDimensionOrder(newOrder);
     setDimensionOrder(newOrder);
+    
+    // Dispatch event to notify change detection system
+    window.dispatchEvent(new CustomEvent('token-model:data-change'));
     toast({ 
       title: 'Dimension Deleted', 
       description: `Successfully deleted dimension "${dimToDelete.displayName}"`,

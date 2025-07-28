@@ -58,7 +58,6 @@ const getEntityIcon = (entityType: string) => {
     case 'platformExtension': return Settings;
     case 'platformExtensionFile': return FileCode;
     case 'repository': return Database;
-    case 'namingRules': return Settings;
     default: return FileCode;
   }
 };
@@ -1393,17 +1392,14 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
     }
   }
 
-  // Compare naming rules
-  const oldNamingRules = previousData.namingRules as { taxonomyOrder?: string[] } || {};
-  const newNamingRules = currentData.namingRules as { taxonomyOrder?: string[] } || {};
-  
-  const oldTaxonomyOrder = oldNamingRules.taxonomyOrder || [];
-  const newTaxonomyOrder = newNamingRules.taxonomyOrder || [];
+  // Compare taxonomy order
+  const oldTaxonomyOrder = (previousData.taxonomyOrder as string[]) || [];
+  const newTaxonomyOrder = (currentData.taxonomyOrder as string[]) || [];
   
   if (JSON.stringify(oldTaxonomyOrder) !== JSON.stringify(newTaxonomyOrder)) {
     changes.push({
       type: 'modified',
-      entityType: 'namingRules',
+      entityType: 'taxonomy',
       entityId: 'taxonomyOrder',
       entityName: 'Taxonomy Order',
       changes: [{
@@ -1411,6 +1407,25 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
         oldValue: oldTaxonomyOrder.length > 0 ? oldTaxonomyOrder.join(', ') : 'none',
         newValue: newTaxonomyOrder.length > 0 ? newTaxonomyOrder.join(', ') : 'none',
         context: 'Taxonomy ordering for code syntax generation',
+      }],
+    });
+  }
+
+  // Compare dimension order
+  const oldDimensionOrder = (previousData.dimensionOrder as string[]) || [];
+  const newDimensionOrder = (currentData.dimensionOrder as string[]) || [];
+  
+  if (JSON.stringify(oldDimensionOrder) !== JSON.stringify(newDimensionOrder)) {
+    changes.push({
+      type: 'modified',
+      entityType: 'dimension',
+      entityId: 'dimensionOrder',
+      entityName: 'Dimension Order',
+      changes: [{
+        field: 'dimensionOrder',
+        oldValue: oldDimensionOrder.length > 0 ? oldDimensionOrder.join(', ') : 'none',
+        newValue: newDimensionOrder.length > 0 ? newDimensionOrder.join(', ') : 'none',
+        context: 'Dimension ordering for token structure generation',
       }],
     });
   }

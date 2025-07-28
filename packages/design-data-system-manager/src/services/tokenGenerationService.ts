@@ -882,11 +882,11 @@ export class TokenGenerationService {
 
     // Generate code syntax for all platforms
     const platforms = StorageService.getPlatforms();
-    const namingRules = StorageService.getNamingRules();
+    const taxonomyOrder = StorageService.getTaxonomyOrder();
     const schema = {
       platforms,
       taxonomies: availableTaxonomies,
-      namingRules
+      taxonomyOrder
     };
     
     const codeSyntax = CodeSyntaxService.generateAllCodeSyntaxes(token, schema);

@@ -78,12 +78,12 @@ export class ChangeTrackingService {
       }
     });
     
-    // Check namingRules (object, not array)
-    const currentNamingRules = (currentData as Record<string, unknown>).namingRules as Record<string, unknown> || {};
-    const baselineNamingRules = (baselineData as Record<string, unknown>).namingRules as Record<string, unknown> || {};
+    // Check taxonomyOrder (array)
+    const currentTaxonomyOrder = (currentData as Record<string, unknown>).taxonomyOrder as string[] || [];
+    const baselineTaxonomyOrder = (baselineData as Record<string, unknown>).taxonomyOrder as string[] || [];
     
-    if (JSON.stringify(currentNamingRules) !== JSON.stringify(baselineNamingRules)) {
-      totalChanges += 1; // Count as one change for namingRules modifications
+    if (JSON.stringify(currentTaxonomyOrder) !== JSON.stringify(baselineTaxonomyOrder)) {
+      totalChanges += 1; // Count as one change for taxonomyOrder modifications
     }
     
     return totalChanges;
@@ -131,12 +131,12 @@ export class ChangeTrackingService {
       }
     }
     
-    // Check namingRules (object, not array)
-    const localNamingRules = (localData as Record<string, unknown>).namingRules as Record<string, unknown> || {};
-    const baselineNamingRules = (baselineData as Record<string, unknown>).namingRules as Record<string, unknown> || {};
+    // Check taxonomyOrder (array)
+    const localTaxonomyOrder = (localData as Record<string, unknown>).taxonomyOrder as string[] || [];
+    const baselineTaxonomyOrder = (baselineData as Record<string, unknown>).taxonomyOrder as string[] || [];
     
-    if (JSON.stringify(localNamingRules) !== JSON.stringify(baselineNamingRules)) {
-      console.log('[ChangeTrackingService] Divergence detected in field: namingRules');
+    if (JSON.stringify(localTaxonomyOrder) !== JSON.stringify(baselineTaxonomyOrder)) {
+      console.log('[ChangeTrackingService] Divergence detected in field: taxonomyOrder');
       return true; // Divergence detected
     }
     
@@ -190,7 +190,7 @@ export class ChangeTrackingService {
       platforms: StorageService.getPlatforms(),
       themes: StorageService.getThemes(),
       taxonomies: StorageService.getTaxonomies(),
-      namingRules: StorageService.getNamingRules(),
+      taxonomyOrder: StorageService.getTaxonomyOrder(),
       algorithms: StorageService.getAlgorithms(),
       algorithmFile: StorageService.getAlgorithmFile(),
       platformExtensionFiles: StorageService.getPlatformExtensionFiles(),

@@ -23,7 +23,7 @@ export interface DataSnapshot {
   tokens: ExtendedToken[];
   taxonomies: Taxonomy[];
   algorithms: Algorithm[];
-  namingRules: { taxonomyOrder: string[] };
+  taxonomyOrder: string[];
   dimensionOrder: string[];
   algorithmFile: Record<string, unknown> | null;
   // MultiRepositoryManager data
@@ -239,7 +239,7 @@ export class DataManager {
       tokens: [],
       taxonomies: [],
       algorithms: [],
-      namingRules: { taxonomyOrder: [] },
+      taxonomyOrder: [],
       dimensionOrder: [],
       algorithmFile: null,
       // Clear MultiRepositoryManager data
@@ -287,7 +287,7 @@ export class DataManager {
       tokens: StorageService.getTokens(),
       taxonomies: StorageService.getTaxonomies(),
       algorithms: StorageService.getAlgorithms(),
-      namingRules: StorageService.getNamingRules(),
+      taxonomyOrder: StorageService.getTaxonomyOrder(),
       dimensionOrder: StorageService.getDimensionOrder(),
       algorithmFile: StorageService.getAlgorithmFile(),
       // MultiRepositoryManager data
@@ -310,7 +310,7 @@ export class DataManager {
     StorageService.setThemes(snapshot.themes);
     StorageService.setTaxonomies(snapshot.taxonomies);
     StorageService.setAlgorithms(snapshot.algorithms);
-    StorageService.setNamingRules(snapshot.namingRules);
+    StorageService.setTaxonomyOrder(snapshot.taxonomyOrder);
     StorageService.setDimensionOrder(snapshot.dimensionOrder);
     
     if (snapshot.algorithmFile) {
@@ -337,7 +337,7 @@ export class DataManager {
       tokens: snapshot.tokens,
       taxonomies: snapshot.taxonomies,
       algorithms: snapshot.algorithms,
-      namingRules: snapshot.namingRules,
+      taxonomyOrder: snapshot.taxonomyOrder,
       // Include MultiRepositoryManager data in baseline
       linkedRepositories: snapshot.linkedRepositories,
       platformExtensions: snapshot.platformExtensions,
@@ -367,9 +367,7 @@ export class DataManager {
     }));
     const normalizedTaxonomies = (fileContent.taxonomies as Taxonomy[]) ?? [];
     const normalizedResolvedValueTypes = (fileContent.resolvedValueTypes as ResolvedValueType[]) ?? [];
-    const normalizedNamingRules = {
-      taxonomyOrder: ((fileContent.namingRules as { taxonomyOrder?: string[] })?.taxonomyOrder) ?? []
-    };
+    const normalizedTaxonomyOrder = ((fileContent.taxonomyOrder as string[]) ?? []);
 
     const allModes: Mode[] = normalizedDimensions.flatMap((d: Dimension) => (d as { modes?: Mode[] }).modes || []);
 
@@ -406,7 +404,7 @@ export class DataManager {
       tokens: normalizedTokens as ExtendedToken[],
       taxonomies: normalizedTaxonomies,
       algorithms: [],
-      namingRules: normalizedNamingRules,
+      taxonomyOrder: normalizedTaxonomyOrder,
       dimensionOrder: normalizedDimensions.map(d => d.id),
       algorithmFile: null,
       // Clear MultiRepositoryManager data when loading from GitHub
@@ -448,9 +446,7 @@ export class DataManager {
     }));
     const normalizedTaxonomies = (d.taxonomies as Taxonomy[]) ?? [];
     const normalizedResolvedValueTypes = (d.resolvedValueTypes as ResolvedValueType[]) ?? [];
-    const normalizedNamingRules = {
-      taxonomyOrder: ((d.namingRules as { taxonomyOrder?: string[] })?.taxonomyOrder) ?? []
-    };
+    const normalizedTaxonomyOrder = ((d.taxonomyOrder as string[]) ?? []);
 
     const allModes: Mode[] = normalizedDimensions.flatMap((dimension: Dimension) => (dimension as { modes?: Mode[] }).modes || []);
 
@@ -496,7 +492,7 @@ export class DataManager {
       tokens: normalizedTokens as ExtendedToken[],
       taxonomies: normalizedTaxonomies,
       algorithms: loadedAlgorithms,
-      namingRules: normalizedNamingRules,
+      taxonomyOrder: normalizedTaxonomyOrder,
       dimensionOrder: normalizedDimensions.map(dimension => dimension.id),
       algorithmFile,
       // Clear MultiRepositoryManager data when loading from example source

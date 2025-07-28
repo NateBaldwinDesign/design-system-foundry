@@ -66,7 +66,7 @@ export function TaxonomyView({
 
   // Get taxonomyOrder from storage and sync with state
   useEffect(() => {
-    const storedOrder = StorageService.getNamingRules()?.taxonomyOrder || [];
+    const storedOrder = StorageService.getTaxonomyOrder() || [];
     setTaxonomyOrder(storedOrder);
   }, []);
 
@@ -76,7 +76,7 @@ export function TaxonomyView({
       const initialOrder = taxonomies.map(t => t.id);
       if (initialOrder.length > 0) {
         console.log('Initializing taxonomy order:', initialOrder);
-        StorageService.setNamingRules({ taxonomyOrder: initialOrder });
+        StorageService.setTaxonomyOrder(initialOrder);
         setTaxonomyOrder(initialOrder);
       }
     }
@@ -130,13 +130,16 @@ export function TaxonomyView({
     }
 
     // Update storage and local state
-    StorageService.setNamingRules({ taxonomyOrder: newOrder });
+    StorageService.setTaxonomyOrder(newOrder);
     setTaxonomyOrder(newOrder);
+    
+    // Dispatch event to notify change detection system
+    window.dispatchEvent(new CustomEvent('token-model:data-change'));
   };
 
   // Add effect to sync with localStorage
   useEffect(() => {
-    const storedOrder = StorageService.getNamingRules()?.taxonomyOrder;
+    const storedOrder = StorageService.getTaxonomyOrder();
     console.log('Initial taxonomy order from localStorage:', storedOrder);
   }, []);
 
@@ -287,8 +290,11 @@ export function TaxonomyView({
       // Add new taxonomy to the order if it's not already there
       if (!taxonomyOrder.includes(taxonomyId)) {
         const newOrder = [...taxonomyOrder, taxonomyId];
-        StorageService.setNamingRules({ taxonomyOrder: newOrder });
+        StorageService.setTaxonomyOrder(newOrder);
         setTaxonomyOrder(newOrder);
+        
+        // Dispatch event to notify change detection system
+        window.dispatchEvent(new CustomEvent('token-model:data-change'));
       }
     }
     if (!validateAndSetTaxonomies(newTaxonomies)) {
@@ -320,8 +326,11 @@ export function TaxonomyView({
       return;
     }
     setTaxonomies(updated);
-    StorageService.setNamingRules({ taxonomyOrder: newOrder });
+    StorageService.setTaxonomyOrder(newOrder);
     setTaxonomyOrder(newOrder);
+    
+    // Dispatch event to notify change detection system
+    window.dispatchEvent(new CustomEvent('token-model:data-change'));
     toast({ title: 'Taxonomy deleted', status: 'info', duration: 2000 });
   };
 

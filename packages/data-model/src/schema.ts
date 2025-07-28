@@ -464,6 +464,7 @@ export const TokenSystem = z.object({
   dimensionEvolution: DimensionEvolution.optional(),
   dimensions: z.array(Dimension),
   dimensionOrder: z.array(z.string().regex(/^[a-zA-Z0-9-_]+$/)).optional(),
+  taxonomyOrder: z.array(z.string().regex(/^[a-zA-Z0-9-_]+$/)).optional(),
   tokenCollections: z.array(TokenCollection),
   tokens: z.array(Token),
   platforms: z.array(Platform),
@@ -491,6 +492,16 @@ export const TokenSystem = z.object({
   {
     message: "All dimensionOrder IDs must match existing dimension IDs",
     path: ["dimensionOrder"]
+  }
+).refine(
+  (data) => {
+    if (!data.taxonomyOrder) return true;
+    const taxonomyIds = new Set(data.taxonomies.map(t => t.id));
+    return data.taxonomyOrder.every(id => taxonomyIds.has(id));
+  },
+  {
+    message: "All taxonomyOrder IDs must match existing taxonomy IDs",
+    path: ["taxonomyOrder"]
   }
 );
 

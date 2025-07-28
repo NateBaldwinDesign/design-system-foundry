@@ -2479,14 +2479,12 @@
       "displayName": "Font Size"
     }
   ],
-  "namingRules": {
-    "taxonomyOrder": [
-      "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
-      "taxonomyId-0000-0000-0000",
-      "taxonomyId-1111-1111-1111",
-      "taxonomyId-2222-2222-2222",
-      "taxonomyId-b6aa0844-bf72-40c7-ac70-28fa1353ee2b",
-      "taxonomyId-3333-3333-3333"
-    ]
-  }
+  "taxonomyOrder": [
+    "taxonomyId-c6d4b0a8-a603-4627-8fcd-cd00fcc02616",
+    "taxonomyId-0000-0000-0000",
+    "taxonomyId-1111-1111-1111",
+    "taxonomyId-2222-2222-2222",
+    "taxonomyId-b6aa0844-bf72-40c7-ac70-28fa1353ee2b",
+    "taxonomyId-3333-3333-3333"
+  ]
 }

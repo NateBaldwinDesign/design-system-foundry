@@ -229,6 +229,34 @@ To ensure clarity and consistency in the data model, all fields whose values mus
 
 This convention is applied throughout the schema and should be followed for all future fields that reference IDs.
 
+# Technical Decisions: Taxonomy Order as Top-Level Property
+
+## Context
+The schema previously used a nested `namingRules` object containing a `taxonomyOrder` array. This structure was inconsistent with other top-level ordering properties like `dimensionOrder`.
+
+## Decision
+Move `taxonomyOrder` from `namingRules.taxonomyOrder` to a top-level property `taxonomyOrder`, following the same pattern as `dimensionOrder`.
+
+## Rationale
+- **Consistency:** `taxonomyOrder` now follows the same pattern as `dimensionOrder`
+- **Simplicity:** Removes unnecessary nesting (`namingRules.taxonomyOrder` → `taxonomyOrder`)
+- **Clarity:** Makes the schema more intuitive and easier to understand
+- **Maintainability:** Reduces complexity in validation and data handling
+- **Schema Alignment:** Better aligns with the project's schema-driven development philosophy
+
+## Implementation
+- Removed `namingRules` object from schema
+- Added `taxonomyOrder` as top-level array property
+- Updated all validation logic to reference `taxonomyOrder` directly
+- Updated all storage and service methods to use new structure
+- Updated example data files to use new structure
+
+## Migration Impact
+- Breaking change requiring version bump
+- All existing data using `namingRules.taxonomyOrder` must be migrated to `taxonomyOrder`
+- Storage keys changed from `token-model:naming-rules` to `token-model:taxonomy-order`
+- All service methods updated to use new structure
+
 # Technical Decisions: Value Type Definitions and Referencing
 
 ## Context

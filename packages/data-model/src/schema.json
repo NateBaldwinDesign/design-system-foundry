@@ -202,6 +202,15 @@
         },
         "uniqueItems": true
       },
+      "taxonomyOrder": {
+        "type": "array",
+        "description": "Order of taxonomy IDs to use when generating codeSyntax strings. Determines which taxonomy's term comes first, second, etc.",
+        "items": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9-_]+$"
+        },
+        "uniqueItems": true
+      },
       "tokenCollections": {
         "type": "array",
         "description": "Collections of tokens grouped by type",
@@ -671,18 +680,7 @@
           }
         }
       },
-      "namingRules": {
-        "type": "object",
-        "description": "Rules for generating code syntax and naming conventions for tokens.",
-        "properties": {
-          "taxonomyOrder": {
-            "type": "array",
-            "description": "Order of taxonomy IDs to use when generating codeSyntax strings. Determines which taxonomy's term comes first, second, etc.",
-            "items": { "type": "string" }
-          }
-        },
-        "additionalProperties": false
-      },
+
       "standardPropertyTypes": {
         "type": "array",
         "description": "Standard property types with cross-platform mappings - these are always available and provide consistent platform mappings.",

@@ -582,10 +582,8 @@
         "displayName": "Z Index"
       }
     ],
-    "namingRules": {
-      "taxonomyOrder": [
-        "taxonomyId-1111-1111-1111",
-        "taxonomyId-2222-2222-2222"
-      ]
-    }
+    "taxonomyOrder": [
+      "taxonomyId-1111-1111-1111",
+      "taxonomyId-2222-2222-2222"
+    ]
   }

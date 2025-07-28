@@ -288,7 +288,7 @@ export class RepositoryCreationService {
       collections: [],
       taxonomies: [],
       algorithms: [],
-      namingRules: []
+      taxonomyOrder: []
     };
 
     return JSON.stringify(schema, null, 2);

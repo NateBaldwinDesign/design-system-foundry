@@ -75,7 +75,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
       platforms: StorageService.getPlatforms(),
       themes: StorageService.getThemes(),
       taxonomies: StorageService.getTaxonomies(),
-      namingRules: StorageService.getNamingRules(),
+      taxonomyOrder: StorageService.getTaxonomyOrder(),
       algorithms: StorageService.getAlgorithms(),
       algorithmFile: StorageService.getAlgorithmFile(),
     };
@@ -209,12 +209,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         }
       });
       
-      // Check namingRules (object, not array)
-      const currentNamingRules = (currentDataSnapshot as Record<string, unknown>).namingRules as Record<string, unknown> || {};
-      const baselineNamingRules = (baselineSnapshot as Record<string, unknown>).namingRules as Record<string, unknown> || {};
+      // Check taxonomyOrder (array)
+      const currentTaxonomyOrder = (currentDataSnapshot as Record<string, unknown>).taxonomyOrder as string[] || [];
+      const baselineTaxonomyOrder = (baselineSnapshot as Record<string, unknown>).taxonomyOrder as string[] || [];
       
-      if (JSON.stringify(currentNamingRules) !== JSON.stringify(baselineNamingRules)) {
-        totalChanges += 1; // Count as one change for namingRules modifications
+      if (JSON.stringify(currentTaxonomyOrder) !== JSON.stringify(baselineTaxonomyOrder)) {
+        totalChanges += 1; // Count as one change for taxonomyOrder modifications
+      }
+      
+      // Check dimensionOrder (array)
+      const currentDimensionOrder = (currentDataSnapshot as Record<string, unknown>).dimensionOrder as string[] || [];
+      const baselineDimensionOrder = (baselineSnapshot as Record<string, unknown>).dimensionOrder as string[] || [];
+      
+      if (JSON.stringify(currentDimensionOrder) !== JSON.stringify(baselineDimensionOrder)) {
+        totalChanges += 1; // Count as one change for dimensionOrder modifications
       }
       
       setHasChanges(true);
@@ -276,7 +284,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         taxonomies: newBaseline.taxonomies,
         resolvedValueTypes: newBaseline.resolvedValueTypes,
         algorithms: newBaseline.algorithms,
-        namingRules: newBaseline.namingRules,
+        taxonomyOrder: newBaseline.taxonomyOrder,
+        dimensionOrder: newBaseline.dimensionOrder,
       };
       
       // Update AppLayout's baseline state

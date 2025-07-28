@@ -101,7 +101,7 @@ const App = () => {
       tokens: StorageService.getTokens(),
       taxonomies: StorageService.getTaxonomies(),
       algorithms: StorageService.getAlgorithms(),
-      namingRules: StorageService.getNamingRules(),
+      taxonomyOrder: StorageService.getTaxonomyOrder(),
       dimensionOrder: StorageService.getDimensionOrder(),
       algorithmFile: StorageService.getAlgorithmFile(),
       platformExtensions,
@@ -148,7 +148,7 @@ const App = () => {
             setTokens(snapshot.tokens);
             setTaxonomies(snapshot.taxonomies);
             setAlgorithms(snapshot.algorithms);
-            setTaxonomyOrder(snapshot.namingRules.taxonomyOrder);
+            setTaxonomyOrder(snapshot.taxonomyOrder);
             setDimensionOrder(snapshot.dimensionOrder);
             
             // Update change log data - use the baseline that was set by DataManager
@@ -167,7 +167,7 @@ const App = () => {
             setTokens(snapshot.tokens);
             setTaxonomies(snapshot.taxonomies);
             setAlgorithms(snapshot.algorithms);
-            setTaxonomyOrder(snapshot.namingRules.taxonomyOrder);
+            setTaxonomyOrder(snapshot.taxonomyOrder);
             setDimensionOrder(snapshot.dimensionOrder);
           },
           onBaselineUpdated: (snapshot: DataSnapshot) => {
@@ -312,7 +312,7 @@ const App = () => {
     const storedTokens = StorageService.getTokens();
     const storedTaxonomies = StorageService.getTaxonomies();
     const storedAlgorithms = StorageService.getAlgorithms();
-    const storedNamingRules = StorageService.getNamingRules();
+    const storedTaxonomyOrder = StorageService.getTaxonomyOrder();
 
     setCollections(storedCollections);
     setModes(storedModes);
@@ -323,7 +323,7 @@ const App = () => {
     setTokens(storedTokens);
     setTaxonomies(storedTaxonomies);
     setAlgorithms(storedAlgorithms);
-    setTaxonomyOrder(storedNamingRules.taxonomyOrder);
+    setTaxonomyOrder(storedTaxonomyOrder);
 
     // Reset change tracking baseline for new data source
     const newBaselineData = {
@@ -336,7 +336,7 @@ const App = () => {
       tokens: storedTokens,
       taxonomies: storedTaxonomies,
       algorithms: storedAlgorithms,
-      namingRules: storedNamingRules,
+      taxonomyOrder: storedTaxonomyOrder,
     };
 
     // Set baseline data in ChangeTrackingService

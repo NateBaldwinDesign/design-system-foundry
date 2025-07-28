@@ -75,6 +75,16 @@ export class SchemaValidationService {
       }
     }
 
+    // Validate taxonomyOrder if present
+    if (data.taxonomyOrder) {
+      const taxonomyIds = new Set(data.taxonomies?.map(t => t.id) || []);
+      for (const taxonomyId of data.taxonomyOrder) {
+        if (!taxonomyIds.has(taxonomyId)) {
+          errors.push(`taxonomyOrder contains ID "${taxonomyId}" that does not exist in taxonomies`);
+        }
+      }
+    }
+
     return {
       isValid: errors.length === 0,
       errors,
