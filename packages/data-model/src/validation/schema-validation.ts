@@ -1,4 +1,4 @@
-import { TokenSystem, PlatformExtension, FigmaConfiguration, ThemeOverrideFile } from '../schema';
+import { TokenSystem, PlatformExtension, FigmaConfiguration, ThemeOverrideFile, ComponentProperty } from '../schema';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -242,31 +242,64 @@ export class SchemaValidationService {
   }
 
   /**
-   * Validates platform extensions registry
+   * Validates platform extensions registry entries
    */
   static validatePlatformExtensionsRegistry(registry: PlatformExtensionRegistryEntry[]): ValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Check for duplicate platform IDs
-    const platformIds = new Set<string>();
+    // Check for duplicate entries
+    const entries = new Set<string>();
     for (const entry of registry) {
-      if (platformIds.has(entry.platformId)) {
-        errors.push(`Duplicate platform ID in registry: ${entry.platformId}`);
+      const key = `${entry.platformId}:${entry.repositoryUri}:${entry.filePath}`;
+      if (entries.has(key)) {
+        errors.push(`Duplicate platform extension registry entry: ${entry.platformId}`);
       }
-      platformIds.add(entry.platformId);
+      entries.add(key);
     }
 
-    // Validate required fields
-    for (const entry of registry) {
-      if (!entry.platformId) {
-        errors.push('Platform extension registry entry must have platformId');
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
+   * Validates component properties
+   */
+  static validateComponentProperties(componentProperties: ComponentProperty[]): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Check for duplicate component property IDs
+    const ids = new Set<string>();
+    for (const cp of componentProperties) {
+      if (ids.has(cp.id)) {
+        errors.push(`Duplicate component property ID: ${cp.id}`);
       }
-      if (!entry.repositoryUri) {
-        errors.push(`Platform extension registry entry for ${entry.platformId} must have repositoryUri`);
-      }
-      if (!entry.filePath) {
-        errors.push(`Platform extension registry entry for ${entry.platformId} must have filePath`);
+      ids.add(cp.id);
+      
+      // Type-specific validation
+      if (cp.type === 'list') {
+        // Check for duplicate option IDs within each list component property
+        const optionIds = new Set<string>();
+        for (const option of cp.options) {
+          if (optionIds.has(option.id)) {
+            errors.push(`Duplicate option ID '${option.id}' in component property '${cp.id}'`);
+          }
+          optionIds.add(option.id);
+        }
+        
+        // Validate that default references an existing option
+        if (!cp.options.some(option => option.id === cp.default)) {
+          errors.push(`Default value '${cp.default}' in component property '${cp.id}' does not reference an existing option`);
+        }
+      } else if (cp.type === 'boolean') {
+        // Boolean properties should not have options
+        if ('options' in cp) {
+          errors.push(`Boolean component property '${cp.id}' cannot have options`);
+        }
       }
     }
 

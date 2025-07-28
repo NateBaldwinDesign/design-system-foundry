@@ -107,6 +107,26 @@ export const useSchema = () => {
     return cleanedTaxonomyOrder;
   };
 
+  // Helper function to clean and migrate naming rules from old nested structure to new top-level structure
+  const cleanNamingRules = (namingRules: unknown, taxonomies: Array<{ id: string }>): string[] => {
+    // Handle migration from old nested structure to new top-level structure
+    if (namingRules && typeof namingRules === 'object') {
+      // If namingRules has taxonomyOrder, extract it and clean it
+      const rulesObj = namingRules as { taxonomyOrder?: string[] };
+      if (rulesObj.taxonomyOrder && Array.isArray(rulesObj.taxonomyOrder)) {
+        return cleanTaxonomyOrder(rulesObj.taxonomyOrder, taxonomies);
+      }
+    }
+    
+    // If namingRules is already an array (new structure), clean it directly
+    if (Array.isArray(namingRules)) {
+      return cleanTaxonomyOrder(namingRules as string[], taxonomies);
+    }
+    
+    // Default fallback: return empty array
+    return [];
+  };
+
   // Helper function to migrate old string-based propertyTypes to new object-based format
   const migratePropertyTypes = (tokens: unknown[]): unknown[] => {
     return tokens.map(token => {
@@ -226,12 +246,12 @@ export const useSchema = () => {
       const themes = StorageService.getThemes();
       const taxonomies = StorageService.getTaxonomies();
       const resolvedValueTypes = StorageService.getValueTypes();
-      const namingRules = StorageService.getNamingRules();
+      const taxonomyOrder = StorageService.getTaxonomyOrder();
       const dimensionOrder = StorageService.getDimensionOrder();
 
       // Only create schema if we have some data
       if (tokenCollections.length > 0 || tokens.length > 0) {
-        const cleanedNamingRules = cleanNamingRules(namingRules, taxonomies);
+        const cleanedTaxonomyOrder = cleanTaxonomyOrder(taxonomyOrder, taxonomies);
         const schemaFromStorage = {
           version: '1.0.0',
           systemName: 'Design System',
@@ -244,7 +264,7 @@ export const useSchema = () => {
           themes,
           taxonomies,
           resolvedValueTypes,
-          namingRules: cleanedNamingRules,
+          taxonomyOrder: cleanedTaxonomyOrder,
           dimensionOrder,
           versionHistory: [{
             version: '1.0.0',
@@ -309,7 +329,7 @@ export const useSchema = () => {
             themesCount: coreData.themes?.length,
             hasResolvedValueTypes: !!coreData.resolvedValueTypes,
             resolvedValueTypesCount: coreData.resolvedValueTypes?.length,
-            hasNamingRules: !!coreData.namingRules,
+            hasTaxonomyOrder: !!coreData.taxonomyOrder,
             hasVersionHistory: !!coreData.versionHistory,
             versionHistoryCount: coreData.versionHistory?.length
           });
@@ -367,8 +387,8 @@ export const useSchema = () => {
                 value: mode.value as TokenValue
               }))
             })),
-            // Ensure naming rules are present
-            namingRules: cleanNamingRules(coreData.namingRules || { taxonomyOrder: [] }, coreData.taxonomies || []),
+            // Ensure taxonomy order is present
+            taxonomyOrder: cleanTaxonomyOrder(coreData.taxonomyOrder || [], coreData.taxonomies || []),
             // Ensure version history is present
             versionHistory: coreData.versionHistory || [{
               version: coreData.version || '1.0.0',

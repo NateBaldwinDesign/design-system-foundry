@@ -421,6 +421,46 @@ export const Taxonomy = z.object({
   resolvedValueTypeIds: z.array(z.string()).optional()
 });
 
+// ComponentPropertyOption schema
+export const ComponentPropertyOption = z.object({
+  id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  displayName: z.string(),
+  description: z.string().optional()
+});
+
+// ComponentProperty schema with conditional validation
+export const ComponentProperty = z.discriminatedUnion('type', [
+  // Boolean type
+  z.object({
+    id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+    displayName: z.string(),
+    description: z.string().optional(),
+    type: z.literal('boolean'),
+    default: z.boolean()
+  }),
+  // List type
+  z.object({
+    id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+    displayName: z.string(),
+    description: z.string().optional(),
+    type: z.literal('list'),
+    default: z.string(),
+    options: z.array(ComponentPropertyOption).min(1)
+  })
+]).refine(
+  (data) => {
+    if (data.type === 'list') {
+      // Validate that default references an existing option
+      return data.options.some(option => option.id === data.default);
+    }
+    return true;
+  },
+  {
+    message: "Default value must reference an existing option ID for list type properties",
+    path: ["default"]
+  }
+);
+
 // Version history types
 export const MigrationStrategy = z.object({
   emptyModeIds: z.enum(['mapToDefaults', 'preserveEmpty', 'requireExplicit']),
@@ -479,6 +519,7 @@ export const TokenSystem = z.object({
   standardPropertyTypes: z.array(PropertyType),
   propertyTypes: z.array(PropertyType),
   resolvedValueTypes: z.array(ResolvedValueType),
+  componentProperties: z.array(ComponentProperty),
   extensions: z.object({
     tokenGroups: z.array(TokenGroup).optional(),
     tokenVariants: z.record(z.any()).optional()
@@ -617,14 +658,45 @@ export function validateTokenCollectionCompatibility(
   
   const collection = collections.find(c => c.id === token.tokenCollectionId);
   if (!collection) {
-    errors.push(`Token '${token.id}' references non-existent collection '${token.tokenCollectionId}'`);
+    errors.push(`Token '${token.id}' references missing collection '${token.tokenCollectionId}'.`);
     return errors;
   }
   
   if (!collection.resolvedValueTypeIds.includes(token.resolvedValueTypeId)) {
     errors.push(
-      `Token '${token.id}' has type '${token.resolvedValueTypeId}' which is not supported by collection '${collection.id}'`
+      `Token '${token.id}' has resolvedValueTypeId '${token.resolvedValueTypeId}' which is not supported by collection '${collection.id}'.`
     );
+  }
+  
+  return errors;
+}
+
+export function validateComponentProperties(data: ComponentProperty[]): string[] {
+  const errors: string[] = [];
+  
+  // Check for duplicate IDs
+  const ids = new Set<string>();
+  for (const cp of data) {
+    if (ids.has(cp.id)) {
+      errors.push(`Duplicate component property ID: ${cp.id}`);
+    }
+    ids.add(cp.id);
+    
+    // Check for duplicate option IDs within each list component property
+    if (cp.type === 'list') {
+      const optionIds = new Set<string>();
+      for (const option of cp.options) {
+        if (optionIds.has(option.id)) {
+          errors.push(`Duplicate option ID '${option.id}' in component property '${cp.id}'`);
+        }
+        optionIds.add(option.id);
+      }
+      
+      // Validate that default references an existing option
+      if (!cp.options.some(option => option.id === cp.default)) {
+        errors.push(`Default value '${cp.default}' in component property '${cp.id}' does not reference an existing option`);
+      }
+    }
   }
   
   return errors;
@@ -671,6 +743,8 @@ export type DimensionEvolution = z.infer<typeof DimensionEvolution>;
 export type TokenTier = z.infer<typeof TokenTier>;
 export type PropertyType = z.infer<typeof PropertyType>;
 export type PlatformExtension = z.infer<typeof PlatformExtension>;
+export type ComponentPropertyOption = z.infer<typeof ComponentPropertyOption>;
+export type ComponentProperty = z.infer<typeof ComponentProperty>;
 
 // Figma Configuration type
 export const FigmaConfiguration = z.object({

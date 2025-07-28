@@ -1244,6 +1244,99 @@
           "additionalProperties": true
         },
         "uniqueItems": true
+      },
+      "componentProperties": {
+        "type": "array",
+        "description": "List of component properties for organizing and categorizing component-specific attributes.",
+        "items": {
+          "type": "object",
+          "required": ["id", "displayName", "type", "default"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for the component property.",
+              "pattern": "^[a-zA-Z0-9-_]+$"
+            },
+            "displayName": {
+              "type": "string",
+              "description": "Human-readable name for the component property."
+            },
+            "description": {
+              "type": "string",
+              "description": "Optional description of the component property's purpose and usage."
+            },
+            "type": {
+              "type": "string",
+              "description": "Type of component property - boolean for true/false values, list for predefined options.",
+              "enum": ["boolean", "list"],
+              "enumDescriptions": [
+                "Boolean property with true/false values",
+                "List property with predefined options"
+              ]
+            },
+            "default": {
+              "oneOf": [
+                {
+                  "type": "boolean",
+                  "description": "Default value for boolean type properties"
+                },
+                {
+                  "type": "string",
+                  "description": "Default option ID for list type properties (must match an option ID in the options array)"
+                }
+              ]
+            },
+            "options": {
+              "type": "array",
+              "description": "Available options for list type component properties. Required when type is 'list'.",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["id", "displayName"],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique identifier for the option.",
+                    "pattern": "^[a-zA-Z0-9-_]+$"
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "description": "Human-readable name for the option."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Optional description of the option."
+                  }
+                }
+              },
+              "uniqueItems": true
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": { "type": { "const": "boolean" } }
+              },
+              "then": {
+                "properties": {
+                  "default": { "type": "boolean" }
+                },
+                "not": { "required": ["options"] }
+              }
+            },
+            {
+              "if": {
+                "properties": { "type": { "const": "list" } }
+              },
+              "then": {
+                "properties": {
+                  "default": { "type": "string" }
+                },
+                "required": ["options"]
+              }
+            }
+          ]
+        }
       }
     },
     "additionalProperties": false,

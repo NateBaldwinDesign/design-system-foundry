@@ -582,6 +582,7 @@
         "displayName": "Z Index"
       }
     ],
+    "componentProperties": [],
     "taxonomyOrder": [
       "taxonomyId-1111-1111-1111",
       "taxonomyId-2222-2222-2222"
