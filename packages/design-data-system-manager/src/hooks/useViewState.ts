@@ -16,10 +16,7 @@ export type ViewId =
   | 'validation'
   | 'version-history'
   | 'access'
-  | 'core-data'
-  | 'theme-overrides'
-  | 'platform-overrides'
-  | 'algorithm-data'
+  | 'schemas'
   | 'system';
 
 export const useViewState = () => {

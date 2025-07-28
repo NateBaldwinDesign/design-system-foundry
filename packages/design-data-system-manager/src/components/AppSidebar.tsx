@@ -10,21 +10,14 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
-  LayoutDashboard,
-  Folders,
-  Tag,
-  SquareStack,
-  ListOrdered,
-  PencilRuler,
-  MonitorSmartphone,
-  CircleCheckBig,
-  FileCode,
-  ChartNetwork,
-  Blend,
+  Gauge,
   Shapes,
   PaletteIcon,
+  MonitorSmartphone,
   FigmaIcon,
-  Waypoints
+  Waypoints,
+  CircleCheckBig,
+  FileCode,
 } from 'lucide-react';
 import Logo from './Logo';
 import TokenIcon from '../icons/TokenIcon';
@@ -43,7 +36,7 @@ interface AppSidebarProps {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'dashboard', label: 'Dashboard', icon: Gauge },
   { id: 'algorithms', label: 'Foundations', icon: Shapes },
   { id: 'tokens', label: 'Tokens', icon: TokenIcon },
   { id: 'themes', label: 'Themes', icon: PaletteIcon },
@@ -52,14 +45,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'system', label: 'System', icon: Waypoints },
   
   { id: 'validation', label: 'Validation', icon: CircleCheckBig },
-  { id: 'collections', label: 'Collections', icon: Folders },
-  { id: 'system-variables', label: 'System Variables', icon: Blend },
-  { id: 'analysis', label: 'Analysis', icon: ChartNetwork },
-
-  { id: 'core-data', label: 'Core Data', icon: FileCode },
-  { id: 'theme-overrides', label: 'Theme Overrides', icon: FileCode },
-  { id: 'platform-overrides', label: 'Platform Extensions', icon: FileCode },
-  { id: 'algorithm-data', label: 'Algorithm Data', icon: FileCode },
+  { id: 'schemas', label: 'Schemas', icon: FileCode },
 ];
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({ currentView, onNavigate }) => {

@@ -32,10 +32,12 @@ export function VerticalTabsLayout({
   width = '100%',
   height = '100%',
 }: VerticalTabsLayoutProps) {
-  const borderColor = useColorModeValue('gray.200', 'gray.700');
   const selectedBg = useColorModeValue('blue.50', 'blue.900');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
   const { colorMode } = useColorMode();
+  const bgColor = colorMode === 'dark' ? 'gray.800' : 'white';
+  const borderColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
+
 
   return (
     <Box 
@@ -43,6 +45,7 @@ export function VerticalTabsLayout({
       height={height}
       display="flex"
       flexDirection="column"
+      bg={bgColor}
       flex="1"
     >
       <Tabs
@@ -61,6 +64,7 @@ export function VerticalTabsLayout({
           height="100%"
           overflowY="auto"
           flexShrink={0}
+          py={4}
         >
           {tabs.map((tab) => (
             <Tab
@@ -94,7 +98,7 @@ export function VerticalTabsLayout({
           {tabs.map((tab) => (
             <TabPanel 
               key={tab.id} 
-              p={4}
+              p={12}
               flex="1"
               display="flex"
               flexDirection="column"

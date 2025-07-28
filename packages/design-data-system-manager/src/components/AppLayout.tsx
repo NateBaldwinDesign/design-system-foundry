@@ -338,7 +338,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           onGitHubDisconnect={onGitHubDisconnect}
           onFileSelected={onFileSelected}
         />
-        <Box flex="1" overflow="auto" p={4} bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
+        <Box flex="1" overflow="auto"  bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
           {children}
         </Box>
       </Flex>

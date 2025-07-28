@@ -21,7 +21,13 @@ import {
   CardHeader,
   CardBody,
   Heading,
-  Divider
+  Divider,
+  Container,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel
 } from '@chakra-ui/react';
 import { Download, Copy, Eye, EyeOff, AlertTriangle, TestTube } from 'lucide-react';
 import type { TokenSystem } from '@token-model/data-model';
@@ -30,9 +36,9 @@ import { FigmaPrePublishDialog } from './FigmaPrePublishDialog';
 import { createSchemaJsonFromLocalStorage } from '../services/createJson';
 import { ChangeTrackingService, ChangeTrackingState } from '../services/changeTrackingService';
 import { FigmaConfigurationService } from '../services/figmaConfigurationService';
-import { CardTitle } from './CardTitle';
 import { SyntaxPatternsEditor, SyntaxPatterns } from './shared/SyntaxPatternsEditor';
 import { StorageService } from '../services/storage';
+import { CollectionsView } from '../views/CollectionsView';
 
 interface FigmaSettingsProps {
   tokenSystem: TokenSystem;
@@ -49,7 +55,6 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
   const [showPrePublishDialog, setShowPrePublishDialog] = useState(false);
   const [changeTrackingState, setChangeTrackingState] = useState<ChangeTrackingState | null>(null);
   const [checkingChanges, setCheckingChanges] = useState(true);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [exportResult, setExportResult] = useState<FigmaExportResult | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [syntaxPatterns, setSyntaxPatterns] = useState<SyntaxPatterns>({
@@ -59,6 +64,11 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
     capitalization: 'none',
     formatString: ''
   });
+
+  // Get data for CollectionsView
+  const collections = StorageService.getCollections();
+  const tokens = StorageService.getTokens();
+  const resolvedValueTypes = StorageService.getValueTypes();
 
   // Load configuration and check change tracking state on mount
   useEffect(() => {
@@ -115,17 +125,6 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
       window.removeEventListener('token-model:data-change', handleDataChange);
     };
   }, [tokenSystem.figmaConfiguration]);
-
-  // Check for unsaved changes
-  useEffect(() => {
-    const currentSyntaxPatterns = tokenSystem.figmaConfiguration?.syntaxPatterns || {};
-    const currentFileKey = tokenSystem.figmaConfiguration?.fileKey || '';
-    
-    setHasUnsavedChanges(
-      JSON.stringify(syntaxPatterns) !== JSON.stringify(currentSyntaxPatterns) ||
-      fileKey !== currentFileKey
-    );
-  }, [syntaxPatterns, fileKey, tokenSystem.figmaConfiguration]);
 
   // Test Figma access token and file
   const testTokenManually = async () => {
@@ -464,24 +463,13 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
     return null;
   };
 
-  return (
+  // Publishing tab content
+  const renderPublishingTab = () => (
     <VStack spacing={6} align="stretch">
       {/* Figma Configuration Card */}
       <Card>
-        <CardHeader>
-          <HStack justify="space-between" align="center">
-            <Box>
-              <CardTitle title="Figma" cardType="figma" />
-              <Text fontSize="sm" color="gray.600">
-                Configure Figma publishing settings and syntax patterns
-              </Text>
-            </Box>
-            {hasUnsavedChanges && (
-              <Badge colorScheme="orange" variant="subtle">
-                Unsaved Changes
-              </Badge>
-            )}
-          </HStack>
+        <CardHeader pb={0}>
+          <Heading size="md" mb={0}>Figma Credentials</Heading>
         </CardHeader>
         <CardBody>
           <VStack spacing={6} align="stretch">
@@ -490,9 +478,8 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
 
             {/* Figma Credentials */}
             <Box>
-              <Heading size="sm" mb={4}>Figma Credentials</Heading>
               <VStack spacing={4} align="stretch">
-                <FormControl>
+                <FormControl isRequired>
                   <FormLabel>Figma Access Token</FormLabel>
                   <InputGroup>
                     <Input
@@ -516,7 +503,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
                   </InputGroup>
                 </FormControl>
 
-                <FormControl>
+                <FormControl isRequired>
                   <FormLabel>Figma File Key</FormLabel>
                   <Input
                     value={fileKey}
@@ -525,15 +512,6 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
                     fontFamily="mono"
                   />
                 </FormControl>
-
-                {(!accessToken || !fileKey) && (
-                  <Alert status="info" borderRadius="md">
-                    <AlertIcon />
-                    <AlertDescription>
-                      Access token and file key are required for publishing and exporting.
-                    </AlertDescription>
-                  </Alert>
-                )}
               </VStack>
             </Box>
 
@@ -651,5 +629,41 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         />
       )}
     </VStack>
+  );
+
+  return (
+    <Container maxW="container.xl" py={8}>
+      <VStack spacing={8} align="stretch">
+        {/* Header */}
+        <Box>
+          <HStack spacing={4} align="center" mb={2}>
+            <Heading size="lg">Figma</Heading>
+          </HStack>
+        </Box>
+
+        {/* Tabs */}
+        <Tabs>
+          <TabList>
+            <Tab>Publishing</Tab>
+            <Tab>Variable Collections</Tab>
+          </TabList>
+
+          <TabPanels mt={4}>
+            <TabPanel>
+              {renderPublishingTab()}
+            </TabPanel>
+            
+            <TabPanel>
+              <CollectionsView
+                collections={collections}
+                onUpdate={(collections) => StorageService.setCollections(collections)}
+                tokens={tokens}
+                resolvedValueTypes={resolvedValueTypes}
+              />
+            </TabPanel>
+          </TabPanels>
+        </Tabs>
+      </VStack>
+    </Container>
   );
 }; 

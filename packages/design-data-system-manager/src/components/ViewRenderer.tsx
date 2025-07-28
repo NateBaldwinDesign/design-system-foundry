@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Button } from '@chakra-ui/react';
+import { Button } from '@chakra-ui/react';
 import { Plus } from 'lucide-react';
 import type { ViewId } from '../hooks/useViewState';
 import type { 
@@ -19,7 +19,6 @@ import type { GitHubUser } from '../config/github';
 // Import all view components
 import DashboardView from '../views/DashboardView';
 import { TokensView } from '../views/TokensView';
-import { CollectionsView } from '../views/CollectionsView';
 import { SystemVariablesView } from '../views/SystemVariablesView';
 import AlgorithmsView from '../views/AlgorithmsView';
 import { TokenAnalysis } from '../views/TokenAnalysis';
@@ -27,16 +26,14 @@ import { DimensionsView } from '../views/system/DimensionsView';
 import { TaxonomyView } from '../views/system/TaxonomyView';
 import { ValueTypesView } from '../views/system/ValueTypesView';
 import ThemesView from '../views/ThemesView';
-
 import { PlatformsView } from '../views/PlatformsView';
 import { ValidationView } from '../views/ValidationView';
-import { ExportSettingsView } from '../views/ExportSettingsView';
-import CoreDataView from '../views/CoreDataView';
-import ThemeOverridesView from '../views/ThemeOverridesView';
-import PlatformOverridesView from '../views/PlatformOverridesView';
-import AlgorithmDataView from '../views/AlgorithmDataView';
 import { SystemView } from '../views/system/SystemView';
 import { TokenEditorDialog } from './TokenEditorDialog';
+import { FigmaSettings } from './FigmaSettings';
+import { createSchemaJsonFromLocalStorage } from '../services/createJson';
+import type { TokenSystem } from '@token-model/data-model';
+import SchemasView from '../views/SchemasView';
 
 interface ViewRendererProps {
   currentView: ViewId;
@@ -86,7 +83,6 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   schema,
   githubUser,
   onUpdateTokens,
-  onUpdateCollections,
   onUpdateDimensions,
   onUpdateResolvedValueTypes,
   onUpdatePlatforms,
@@ -143,10 +139,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
             )}
           </>
         );
-      
-      case 'collections':
-        return <CollectionsView collections={collections} onUpdate={onUpdateCollections} tokens={tokens} resolvedValueTypes={resolvedValueTypes} />;
-      
+
       case 'system-variables':
         return <SystemVariablesView dimensions={dimensions} />;
       
@@ -177,28 +170,13 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} />;
       
       case 'figma-settings':
-        return <ExportSettingsView />;
+        return <FigmaSettings tokenSystem={createSchemaJsonFromLocalStorage() as unknown as TokenSystem} />;
       
       case 'validation':
         return <ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />;
       
-      case 'version-history':
-        return <Box p={4}>Version history content coming soon...</Box>;
-      
-      case 'access':
-        return <Box p={4}>Access management coming soon...</Box>;
-      
-      case 'core-data':
-        return <CoreDataView />;
-      
-      case 'theme-overrides':
-        return <ThemeOverridesView />;
-      
-      case 'platform-overrides':
-        return <PlatformOverridesView />;
-      
-      case 'algorithm-data':
-        return <AlgorithmDataView />;
+      case 'schemas':
+        return <SchemasView />;
       
       case 'system':
         return <SystemView />;
