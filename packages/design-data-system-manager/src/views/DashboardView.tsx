@@ -117,7 +117,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
           
           {/* Platform Extensions Section */}
           <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
-            <Heading size="md" mb={4}>Platform Extensions</Heading>
+            <Heading size="md" mb={4}>Platforms</Heading>
             {loadingPlatformStats ? (
               <VStack spacing={4}>
                 <Spinner />
@@ -247,17 +247,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
           </Box>
         </SimpleGrid>
         
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mb={8}>
-          {/* Releases Section */}
-          <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
-            <Heading size="md" mb={4}>Releases</Heading>
-            <VStack align="start" spacing={2}>
-              <Text><b>Latest Version:</b> {latestRelease.version}</Text>
-              <Text><b>Date:</b> {latestRelease.date}</Text>
-              <Tag colorScheme="gray">Placeholder</Tag>
-            </VStack>
-          </Box>
-        </SimpleGrid>
         
         {/* Latest Activity Section */}
         <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
