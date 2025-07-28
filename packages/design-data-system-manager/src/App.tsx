@@ -434,8 +434,8 @@ const App = () => {
     localStorage.removeItem('github_selected_repo');
     
     toast({
-      title: 'Disconnected',
-      description: 'Successfully disconnected from GitHub.',
+      title: 'Signed out',
+      description: 'Successfully signed out.',
       status: 'info',
       duration: 3000,
       isClosable: true,

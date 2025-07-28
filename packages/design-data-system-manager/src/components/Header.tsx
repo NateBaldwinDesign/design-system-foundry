@@ -15,8 +15,6 @@ import {
   Badge,
   Text,
   useToast,
-  TagLabel,
-  Tag,
   Avatar,
   Popover,
   PopoverTrigger,
@@ -33,16 +31,15 @@ import {
   AlertDialogHeader,
   AlertDialogContent,
   AlertDialogOverlay,
+  Divider,
 } from '@chakra-ui/react';
 import {
   History,
   Github,
-  Save,
-  GitPullRequest,
-  BookMarked,
   Download,
   Undo2,
-  BookDownIcon,
+  UserRound,
+  GitBranch,
 } from 'lucide-react';
 import { ChangeLog } from './ChangeLog';
 import { GitHubAuthService } from '../services/githubAuth';
@@ -105,8 +102,10 @@ export const Header: React.FC<HeaderProps> = ({
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveDialogMode, setSaveDialogMode] = useState<'direct' | 'pullRequest'>('direct');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isGitHubWorkflowMenuOpen, setIsGitHubWorkflowMenuOpen] = useState(false);
   const [isGitHubConnecting, setIsGitHubConnecting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isRefreshDialogOpen, setIsRefreshDialogOpen] = useState(false);
   const toast = useToast();
   const cancelRef = useRef<HTMLButtonElement>(null);
 
@@ -330,6 +329,36 @@ export const Header: React.FC<HeaderProps> = ({
     setIsResetDialogOpen(false);
   };
 
+  const handleRefreshData = () => {
+    setIsRefreshDialogOpen(true);
+  };
+
+  const handleConfirmRefresh = async () => {
+    try {
+      await handleReloadCurrentFile();
+      toast({
+        title: 'Data Refreshed',
+        description: `Data has been refreshed from ${selectedRepoInfo?.filePath} on GitHub.`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      toast({
+        title: 'Refresh Failed',
+        description: 'Failed to refresh data from GitHub. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+    setIsRefreshDialogOpen(false);
+  };
+
+  const handleCancelRefresh = () => {
+    setIsRefreshDialogOpen(false);
+  };
+
   const handleExportData = () => {
     if (onExportData) {
       onExportData();
@@ -387,28 +416,21 @@ export const Header: React.FC<HeaderProps> = ({
             <HStack spacing={2}>
               <Popover 
                 placement="bottom-end" 
-                isOpen={isUserMenuOpen} 
-                onClose={() => setIsUserMenuOpen(false)}
+                isOpen={isGitHubWorkflowMenuOpen} 
+                onClose={() => setIsGitHubWorkflowMenuOpen(false)}
               >
                 <PopoverTrigger>
-                  <Tag 
-                    size="md" 
-                    colorScheme="gray" 
-                    variant="subtle" 
-                    borderRadius="full" 
-                    gap={2}
-                    cursor="pointer"
-                    _hover={{ bg: 'gray.100' }}
-                    _dark={{ _hover: { bg: 'gray.700' } }}
-                    onClick={() => setIsUserMenuOpen(true)}
-                  >
-                    <Avatar size="2xs" src={githubUser.avatar_url} />
-                    <TagLabel fontSize="xs">{githubUser.login}</TagLabel>
-                  </Tag>
+                  <IconButton
+                    aria-label="GitHub Workflow"
+                    icon={<GitBranch size={16} />}
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setIsGitHubWorkflowMenuOpen(true)}
+                  />
                 </PopoverTrigger>
                 <PopoverContent p={0} w="auto" minW="200px">
                   <PopoverArrow />
-                  <PopoverBody p={0}>
+                  <PopoverBody p={2}>
                     <VStack spacing={0} align="stretch">
                       <Button
                         variant="ghost"
@@ -416,52 +438,56 @@ export const Header: React.FC<HeaderProps> = ({
                         justifyContent="flex-start"
                         borderRadius={0}
                         onClick={() => {
-                          window.open(`https://github.com/${githubUser.login}`, '_blank');
-                          setIsUserMenuOpen(false);
+                          setShowRepoSelector(true);
+                          setIsGitHubWorkflowMenuOpen(false);
                         }}
                       >
-                        View Profile
+                        Select new repository
                       </Button>
                       {selectedRepoInfo && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          justifyContent="flex-start"
-                          borderRadius={0}
-                          onClick={() => {
-                            window.open(`https://github.com/${selectedRepoInfo.fullName}/pulls?q=author:${githubUser.login}`, '_blank');
-                            setIsUserMenuOpen(false);
-                          }}
-                        >
-                          My Pull Requests
-                        </Button>
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            justifyContent="flex-start"
+                            borderRadius={0}
+                            onClick={() => {
+                              handleRefreshData();
+                              setIsGitHubWorkflowMenuOpen(false);
+                            }}
+                          >
+                            Refresh (pull) data
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            justifyContent="flex-start"
+                            borderRadius={0}
+                            onClick={() => {
+                              handleSaveToGitHub();
+                              setIsGitHubWorkflowMenuOpen(false);
+                            }}
+                          >
+                            Save (commit)
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            justifyContent="flex-start"
+                            borderRadius={0}
+                            onClick={() => {
+                              handleCreatePullRequest();
+                              setIsGitHubWorkflowMenuOpen(false);
+                            }}
+                          >
+                            Create Pull Request
+                          </Button>
+                        </>
                       )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        justifyContent="flex-start"
-                        borderRadius={0}
-                        colorScheme="red"
-                        onClick={() => {
-                          handleGitHubDisconnect();
-                          setIsUserMenuOpen(false);
-                        }}
-                      >
-                        Disconnect from GitHub
-                      </Button>
                     </VStack>
                   </PopoverBody>
                 </PopoverContent>
               </Popover>
-              <Tooltip label="Select Repository">
-                <IconButton
-                  aria-label="Select Repository"
-                  icon={<BookMarked size={16} />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setShowRepoSelector(true)}
-                />
-              </Tooltip>
             </HStack>
           ) : (
             <Tooltip label={isGitHubConnecting ? "Connecting to GitHub..." : "Connect GitHub"}>
@@ -477,39 +503,6 @@ export const Header: React.FC<HeaderProps> = ({
             </Tooltip>
           )}
 
-          {/* GitHub Repository Actions */}
-          {selectedRepoInfo && githubUser && (
-            <HStack spacing={2}>
-              <Tooltip label="Reload from GitHub">
-                <IconButton
-                  aria-label="Reload from GitHub"
-                  icon={<BookDownIcon size={16} />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleReloadCurrentFile}
-                />
-              </Tooltip>
-              <Tooltip label="Commit Changes to GitHub">
-                <IconButton
-                  aria-label="Commit Changes to GitHub"
-                  icon={<Save size={16} />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleSaveToGitHub}
-                />
-              </Tooltip>
-              <Tooltip label="Create Pull Request">
-                <IconButton
-                  aria-label="Create Pull Request"
-                  icon={<GitPullRequest size={16} />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleCreatePullRequest}
-                />
-              </Tooltip>
-
-            </HStack>
-          )}
           {/* Data Action Buttons - Always available when handlers are provided */}
           {(onExportData || onResetData) && (
             <HStack spacing={2}>
@@ -568,6 +561,79 @@ export const Header: React.FC<HeaderProps> = ({
               </Badge>
             )}
           </Box>
+
+          {/* User Menu - Moved to the end */}
+          {githubUser && (
+            <Popover 
+              placement="bottom-end" 
+              isOpen={isUserMenuOpen} 
+              onClose={() => setIsUserMenuOpen(false)}
+            >
+              <PopoverTrigger>
+                <IconButton
+                  aria-label="User Menu"
+                  icon={<UserRound size={16} />}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setIsUserMenuOpen(true)}
+                />
+              </PopoverTrigger>
+              <PopoverContent p={0} w="auto" minW="200px">
+                <PopoverArrow />
+                <PopoverBody p={2}>
+                  <VStack spacing={0} align="stretch">
+                    <HStack p={2} mb={2} w="full" justifyContent="space-between" alignItems="center">
+                      <VStack spacing={0} align="flex-start">
+                        <Avatar size="lg" src={githubUser.avatar_url} mb={2}/>
+                        <Text fontSize="sm" fontWeight="bold">{githubUser.login}</Text>
+                        <Text fontSize="xs" color="gray.500">{githubUser.email}</Text>
+                      </VStack>
+                    </HStack>
+                    <Divider mb={2} />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      justifyContent="flex-start"
+                      borderRadius={0}
+                      onClick={() => {
+                        window.open(`https://github.com/${githubUser.login}`, '_blank');
+                        setIsUserMenuOpen(false);
+                      }}
+                    >
+                      View Profile
+                    </Button>
+                    {selectedRepoInfo && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        justifyContent="flex-start"
+                        borderRadius={0}
+                        onClick={() => {
+                          window.open(`https://github.com/${selectedRepoInfo.fullName}/pulls?q=author:${githubUser.login}`, '_blank');
+                          setIsUserMenuOpen(false);
+                        }}
+                      >
+                        My Pull Requests
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      justifyContent="flex-start"
+                      borderRadius={0}
+                      colorScheme="red"
+                      onClick={() => {
+                        handleGitHubDisconnect();
+                        setIsUserMenuOpen(false);
+                      }}
+                    >
+                      Sign out
+                    </Button>
+                  </VStack>
+                </PopoverBody>
+              </PopoverContent>
+            </Popover>
+          )}
         </HStack>
       </Box>
 
@@ -635,6 +701,35 @@ export const Header: React.FC<HeaderProps> = ({
               </Button>
               <Button colorScheme="red" onClick={handleConfirmReset} ml={3}>
                 {selectedRepoInfo && githubUser ? 'Reset to GitHub' : 'Reset data'}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
+
+      <AlertDialog
+        isOpen={isRefreshDialogOpen}
+        onClose={handleCancelRefresh}
+        leastDestructiveRef={cancelRef}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              {selectedRepoInfo && githubUser ? 'Refresh data from GitHub?' : 'Refresh data?'}
+            </AlertDialogHeader>
+            <AlertDialogBody>
+              {selectedRepoInfo && githubUser ? (
+                `This will reload all data from ${selectedRepoInfo.filePath} on GitHub and you will lose all of your local changes. This cannot be undone.`
+              ) : (
+                'This will revert to the original state and you will lose all of your changes. This cannot be undone.'
+              )}
+            </AlertDialogBody>
+            <AlertDialogFooter>
+              <Button ref={cancelRef} onClick={handleCancelRefresh}>
+                Cancel
+              </Button>
+              <Button colorScheme="blue" onClick={handleConfirmRefresh} ml={3}>
+                {selectedRepoInfo && githubUser ? 'Refresh from GitHub' : 'Refresh data'}
               </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
