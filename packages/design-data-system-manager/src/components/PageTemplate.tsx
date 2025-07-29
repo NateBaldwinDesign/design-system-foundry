@@ -23,7 +23,7 @@ export const PageTemplate: React.FC<PageTemplateProps> = ({
   headerComponent,
   children,
   maxWidth = "container.xl",
-  padding = 8,
+  padding = 12,
 }) => {
   return (
     <Container maxW={maxWidth} p={padding}>

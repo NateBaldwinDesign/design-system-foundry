@@ -258,7 +258,7 @@ export function TokensView({
           )}
         </InputGroup>
       }
-      maxWidth="1800px"
+      maxWidth="100%"
     >
       <Tabs 
         onChange={(index) => {
