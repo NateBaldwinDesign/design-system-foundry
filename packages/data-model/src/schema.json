@@ -4,7 +4,7 @@
     "title": "Design Token System Schema",
     "description": "Schema for design tokens with multi-dimensional modes and flexible resolution",
     "type": "object",
-    "required": ["systemName", "systemId", "tokenCollections", "dimensions", "tokens", "platforms", "version", "versionHistory"],
+    "required": ["systemName", "systemId", "tokenCollections", "dimensions", "tokens", "platforms", "version", "versionHistory", "componentCategories", "components"],
     "properties": {
       "systemName": {
         "type": "string",
@@ -681,6 +681,69 @@
         }
       },
 
+      "componentCategories": {
+        "type": "array",
+        "description": "Standard categories for organizing components",
+        "items": {
+          "type": "object",
+          "required": ["id", "displayName"],
+          "properties": {
+            "id": { "type": "string", "pattern": "^[a-zA-Z0-9-_]+$" },
+            "displayName": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        }
+      },
+
+      "components": {
+        "type": "array",
+        "description": "Registry of standardized components with governed properties and component-specific context",
+        "items": {
+          "type": "object",
+          "required": ["id", "displayName", "componentProperties", "componentCategoryId"],
+          "properties": {
+            "id": { "type": "string", "pattern": "^[a-zA-Z0-9-_]+$" },
+            "displayName": { "type": "string" },
+            "description": { "type": "string" },
+            "componentCategoryId": {
+              "type": "string",
+              "description": "ID of the component category (must reference an id in componentCategories)"
+            },
+            "componentProperties": {
+              "type": "array",
+              "description": "Component properties with component-specific context and option restrictions",
+              "items": {
+                "type": "object",
+                "required": ["componentPropertyId"],
+                "properties": {
+                  "componentPropertyId": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9-_]+$",
+                    "description": "ID of the component property (must reference an id in componentProperties)"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Component-specific description of how this property applies to this component"
+                  },
+                  "supportedOptionIds": {
+                    "type": "array",
+                    "description": "For list-type properties, specifies which option ids are supported by this component. If omitted, all options are supported.",
+                    "items": { "type": "string", "pattern": "^[a-zA-Z0-9-_]+$" }
+                  },
+                  "default": {
+                    "oneOf": [
+                      { "type": "boolean", "description": "Component-specific default for boolean properties" },
+                      { "type": "string", "description": "Component-specific default option id for list properties" }
+                    ],
+                    "description": "Component-specific default value (overrides the property's global default)"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+
       "standardPropertyTypes": {
         "type": "array",
         "description": "Standard property types with cross-platform mappings - these are always available and provide consistent platform mappings.",
@@ -1244,6 +1307,99 @@
           "additionalProperties": true
         },
         "uniqueItems": true
+      },
+      "componentProperties": {
+        "type": "array",
+        "description": "List of component properties for organizing and categorizing component-specific attributes.",
+        "items": {
+          "type": "object",
+          "required": ["id", "displayName", "type", "default"],
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "Unique identifier for the component property.",
+              "pattern": "^[a-zA-Z0-9-_]+$"
+            },
+            "displayName": {
+              "type": "string",
+              "description": "Human-readable name for the component property."
+            },
+            "description": {
+              "type": "string",
+              "description": "Optional description of the component property's purpose and usage."
+            },
+            "type": {
+              "type": "string",
+              "description": "Type of component property - boolean for true/false values, list for predefined options.",
+              "enum": ["boolean", "list"],
+              "enumDescriptions": [
+                "Boolean property with true/false values",
+                "List property with predefined options"
+              ]
+            },
+            "default": {
+              "oneOf": [
+                {
+                  "type": "boolean",
+                  "description": "Default value for boolean type properties"
+                },
+                {
+                  "type": "string",
+                  "description": "Default option ID for list type properties (must match an option ID in the options array)"
+                }
+              ]
+            },
+            "options": {
+              "type": "array",
+              "description": "Available options for list type component properties. Required when type is 'list'.",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["id", "displayName"],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "description": "Unique identifier for the option.",
+                    "pattern": "^[a-zA-Z0-9-_]+$"
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "description": "Human-readable name for the option."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Optional description of the option."
+                  }
+                }
+              },
+              "uniqueItems": true
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": { "type": { "const": "boolean" } }
+              },
+              "then": {
+                "properties": {
+                  "default": { "type": "boolean" }
+                },
+                "not": { "required": ["options"] }
+              }
+            },
+            {
+              "if": {
+                "properties": { "type": { "const": "list" } }
+              },
+              "then": {
+                "properties": {
+                  "default": { "type": "string" }
+                },
+                "required": ["options"]
+              }
+            }
+          ]
+        }
       }
     },
     "additionalProperties": false,

@@ -29,5 +29,7 @@ export const ID_PREFIXES = {
   MODE: 'mode',
   TOKEN_GROUP: 'tokenGroup',
   TOKEN_VARIANT: 'tokenVariant',
-  TAXONOMY_TERM: 'term'
+  TAXONOMY_TERM: 'term',
+  COMPONENT_PROPERTY: 'component-property',
+  COMPONENT_OPTION: 'component-option'
 } as const; 

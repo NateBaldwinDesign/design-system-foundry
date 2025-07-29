@@ -17,7 +17,8 @@ export type ViewId =
   | 'version-history'
   | 'access'
   | 'schemas'
-  | 'system';
+  | 'system'
+  | 'components';
 
 export const useViewState = () => {
   const [currentView, setCurrentView] = useState<ViewId>('dashboard');

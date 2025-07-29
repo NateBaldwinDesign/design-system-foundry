@@ -105,9 +105,12 @@ export function ValueTypesView({
         errors: result.errors,
         data
       });
+      const errorMessages = Array.isArray(result.errors) 
+        ? result.errors.map(error => typeof error === 'string' ? error : JSON.stringify(error)).join(', ')
+        : 'See console for details.';
       toast({
         title: 'Schema Validation Failed',
-        description: 'Your change would make the data invalid. See the Validation tab for details.',
+        description: `Your change would make the data invalid: ${errorMessages}`,
         status: 'error',
         duration: 4000,
         isClosable: true,

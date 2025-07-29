@@ -23,7 +23,19 @@ import {
   Database,
   Settings,
   FunctionSquareIcon,
+  SquareFunctionIcon,
+  Folders,
+  Settings2,
+  FigmaIcon,
+  SquareStack,
+  Boxes,
+  FoldersIcon,
+  MonitorSmartphone,
+  BookMarked,
+  PencilRuler,
 } from 'lucide-react';
+import TokenIcon from '../icons/TokenIcon';
+import { Figma } from 'lucide-react';
 
 interface ChangeLogProps {
   previousData?: Record<string, unknown> | null | undefined;
@@ -45,20 +57,22 @@ interface ChangeEntry {
 
 const getEntityIcon = (entityType: string) => {
   switch (entityType) {
-    case 'token': return FileCode;
+    case 'token': return TokenIcon;
     case 'theme': return Palette;
-    case 'dimension': return Layers;
+    case 'dimension': return SquareStack;
     case 'mode': return Settings;
-    case 'resolvedValueType': return Tag;
-    case 'taxonomy': return Database;
+    case 'resolvedValueType': return PencilRuler;
+    case 'taxonomy': return Tag;
     case 'term': return Tag;
-    case 'algorithm': return FunctionSquareIcon;
-    case 'collection': return Database;
-    case 'platform': return Settings;
-    case 'platformExtension': return Settings;
+    case 'algorithm': return SquareFunctionIcon;
+    case 'collection': return FoldersIcon;
+    case 'platform': return MonitorSmartphone;
     case 'platformExtensionFile': return FileCode;
-    case 'repository': return Database;
-    case 'figmaConfiguration': return Settings;
+    case 'repository': return BookMarked;
+    case 'figmaConfiguration': return Figma;
+    case 'componentProperty': return Settings2;
+    case 'componentCategory': return FoldersIcon;
+    case 'component': return Boxes;
     default: return FileCode;
   }
 };
@@ -956,6 +970,328 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
         changes: [{
           field: 'algorithm',
           oldValue: `Removed algorithm: ${algorithmObj.name || id}`,
+        }],
+      });
+    }
+  }
+
+  // Compare component properties
+  const oldComponentProperties = (previousData.componentProperties as unknown[]) || [];
+  const newComponentProperties = (currentData.componentProperties as unknown[]) || [];
+  
+  const oldComponentPropertyMap = new Map();
+  const newComponentPropertyMap = new Map();
+
+  oldComponentProperties.forEach((cp: unknown) => {
+    if (typeof cp === 'object' && cp !== null) {
+      const componentProperty = cp as { id?: string };
+      if (componentProperty.id) {
+        oldComponentPropertyMap.set(componentProperty.id, componentProperty);
+      }
+    }
+  });
+
+  newComponentProperties.forEach((cp: unknown) => {
+    if (typeof cp === 'object' && cp !== null) {
+      const componentProperty = cp as { id?: string };
+      if (componentProperty.id) {
+        newComponentPropertyMap.set(componentProperty.id, componentProperty);
+      }
+    }
+  });
+
+  // Check for added component properties
+  for (const [id, componentProperty] of newComponentPropertyMap) {
+    if (!oldComponentPropertyMap.has(id)) {
+      const componentPropertyObj = componentProperty as { displayName?: string; type?: string };
+      changes.push({
+        type: 'added',
+        entityType: 'componentProperty',
+        entityId: id,
+        entityName: componentPropertyObj.displayName || id,
+        changes: [{
+          field: 'componentProperty',
+          newValue: `Added component property: ${componentPropertyObj.displayName || id} (${componentPropertyObj.type || 'unknown'})`,
+        }],
+      });
+    } else {
+      // Check for modified component properties
+      const oldComponentProperty = oldComponentPropertyMap.get(id);
+      const componentPropertyChanges: Array<{
+        field: string;
+        oldValue?: unknown;
+        newValue?: unknown;
+        context?: string;
+      }> = [];
+
+      const oldComponentPropertyObj = oldComponentProperty as Record<string, unknown>;
+      const componentPropertyObj = componentProperty as Record<string, unknown>;
+
+      // Compare basic fields
+      ['displayName', 'description', 'type', 'default'].forEach(field => {
+        if (oldComponentPropertyObj[field] !== componentPropertyObj[field]) {
+          componentPropertyChanges.push({
+            field,
+            oldValue: formatValue(oldComponentPropertyObj[field]),
+            newValue: formatValue(componentPropertyObj[field]),
+          });
+        }
+      });
+
+      // Compare options for list type properties
+      if (componentPropertyObj.type === 'list') {
+        const oldOptions = oldComponentPropertyObj.options as unknown[] || [];
+        const newOptions = componentPropertyObj.options as unknown[] || [];
+        
+        const oldOptionsMap = new Map();
+        const newOptionsMap = new Map();
+
+        oldOptions.forEach((opt: unknown) => {
+          if (typeof opt === 'object' && opt !== null) {
+            const option = opt as { id?: string };
+            if (option.id) {
+              oldOptionsMap.set(option.id, option);
+            }
+          }
+        });
+
+        newOptions.forEach((opt: unknown) => {
+          if (typeof opt === 'object' && opt !== null) {
+            const option = opt as { id?: string };
+            if (option.id) {
+              newOptionsMap.set(option.id, option);
+            }
+          }
+        });
+
+        // Check for added options
+        for (const [optionId, option] of newOptionsMap) {
+          if (!oldOptionsMap.has(optionId)) {
+            const optionObj = option as { displayName?: string };
+            componentPropertyChanges.push({
+              field: 'options',
+              newValue: `Added option: ${optionObj.displayName || optionId}`,
+              context: 'Component property option',
+            });
+          } else {
+            // Check for modified options
+            const oldOption = oldOptionsMap.get(optionId);
+            const oldOptionObj = oldOption as Record<string, unknown>;
+            const optionObj = option as Record<string, unknown>;
+
+            ['displayName', 'description'].forEach(field => {
+              if (oldOptionObj[field] !== optionObj[field]) {
+                componentPropertyChanges.push({
+                  field: `options.${field}`,
+                  oldValue: formatValue(oldOptionObj[field]),
+                  newValue: formatValue(optionObj[field]),
+                  context: `Option: ${optionObj.displayName || optionId}`,
+                });
+              }
+            });
+          }
+        }
+
+        // Check for removed options
+        for (const [optionId, option] of oldOptionsMap) {
+          if (!newOptionsMap.has(optionId)) {
+            const optionObj = option as { displayName?: string };
+            componentPropertyChanges.push({
+              field: 'options',
+              oldValue: `Removed option: ${optionObj.displayName || optionId}`,
+              context: 'Component property option',
+            });
+          }
+        }
+      }
+
+      if (componentPropertyChanges.length > 0) {
+        changes.push({
+          type: 'modified',
+          entityType: 'componentProperty',
+          entityId: id,
+          entityName: componentPropertyObj.displayName as string || id,
+          changes: componentPropertyChanges,
+        });
+      }
+    }
+  }
+
+  // Check for removed component properties
+  for (const [id, componentProperty] of oldComponentPropertyMap) {
+    if (!newComponentPropertyMap.has(id)) {
+      const componentPropertyObj = componentProperty as { displayName?: string };
+      changes.push({
+        type: 'removed',
+        entityType: 'componentProperty',
+        entityId: id,
+        entityName: componentPropertyObj.displayName || id,
+        changes: [{
+          field: 'componentProperty',
+          oldValue: `Removed component property: ${componentPropertyObj.displayName || id}`,
+        }],
+      });
+    }
+  }
+
+  // Compare component categories
+  const oldComponentCategories = (previousData.componentCategories as unknown[]) || [];
+  const newComponentCategories = (currentData.componentCategories as unknown[]) || [];
+  
+  const oldComponentCategoryMap = new Map();
+  const newComponentCategoryMap = new Map();
+
+  oldComponentCategories.forEach((cc: unknown) => {
+    if (typeof cc === 'object' && cc !== null) {
+      const componentCategory = cc as { id?: string };
+      if (componentCategory.id) {
+        oldComponentCategoryMap.set(componentCategory.id, componentCategory);
+      }
+    }
+  });
+
+  newComponentCategories.forEach((cc: unknown) => {
+    if (typeof cc === 'object' && cc !== null) {
+      const componentCategory = cc as { id?: string };
+      if (componentCategory.id) {
+        newComponentCategoryMap.set(componentCategory.id, componentCategory);
+      }
+    }
+  });
+
+  // Check for added component categories
+  for (const [id, componentCategory] of newComponentCategoryMap) {
+    if (!oldComponentCategoryMap.has(id)) {
+      const componentCategoryObj = componentCategory as { displayName?: string };
+      changes.push({
+        type: 'added',
+        entityType: 'componentCategory',
+        entityId: id,
+        entityName: componentCategoryObj.displayName || id,
+        changes: [{
+          field: 'componentCategory',
+          newValue: `Added component category: ${componentCategoryObj.displayName || id}`,
+        }],
+      });
+    }
+  }
+
+  // Check for removed component categories
+  for (const [id, componentCategory] of oldComponentCategoryMap) {
+    if (!newComponentCategoryMap.has(id)) {
+      const componentCategoryObj = componentCategory as { displayName?: string };
+      changes.push({
+        type: 'removed',
+        entityType: 'componentCategory',
+        entityId: id,
+        entityName: componentCategoryObj.displayName || id,
+        changes: [{
+          field: 'componentCategory',
+          oldValue: `Removed component category: ${componentCategoryObj.displayName || id}`,
+        }],
+      });
+    }
+  }
+
+  // Compare components
+  const oldComponents = (previousData.components as unknown[]) || [];
+  const newComponents = (currentData.components as unknown[]) || [];
+  
+  const oldComponentMap = new Map();
+  const newComponentMap = new Map();
+
+  oldComponents.forEach((c: unknown) => {
+    if (typeof c === 'object' && c !== null) {
+      const component = c as { id?: string };
+      if (component.id) {
+        oldComponentMap.set(component.id, component);
+      }
+    }
+  });
+
+  newComponents.forEach((c: unknown) => {
+    if (typeof c === 'object' && c !== null) {
+      const component = c as { id?: string };
+      if (component.id) {
+        newComponentMap.set(component.id, component);
+      }
+    }
+  });
+
+  // Check for added and modified components
+  for (const [id, component] of newComponentMap) {
+    if (!oldComponentMap.has(id)) {
+      const componentObj = component as { displayName?: string; componentCategoryId?: string };
+      changes.push({
+        type: 'added',
+        entityType: 'component',
+        entityId: id,
+        entityName: componentObj.displayName || id,
+        changes: [{
+          field: 'component',
+          newValue: `Added component: ${componentObj.displayName || id} (Category: ${componentObj.componentCategoryId || 'unknown'})`,
+        }],
+      });
+    } else {
+      // Check for modified components
+      const oldComponent = oldComponentMap.get(id);
+      const componentChanges: Array<{
+        field: string;
+        oldValue?: unknown;
+        newValue?: unknown;
+        context?: string;
+      }> = [];
+
+      const oldComponentObj = oldComponent as Record<string, unknown>;
+      const componentObj = component as Record<string, unknown>;
+
+      // Compare basic fields
+      ['displayName', 'description', 'componentCategoryId'].forEach(field => {
+        if (oldComponentObj[field] !== componentObj[field]) {
+          componentChanges.push({
+            field,
+            oldValue: formatValue(oldComponentObj[field]),
+            newValue: formatValue(componentObj[field]),
+          });
+        }
+      });
+
+      // Compare component properties
+      const oldProperties = oldComponentObj.componentProperties as unknown[] || [];
+      const newProperties = componentObj.componentProperties as unknown[] || [];
+      
+      if (oldProperties.length !== newProperties.length) {
+        componentChanges.push({
+          field: 'componentProperties',
+          oldValue: `${oldProperties.length} properties`,
+          newValue: `${newProperties.length} properties`,
+        });
+      }
+
+      if (componentChanges.length > 0) {
+        changes.push({
+          type: 'modified',
+          entityType: 'component',
+          entityId: id,
+          entityName: componentObj.displayName as string || id,
+          changes: componentChanges,
+        });
+      }
+    }
+  }
+
+  // Check for removed components
+  for (const [id, component] of oldComponentMap) {
+    if (!newComponentMap.has(id)) {
+      const componentObj = component as { displayName?: string; componentCategoryId?: string };
+      changes.push({
+        type: 'removed',
+        entityType: 'component',
+        entityId: id,
+        entityName: componentObj.displayName || id,
+        changes: [{
+          field: 'component',
+          oldValue: `Removed component: ${componentObj.displayName || id}`,
         }],
       });
     }

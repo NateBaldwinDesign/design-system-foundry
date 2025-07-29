@@ -277,9 +277,12 @@ export function DimensionsEditor({
       
       if (!result.isValid) {
         console.error('[DimensionsEditor] Schema validation failed:', result.errors);
+        const errorMessages = Array.isArray(result.errors) 
+          ? result.errors.map(error => typeof error === 'string' ? error : JSON.stringify(error)).join(', ')
+          : 'See console for details.';
         toast({
           title: 'Schema Validation Failed',
-          description: Array.isArray(result.errors) ? result.errors.join(', ') : 'See console for details.',
+          description: errorMessages,
           status: 'error',
           duration: 5000,
           isClosable: true,

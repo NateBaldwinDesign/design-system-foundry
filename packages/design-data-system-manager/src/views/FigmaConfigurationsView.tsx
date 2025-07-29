@@ -22,29 +22,29 @@ import {
   CardBody,
   Heading,
   Divider,
-  Container,
   Tabs,
   TabList,
   TabPanels,
   Tab,
   TabPanel
 } from '@chakra-ui/react';
+import { PageTemplate } from '../components/PageTemplate';
 import { Download, Copy, Eye, EyeOff, AlertTriangle, TestTube } from 'lucide-react';
 import type { TokenSystem } from '@token-model/data-model';
 import { FigmaExportService, FigmaExportResult } from '../services/figmaExport';
-import { FigmaPrePublishDialog } from './FigmaPrePublishDialog';
+import { FigmaPrePublishDialog } from '../components/FigmaPrePublishDialog';
 import { createSchemaJsonFromLocalStorage } from '../services/createJson';
 import { ChangeTrackingService, ChangeTrackingState } from '../services/changeTrackingService';
 import { FigmaConfigurationService } from '../services/figmaConfigurationService';
-import { SyntaxPatternsEditor, SyntaxPatterns } from './shared/SyntaxPatternsEditor';
+import { SyntaxPatternsEditor, SyntaxPatterns } from '../components/shared/SyntaxPatternsEditor';
 import { StorageService } from '../services/storage';
-import { CollectionsView } from '../views/CollectionsView';
+import { CollectionsView } from './CollectionsView';
 
-interface FigmaSettingsProps {
+interface FigmaConfigurationsViewProps {
   tokenSystem: TokenSystem;
 }
 
-export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => {
+export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = ({ tokenSystem }) => {
   const { colorMode } = useColorMode();
   const toast = useToast();
   
@@ -100,7 +100,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         const state = await ChangeTrackingService.getChangeTrackingState();
         setChangeTrackingState(state);
       } catch (error) {
-        console.error('[FigmaSettings] Error checking change tracking:', error);
+        console.error('[FigmaConfigurationsView] Error checking change tracking:', error);
         // Default to allowing export if we can't check
         setChangeTrackingState({
           hasLocalChanges: false,
@@ -141,7 +141,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
 
     try {
       // Test 1: Get file info
-      console.log('[FigmaSettings] Test 1: Getting file info...');
+      console.log('[FigmaConfigurationsView] Test 1: Getting file info...');
       const fileResponse = await fetch(`https://api.figma.com/v1/files/${fileKey}`, {
         method: 'GET',
         headers: {
@@ -150,10 +150,10 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         }
       });
 
-      console.log('[FigmaSettings] File response status:', fileResponse.status);
+      console.log('[FigmaConfigurationsView] File response status:', fileResponse.status);
       if (fileResponse.ok) {
         const fileData = await fileResponse.json();
-        console.log('[FigmaSettings] File data:', fileData);
+        console.log('[FigmaConfigurationsView] File data:', fileData);
         toast({
           title: 'Token test successful',
           description: `File: ${fileData.name}`,
@@ -163,7 +163,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         });
       } else {
         const errorText = await fileResponse.text();
-        console.error('[FigmaSettings] File test failed:', fileResponse.status, errorText);
+        console.error('[FigmaConfigurationsView] File test failed:', fileResponse.status, errorText);
         toast({
           title: 'Token test failed',
           description: `File access failed: ${fileResponse.status}`,
@@ -174,7 +174,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
       }
 
       // Test 2: Get variables
-      console.log('[FigmaSettings] Test 2: Getting variables...');
+      console.log('[FigmaConfigurationsView] Test 2: Getting variables...');
       const variablesResponse = await fetch(`https://api.figma.com/v1/files/${fileKey}/variables`, {
         method: 'GET',
         headers: {
@@ -183,10 +183,10 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
           }
       });
 
-      console.log('[FigmaSettings] Variables response status:', variablesResponse.status);
+      console.log('[FigmaConfigurationsView] Variables response status:', variablesResponse.status);
       if (variablesResponse.ok) {
         const variablesData = await variablesResponse.json();
-        console.log('[FigmaSettings] Variables data:', variablesData);
+        console.log('[FigmaConfigurationsView] Variables data:', variablesData);
         toast({
           title: 'Variables access successful',
           description: `Found ${variablesData.meta?.variables?.length || 0} variables`,
@@ -196,7 +196,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         });
       } else {
         const errorText = await variablesResponse.text();
-        console.error('[FigmaSettings] Variables test failed:', variablesResponse.status, errorText);
+        console.error('[FigmaConfigurationsView] Variables test failed:', variablesResponse.status, errorText);
         toast({
           title: 'Variables access failed',
           description: `Variables access failed: ${variablesResponse.status}`,
@@ -206,7 +206,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         });
       }
     } catch (error) {
-      console.error('[FigmaSettings] Test failed:', error);
+      console.error('[FigmaConfigurationsView] Test failed:', error);
       toast({
         title: 'Test failed',
         description: error instanceof Error ? error.message : 'An unknown error occurred',
@@ -223,7 +223,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
     
     setPublishLoading(true);
     try {
-      console.log('[FigmaSettings] Starting Figma publishing...');
+      console.log('[FigmaConfigurationsView] Starting Figma publishing...');
       
       // Always use the canonical, schema-compliant token system from local storage
       let canonicalTokenSystem;
@@ -240,8 +240,8 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         return;
       }
 
-      console.log('[FigmaSettings] Using complete token system for publishing');
-      console.log('[FigmaSettings] Token system stats:', {
+      console.log('[FigmaConfigurationsView] Using complete token system for publishing');
+      console.log('[FigmaConfigurationsView] Token system stats:', {
         tokensCount: canonicalTokenSystem.tokens?.length || 0,
         collectionsCount: canonicalTokenSystem.tokenCollections?.length || 0,
         dimensionsCount: canonicalTokenSystem.dimensions?.length || 0
@@ -275,7 +275,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         });
       }
     } catch (error) {
-      console.error('[FigmaSettings] Publishing failed:', error);
+      console.error('[FigmaConfigurationsView] Publishing failed:', error);
       toast({
         title: 'Publishing failed',
         description: error instanceof Error ? error.message : 'An unknown error occurred during publishing.',
@@ -294,7 +294,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
     
     setExportLoading(true);
     try {
-      console.log('[FigmaSettings] Starting export only...');
+      console.log('[FigmaConfigurationsView] Starting export only...');
       
       // Always use the canonical, schema-compliant token system from local storage
       let canonicalTokenSystem;
@@ -311,7 +311,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         return;
       }
 
-      console.log('[FigmaSettings] Canonical token system:', canonicalTokenSystem);
+      console.log('[FigmaConfigurationsView] Canonical token system:', canonicalTokenSystem);
       const figmaExportService = new FigmaExportService();
       
       const result = await figmaExportService.exportToFigma(canonicalTokenSystem, {
@@ -319,7 +319,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         fileId: fileKey
       });
       
-      console.log('[FigmaSettings] Export result:', result);
+      console.log('[FigmaConfigurationsView] Export result:', result);
       setExportResult(result);
       
       if (result.success && result.data) {
@@ -340,7 +340,7 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
         });
       }
     } catch (error) {
-      console.error('[FigmaSettings] Export failed:', error);
+      console.error('[FigmaConfigurationsView] Export failed:', error);
       toast({
         title: 'Export failed',
         description: error instanceof Error ? error.message : 'Unknown error occurred',
@@ -632,38 +632,32 @@ export const FigmaSettings: React.FC<FigmaSettingsProps> = ({ tokenSystem }) => 
   );
 
   return (
-    <Container maxW="container.xl" py={8}>
-      <VStack spacing={8} align="stretch">
-        {/* Header */}
-        <Box>
-          <HStack spacing={4} align="center" mb={2}>
-            <Heading size="lg">Figma</Heading>
-          </HStack>
-        </Box>
+    <PageTemplate
+      title="Figma"
+      description="Configure Figma integration settings and manage variable collections for publishing design tokens."
+    >
+      {/* Tabs */}
+      <Tabs>
+        <TabList>
+          <Tab>Publishing</Tab>
+          <Tab>Variable Collections</Tab>
+        </TabList>
 
-        {/* Tabs */}
-        <Tabs>
-          <TabList>
-            <Tab>Publishing</Tab>
-            <Tab>Variable Collections</Tab>
-          </TabList>
-
-          <TabPanels mt={4}>
-            <TabPanel>
-              {renderPublishingTab()}
-            </TabPanel>
-            
-            <TabPanel>
-              <CollectionsView
-                collections={collections}
-                onUpdate={(collections) => StorageService.setCollections(collections)}
-                tokens={tokens}
-                resolvedValueTypes={resolvedValueTypes}
-              />
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-      </VStack>
-    </Container>
+        <TabPanels mt={4}>
+          <TabPanel>
+            {renderPublishingTab()}
+          </TabPanel>
+          
+          <TabPanel>
+            <CollectionsView
+              collections={collections}
+              onUpdate={(collections) => StorageService.setCollections(collections)}
+              tokens={tokens}
+              resolvedValueTypes={resolvedValueTypes}
+            />
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
+    </PageTemplate>
   );
 }; 

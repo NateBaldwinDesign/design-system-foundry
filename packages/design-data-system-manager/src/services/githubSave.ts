@@ -170,12 +170,16 @@ export class GitHubSaveService {
         themes: StorageService.getThemes(),
         taxonomies: StorageService.getTaxonomies(),
         resolvedValueTypes: StorageService.getValueTypes(),
-              taxonomyOrder: StorageService.getTaxonomyOrder(),
+        componentProperties: StorageService.getComponentProperties(),
+        componentCategories: StorageService.getComponentCategories(),
+        components: StorageService.getComponents(),
+        taxonomyOrder: StorageService.getTaxonomyOrder(),
         versionHistory: rootData.versionHistory || [],
         systemName: rootData.systemName || 'Design System',
         systemId: rootData.systemId || 'design-system',
         description: rootData.description || 'A comprehensive design system with tokens, dimensions, and themes',
         version: rootData.version || '1.0.0',
+        figmaConfiguration: snapshot.figmaConfiguration,
         // Include platform extensions in the core schema
         platformExtensions: platformExtensions
       };

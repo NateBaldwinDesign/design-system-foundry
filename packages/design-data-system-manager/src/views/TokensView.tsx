@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Text, HStack, Flex, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Heading, Tabs, TabList, Tab, InputGroup, InputRightElement, Center, Icon, InputLeftElement, useColorMode } from '@chakra-ui/react';
+import { Box, Text, HStack, Flex, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Tabs, TabList, Tab, InputGroup, InputRightElement, Center, Icon, InputLeftElement, useColorMode } from '@chakra-ui/react';
 import { Edit, Columns, Filter, X, Search } from 'lucide-react';
 import type { TokenCollection, ResolvedValueType, Taxonomy, Mode } from '@token-model/data-model';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
@@ -8,6 +8,7 @@ import TokenResolvedValueTag from '../components/TokenResolvedValueTag';
 import { formatValueForDisplay } from '../utils/valueTypeUtils';
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
 import TokenIcon from '../icons/TokenIcon';
+import { PageTemplate } from '../components/PageTemplate';
 
 interface TokensViewProps {
   tokens: ExtendedToken[];
@@ -232,34 +233,33 @@ export function TokensView({
   };
 
   return (
-    <Box p={4}>
-      <Flex justify="space-between" align="center" mb={4} width="100%">
-        <HStack spacing={4} width="100%" justify="space-between">
-          <Heading size="md">Tokens</Heading>
-          <InputGroup width="300px">
-            <InputLeftElement pointerEvents='none'>
-              <Search size={16} />
-            </InputLeftElement>
-            <Input
-              placeholder="Search tokens..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            {searchTerm && (
-              <InputRightElement>
-                <IconButton
-                  aria-label="Clear search"
-                  icon={<X size={14} />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setSearchTerm('')}
-                />
-              </InputRightElement>
-            )}
-          </InputGroup>
-        </HStack>
-      </Flex>
-
+    <PageTemplate 
+      title="Tokens"
+      headerComponent={
+        <InputGroup width="300px">
+          <InputLeftElement pointerEvents='none'>
+            <Search size={16} />
+          </InputLeftElement>
+          <Input
+            placeholder="Search tokens..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <InputRightElement>
+              <IconButton
+                aria-label="Clear search"
+                icon={<X size={14} />}
+                size="sm"
+                variant="ghost"
+                onClick={() => setSearchTerm('')}
+              />
+            </InputRightElement>
+          )}
+        </InputGroup>
+      }
+      maxWidth="100%"
+    >
       <Tabs 
         onChange={(index) => {
           const tabs = ['PRIMITIVE', 'SEMANTIC', 'COMPONENT'];
@@ -606,7 +606,7 @@ export function TokensView({
                 {visibleColumns.propertyTypes && (
                   <Td>
                     {token.propertyTypes?.map((type, idx) => (
-                      <Badge key={idx} mr={1} mb={1} colorScheme="purple">{type}</Badge>
+                      <Badge key={idx} mr={1} mb={1} colorScheme="purple">{type.displayName}</Badge>
                     ))}
                   </Td>
                 )}
@@ -648,6 +648,6 @@ export function TokensView({
         </Table>
       )}
       </Box>
-    </Box>
+    </PageTemplate>
   );
 }

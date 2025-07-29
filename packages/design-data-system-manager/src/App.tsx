@@ -11,16 +11,17 @@ import {
   ModalCloseButton,
   ModalBody
 } from '@chakra-ui/react';
-import {
-  TokenCollection,
-  Mode,
-  Dimension,
-  Platform,
-  Taxonomy,
-  Theme,
+import type { 
+  TokenCollection, 
+  Mode, 
+  Dimension, 
+  Platform, 
+  Taxonomy, 
+  Theme, 
   ResolvedValueType,
-  exampleData,
-  algorithmData
+  ComponentProperty,
+  ComponentCategory,
+  Component
 } from '@token-model/data-model';
 import { StorageService } from './services/storage';
 import { Algorithm } from './types/algorithm';
@@ -52,6 +53,9 @@ const App = () => {
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [themes, setThemes] = useState<Theme[]>([]);
   const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
+  const [componentProperties, setComponentProperties] = useState<ComponentProperty[]>([]);
+  const [componentCategories, setComponentCategories] = useState<ComponentCategory[]>([]);
+  const [components, setComponents] = useState<Component[]>([]);
   const [algorithms, setAlgorithms] = useState<Algorithm[]>([]);
   const [loading, setLoading] = useState(true);
   const [dataOptions, setDataOptions] = useState<{ label: string; value: string; hasAlgorithms: boolean }[]>([]);
@@ -100,6 +104,9 @@ const App = () => {
       themes: StorageService.getThemes(),
       tokens: StorageService.getTokens(),
       taxonomies: StorageService.getTaxonomies(),
+      componentProperties: StorageService.getComponentProperties(),
+      componentCategories: StorageService.getComponentCategories(),
+      components: StorageService.getComponents(),
       algorithms: StorageService.getAlgorithms(),
       taxonomyOrder: StorageService.getTaxonomyOrder(),
       dimensionOrder: StorageService.getDimensionOrder(),
@@ -147,6 +154,9 @@ const App = () => {
             setThemes(snapshot.themes);
             setTokens(snapshot.tokens);
             setTaxonomies(snapshot.taxonomies);
+            setComponentProperties(snapshot.componentProperties);
+            setComponentCategories(snapshot.componentCategories);
+            setComponents(snapshot.components);
             setAlgorithms(snapshot.algorithms);
             setTaxonomyOrder(snapshot.taxonomyOrder);
             setDimensionOrder(snapshot.dimensionOrder);
@@ -166,6 +176,9 @@ const App = () => {
             setThemes(snapshot.themes);
             setTokens(snapshot.tokens);
             setTaxonomies(snapshot.taxonomies);
+            setComponentProperties(snapshot.componentProperties);
+            setComponentCategories(snapshot.componentCategories);
+            setComponents(snapshot.components);
             setAlgorithms(snapshot.algorithms);
             setTaxonomyOrder(snapshot.taxonomyOrder);
             setDimensionOrder(snapshot.dimensionOrder);
@@ -311,6 +324,9 @@ const App = () => {
     const storedThemes = StorageService.getThemes();
     const storedTokens = StorageService.getTokens();
     const storedTaxonomies = StorageService.getTaxonomies();
+    const storedComponentProperties = StorageService.getComponentProperties();
+    const storedComponentCategories = StorageService.getComponentCategories();
+    const storedComponents = StorageService.getComponents();
     const storedAlgorithms = StorageService.getAlgorithms();
     const storedTaxonomyOrder = StorageService.getTaxonomyOrder();
 
@@ -322,6 +338,9 @@ const App = () => {
     setThemes(storedThemes);
     setTokens(storedTokens);
     setTaxonomies(storedTaxonomies);
+    setComponentProperties(storedComponentProperties);
+    setComponentCategories(storedComponentCategories);
+    setComponents(storedComponents);
     setAlgorithms(storedAlgorithms);
     setTaxonomyOrder(storedTaxonomyOrder);
 
@@ -335,6 +354,9 @@ const App = () => {
       themes: storedThemes,
       tokens: storedTokens,
       taxonomies: storedTaxonomies,
+      componentProperties: storedComponentProperties,
+      componentCategories: storedComponentCategories,
+      components: storedComponents,
       algorithms: storedAlgorithms,
       taxonomyOrder: storedTaxonomyOrder,
     };
@@ -625,6 +647,33 @@ const App = () => {
     window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
+  const handleUpdateComponentProperties = (updatedComponentProperties: ComponentProperty[]) => {
+    setComponentProperties(updatedComponentProperties);
+    StorageService.setComponentProperties(updatedComponentProperties);
+    // Update change log data
+    updateChangeLogData();
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
+  };
+
+  const handleUpdateComponentCategories = (updatedComponentCategories: ComponentCategory[]) => {
+    setComponentCategories(updatedComponentCategories);
+    StorageService.setComponentCategories(updatedComponentCategories);
+    // Update change log data
+    updateChangeLogData();
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
+  };
+
+  const handleUpdateComponents = (updatedComponents: Component[]) => {
+    setComponents(updatedComponents);
+    StorageService.setComponents(updatedComponents);
+    // Update change log data
+    updateChangeLogData();
+    // Dispatch event to notify change detection
+    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
+  };
+
   const handleUpdateAlgorithms = (updatedAlgorithms: Algorithm[]) => {
     setAlgorithms(updatedAlgorithms);
     StorageService.setAlgorithms(updatedAlgorithms);
@@ -686,6 +735,9 @@ const App = () => {
                 platforms={platforms}
                 themes={themes}
                 taxonomies={taxonomies}
+                componentProperties={componentProperties}
+                componentCategories={componentCategories}
+                components={components}
                 algorithms={algorithms}
                 dimensionOrder={dimensionOrder}
                 taxonomyOrder={taxonomyOrder}
@@ -698,6 +750,9 @@ const App = () => {
                 onUpdatePlatforms={handleUpdatePlatforms}
                 onUpdateThemes={handleUpdateThemes}
                 onUpdateTaxonomies={handleUpdateTaxonomies}
+                onUpdateComponentProperties={handleUpdateComponentProperties}
+                onUpdateComponentCategories={handleUpdateComponentCategories}
+                onUpdateComponents={handleUpdateComponents}
                 onUpdateAlgorithms={handleUpdateAlgorithms}
                 setDimensionOrder={setDimensionOrder}
                 setTaxonomyOrder={setTaxonomyOrder}

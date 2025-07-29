@@ -9,7 +9,10 @@ import type {
   Platform, 
   Taxonomy, 
   Theme, 
-  ResolvedValueType
+  ResolvedValueType,
+  ComponentProperty,
+  ComponentCategory,
+  Component
 } from '@token-model/data-model';
 import type { ExtendedToken } from './TokenEditorDialog';
 import type { Algorithm } from '../types/algorithm';
@@ -30,10 +33,11 @@ import { PlatformsView } from '../views/PlatformsView';
 import { ValidationView } from '../views/ValidationView';
 import { SystemView } from '../views/system/SystemView';
 import { TokenEditorDialog } from './TokenEditorDialog';
-import { FigmaSettings } from './FigmaSettings';
+import { FigmaConfigurationsView } from '../views/FigmaConfigurationsView';
 import { createSchemaJsonFromLocalStorage } from '../services/createJson';
 import type { TokenSystem } from '@token-model/data-model';
 import SchemasView from '../views/SchemasView';
+import ComponentsView from '../views/ComponentsView';
 
 interface ViewRendererProps {
   currentView: ViewId;
@@ -46,6 +50,9 @@ interface ViewRendererProps {
   platforms: Platform[];
   themes: Theme[];
   taxonomies: Taxonomy[];
+  componentProperties: ComponentProperty[];
+  componentCategories: ComponentCategory[];
+  components: Component[];
   algorithms: Algorithm[];
   schema: Schema | null;
   // GitHub user info
@@ -58,6 +65,9 @@ interface ViewRendererProps {
   onUpdatePlatforms: (platforms: Platform[]) => void;
   onUpdateThemes: (themes: Theme[]) => void;
   onUpdateTaxonomies: (taxonomies: Taxonomy[]) => void;
+  onUpdateComponentProperties: (properties: ComponentProperty[]) => void;
+  onUpdateComponentCategories: (categories: ComponentCategory[]) => void;
+  onUpdateComponents: (components: Component[]) => void;
   onUpdateAlgorithms: (algorithms: Algorithm[]) => void;
   // Token editor props
   selectedToken: ExtendedToken | null;
@@ -79,6 +89,9 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   platforms,
   themes,
   taxonomies,
+  componentProperties,
+  componentCategories,
+  components,
   algorithms,
   schema,
   githubUser,
@@ -88,6 +101,9 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   onUpdatePlatforms,
   onUpdateThemes,
   onUpdateTaxonomies,
+  onUpdateComponentProperties,
+  onUpdateComponentCategories,
+  onUpdateComponents,
   onUpdateAlgorithms,
   selectedToken,
   isEditorOpen,
@@ -100,7 +116,15 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <DashboardView tokens={tokens} platforms={platforms} themes={themes} githubUser={githubUser} />;
+        return <DashboardView 
+          tokens={tokens} 
+          platforms={platforms} 
+          themes={themes} 
+          componentCategories={componentCategories}
+          componentProperties={componentProperties}
+          components={components}
+          githubUser={githubUser} 
+        />;
       
       case 'tokens':
         return (
@@ -170,7 +194,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} />;
       
       case 'figma-settings':
-        return <FigmaSettings tokenSystem={createSchemaJsonFromLocalStorage() as unknown as TokenSystem} />;
+        return <FigmaConfigurationsView tokenSystem={createSchemaJsonFromLocalStorage() as unknown as TokenSystem} />;
       
       case 'validation':
         return <ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />;
@@ -181,8 +205,26 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
       case 'system':
         return <SystemView />;
       
+      case 'components':
+        return (
+          <ComponentsView
+            components={components}
+            setComponents={onUpdateComponents}
+            componentCategories={componentCategories}
+            componentProperties={componentProperties}
+          />
+        );
+      
       default:
-        return <DashboardView tokens={tokens} platforms={platforms} themes={themes} githubUser={githubUser} />;
+        return <DashboardView 
+          tokens={tokens} 
+          platforms={platforms} 
+          themes={themes} 
+          componentCategories={componentCategories}
+          componentProperties={componentProperties}
+          components={components}
+          githubUser={githubUser} 
+        />;
     }
   };
 

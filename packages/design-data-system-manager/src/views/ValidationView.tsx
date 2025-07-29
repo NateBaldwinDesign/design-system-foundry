@@ -29,6 +29,7 @@ import {
   Tab,
   TabPanel
 } from '@chakra-ui/react';
+import { PageTemplate } from '../components/PageTemplate';
 import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 import { ValidationService } from '../services/validation';
 import { createSchemaJsonFromLocalStorage, createAlgorithmJsonFromLocalStorage } from '../services/createJson';
@@ -124,8 +125,11 @@ export function ValidationView({ tokens = [], collections = [], dimensions = [],
   };
 
   return (
-    <Box>
-      <Box p={4}  bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+    <PageTemplate
+      title="Validation"
+      description="Validate your design system data against the schema and test individual tokens for compliance."
+    >
+      <Box p={4} bg={colorMode === 'dark' ? 'gray.900' : 'white'} borderRadius="md">
         <VStack align="stretch" spacing={6}>
           <Box>
             <Heading as="h2" size="md" mb={4}>
@@ -290,6 +294,6 @@ export function ValidationView({ tokens = [], collections = [], dimensions = [],
           </ModalBody>
         </ModalContent>
       </Modal>
-    </Box>
+    </PageTemplate>
   );
 } 

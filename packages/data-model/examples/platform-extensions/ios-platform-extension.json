@@ -1,85 +1,67 @@
 {
-  "systemId": "design-system-core",
+  "systemId": "core-design-system",
   "platformId": "platform-ios",
   "version": "1.0.0",
-  "figmaFileKey": "ios-platform-figma-file-key",
-  "metadata": {
-    "name": "iOS Platform Extension",
-    "description": "Platform-specific overrides and additions for iOS",
-    "maintainer": "ios-team@company.com",
-    "lastUpdated": "2024-01-15",
-    "repositoryVisibility": "private"
-  },
+  "figmaFileKey": "ios-platform-extension",
+  "packageUri": "https://github.com/designsystem/ios-components",
+  "documentationUri": "https://designsystem.com/ios",
   "syntaxPatterns": {
     "prefix": "",
     "suffix": "",
     "delimiter": "_",
     "capitalization": "camel",
-    "formatString": "{name}"
+    "formatString": ""
   },
   "valueFormatters": {
     "color": "hex",
     "dimension": "pt",
-    "numberPrecision": 2
+    "numberPrecision": 1
   },
-  "algorithmVariableOverrides": [
+  "componentImplementations": [
     {
-      "algorithmId": "spacing-scale",
-      "variableId": "base-unit",
-      "valuesByMode": [
+      "componentId": "button",
+      "componentName": "DSButton",
+      "description": "iOS implementation of the Button component using SwiftUI",
+      "componentCategoryId": "input",
+      "packageName": "DesignSystem",
+      "storybookStory": "https://storybook.designsystem.com/ios/?path=/story/components-button--default",
+      "playgroundUrl": "https://playground.designsystem.com/ios/button",
+      "status": "stable",
+      "imageUrl": "https://designsystem.com/images/ios-button.png",
+      "tokenUsage": [
         {
-          "modeIds": ["mode-light", "mode-dark"],
-          "value": 4
-        }
-      ]
-    }
-  ],
-  "tokenOverrides": [
-    {
-      "id": "color-primary-500",
-      "displayName": "Primary Color 500",
-      "description": "iOS-specific primary color override",
-      "themeable": true,
-      "private": false,
-      "status": "active",
-      "tokenTier": "foundation",
-      "resolvedValueTypeId": "color",
-      "valuesByMode": [
-        {
-          "modeIds": ["mode-light"],
-          "value": {
-            "value": "#007AFF"
-          }
+          "attribute": "backgroundColor",
+          "tokenTypes": ["color"],
+          "defaultTokenId": "color-primary-500",
+          "description": "Background color of the button"
         },
         {
-          "modeIds": ["mode-dark"],
-          "value": {
-            "value": "#0A84FF"
-          }
-        }
-      ]
-    },
-    {
-      "id": "spacing-xs",
-      "displayName": "Extra Small Spacing",
-      "description": "iOS-specific spacing token",
-      "themeable": false,
-      "private": false,
-      "status": "active",
-      "tokenTier": "foundation",
-      "resolvedValueTypeId": "dimension",
-      "generatedByAlgorithm": true,
-      "algorithmId": "spacing-scale",
-      "valuesByMode": [
+          "attribute": "foregroundColor",
+          "tokenTypes": ["color"],
+          "defaultTokenId": "color-white",
+          "description": "Text color of the button"
+        },
         {
-          "modeIds": ["mode-light", "mode-dark"],
-          "value": {
-            "value": 4
-          }
+          "attribute": "padding",
+          "tokenTypes": ["spacing"],
+          "defaultTokenId": "spacing-4",
+          "description": "Padding around button content"
+        },
+        {
+          "attribute": "cornerRadius",
+          "tokenTypes": ["radius"],
+          "defaultTokenId": "radius-md",
+          "description": "Corner radius of the button"
         }
-      ]
+      ],
+      "examples": {
+        "storybookId": "components-button--default",
+        "documentationUri": "https://designsystem.com/ios/components/button",
+        "codeExample": "DSButton(\"Click me\", variant: .primary)"
+      }
     }
   ],
-  "omittedModes": ["mode-high-contrast"],
-  "omittedDimensions": ["dimension-brand"]
+  "tokenOverrides": [],
+  "omittedModes": [],
+  "omittedDimensions": []
 } 

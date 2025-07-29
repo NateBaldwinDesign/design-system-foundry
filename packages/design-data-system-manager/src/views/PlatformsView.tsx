@@ -14,7 +14,6 @@ import {
   useColorMode,
   Center,
   Spinner,
-  Container,
   Tabs,
   TabList,
   TabPanels,
@@ -22,6 +21,7 @@ import {
   TabPanel,
   Badge
 } from '@chakra-ui/react';
+import { PageTemplate } from '../components/PageTemplate';
 import { PlatformCreateDialog } from '../components/PlatformCreateDialog';
 import { PlatformEditDialog, PlatformEditData } from '../components/PlatformEditDialog';
 import { MultiRepositoryManager, MultiRepositoryData, RepositoryLink } from '../services/multiRepositoryManager';
@@ -1209,170 +1209,163 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
   }
 
   return (
-    <Container maxW="container.xl" py={4}>
-      <VStack spacing={8} align="stretch">
-        {/* Header */}
-        <Box>
-          <Text fontSize="2xl" fontWeight="bold" mb={4}>Platforms</Text>
-          <Text color="gray.600">
-            Manage platform extensions and link repositories for your distributed design system.
-          </Text>
-        </Box>
+    <PageTemplate
+      title="Platforms"
+      description="Manage platform extensions and link repositories for your distributed design system."
+    >
+      {/* Error Alert */}
+      {error && (
+        <Alert status="error">
+          <AlertIcon />
+          {error}
+        </Alert>
+      )}
 
-        {/* Error Alert */}
-        {error && (
-          <Alert status="error">
-            <AlertIcon />
-            {error}
-          </Alert>
-        )}
+      {/* Main Content */}
+      <Tabs>
+        <TabList>
+          <Tab>Platform Management</Tab>
+          <Tab>Analytics</Tab>
+          <Tab>Cache Debug</Tab>
+        </TabList>
 
-        {/* Main Content */}
-        <Tabs>
-          <TabList>
-            <Tab>Platform Management</Tab>
-            <Tab>Analytics</Tab>
-            <Tab>Cache Debug</Tab>
-          </TabList>
-
-          <TabPanels>
-            {/* Repository Management Tab */}
-            <TabPanel px={0}>
-              {/* Unified Platforms Section */}
-              <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-                <HStack justify="space-between" mb={4}>
-                  <Button 
-                    size="sm" 
-                    leftIcon={<LuPlus />} 
-                    onClick={() => setIsLinkDialogOpen(true)} 
-                    colorScheme="blue"
-                    isDisabled={getAvailableRepositoryTypes().length === 0}
-                  >
-                    Add Platform
-                  </Button>
-                </HStack>
-                
-                <VStack align="stretch" spacing={3}>
-                  {platforms.map((platform) => {
-                    // Find if this platform has a linked repository
-                    const linkedRepository = multiRepoManager.getLinkedRepositories()
-                      .find(link => link.platformId === platform.id);
-                    
-                    // Find platform extension status
-                    const platformStatus = platformExtensionStatuses.find(status => status.platformId === platform.id);
-                    
-                    return (
-                      <Box
-                        key={platform.id}
-                        p={3}
-                        borderWidth={1}
-                        borderRadius="md"
-                        bg={cardBg}
-                        borderColor={platformStatus?.hasError ? 'red.300' : cardBorder}
-                      >
-                        <HStack justify="space-between" align="flex-start">
-                          <Box flex={1} minW={0}>
-                            <HStack spacing={2} align="center" mb={1}>
-                              <Text fontSize="lg" fontWeight="medium">{platform.displayName}</Text>
-                              {platformStatus?.hasError && (
-                                <Tooltip 
-                                  label={platformStatus.errorMessage || 'File or repository is not found'} 
-                                  aria-label={`Error for ${platform.displayName}: ${platformStatus.errorMessage || 'File or repository is not found'}`}
-                                >
-                                  <Text color="red.500" fontWeight="bold" fontSize="sm">
-                                    <TriangleAlert size={16} />
-                                  </Text>
-                                </Tooltip>
-                              )}
-                            </HStack>
-                            <Text fontSize="sm" color="gray.500">ID: {platform.id}</Text>
-                            {platform.description && (
-                              <Text fontSize="sm" color="gray.500">{platform.description}</Text>
-                            )}
-                            {platform.syntaxPatterns && (
-                              <Text fontSize="sm" color="gray.500">
-                                Syntax: {platform.syntaxPatterns.prefix || ''}{platform.syntaxPatterns.delimiter || '_'}name{platform.syntaxPatterns.suffix || ''}
-                              </Text>
-                            )}
-                            {platform.extensionSource && (
-                              <Text fontSize="sm" color={platformStatus?.hasError ? 'red.500' : 'blue.500'}>
-                                Extension: {platform.extensionSource.repositoryUri} → {platform.extensionSource.filePath}
-                              </Text>
-                            )}
+        <TabPanels>
+          {/* Repository Management Tab */}
+          <TabPanel px={0}>
+            {/* Unified Platforms Section */}
+            <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
+              <HStack justify="space-between" mb={4}>
+                <Button 
+                  size="sm" 
+                  leftIcon={<LuPlus />} 
+                  onClick={() => setIsLinkDialogOpen(true)} 
+                  colorScheme="blue"
+                  isDisabled={getAvailableRepositoryTypes().length === 0}
+                >
+                  Add Platform
+                </Button>
+              </HStack>
+              
+              <VStack align="stretch" spacing={3}>
+                {platforms.map((platform) => {
+                  // Find if this platform has a linked repository
+                  const linkedRepository = multiRepoManager.getLinkedRepositories()
+                    .find(link => link.platformId === platform.id);
+                  
+                  // Find platform extension status
+                  const platformStatus = platformExtensionStatuses.find(status => status.platformId === platform.id);
+                  
+                  return (
+                    <Box
+                      key={platform.id}
+                      p={3}
+                      borderWidth={1}
+                      borderRadius="md"
+                      bg={cardBg}
+                      borderColor={platformStatus?.hasError ? 'red.300' : cardBorder}
+                    >
+                      <HStack justify="space-between" align="flex-start">
+                        <Box flex={1} minW={0}>
+                          <HStack spacing={2} align="center" mb={1}>
+                            <Text fontSize="lg" fontWeight="medium">{platform.displayName}</Text>
                             {platformStatus?.hasError && (
-                              <Text fontSize="sm" color="red.500" fontWeight="medium">
-                                {platformStatus.errorMessage || 'File or repository is not found'}
-                              </Text>
-                            )}
-                            {linkedRepository && !platformStatus?.hasError && (
-                              <Text fontSize="sm" color="gray.500">Status: {linkedRepository.status}</Text>
-                            )}
-                          </Box>
-                          <HStack spacing={2} align="flex-start">
-                            {platform.extensionSource ? (
-                              platformStatus?.hasError ? (
-                                <Badge colorScheme="red" variant="subtle">Error</Badge>
-                              ) : platform.extensionSource.repositoryUri === 'local' ? (
-                                <Badge colorScheme="blue" variant="subtle">Local</Badge>
-                              ) : (
-                                <Badge colorScheme="green" variant="subtle">External</Badge>
-                              )
-                            ) : null}
-                            {platform.extensionSource && platform.extensionSource.repositoryUri !== 'local' && (
-                              <Tooltip label="Open Repository on GitHub">
-                                <IconButton
-                                  aria-label="Open repository on GitHub"
-                                  size="sm"
-                                  icon={<LuExternalLink />}
-                                  onClick={() => {
-                                    const repoUrl = `https://github.com/${platform.extensionSource!.repositoryUri}`;
-                                    window.open(repoUrl, '_blank');
-                                  }}
-                                />
+                              <Tooltip 
+                                label={platformStatus.errorMessage || 'File or repository is not found'} 
+                                aria-label={`Error for ${platform.displayName}: ${platformStatus.errorMessage || 'File or repository is not found'}`}
+                              >
+                                <Text color="red.500" fontWeight="bold" fontSize="sm">
+                                  <TriangleAlert size={16} />
+                                </Text>
                               </Tooltip>
                             )}
-                            <Tooltip label="Edit Platform">
+                          </HStack>
+                          <Text fontSize="sm" color="gray.500">ID: {platform.id}</Text>
+                          {platform.description && (
+                            <Text fontSize="sm" color="gray.500">{platform.description}</Text>
+                          )}
+                          {platform.syntaxPatterns && (
+                            <Text fontSize="sm" color="gray.500">
+                              Syntax: {platform.syntaxPatterns.prefix || ''}{platform.syntaxPatterns.delimiter || '_'}name{platform.syntaxPatterns.suffix || ''}
+                            </Text>
+                          )}
+                          {platform.extensionSource && (
+                            <Text fontSize="sm" color={platformStatus?.hasError ? 'red.500' : 'blue.500'}>
+                              Extension: {platform.extensionSource.repositoryUri} → {platform.extensionSource.filePath}
+                            </Text>
+                          )}
+                          {platformStatus?.hasError && (
+                            <Text fontSize="sm" color="red.500" fontWeight="medium">
+                              {platformStatus.errorMessage || 'File or repository is not found'}
+                            </Text>
+                          )}
+                          {linkedRepository && !platformStatus?.hasError && (
+                            <Text fontSize="sm" color="gray.500">Status: {linkedRepository.status}</Text>
+                          )}
+                        </Box>
+                        <HStack spacing={2} align="flex-start">
+                          {platform.extensionSource ? (
+                            platformStatus?.hasError ? (
+                              <Badge colorScheme="red" variant="subtle">Error</Badge>
+                            ) : platform.extensionSource.repositoryUri === 'local' ? (
+                              <Badge colorScheme="blue" variant="subtle">Local</Badge>
+                            ) : (
+                              <Badge colorScheme="green" variant="subtle">External</Badge>
+                            )
+                          ) : null}
+                          {platform.extensionSource && platform.extensionSource.repositoryUri !== 'local' && (
+                            <Tooltip label="Open Repository on GitHub">
                               <IconButton
-                                aria-label="Edit platform"
-                                icon={<LuPencil />}
+                                aria-label="Open repository on GitHub"
                                 size="sm"
-                                onClick={() => handleEditPlatform(platform, linkedRepository)}
+                                icon={<LuExternalLink />}
+                                onClick={() => {
+                                  const repoUrl = `https://github.com/${platform.extensionSource!.repositoryUri}`;
+                                  window.open(repoUrl, '_blank');
+                                }}
                               />
                             </Tooltip>
-                            
-                          </HStack>
+                          )}
+                          <Tooltip label="Edit Platform">
+                            <IconButton
+                              aria-label="Edit platform"
+                              icon={<LuPencil />}
+                              size="sm"
+                              onClick={() => handleEditPlatform(platform, linkedRepository)}
+                            />
+                          </Tooltip>
+                          
                         </HStack>
-                      </Box>
-                    );
-                  })}
-                  
-                  {platforms.length === 0 && (
-                    <Text color="gray.500" textAlign="center" py={8}>
-                      No platforms found in source data. Load a core data file to see platforms.
-                    </Text>
-                  )}
-                </VStack>
-              </Box>
-            </TabPanel>
+                      </HStack>
+                    </Box>
+                  );
+                })}
+                
+                {platforms.length === 0 && (
+                  <Text color="gray.500" textAlign="center" py={8}>
+                    No platforms found in source data. Load a core data file to see platforms.
+                  </Text>
+                )}
+              </VStack>
+            </Box>
+          </TabPanel>
 
-            {/* Analytics Tab */}
-            <TabPanel>
-              <PlatformAnalytics
-                analytics={analytics}
-                platformExtensions={platformExtensions}
-                hasCoreData={true}
-              />
-            </TabPanel>
+          {/* Analytics Tab */}
+          <TabPanel>
+            <PlatformAnalytics
+              analytics={analytics}
+              platformExtensions={platformExtensions}
+              hasCoreData={true}
+            />
+          </TabPanel>
 
-            {/* Cache Debug Tab */}
-            <TabPanel>
-              <CacheDebugPanel />
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
-      </VStack>
+          {/* Cache Debug Tab */}
+          <TabPanel>
+            <CacheDebugPanel />
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
       
-              <PlatformCreateDialog
+      <PlatformCreateDialog
         isOpen={isLinkDialogOpen}
         onClose={() => setIsLinkDialogOpen(false)}
         onSave={handleLinkRepository}
@@ -1394,6 +1387,6 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
           platformStatus={platformExtensionStatuses.find(status => status.platformId === editingRepository.platformId)}
         />
       )}
-    </Container>
+    </PageTemplate>
   );
 }; 

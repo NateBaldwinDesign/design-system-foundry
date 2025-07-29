@@ -13,16 +13,19 @@
         "prefix": "",
         "suffix": "",
         "delimiter": "_",
-        "capitalization": "none",
+        "capitalization": "lowercase",
         "formatString": ""
       },
-      "fileKey": ""
+      "fileKey": "empty-design-system-file-key"
     },
     "platforms": [],
     "themes": [],
     "taxonomies": [],
+    "componentCategories": [],
+    "components": [],
     "standardPropertyTypes": [],
     "propertyTypes": [],
     "resolvedValueTypes": [],
+    "componentProperties": [],
     "taxonomyOrder": []
   }

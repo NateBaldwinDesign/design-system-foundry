@@ -18,6 +18,7 @@ import {
   Waypoints,
   CircleCheckBig,
   FileCode,
+  Boxes,
 } from 'lucide-react';
 import Logo from './Logo';
 import TokenIcon from '../icons/TokenIcon';
@@ -37,12 +38,13 @@ interface AppSidebarProps {
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Gauge },
+  { id: 'system', label: 'System', icon: Waypoints },
   { id: 'algorithms', label: 'Foundations', icon: Shapes },
   { id: 'tokens', label: 'Tokens', icon: TokenIcon },
+  { id: 'components', label: 'Components', icon: Boxes },
   { id: 'themes', label: 'Themes', icon: PaletteIcon },
   { id: 'platforms', label: 'Platforms', icon: MonitorSmartphone },
   { id: 'figma-settings', label: 'Figma', icon: FigmaIcon },
-  { id: 'system', label: 'System', icon: Waypoints },
   
   { id: 'validation', label: 'Validation', icon: CircleCheckBig },
   { id: 'schemas', label: 'Schemas', icon: FileCode },

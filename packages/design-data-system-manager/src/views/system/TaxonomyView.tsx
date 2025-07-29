@@ -70,17 +70,31 @@ export function TaxonomyView({
     setTaxonomyOrder(storedOrder);
   }, []);
 
-  // Initialize taxonomy order if not present
+  // Handle taxonomy order when taxonomies change (e.g., when loading new data)
   useEffect(() => {
-    if (!taxonomyOrder || taxonomyOrder.length === 0) {
-      const initialOrder = taxonomies.map(t => t.id);
-      if (initialOrder.length > 0) {
-        console.log('Initializing taxonomy order:', initialOrder);
-        StorageService.setTaxonomyOrder(initialOrder);
-        setTaxonomyOrder(initialOrder);
+    if (taxonomies.length > 0) {
+      const currentOrder = taxonomyOrder || [];
+      const taxonomyIds = new Set(taxonomies.map(t => t.id));
+      
+      // Check if the current order is valid for the new taxonomies
+      const validOrderIds = currentOrder.filter(id => taxonomyIds.has(id));
+      const missingIds = Array.from(taxonomyIds).filter(id => !currentOrder.includes(id));
+      
+      // If we have missing taxonomies or the order is completely different, 
+      // update to match the source data order
+      if (missingIds.length > 0 || validOrderIds.length === 0) {
+        const newOrder = taxonomies.map(t => t.id);
+        console.log('Updating taxonomy order to match source data:', newOrder);
+        StorageService.setTaxonomyOrder(newOrder);
+        setTaxonomyOrder(newOrder);
+      } else if (validOrderIds.length < currentOrder.length) {
+        // Some taxonomies were removed, update order to remove invalid IDs
+        console.log('Removing invalid taxonomy IDs from order:', validOrderIds);
+        StorageService.setTaxonomyOrder(validOrderIds);
+        setTaxonomyOrder(validOrderIds);
       }
     }
-  }, [taxonomies, taxonomyOrder]);
+  }, [taxonomies]); // Only depend on taxonomies, not taxonomyOrder to avoid loops
 
   // Save taxonomies to localStorage whenever they change
   useEffect(() => {
@@ -222,9 +236,12 @@ export function TaxonomyView({
       console.log('[TaxonomyView] Validation result:', result);
       if (!result.isValid) {
         console.error('[TaxonomyView] Validation errors:', result.errors);
+        const errorMessages = Array.isArray(result.errors) 
+          ? result.errors.map(error => typeof error === 'string' ? error : JSON.stringify(error)).join(', ')
+          : 'See console for details.';
         toast({
           title: "Validation Error",
-          description: `Schema Validation Failed: ${Array.isArray(result.errors) ? result.errors.join(', ') : 'See console for details.'}`,
+          description: `Schema Validation Failed: ${errorMessages}`,
           status: "error",
           duration: 5000,
           isClosable: true,

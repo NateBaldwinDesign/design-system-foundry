@@ -29,7 +29,9 @@ export type {
   ThemeOverrideFile,
   Taxonomy,
   TaxonomyTerm,
-  TokenTaxonomyRef
+  TokenTaxonomyRef,
+  ComponentProperty,
+  ComponentPropertyOption
 } from './schema';
 
 // Export validation service
@@ -55,7 +57,12 @@ export {
   Platform as PlatformSchema,
   PlatformExtension as PlatformExtensionSchema,
   Taxonomy as TaxonomySchema,
-  TokenTaxonomyRef as TokenTaxonomyRefSchema
+  TokenTaxonomyRef as TokenTaxonomyRefSchema,
+  ComponentProperty as ComponentPropertySchema,
+  ComponentPropertyOption as ComponentPropertyOptionSchema,
+  ComponentCategory as ComponentCategorySchema,
+  Component as ComponentSchema,
+  ComponentImplementation as ComponentImplementationSchema
 } from './schema';
 
 // Re-export Zod schemas
@@ -104,13 +111,19 @@ export {
   validateDurationValue,
   validateCubicBezierValue,
   validateShadowValue,
-  validateThemeOverrideFile,
   validateTypographyValue,
   validateBorderValue,
   validateTheme,
   validateThemeOverride,
   validateThemeOverrides,
-  validatePlatformExtension
+  validateThemeOverrideFile,
+  validatePlatformExtension,
+  validateTokenTaxonomiesReferentialIntegrity,
+  validateTokenCollectionCompatibility,
+  findCompatibleCollection,
+  validateComponentProperties,
+  validateComponentCategories,
+  validateComponents
 } from './schema';
 
 // Export platform extension validation

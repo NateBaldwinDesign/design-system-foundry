@@ -9,7 +9,10 @@ import type {
   Taxonomy, 
   Theme, 
   ResolvedValueType,
-  FigmaConfiguration
+  FigmaConfiguration,
+  ComponentProperty,
+  ComponentCategory,
+  Component
 } from '@token-model/data-model';
 import type { Algorithm } from '../types/algorithm';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
@@ -23,6 +26,9 @@ export interface DataSnapshot {
   themes: Theme[];
   tokens: ExtendedToken[];
   taxonomies: Taxonomy[];
+  componentProperties: ComponentProperty[];
+  componentCategories: ComponentCategory[];
+  components: Component[];
   algorithms: Algorithm[];
   taxonomyOrder: string[];
   dimensionOrder: string[];
@@ -240,6 +246,9 @@ export class DataManager {
       themes: [],
       tokens: [],
       taxonomies: [],
+      componentProperties: [],
+      componentCategories: [],
+      components: [],
       algorithms: [],
       taxonomyOrder: [],
       dimensionOrder: [],
@@ -289,6 +298,9 @@ export class DataManager {
       themes: StorageService.getThemes(),
       tokens: StorageService.getTokens(),
       taxonomies: StorageService.getTaxonomies(),
+      componentProperties: StorageService.getComponentProperties(),
+      componentCategories: StorageService.getComponentCategories(),
+      components: StorageService.getComponents(),
       algorithms: StorageService.getAlgorithms(),
       taxonomyOrder: StorageService.getTaxonomyOrder(),
       dimensionOrder: StorageService.getDimensionOrder(),
@@ -313,6 +325,9 @@ export class DataManager {
     StorageService.setPlatforms(snapshot.platforms);
     StorageService.setThemes(snapshot.themes);
     StorageService.setTaxonomies(snapshot.taxonomies);
+    StorageService.setComponentProperties(snapshot.componentProperties);
+    StorageService.setComponentCategories(snapshot.componentCategories);
+    StorageService.setComponents(snapshot.components);
     StorageService.setAlgorithms(snapshot.algorithms);
     StorageService.setTaxonomyOrder(snapshot.taxonomyOrder);
     StorageService.setDimensionOrder(snapshot.dimensionOrder);
@@ -341,6 +356,9 @@ export class DataManager {
       themes: snapshot.themes,
       tokens: snapshot.tokens,
       taxonomies: snapshot.taxonomies,
+      componentProperties: snapshot.componentProperties,
+      componentCategories: snapshot.componentCategories,
+      components: snapshot.components,
       algorithms: snapshot.algorithms,
       taxonomyOrder: snapshot.taxonomyOrder,
       // Include MultiRepositoryManager data in baseline
@@ -373,7 +391,10 @@ export class DataManager {
     }));
     const normalizedTaxonomies = (fileContent.taxonomies as Taxonomy[]) ?? [];
     const normalizedResolvedValueTypes = (fileContent.resolvedValueTypes as ResolvedValueType[]) ?? [];
-    const normalizedTaxonomyOrder = ((fileContent.taxonomyOrder as string[]) ?? []);
+    const normalizedTaxonomyOrder = ((fileContent.taxonomyOrder as string[]) ?? normalizedTaxonomies.map(t => t.id));
+    const normalizedComponentProperties = (fileContent.componentProperties as ComponentProperty[]) ?? [];
+    const normalizedComponentCategories = (fileContent.componentCategories as ComponentCategory[]) ?? [];
+    const normalizedComponents = (fileContent.components as Component[]) ?? [];
 
     const allModes: Mode[] = normalizedDimensions.flatMap((d: Dimension) => (d as { modes?: Mode[] }).modes || []);
 
@@ -412,6 +433,9 @@ export class DataManager {
       themes: normalizedThemes,
       tokens: normalizedTokens as ExtendedToken[],
       taxonomies: normalizedTaxonomies,
+      componentProperties: normalizedComponentProperties,
+      componentCategories: normalizedComponentCategories,
+      components: normalizedComponents,
       algorithms: [],
       taxonomyOrder: normalizedTaxonomyOrder,
       dimensionOrder: normalizedDimensions.map(d => d.id),
@@ -427,9 +451,9 @@ export class DataManager {
   /**
    * Process theme override data from GitHub
    */
-  private processThemeOverrideData(_fileContent: Record<string, unknown>): DataSnapshot {
+  private processThemeOverrideData(fileContent: Record<string, unknown>): DataSnapshot {
     // TODO: Implement theme override processing
-    console.log('[DataManager] Theme override processing not yet implemented');
+    console.log('[DataManager] Theme override processing not yet implemented for:', fileContent);
     
     // For now, return current data
     return this.getCurrentSnapshot();
@@ -456,7 +480,10 @@ export class DataManager {
     }));
     const normalizedTaxonomies = (d.taxonomies as Taxonomy[]) ?? [];
     const normalizedResolvedValueTypes = (d.resolvedValueTypes as ResolvedValueType[]) ?? [];
-    const normalizedTaxonomyOrder = ((d.taxonomyOrder as string[]) ?? []);
+    const normalizedTaxonomyOrder = ((d.taxonomyOrder as string[]) ?? normalizedTaxonomies.map(t => t.id));
+    const normalizedComponentProperties = (d.componentProperties as ComponentProperty[]) ?? [];
+    const normalizedComponentCategories = (d.componentCategories as ComponentCategory[]) ?? [];
+    const normalizedComponents = (d.components as Component[]) ?? [];
 
     const allModes: Mode[] = normalizedDimensions.flatMap((dimension: Dimension) => (dimension as { modes?: Mode[] }).modes || []);
 
@@ -501,6 +528,9 @@ export class DataManager {
       themes: normalizedThemes,
       tokens: normalizedTokens as ExtendedToken[],
       taxonomies: normalizedTaxonomies,
+      componentProperties: normalizedComponentProperties,
+      componentCategories: normalizedComponentCategories,
+      components: normalizedComponents,
       algorithms: loadedAlgorithms,
       taxonomyOrder: normalizedTaxonomyOrder,
       dimensionOrder: normalizedDimensions.map(dimension => dimension.id),

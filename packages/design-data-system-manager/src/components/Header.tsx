@@ -49,6 +49,7 @@ import { ChangeLog } from './ChangeLog';
 import { GitHubAuthService } from '../services/githubAuth';
 import { GitHubApiService } from '../services/githubApi';
 import { StorageService } from '../services/storage';
+import { ChangeTrackingService } from '../services/changeTrackingService';
 import type { GitHubUser } from '../config/github';
 import { GitHubRepoSelector } from './GitHubRepoSelector';
 import { GitHubSaveDialog } from './GitHubSaveDialog';
@@ -257,6 +258,12 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleSaveSuccess = () => {
     // Toast already shown by GitHubSaveDialog
+    
+    // Update the baseline data to match current data since it's now saved to GitHub
+    if (currentData) {
+      ChangeTrackingService.setBaselineData(currentData);
+      ChangeTrackingService.updateLastGitHubSync();
+    }
     
     // Dispatch event to notify change detection that data has been saved to GitHub
     // This will establish a new baseline and clear the change log

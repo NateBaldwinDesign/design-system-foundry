@@ -28,6 +28,18 @@ interface TokenSystem {
     isDefault: boolean;
   }>;
   taxonomyOrder?: string[];
+  componentProperties?: Array<{
+    id: string;
+    displayName: string;
+    description?: string;
+    type: 'boolean' | 'list';
+    default: boolean | string;
+    options?: Array<{
+      id: string;
+      displayName: string;
+      description?: string;
+    }>;
+  }>;
 }
 
 interface SystemVariableByMode {
@@ -314,6 +326,17 @@ export class ValidationService {
             }
           }
         }
+
+        // Validate component properties if present
+        if (tokenSystem.componentProperties) {
+          const componentPropertiesValidation = this.validateComponentProperties(tokenSystem.componentProperties);
+          if (!componentPropertiesValidation.isValid) {
+            return {
+              isValid: false,
+              errors: componentPropertiesValidation.errors || []
+            };
+          }
+        }
       }
       return { isValid: true };
     } catch (error: unknown) {
@@ -323,5 +346,67 @@ export class ValidationService {
       }
       return { isValid: false, errors: [error instanceof Error ? error.message : String(error)] };
     }
+  }
+
+  /**
+   * Validates component properties
+   */
+  static validateComponentProperties(componentProperties: Array<{
+    id: string;
+    displayName: string;
+    description?: string;
+    type: 'boolean' | 'list';
+    default: boolean | string;
+    options?: Array<{
+      id: string;
+      displayName: string;
+      description?: string;
+    }>;
+  }>): ValidationResult {
+    const errors: string[] = [];
+
+    // Check for duplicate component property IDs
+    const ids = new Set<string>();
+    for (const cp of componentProperties) {
+      if (ids.has(cp.id)) {
+        errors.push(`Duplicate component property ID: ${cp.id}`);
+      }
+      ids.add(cp.id);
+      
+      // Type-specific validation
+      if (cp.type === 'list') {
+        if (!cp.options || cp.options.length === 0) {
+          errors.push(`List component property '${cp.id}' must have at least one option`);
+        } else {
+          // Check for duplicate option IDs within each list component property
+          const optionIds = new Set<string>();
+          for (const option of cp.options) {
+            if (optionIds.has(option.id)) {
+              errors.push(`Duplicate option ID '${option.id}' in component property '${cp.id}'`);
+            }
+            optionIds.add(option.id);
+          }
+          
+          // Validate that default references an existing option
+          if (typeof cp.default === 'string' && !cp.options.some(option => option.id === cp.default)) {
+            errors.push(`Default value '${cp.default}' in component property '${cp.id}' does not reference an existing option`);
+          }
+        }
+      } else if (cp.type === 'boolean') {
+        // Boolean properties should not have options
+        if (cp.options && cp.options.length > 0) {
+          errors.push(`Boolean component property '${cp.id}' cannot have options`);
+        }
+        // Validate default is boolean
+        if (typeof cp.default !== 'boolean') {
+          errors.push(`Boolean component property '${cp.id}' must have a boolean default value`);
+        }
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   }
 } 

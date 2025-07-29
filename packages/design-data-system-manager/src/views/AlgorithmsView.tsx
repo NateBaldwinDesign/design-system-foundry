@@ -15,6 +15,7 @@ import {
   ModalBody,
   ModalCloseButton
 } from '@chakra-ui/react';
+import { PageTemplate } from '../components/PageTemplate';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 import { AlgorithmEditor } from '../components/AlgorithmEditor';
 import { Algorithm } from '../types/algorithm';
@@ -73,8 +74,10 @@ const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms, onUpdate, o
   };
 
   return (
-    <Box>
-      <Text fontSize="2xl" fontWeight="bold" mb={4}>Algorithms</Text>
+    <PageTemplate
+      title="Algorithms"
+      description="Create and manage algorithms for dynamic token generation and value calculations."
+    >
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
         <Button
             leftIcon={<LuPlus />}
@@ -147,7 +150,7 @@ const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms, onUpdate, o
           </ModalContent>
         </Modal>
       </Box>
-    </Box>
+    </PageTemplate>
   );
 };
 
