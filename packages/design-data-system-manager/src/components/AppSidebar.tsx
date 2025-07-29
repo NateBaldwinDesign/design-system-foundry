@@ -18,6 +18,7 @@ import {
   Waypoints,
   CircleCheckBig,
   FileCode,
+  Boxes,
 } from 'lucide-react';
 import Logo from './Logo';
 import TokenIcon from '../icons/TokenIcon';
@@ -40,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'system', label: 'System', icon: Waypoints },
   { id: 'algorithms', label: 'Foundations', icon: Shapes },
   { id: 'tokens', label: 'Tokens', icon: TokenIcon },
+  { id: 'components', label: 'Components', icon: Boxes },
   { id: 'themes', label: 'Themes', icon: PaletteIcon },
   { id: 'platforms', label: 'Platforms', icon: MonitorSmartphone },
   { id: 'figma-settings', label: 'Figma', icon: FigmaIcon },

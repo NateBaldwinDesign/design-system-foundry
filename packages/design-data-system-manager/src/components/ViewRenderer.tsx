@@ -35,6 +35,7 @@ import { FigmaSettings } from './FigmaSettings';
 import { createSchemaJsonFromLocalStorage } from '../services/createJson';
 import type { TokenSystem } from '@token-model/data-model';
 import SchemasView from '../views/SchemasView';
+import ComponentsView from '../views/ComponentsView';
 
 interface ViewRendererProps {
   currentView: ViewId;
@@ -183,6 +184,9 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
       
       case 'system':
         return <SystemView />;
+      
+      case 'components':
+        return <ComponentsView />;
       
       default:
         return <DashboardView tokens={tokens} platforms={platforms} themes={themes} githubUser={githubUser} />;
