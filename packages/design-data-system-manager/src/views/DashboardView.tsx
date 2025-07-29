@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, AlertIcon, Tooltip } from '@chakra-ui/react';
 import { getTokenStats, getPlatformExtensionStats, getThemeStats, getLatestRelease, getRecentActivity } from '../utils/dashboardStats';
-import type { Platform, Theme } from '@token-model/data-model';
+import type { Platform, Theme, ComponentCategory, ComponentProperty, Component } from '@token-model/data-model';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
 import type { GitHubUser } from '../config/github';
 import type { PlatformExtensionAnalyticsSummary } from '../services/platformExtensionAnalyticsService';
@@ -11,10 +11,21 @@ interface DashboardViewProps {
   tokens: ExtendedToken[];
   platforms: Platform[];
   themes: Theme[];
+  componentCategories: ComponentCategory[];
+  componentProperties: ComponentProperty[];
+  components: Component[];
   githubUser: GitHubUser | null;
 }
 
-const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes, githubUser }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ 
+  tokens, 
+  platforms, 
+  themes, 
+  componentCategories,
+  componentProperties,
+  components,
+  githubUser 
+}) => {
   const { colorMode } = useColorMode();
   const [platformExtensionStats, setPlatformExtensionStats] = useState<PlatformExtensionAnalyticsSummary | null>(null);
   const [loadingPlatformStats, setLoadingPlatformStats] = useState(false);
@@ -24,6 +35,35 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
   const themeStats = getThemeStats(themes);
   const latestRelease = getLatestRelease();
   const recentActivity = getRecentActivity();
+
+  // Component Registry Status
+  const componentRegistryStatus = {
+    counts: {
+      categories: componentCategories.length,
+      properties: componentProperties.length,
+      components: components.length,
+    },
+    validation: {
+      isValid: true, // This would be calculated from validation service
+      errorCount: 0, // This would be calculated from validation service
+    },
+    recentChanges: {
+      lastModified: new Date().toISOString(), // This would come from change tracking
+      changeCount: 0, // This would come from change tracking
+    },
+  };
+
+  // Calculate component property type distribution
+  const propertyTypeStats = {
+    boolean: componentProperties.filter(p => p.type === 'boolean').length,
+    list: componentProperties.filter(p => p.type === 'list').length,
+  };
+
+  // Calculate components by category
+  const componentsByCategory = componentCategories.map(category => ({
+    categoryName: category.displayName,
+    count: components.filter(c => c.componentCategoryId === category.id).length,
+  }));
 
   // Load platform extension analytics
   useEffect(() => {
@@ -236,6 +276,64 @@ const DashboardView: React.FC<DashboardViewProps> = ({ tokens, platforms, themes
             </Table>
           </Box>
           
+          {/* Component Registry Section */}
+          <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
+            <Heading size="md" mb={4}>Component Registry</Heading>
+            <SimpleGrid columns={2} spacing={4} mb={4}>
+              <Stat>
+                <StatLabel>Categories</StatLabel>
+                <StatNumber>{componentRegistryStatus.counts.categories}</StatNumber>
+              </Stat>
+              <Stat>
+                <StatLabel>Properties</StatLabel>
+                <StatNumber>{componentRegistryStatus.counts.properties}</StatNumber>
+                <StatHelpText>
+                  {propertyTypeStats.boolean} boolean, {propertyTypeStats.list} list
+                </StatHelpText>
+              </Stat>
+              <Stat>
+                <StatLabel>Components</StatLabel>
+                <StatNumber>{componentRegistryStatus.counts.components}</StatNumber>
+              </Stat>
+              <Stat>
+                <StatLabel>Status</StatLabel>
+                <StatNumber>
+                  <Tag colorScheme={componentRegistryStatus.validation.isValid ? "green" : "red"} size="sm">
+                    {componentRegistryStatus.validation.isValid ? "Valid" : "Invalid"}
+                  </Tag>
+                </StatNumber>
+                {componentRegistryStatus.validation.errorCount > 0 && (
+                  <StatHelpText>{componentRegistryStatus.validation.errorCount} errors</StatHelpText>
+                )}
+              </Stat>
+            </SimpleGrid>
+            
+            {componentsByCategory.length > 0 && (
+              <>
+                <Divider my={4} />
+                <Heading size="sm" mb={2}>Components by Category</Heading>
+                <Table size="sm" variant="simple">
+                  <Thead>
+                    <Tr>
+                      <Th>Category</Th>
+                      <Th isNumeric>Components</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {componentsByCategory.map(category => (
+                      <Tr key={category.categoryName}>
+                        <Td>{category.categoryName}</Td>
+                        <Td isNumeric>{category.count}</Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              </>
+            )}
+          </Box>
+        </SimpleGrid>
+        
+        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mb={8}>
           {/* Releases Section */}
           <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
             <Heading size="md" mb={4}>Releases</Heading>

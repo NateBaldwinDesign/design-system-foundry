@@ -15,6 +15,7 @@ import { DimensionsView } from './DimensionsView';
 import { TaxonomyView } from './TaxonomyView';
 import { ValueTypesView } from './ValueTypesView';
 import { ComponentPropertiesView } from './ComponentPropertiesView';
+import { ComponentCategoriesView } from './ComponentCategoriesView';
 import { StorageService } from '../../services/storage';
 
 interface SystemViewProps {
@@ -31,6 +32,7 @@ export const SystemView: React.FC<SystemViewProps> = () => {
   const platforms = StorageService.getPlatforms();
   const themes = StorageService.getThemes();
   const componentProperties = StorageService.getComponentProperties();
+  const componentCategories = StorageService.getComponentCategories();
 
   return (
     <Container maxW="container.xl" py={8}>
@@ -48,6 +50,7 @@ export const SystemView: React.FC<SystemViewProps> = () => {
             <Tab>Dimensions</Tab>
             <Tab>Taxonomies</Tab>
             <Tab>Value Types</Tab>
+            <Tab>Component Categories</Tab>
             <Tab>Component Properties</Tab>
           </TabList>
 
@@ -81,6 +84,13 @@ export const SystemView: React.FC<SystemViewProps> = () => {
                 platforms={platforms}
                 taxonomies={taxonomies}
                 themes={themes}
+              />
+            </TabPanel>
+
+            <TabPanel>
+              <ComponentCategoriesView
+                componentCategories={componentCategories}
+                setComponentCategories={(categories) => StorageService.setComponentCategories(categories)}
               />
             </TabPanel>
 

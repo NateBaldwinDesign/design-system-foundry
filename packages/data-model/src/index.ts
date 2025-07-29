@@ -59,7 +59,10 @@ export {
   Taxonomy as TaxonomySchema,
   TokenTaxonomyRef as TokenTaxonomyRefSchema,
   ComponentProperty as ComponentPropertySchema,
-  ComponentPropertyOption as ComponentPropertyOptionSchema
+  ComponentPropertyOption as ComponentPropertyOptionSchema,
+  ComponentCategory as ComponentCategorySchema,
+  Component as ComponentSchema,
+  ComponentImplementation as ComponentImplementationSchema
 } from './schema';
 
 // Re-export Zod schemas
@@ -118,7 +121,9 @@ export {
   validateTokenTaxonomiesReferentialIntegrity,
   validateTokenCollectionCompatibility,
   findCompatibleCollection,
-  validateComponentProperties
+  validateComponentProperties,
+  validateComponentCategories,
+  validateComponents
 } from './schema';
 
 // Export platform extension validation

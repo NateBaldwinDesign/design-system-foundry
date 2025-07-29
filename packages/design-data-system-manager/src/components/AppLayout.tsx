@@ -68,17 +68,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     return {
       tokens: StorageService.getTokens(),
       collections: StorageService.getCollections(),
-      modes: StorageService.getModes(),
-      resolvedValueTypes: StorageService.getValueTypes(),
       dimensions: StorageService.getDimensions(),
-      dimensionOrder: StorageService.getDimensionOrder(),
-      platforms: StorageService.getPlatforms(),
       themes: StorageService.getThemes(),
-      taxonomies: StorageService.getTaxonomies(),
-      taxonomyOrder: StorageService.getTaxonomyOrder(),
-      algorithms: StorageService.getAlgorithms(),
-      algorithmFile: StorageService.getAlgorithmFile(),
+      resolvedValueTypes: StorageService.getValueTypes(),
       componentProperties: StorageService.getComponentProperties(),
+      componentCategories: StorageService.getComponentCategories(),
+      components: StorageService.getComponents(),
+      taxonomies: StorageService.getTaxonomies(),
+      algorithms: StorageService.getAlgorithms(),
+      platforms: StorageService.getPlatforms(),
     };
   }, []);
 
@@ -88,7 +86,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     if (!currentData) return false;
     
     // Compare key data arrays to detect significant changes that indicate a new source
-    const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'componentProperties'];
+    const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'componentProperties', 'componentCategories', 'components'];
     
     for (const field of keyFields) {
       const current = currentData[field] as unknown[] | undefined;
@@ -168,7 +166,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     if (hasAnyChanges) {
       // Count changes by comparing arrays
       let totalChanges = 0;
-      const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'taxonomies', 'algorithms', 'platforms', 'componentProperties'];
+      const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'taxonomies', 'algorithms', 'platforms', 'componentProperties', 'componentCategories', 'components'];
       
       keyFields.forEach(field => {
         const current = (currentDataSnapshot as Record<string, unknown>)[field] as unknown[] || [];
@@ -288,6 +286,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
         taxonomyOrder: newBaseline.taxonomyOrder,
         dimensionOrder: newBaseline.dimensionOrder,
         componentProperties: newBaseline.componentProperties,
+        componentCategories: newBaseline.componentCategories,
+        components: newBaseline.components,
       };
       
       // Update AppLayout's baseline state

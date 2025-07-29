@@ -1,85 +1,82 @@
 {
-  "systemId": "design-system-core",
+  "systemId": "core-design-system",
   "platformId": "platform-web",
   "version": "1.0.0",
-  "figmaFileKey": "web-platform-figma-file-key",
-  "metadata": {
-    "name": "Web Platform Extension",
-    "description": "Platform-specific overrides and additions for Web",
-    "maintainer": "web-team@company.com",
-    "lastUpdated": "2024-01-15",
-    "repositoryVisibility": "public"
-  },
+  "figmaFileKey": "web-platform-extension",
+  "packageUri": "https://github.com/designsystem/web-components",
+  "documentationUri": "https://designsystem.com/web",
   "syntaxPatterns": {
-    "prefix": "--",
+    "prefix": "",
     "suffix": "",
     "delimiter": "-",
     "capitalization": "lowercase",
-    "formatString": "{name}"
+    "formatString": ""
   },
   "valueFormatters": {
     "color": "hex",
-    "dimension": "rem",
-    "numberPrecision": 4
+    "dimension": "px",
+    "numberPrecision": 2
   },
-  "algorithmVariableOverrides": [
+  "componentImplementations": [
     {
-      "algorithmId": "spacing-scale",
-      "variableId": "base-unit",
-      "valuesByMode": [
+      "componentId": "button",
+      "componentName": "Button",
+      "description": "Web implementation of the Button component using React",
+      "componentCategoryId": "input",
+      "packageName": "@designsystem/web-button",
+      "storybookStory": "https://storybook.designsystem.com/web/?path=/story/components-button--default",
+      "playgroundUrl": "https://playground.designsystem.com/web/button",
+      "status": "stable",
+      "imageUrl": "https://designsystem.com/images/web-button.png",
+      "tokenUsage": [
         {
-          "modeIds": ["mode-light", "mode-dark"],
-          "value": 0.25
-        }
-      ]
-    }
-  ],
-  "tokenOverrides": [
-    {
-      "id": "color-primary-500",
-      "displayName": "Primary Color 500",
-      "description": "Web-specific primary color override",
-      "themeable": true,
-      "private": false,
-      "status": "active",
-      "tokenTier": "foundation",
-      "resolvedValueTypeId": "color",
-      "valuesByMode": [
-        {
-          "modeIds": ["mode-light"],
-          "value": {
-            "value": "#0066CC"
-          }
+          "attribute": "backgroundColor",
+          "tokenTypes": ["color"],
+          "defaultTokenId": "color-primary-500",
+          "description": "Background color of the button"
         },
         {
-          "modeIds": ["mode-dark"],
-          "value": {
-            "value": "#4DA6FF"
-          }
+          "attribute": "color",
+          "tokenTypes": ["color"],
+          "defaultTokenId": "color-white",
+          "description": "Text color of the button"
+        },
+        {
+          "attribute": "padding",
+          "tokenTypes": ["spacing"],
+          "defaultTokenId": "spacing-4",
+          "description": "Padding around button content"
+        },
+        {
+          "attribute": "borderRadius",
+          "tokenTypes": ["radius"],
+          "defaultTokenId": "radius-md",
+          "description": "Border radius of the button"
         }
-      ]
+      ],
+      "examples": {
+        "storybookId": "components-button--default",
+        "documentationUri": "https://designsystem.com/web/components/button",
+        "codeExample": "<Button variant=\"primary\">Click me</Button>"
+      }
     },
     {
-      "id": "spacing-xs",
-      "displayName": "Extra Small Spacing",
-      "description": "Web-specific spacing token",
-      "themeable": false,
-      "private": false,
-      "status": "active",
-      "tokenTier": "foundation",
-      "resolvedValueTypeId": "dimension",
-      "generatedByAlgorithm": true,
-      "algorithmId": "spacing-scale",
-      "valuesByMode": [
+      "componentId": "",
+      "componentName": "WebOnlyComponent",
+      "description": "A web-specific component that doesn't exist in the core",
+      "componentCategoryId": "feedback",
+      "packageName": "@designsystem/web-only",
+      "status": "experimental",
+      "tokenUsage": [
         {
-          "modeIds": ["mode-light", "mode-dark"],
-          "value": {
-            "value": 0.25
-          }
+          "attribute": "boxShadow",
+          "tokenTypes": ["shadow"],
+          "description": "Shadow for the web-only component"
         }
       ]
     }
   ],
+  "tokenOverrides": [],
   "omittedModes": [],
   "omittedDimensions": []
 } 

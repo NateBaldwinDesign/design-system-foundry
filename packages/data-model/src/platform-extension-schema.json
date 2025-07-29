@@ -122,6 +122,106 @@
       "type": "array",
       "description": "List of dimension IDs omitted from this platform (hidden, not deleted)",
       "items": { "type": "string" }
+    },
+    "packageUri": {
+      "type": "string",
+      "description": "NPM, GitHub, or Storybook URL for the platform extension"
+    },
+    "documentationUri": {
+      "type": "string",
+      "description": "Documentation URL for the platform extension"
+    },
+    "componentImplementations": {
+      "type": "array",
+      "description": "How this platform implements component contracts",
+      "items": {
+        "type": "object",
+        "required": ["componentId", "componentName"],
+        "properties": {
+          "componentId": {
+            "type": "string",
+            "description": "Contract this implements (optional for platform-only components)"
+          },
+          "componentName": {
+            "type": "string",
+            "description": "Platform component name (defaults to component name from contract within the UI)"
+          },
+          "description": {
+            "type": "string",
+            "description": "Platform-specific description of this component implementation"
+          },
+          "componentCategoryId": {
+            "type": "string",
+            "description": "Category this component belongs to (optional, defaults to 'other')"
+          },
+          "packageName": {
+            "type": "string",
+            "description": "NPM package name for this component (optional, defaults to platform name)"
+          },
+          "storybookStory": {
+            "type": "string",
+            "description": "Link to Storybook story for this component (optional)"
+          },
+          "playgroundUrl": {
+            "type": "string",
+            "description": "Link to interactive playground for this component (optional)"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["experimental", "stable", "deprecated"],
+            "description": "Status of this component implementation"
+          },
+          "imageUrl": {
+            "type": "string",
+            "description": "Optional image URL for this component (e.g., screenshot or icon)"
+          },
+          "tokenUsage": {
+            "type": "array",
+            "description": "How this component uses tokens (for documentation/UI generation)",
+            "items": {
+              "type": "object",
+              "required": ["attribute", "tokenTypes"],
+              "properties": {
+                "attribute": {
+                  "type": "string",
+                  "description": "Platform-specific attribute name"
+                },
+                "tokenTypes": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Types of tokens this attribute accepts"
+                },
+                "defaultTokenId": {
+                  "type": "string",
+                  "description": "Default token ID for this attribute (optional)"
+                },
+                "description": {
+                  "type": "string",
+                  "description": "Description of how this attribute uses tokens"
+                }
+              }
+            }
+          },
+          "examples": {
+            "type": "object",
+            "description": "Links to live examples and documentation",
+            "properties": {
+              "storybookId": {
+                "type": "string",
+                "description": "Storybook story ID for this component"
+              },
+              "documentationUri": {
+                "type": "string",
+                "description": "Component-specific documentation URL"
+              },
+              "codeExample": {
+                "type": "string",
+                "description": "Code example for this component"
+              }
+            }
+          }
+        }
+      }
     }
   }
 } 

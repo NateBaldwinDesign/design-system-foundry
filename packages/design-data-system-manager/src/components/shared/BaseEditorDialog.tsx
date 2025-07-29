@@ -23,7 +23,7 @@ import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 export interface BaseEditorDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: () => void;
+  onSave: () => void | Promise<void>;
   title: string;
   children: React.ReactNode;
 }
@@ -38,7 +38,7 @@ export const BaseEditorDialog: React.FC<BaseEditorDialogProps> = ({
   const { colorMode } = useColorMode();
 
   return (
-    <Modal isOpen={open} onClose={onClose} size="lg">
+    <Modal isOpen={open} onClose={onClose} size="xl">
       <ModalOverlay />
       <ModalContent bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
         <ModalHeader>{title}</ModalHeader>
@@ -52,7 +52,13 @@ export const BaseEditorDialog: React.FC<BaseEditorDialogProps> = ({
           <Button variant="ghost" mr={3} onClick={onClose}>
             Cancel
           </Button>
-          <Button colorScheme="blue" onClick={onSave}>
+          <Button colorScheme="blue" onClick={async () => {
+            try {
+              await onSave();
+            } catch (error) {
+              console.error('Error saving:', error);
+            }
+          }}>
             Save
           </Button>
         </ModalFooter>

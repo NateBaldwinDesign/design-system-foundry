@@ -8,7 +8,9 @@ import type {
   Theme, 
   ResolvedValueType,
   FigmaConfiguration,
-  ComponentProperty
+  ComponentProperty,
+  ComponentCategory,
+  Component
 } from '@token-model/data-model';
 import { generateDefaultValueTypes } from '../utils/defaultValueTypes';
 import { Algorithm } from '../types/algorithm';
@@ -40,7 +42,9 @@ const STORAGE_KEYS = {
   // Platform extension files storage
   PLATFORM_EXTENSION_FILES: 'token-model:platform-extension-files',
   FIGMA_CONFIGURATION: 'token-model:figma-configuration',
-  COMPONENT_PROPERTIES: 'token-model:component-properties'
+  COMPONENT_PROPERTIES: 'token-model:component-properties',
+  COMPONENT_CATEGORIES: 'token-model:component-categories',
+  COMPONENTS: 'token-model:components'
 } as const;
 
 export class StorageService {
@@ -308,6 +312,22 @@ export class StorageService {
 
   static setComponentProperties(properties: ComponentProperty[]): void {
     this.setItem(STORAGE_KEYS.COMPONENT_PROPERTIES, properties);
+  }
+
+  static getComponentCategories(): ComponentCategory[] {
+    return this.getItem(STORAGE_KEYS.COMPONENT_CATEGORIES, []);
+  }
+
+  static setComponentCategories(categories: ComponentCategory[]): void {
+    this.setItem(STORAGE_KEYS.COMPONENT_CATEGORIES, categories);
+  }
+
+  static getComponents(): Component[] {
+    return this.getItem(STORAGE_KEYS.COMPONENTS, []);
+  }
+
+  static setComponents(components: Component[]): void {
+    this.setItem(STORAGE_KEYS.COMPONENTS, components);
   }
 
   static clearAll(): void {

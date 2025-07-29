@@ -2519,5 +2519,31 @@
     "taxonomyId-2222-2222-2222",
     "taxonomyId-b6aa0844-bf72-40c7-ac70-28fa1353ee2b",
     "taxonomyId-3333-3333-3333"
+  ],
+  "componentCategories": [
+    { "id": "input", "displayName": "Input", "description": "Input components such as text fields, checkboxes, etc." },
+    { "id": "navigation", "displayName": "Navigation", "description": "Navigation components such as menus, tabs, etc." },
+    { "id": "feedback", "displayName": "Feedback", "description": "Feedback components such as alerts, snackbars, etc." }
+  ],
+  "components": [
+    {
+      "id": "button",
+      "displayName": "Button",
+      "description": "A clickable button component",
+      "componentCategoryId": "input",
+      "componentProperties": [
+        {
+          "componentPropertyId": "component-property-0000-0000-0000",
+          "description": "Quiet buttons should be used sparingly",
+          "default": false
+        },
+        {
+          "componentPropertyId": "component-property-1111-1111-1111",
+          "description": "Priority changes the strength of visual appearance for the button",
+          "supportedOptionIds": ["component-option-aaaa-aaaa-aaaa", "component-option-bbbb-bbbb-bbbb"],
+          "default": "component-option-bbbb-bbbb-bbbb"
+        }
+      ]
+    }
   ]
 }

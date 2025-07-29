@@ -10,7 +10,9 @@ import type {
   Taxonomy, 
   Theme, 
   ResolvedValueType,
-  ComponentProperty
+  ComponentProperty,
+  ComponentCategory,
+  Component
 } from '@token-model/data-model';
 import type { ExtendedToken } from './TokenEditorDialog';
 import type { Algorithm } from '../types/algorithm';
@@ -49,6 +51,8 @@ interface ViewRendererProps {
   themes: Theme[];
   taxonomies: Taxonomy[];
   componentProperties: ComponentProperty[];
+  componentCategories: ComponentCategory[];
+  components: Component[];
   algorithms: Algorithm[];
   schema: Schema | null;
   // GitHub user info
@@ -61,6 +65,9 @@ interface ViewRendererProps {
   onUpdatePlatforms: (platforms: Platform[]) => void;
   onUpdateThemes: (themes: Theme[]) => void;
   onUpdateTaxonomies: (taxonomies: Taxonomy[]) => void;
+  onUpdateComponentProperties: (properties: ComponentProperty[]) => void;
+  onUpdateComponentCategories: (categories: ComponentCategory[]) => void;
+  onUpdateComponents: (components: Component[]) => void;
   onUpdateAlgorithms: (algorithms: Algorithm[]) => void;
   // Token editor props
   selectedToken: ExtendedToken | null;
@@ -83,6 +90,8 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   themes,
   taxonomies,
   componentProperties,
+  componentCategories,
+  components,
   algorithms,
   schema,
   githubUser,
@@ -92,6 +101,9 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   onUpdatePlatforms,
   onUpdateThemes,
   onUpdateTaxonomies,
+  onUpdateComponentProperties,
+  onUpdateComponentCategories,
+  onUpdateComponents,
   onUpdateAlgorithms,
   selectedToken,
   isEditorOpen,
@@ -104,7 +116,15 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <DashboardView tokens={tokens} platforms={platforms} themes={themes} githubUser={githubUser} />;
+        return <DashboardView 
+          tokens={tokens} 
+          platforms={platforms} 
+          themes={themes} 
+          componentCategories={componentCategories}
+          componentProperties={componentProperties}
+          components={components}
+          githubUser={githubUser} 
+        />;
       
       case 'tokens':
         return (
@@ -186,10 +206,25 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <SystemView />;
       
       case 'components':
-        return <ComponentsView />;
+        return (
+          <ComponentsView
+            components={components}
+            setComponents={onUpdateComponents}
+            componentCategories={componentCategories}
+            componentProperties={componentProperties}
+          />
+        );
       
       default:
-        return <DashboardView tokens={tokens} platforms={platforms} themes={themes} githubUser={githubUser} />;
+        return <DashboardView 
+          tokens={tokens} 
+          platforms={platforms} 
+          themes={themes} 
+          componentCategories={componentCategories}
+          componentProperties={componentProperties}
+          components={components}
+          githubUser={githubUser} 
+        />;
     }
   };
 

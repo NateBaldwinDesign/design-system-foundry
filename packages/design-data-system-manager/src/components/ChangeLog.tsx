@@ -23,7 +23,19 @@ import {
   Database,
   Settings,
   FunctionSquareIcon,
+  SquareFunctionIcon,
+  Folders,
+  Settings2,
+  FigmaIcon,
+  SquareStack,
+  Boxes,
+  FoldersIcon,
+  MonitorSmartphone,
+  BookMarked,
+  PencilRuler,
 } from 'lucide-react';
+import TokenIcon from '../icons/TokenIcon';
+import { Figma } from 'lucide-react';
 
 interface ChangeLogProps {
   previousData?: Record<string, unknown> | null | undefined;
@@ -45,21 +57,22 @@ interface ChangeEntry {
 
 const getEntityIcon = (entityType: string) => {
   switch (entityType) {
-    case 'token': return FileCode;
+    case 'token': return TokenIcon;
     case 'theme': return Palette;
-    case 'dimension': return Layers;
+    case 'dimension': return SquareStack;
     case 'mode': return Settings;
-    case 'resolvedValueType': return Tag;
-    case 'taxonomy': return Database;
+    case 'resolvedValueType': return PencilRuler;
+    case 'taxonomy': return Tag;
     case 'term': return Tag;
-    case 'algorithm': return FunctionSquareIcon;
-    case 'collection': return Database;
-    case 'platform': return Settings;
-    case 'platformExtension': return Settings;
+    case 'algorithm': return SquareFunctionIcon;
+    case 'collection': return FoldersIcon;
+    case 'platform': return MonitorSmartphone;
     case 'platformExtensionFile': return FileCode;
-    case 'repository': return Database;
-    case 'figmaConfiguration': return Settings;
-    case 'componentProperty': return Tag;
+    case 'repository': return BookMarked;
+    case 'figmaConfiguration': return Figma;
+    case 'componentProperty': return Settings2;
+    case 'componentCategory': return FoldersIcon;
+    case 'component': return Boxes;
     default: return FileCode;
   }
 };
@@ -1116,6 +1129,169 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
         changes: [{
           field: 'componentProperty',
           oldValue: `Removed component property: ${componentPropertyObj.displayName || id}`,
+        }],
+      });
+    }
+  }
+
+  // Compare component categories
+  const oldComponentCategories = (previousData.componentCategories as unknown[]) || [];
+  const newComponentCategories = (currentData.componentCategories as unknown[]) || [];
+  
+  const oldComponentCategoryMap = new Map();
+  const newComponentCategoryMap = new Map();
+
+  oldComponentCategories.forEach((cc: unknown) => {
+    if (typeof cc === 'object' && cc !== null) {
+      const componentCategory = cc as { id?: string };
+      if (componentCategory.id) {
+        oldComponentCategoryMap.set(componentCategory.id, componentCategory);
+      }
+    }
+  });
+
+  newComponentCategories.forEach((cc: unknown) => {
+    if (typeof cc === 'object' && cc !== null) {
+      const componentCategory = cc as { id?: string };
+      if (componentCategory.id) {
+        newComponentCategoryMap.set(componentCategory.id, componentCategory);
+      }
+    }
+  });
+
+  // Check for added component categories
+  for (const [id, componentCategory] of newComponentCategoryMap) {
+    if (!oldComponentCategoryMap.has(id)) {
+      const componentCategoryObj = componentCategory as { displayName?: string };
+      changes.push({
+        type: 'added',
+        entityType: 'componentCategory',
+        entityId: id,
+        entityName: componentCategoryObj.displayName || id,
+        changes: [{
+          field: 'componentCategory',
+          newValue: `Added component category: ${componentCategoryObj.displayName || id}`,
+        }],
+      });
+    }
+  }
+
+  // Check for removed component categories
+  for (const [id, componentCategory] of oldComponentCategoryMap) {
+    if (!newComponentCategoryMap.has(id)) {
+      const componentCategoryObj = componentCategory as { displayName?: string };
+      changes.push({
+        type: 'removed',
+        entityType: 'componentCategory',
+        entityId: id,
+        entityName: componentCategoryObj.displayName || id,
+        changes: [{
+          field: 'componentCategory',
+          oldValue: `Removed component category: ${componentCategoryObj.displayName || id}`,
+        }],
+      });
+    }
+  }
+
+  // Compare components
+  const oldComponents = (previousData.components as unknown[]) || [];
+  const newComponents = (currentData.components as unknown[]) || [];
+  
+  const oldComponentMap = new Map();
+  const newComponentMap = new Map();
+
+  oldComponents.forEach((c: unknown) => {
+    if (typeof c === 'object' && c !== null) {
+      const component = c as { id?: string };
+      if (component.id) {
+        oldComponentMap.set(component.id, component);
+      }
+    }
+  });
+
+  newComponents.forEach((c: unknown) => {
+    if (typeof c === 'object' && c !== null) {
+      const component = c as { id?: string };
+      if (component.id) {
+        newComponentMap.set(component.id, component);
+      }
+    }
+  });
+
+  // Check for added and modified components
+  for (const [id, component] of newComponentMap) {
+    if (!oldComponentMap.has(id)) {
+      const componentObj = component as { displayName?: string; componentCategoryId?: string };
+      changes.push({
+        type: 'added',
+        entityType: 'component',
+        entityId: id,
+        entityName: componentObj.displayName || id,
+        changes: [{
+          field: 'component',
+          newValue: `Added component: ${componentObj.displayName || id} (Category: ${componentObj.componentCategoryId || 'unknown'})`,
+        }],
+      });
+    } else {
+      // Check for modified components
+      const oldComponent = oldComponentMap.get(id);
+      const componentChanges: Array<{
+        field: string;
+        oldValue?: unknown;
+        newValue?: unknown;
+        context?: string;
+      }> = [];
+
+      const oldComponentObj = oldComponent as Record<string, unknown>;
+      const componentObj = component as Record<string, unknown>;
+
+      // Compare basic fields
+      ['displayName', 'description', 'componentCategoryId'].forEach(field => {
+        if (oldComponentObj[field] !== componentObj[field]) {
+          componentChanges.push({
+            field,
+            oldValue: formatValue(oldComponentObj[field]),
+            newValue: formatValue(componentObj[field]),
+          });
+        }
+      });
+
+      // Compare component properties
+      const oldProperties = oldComponentObj.componentProperties as unknown[] || [];
+      const newProperties = componentObj.componentProperties as unknown[] || [];
+      
+      if (oldProperties.length !== newProperties.length) {
+        componentChanges.push({
+          field: 'componentProperties',
+          oldValue: `${oldProperties.length} properties`,
+          newValue: `${newProperties.length} properties`,
+        });
+      }
+
+      if (componentChanges.length > 0) {
+        changes.push({
+          type: 'modified',
+          entityType: 'component',
+          entityId: id,
+          entityName: componentObj.displayName as string || id,
+          changes: componentChanges,
+        });
+      }
+    }
+  }
+
+  // Check for removed components
+  for (const [id, component] of oldComponentMap) {
+    if (!newComponentMap.has(id)) {
+      const componentObj = component as { displayName?: string; componentCategoryId?: string };
+      changes.push({
+        type: 'removed',
+        entityType: 'component',
+        entityId: id,
+        entityName: componentObj.displayName || id,
+        changes: [{
+          field: 'component',
+          oldValue: `Removed component: ${componentObj.displayName || id}`,
         }],
       });
     }

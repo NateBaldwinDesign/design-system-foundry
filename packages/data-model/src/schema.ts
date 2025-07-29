@@ -293,12 +293,38 @@ export const Platform = z.object({
   message: "Platforms can have either core patterns or extension source, but not both."
 });
 
+// Component Implementation schema for platform extensions
+export const ComponentImplementation = z.object({
+  componentId: z.string(),
+  componentName: z.string(),
+  description: z.string().optional(),
+  componentCategoryId: z.string().optional(),
+  packageName: z.string().optional(),
+  storybookStory: z.string().optional(),
+  playgroundUrl: z.string().optional(),
+  status: z.enum(['experimental', 'stable', 'deprecated']).optional(),
+  imageUrl: z.string().optional(),
+  tokenUsage: z.array(z.object({
+    attribute: z.string(),
+    tokenTypes: z.array(z.string()),
+    defaultTokenId: z.string().optional(),
+    description: z.string().optional()
+  })).optional(),
+  examples: z.object({
+    storybookId: z.string().optional(),
+    documentationUri: z.string().optional(),
+    codeExample: z.string().optional()
+  }).optional()
+});
+
 // Platform Extension Schema (for standalone platform extension files)
 export const PlatformExtension = z.object({
   systemId: z.string(),
   platformId: z.string(),
   version: z.string(),
   figmaFileKey: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  packageUri: z.string().optional(),
+  documentationUri: z.string().optional(),
   metadata: z.object({
     name: z.string().optional(),
     description: z.string().optional(),
@@ -351,7 +377,8 @@ export const PlatformExtension = z.object({
     omit: z.boolean().optional()
   })).optional(),
   omittedModes: z.array(z.string()).optional(),
-  omittedDimensions: z.array(z.string()).optional()
+  omittedDimensions: z.array(z.string()).optional(),
+  componentImplementations: z.array(ComponentImplementation).optional()
 });
 
 // Theme schema
@@ -461,6 +488,27 @@ export const ComponentProperty = z.discriminatedUnion('type', [
   }
 );
 
+// Component Category schema
+export const ComponentCategory = z.object({
+  id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  displayName: z.string(),
+  description: z.string().optional()
+});
+
+// Component schema
+export const Component = z.object({
+  id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+  displayName: z.string(),
+  description: z.string().optional(),
+  componentCategoryId: z.string(),
+  componentProperties: z.array(z.object({
+    componentPropertyId: z.string().regex(/^[a-zA-Z0-9-_]+$/),
+    description: z.string().optional(),
+    supportedOptionIds: z.array(z.string().regex(/^[a-zA-Z0-9-_]+$/)).optional(),
+    default: z.union([z.boolean(), z.string()]).optional()
+  }))
+});
+
 // Version history types
 export const MigrationStrategy = z.object({
   emptyModeIds: z.enum(['mapToDefaults', 'preserveEmpty', 'requireExplicit']),
@@ -520,6 +568,8 @@ export const TokenSystem = z.object({
   propertyTypes: z.array(PropertyType),
   resolvedValueTypes: z.array(ResolvedValueType),
   componentProperties: z.array(ComponentProperty),
+  componentCategories: z.array(ComponentCategory),
+  components: z.array(Component),
   extensions: z.object({
     tokenGroups: z.array(TokenGroup).optional(),
     tokenVariants: z.record(z.any()).optional()
@@ -702,6 +752,87 @@ export function validateComponentProperties(data: ComponentProperty[]): string[]
   return errors;
 }
 
+export function validateComponentCategories(data: ComponentCategory[]): string[] {
+  const errors: string[] = [];
+  
+  // Check for duplicate IDs
+  const ids = new Set<string>();
+  for (const cc of data) {
+    if (ids.has(cc.id)) {
+      errors.push(`Duplicate component category ID: ${cc.id}`);
+    }
+    ids.add(cc.id);
+  }
+  
+  return errors;
+}
+
+export function validateComponents(
+  components: Component[], 
+  componentCategories: ComponentCategory[], 
+  componentProperties: ComponentProperty[]
+): string[] {
+  const errors: string[] = [];
+  
+  // Create lookup sets for referential integrity
+  const categoryIds = new Set(componentCategories.map(cc => cc.id));
+  const propertyIds = new Set(componentProperties.map(cp => cp.id));
+
+  // Check for duplicate component IDs
+  const componentIds = new Set<string>();
+  for (const component of components) {
+    if (componentIds.has(component.id)) {
+      errors.push(`Duplicate component ID: ${component.id}`);
+    }
+    componentIds.add(component.id);
+
+    // Validate componentCategoryId reference
+    if (!categoryIds.has(component.componentCategoryId)) {
+      errors.push(`Component '${component.id}' references non-existent component category: ${component.componentCategoryId}`);
+    }
+
+    // Validate component properties
+    for (const cp of component.componentProperties) {
+      // Validate componentPropertyId reference
+      if (!propertyIds.has(cp.componentPropertyId)) {
+        errors.push(`Component '${component.id}' references non-existent component property: ${cp.componentPropertyId}`);
+      }
+
+      // Validate supportedOptionIds if present
+      if (cp.supportedOptionIds) {
+        const referencedProperty = componentProperties.find(p => p.id === cp.componentPropertyId);
+        if (referencedProperty && referencedProperty.type === 'list') {
+          const validOptionIds = new Set(referencedProperty.options.map(o => o.id));
+          for (const optionId of cp.supportedOptionIds) {
+            if (!validOptionIds.has(optionId)) {
+              errors.push(`Component '${component.id}' references non-existent option '${optionId}' for property '${cp.componentPropertyId}'`);
+            }
+          }
+        } else if (referencedProperty && referencedProperty.type === 'boolean') {
+          errors.push(`Component '${component.id}' specifies supportedOptionIds for boolean property '${cp.componentPropertyId}'`);
+        }
+      }
+
+      // Validate default value if present
+      if (cp.default !== undefined) {
+        const referencedProperty = componentProperties.find(p => p.id === cp.componentPropertyId);
+        if (referencedProperty) {
+          if (referencedProperty.type === 'boolean' && typeof cp.default !== 'boolean') {
+            errors.push(`Component '${component.id}' has invalid default value type for boolean property '${cp.componentPropertyId}'`);
+          } else if (referencedProperty.type === 'list' && typeof cp.default === 'string') {
+            const validOptionIds = new Set(referencedProperty.options.map(o => o.id));
+            if (!validOptionIds.has(cp.default)) {
+              errors.push(`Component '${component.id}' has invalid default option '${cp.default}' for property '${cp.componentPropertyId}'`);
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  return errors;
+}
+
 // Add function to find compatible collection
 export function findCompatibleCollection(
   token: Token,
@@ -745,6 +876,9 @@ export type PropertyType = z.infer<typeof PropertyType>;
 export type PlatformExtension = z.infer<typeof PlatformExtension>;
 export type ComponentPropertyOption = z.infer<typeof ComponentPropertyOption>;
 export type ComponentProperty = z.infer<typeof ComponentProperty>;
+export type ComponentCategory = z.infer<typeof ComponentCategory>;
+export type Component = z.infer<typeof Component>;
+export type ComponentImplementation = z.infer<typeof ComponentImplementation>;
 
 // Figma Configuration type
 export const FigmaConfiguration = z.object({

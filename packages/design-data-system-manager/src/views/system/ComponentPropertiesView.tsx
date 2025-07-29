@@ -131,9 +131,12 @@ export function ComponentPropertiesView({
         dimensions: dimensions || [],
         tokens: tokens || [],
         platforms: platforms || [],
+        themes: StorageService.getThemes() || [{ id: 'default', displayName: 'Default', isDefault: true }],
         taxonomies: StorageService.getTaxonomies() || [],
         resolvedValueTypes: resolvedValueTypes || [],
         componentProperties: properties || [],
+        componentCategories: StorageService.getComponentCategories() || [],
+        components: StorageService.getComponents() || [],
         standardPropertyTypes: [],
         propertyTypes: [],
         version,
@@ -141,10 +144,20 @@ export function ComponentPropertiesView({
       };
 
       console.log('[ComponentPropertiesView] Validation data:', JSON.stringify(data, null, 2));
+      
+      // Debug: Log the specific componentProperties array
+      console.log('[ComponentPropertiesView] componentProperties being validated:', JSON.stringify(data.componentProperties, null, 2));
+      
       const result = ValidationService.validateData(data);
       console.log('[ComponentPropertiesView] Validation result:', result);
       if (!result.isValid) {
         console.error('[ComponentPropertiesView] Validation errors:', result.errors);
+        // Debug: Log each error in detail
+        if (Array.isArray(result.errors)) {
+          result.errors.forEach((error, index) => {
+            console.error(`[ComponentPropertiesView] Error ${index + 1}:`, JSON.stringify(error, null, 2));
+          });
+        }
         const errorMessages = Array.isArray(result.errors) 
           ? result.errors.map(error => typeof error === 'string' ? error : JSON.stringify(error)).join(', ')
           : 'See console for details.';
@@ -209,6 +222,16 @@ export function ComponentPropertiesView({
         return;
       }
 
+      // Ensure default value is set to first option if not set
+      if (!form.default || form.default === '' || typeof form.default === 'boolean') {
+        if (optionsWithIds.length > 0) {
+          form.default = optionsWithIds[0].id;
+        } else {
+          toast({ title: 'List type properties must have at least one option', status: 'error', duration: 2000 });
+          return;
+        }
+      }
+
       // Validate default value references an existing option
       if (typeof form.default === 'string' && !optionsWithIds.some(opt => opt.id === form.default)) {
         toast({ title: 'Default value must reference an existing option', status: 'error', duration: 2000 });
@@ -218,12 +241,32 @@ export function ComponentPropertiesView({
       form.options = optionsWithIds as { id: string; displayName: string; description: string }[];
     }
 
+    // Debug: Log existing component properties
+    console.log('[ComponentPropertiesView] Existing componentProperties:', JSON.stringify(localComponentProperties, null, 2));
+    
     const newComponentProperties = [...localComponentProperties];
-    const propertyToSave = {
-      ...form,
-      id: propertyId,
-      options: form.type === 'list' ? form.options : undefined,
-    } as ComponentProperty;
+    const propertyToSave = form.type === 'list' 
+      ? {
+          id: propertyId,
+          displayName: form.displayName,
+          description: form.description,
+          type: form.type,
+          default: form.default as string,
+          options: form.options,
+        } as ComponentProperty
+      : {
+          id: propertyId,
+          displayName: form.displayName,
+          description: form.description,
+          type: form.type,
+          default: form.default as boolean,
+        } as ComponentProperty;
+
+    // Debug: Log the property being saved
+    console.log('[ComponentPropertiesView] Form data:', JSON.stringify(form, null, 2));
+    console.log('[ComponentPropertiesView] Property to save:', JSON.stringify(propertyToSave, null, 2));
+    console.log('[ComponentPropertiesView] Property type:', typeof propertyToSave.default);
+    console.log('[ComponentPropertiesView] Property default value:', propertyToSave.default);
 
     if (editingIndex !== null) {
       newComponentProperties[editingIndex] = propertyToSave;
@@ -308,7 +351,14 @@ export function ComponentPropertiesView({
     } else {
       newOptions.push({ ...optionForm, id: optionId });
     }
-    setForm((prev: typeof form) => ({ ...prev, options: newOptions }));
+    
+    // If this is the first option being added and default is empty, set it to this option
+    const updatedForm = { ...form, options: newOptions };
+    if (optionEditIndex === null && form.type === 'list' && (!form.default || form.default === '')) {
+      updatedForm.default = optionId;
+    }
+    
+    setForm(updatedForm);
     setOptionDialogOpen(false);
     setOptionEditIndex(null);
   };

@@ -72,8 +72,10 @@ export const ComponentPropertiesEditorDialog: React.FC<ComponentPropertiesEditor
             // Reset default value based on type
             if (newType === 'boolean') {
               handleFormChange('default', false);
-            } else if (newType === 'list' && form.options && form.options.length > 0) {
-              handleFormChange('default', form.options[0].id);
+            } else if (newType === 'list') {
+              // For list type, set default to empty string if no options available
+              // This will be updated when options are added
+              handleFormChange('default', form.options && form.options.length > 0 ? form.options[0].id : '');
             }
           }}
         >

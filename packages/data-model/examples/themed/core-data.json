@@ -2452,6 +2452,32 @@
       ]
     }
   ],
+  "componentCategories": [
+    { "id": "input", "displayName": "Input", "description": "Input components such as text fields, checkboxes, etc." },
+    { "id": "navigation", "displayName": "Navigation", "description": "Navigation components such as menus, tabs, etc." },
+    { "id": "feedback", "displayName": "Feedback", "description": "Feedback components such as alerts, snackbars, etc." }
+  ],
+  "components": [
+    {
+      "id": "button",
+      "displayName": "Button",
+      "description": "A clickable button component",
+      "componentCategoryId": "input",
+      "componentProperties": [
+        {
+          "componentPropertyId": "component-property-0000-0000-0000",
+          "description": "Quiet buttons should be used sparingly",
+          "default": false
+        },
+        {
+          "componentPropertyId": "component-property-1111-1111-1111",
+          "description": "Priority changes the strength of visual appearance for the button",
+          "supportedOptionIds": ["component-option-aaaa-aaaa-aaaa", "component-option-bbbb-bbbb-bbbb"],
+          "default": "component-option-bbbb-bbbb-bbbb"
+        }
+      ]
+    }
+  ],
   "themes": [
     {
       "id": "theme-default",
@@ -3243,5 +3269,37 @@
       "date": "2025-05-21"
     }
   ],
-  "componentProperties": []
+  "componentProperties": [
+    {
+      "id": "component-property-0000-0000-0000",
+      "displayName": "Quiet",
+      "description": "A quiet component",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "id": "component-property-1111-1111-1111",
+      "displayName": "Size",
+      "description": "Component size variants",
+      "type": "list",
+      "options": [
+        {
+          "id": "component-option-aaaa-aaaa-aaaa",
+          "displayName": "Small",
+          "description": "Small size variant"
+        },
+        {
+          "id": "component-option-bbbb-bbbb-bbbb",
+          "displayName": "Medium",
+          "description": "Medium size variant"
+        },
+        {
+          "id": "component-option-cccc-cccc-cccc",
+          "displayName": "Large",
+          "description": "Large size variant"
+        }
+      ],
+      "default": "component-option-bbbb-bbbb-bbbb"
+    }
+  ]
 }
