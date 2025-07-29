@@ -17,6 +17,7 @@ import { ComponentEditorDialog } from '../components/ComponentEditorDialog';
 import { ComponentPropertyDialog } from '../components/ComponentPropertyDialog';
 import { CardTitle } from '../components/CardTitle';
 import { StorageService } from '../services/storage';
+import { PageTemplate } from '../components/PageTemplate';
 
 interface ComponentsViewProps {
   components?: Component[];
@@ -318,9 +319,10 @@ export function ComponentsView({
   };
 
   return (
-    <Box>
-      <Text fontSize="2xl" fontWeight="bold" mb={2}>Components</Text>
-      <Text fontSize="sm" color="gray.600" mb={6}>Components are reusable UI elements with defined properties and behaviors. Each component belongs to a category and can have multiple properties with component-specific configurations.</Text>
+    <PageTemplate
+      title="Components"
+      description="Components are reusable UI elements with defined properties and behaviors. Each component belongs to a category and can have multiple properties with component-specific configurations."
+    >
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
         <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
           Add Component
@@ -381,7 +383,7 @@ export function ComponentsView({
         handlePropertyFormChange={handlePropertyFormChange}
         propertyEditIndex={propertyEditIndex}
       />
-    </Box>
+    </PageTemplate>
   );
 }
 

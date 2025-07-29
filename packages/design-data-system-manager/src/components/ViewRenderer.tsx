@@ -33,7 +33,7 @@ import { PlatformsView } from '../views/PlatformsView';
 import { ValidationView } from '../views/ValidationView';
 import { SystemView } from '../views/system/SystemView';
 import { TokenEditorDialog } from './TokenEditorDialog';
-import { FigmaSettings } from './FigmaSettings';
+import { FigmaConfigurationsView } from '../views/FigmaConfigurationsView';
 import { createSchemaJsonFromLocalStorage } from '../services/createJson';
 import type { TokenSystem } from '@token-model/data-model';
 import SchemasView from '../views/SchemasView';
@@ -194,7 +194,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} />;
       
       case 'figma-settings':
-        return <FigmaSettings tokenSystem={createSchemaJsonFromLocalStorage() as unknown as TokenSystem} />;
+        return <FigmaConfigurationsView tokenSystem={createSchemaJsonFromLocalStorage() as unknown as TokenSystem} />;
       
       case 'validation':
         return <ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />;

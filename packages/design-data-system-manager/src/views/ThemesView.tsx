@@ -1,29 +1,30 @@
 import React from 'react';
-import { Container, VStack, useColorMode } from '@chakra-ui/react';
 import { ThemesTab } from './ThemesTab';
+import { PageTemplate } from '../components/PageTemplate';
+
+interface Theme {
+  id: string;
+  displayName: string;
+  description?: string;
+  isDefault?: boolean;
+}
 
 interface ThemesViewProps {
-  themes: any[];
-  setThemes: (themes: any[]) => void;
+  themes: Theme[];
+  setThemes: (themes: Theme[]) => void;
 }
 
 const ThemesView: React.FC<ThemesViewProps> = ({
   themes,
   setThemes
 }) => {
-  const { colorMode } = useColorMode();
   return (
-    <VStack 
-      p={4} 
-      bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}
-      flex="1"
-      align="stretch"
-      spacing={0}
+    <PageTemplate
+      title="Themes"
+      description="Manage design system themes and their configurations. Themes allow you to create different visual variations of your design system."
     >
-      <Container maxW="1000px" p={0}>
-        <ThemesTab themes={themes} setThemes={setThemes} />
-      </Container>
-    </VStack>
+      <ThemesTab themes={themes} setThemes={setThemes} />
+    </PageTemplate>
   );
 };
 
