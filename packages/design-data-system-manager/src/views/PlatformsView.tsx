@@ -44,11 +44,13 @@ interface PlatformsViewProps {
   tokens?: ExtendedToken[];
   setTokens?: (tokens: ExtendedToken[]) => void;
   taxonomies?: Taxonomy[];
+  canEdit?: boolean;
 }
 
 export const PlatformsView: React.FC<PlatformsViewProps> = ({ 
   platforms = [], 
-  setPlatforms 
+  setPlatforms,
+  canEdit = true
 }) => {
   const { colorMode } = useColorMode();
   const [isLoading] = useState(false);
@@ -1235,15 +1237,17 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
             {/* Unified Platforms Section */}
             <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
               <HStack justify="space-between" mb={4}>
-                <Button 
-                  size="sm" 
-                  leftIcon={<LuPlus />} 
-                  onClick={() => setIsLinkDialogOpen(true)} 
-                  colorScheme="blue"
-                  isDisabled={getAvailableRepositoryTypes().length === 0}
-                >
-                  Add Platform
-                </Button>
+                {canEdit && (
+                  <Button 
+                    size="sm" 
+                    leftIcon={<LuPlus />} 
+                    onClick={() => setIsLinkDialogOpen(true)} 
+                    colorScheme="blue"
+                    isDisabled={getAvailableRepositoryTypes().length === 0}
+                  >
+                    Add Platform
+                  </Button>
+                )}
               </HStack>
               
               <VStack align="stretch" spacing={3}>
@@ -1325,14 +1329,16 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                               />
                             </Tooltip>
                           )}
-                          <Tooltip label="Edit Platform">
-                            <IconButton
-                              aria-label="Edit platform"
-                              icon={<LuPencil />}
-                              size="sm"
-                              onClick={() => handleEditPlatform(platform, linkedRepository)}
-                            />
-                          </Tooltip>
+                          {canEdit && (
+                            <Tooltip label="Edit Platform">
+                              <IconButton
+                                aria-label="Edit platform"
+                                icon={<LuPencil />}
+                                size="sm"
+                                onClick={() => handleEditPlatform(platform, linkedRepository)}
+                              />
+                            </Tooltip>
+                          )}
                           
                         </HStack>
                       </HStack>
@@ -1365,12 +1371,14 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
         </TabPanels>
       </Tabs>
       
-      <PlatformCreateDialog
-        isOpen={isLinkDialogOpen}
-        onClose={() => setIsLinkDialogOpen(false)}
-        onSave={handleLinkRepository}
-        currentDataType={currentDataType}
-      />
+      {canEdit && (
+        <PlatformCreateDialog
+          isOpen={isLinkDialogOpen}
+          onClose={() => setIsLinkDialogOpen(false)}
+          onSave={handleLinkRepository}
+          currentDataType={currentDataType}
+        />
+      )}
       
       {editingRepository && (
         <PlatformEditDialog

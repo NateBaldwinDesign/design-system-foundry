@@ -30,6 +30,7 @@ interface TaxonomyViewProps {
   dimensions: Dimension[];
   platforms: Platform[];
   resolvedValueTypes: ResolvedValueType[];
+  canEdit?: boolean;
 }
 
 function normalizeTerms(terms: { id: string; name: string; description?: string }[]): { id: string; name: string; description: string }[] {
@@ -46,7 +47,8 @@ export function TaxonomyView({
   collections, 
   dimensions, 
   platforms, 
-  resolvedValueTypes 
+  resolvedValueTypes,
+  canEdit = true
 }: TaxonomyViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
@@ -432,11 +434,13 @@ export function TaxonomyView({
   return (
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={2}>Taxonomies</Text>
-      <Text fontSize="sm" color="gray.600" mb={6}>Taxonomies are used to classify tokens. Ordering them will affect how names are generated in published tokens.</Text>
+      <Text fontSize="sm" color="gray.600" mb={6}>Taxonomies help organize tokens into logical groups. Drag and drop to reorder taxonomies, which affects the order in generated token structures.</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
-          Add Taxonomy
-        </Button>
+        {canEdit && (
+          <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+            Add Taxonomy
+          </Button>
+        )}
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="taxonomies">
             {(provided) => (
@@ -457,21 +461,25 @@ export function TaxonomyView({
                         borderRadius="md"
                         bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
                         borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-                        boxShadow={snapshot.isDragging ? "md" : "sm"}
-                        transition="all 0.2s"
+                        opacity={snapshot.isDragging ? 0.8 : 1}
                       >
                         <HStack justify="space-between" align="center">
                           <HStack spacing={2}>
                             <Box w="32px" textAlign="center" fontWeight="bold" color="gray.500">
                               {i + 1}
                             </Box>
-                            <Box {...provided.dragHandleProps} cursor="grab">
-                              <LuGripVertical />
-                            </Box>
+                            {canEdit && (
+                              <Box {...provided.dragHandleProps} cursor="grab">
+                                <LuGripVertical />
+                              </Box>
+                            )}
                             <Box>
                               <CardTitle title={taxonomy.name} cardType="taxonomy" />
                               <Text fontSize="sm" color="gray.600">{taxonomy.description}</Text>
-                              <Text fontSize="sm" color="gray.600">Terms: {taxonomy.terms.map((t: { name: string }) => t.name).join(', ')}</Text>
+                              <Text fontSize="xs" color="gray.500">ID: {taxonomy.id}</Text>
+                              <Text fontSize="sm" color="gray.600">
+                                Terms: {taxonomy.terms.map((term) => term.name).join(', ')}
+                              </Text>
                               {Array.isArray(taxonomy.resolvedValueTypeIds) && taxonomy.resolvedValueTypeIds.length > 0 && (
                                 <Wrap mt={2} spacing={2}>
                                   {taxonomy.resolvedValueTypeIds.map((typeId: string) => {
@@ -486,10 +494,12 @@ export function TaxonomyView({
                               )}
                             </Box>
                           </HStack>
-                          <HStack>
-                            <IconButton aria-label="Edit taxonomy" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
-                            <IconButton aria-label="Delete taxonomy" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
-                          </HStack>
+                          {canEdit && (
+                            <HStack>
+                              <IconButton aria-label="Edit taxonomy" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
+                              <IconButton aria-label="Delete taxonomy" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
+                            </HStack>
+                          )}
                         </HStack>
                       </Box>
                     )}

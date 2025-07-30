@@ -33,6 +33,13 @@ interface AppLayoutProps {
   currentView: ViewId;
   onNavigate: (viewId: ViewId) => void;
   children: React.ReactNode;
+  // URL-based access props
+  isViewOnlyMode?: boolean;
+  urlRepoInfo?: {
+    repo: string;
+    path: string;
+    branch: string;
+  } | null;
 }
 
 // Custom event for data changes
@@ -53,6 +60,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   currentView,
   onNavigate,
   children,
+  // URL-based access props
+  isViewOnlyMode = false,
+  urlRepoInfo = null,
 }: AppLayoutProps) => {
   const { colorMode } = useColorMode();
   const [hasChanges, setHasChanges] = useState(false);
@@ -339,6 +349,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           onGitHubConnect={onGitHubConnect}
           onGitHubDisconnect={onGitHubDisconnect}
           onFileSelected={onFileSelected}
+          isURLBasedAccess={isViewOnlyMode}
+          urlRepoInfo={urlRepoInfo}
         />
         <Box flex="1" overflow="auto"  bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
           {children}

@@ -39,7 +39,7 @@ import { ChangeLog } from './components/ChangeLog';
 import { useViewState } from './hooks/useViewState';
 import { ViewRenderer } from './components/ViewRenderer';
 import { ChangeTrackingService } from './services/changeTrackingService';
-import { DataManager, type DataSnapshot } from './services/dataManager';
+import { DataManager, type DataSnapshot, type URLConfig } from './services/dataManager';
 import { MultiRepositoryManager } from './services/multiRepositoryManager';
 
 const App = () => {
@@ -77,6 +77,7 @@ const App = () => {
     filePath: string;
     fileType: 'schema' | 'theme-override' | 'platform-extension';
   } | null>(null);
+  const [isViewOnlyMode, setIsViewOnlyMode] = useState(false);
   const toast = useToast();
 
   const [changeLogData, setChangeLogData] = useState<{ currentData: Record<string, unknown>; baselineData: Record<string, unknown> | null }>({ currentData: {}, baselineData: null });
@@ -194,8 +195,101 @@ const App = () => {
           }
         };
         
-        // Initialize data manager
-        await dataManager.initialize(callbacks);
+        // Check for URL parameters first
+        const urlParams = new URLSearchParams(window.location.search);
+        const repo = urlParams.get('repo');
+        const path = urlParams.get('path') || 'schema.json';
+        const branch = urlParams.get('branch') || 'main';
+        
+        if (repo) {
+          // Load from URL parameters
+          console.log('[App] Loading from URL parameters:', { repo, path, branch });
+          const urlConfig: URLConfig = { repo, path, branch };
+          
+          try {
+            console.log('[App] Attempting to load from URL config...');
+            const snapshot = await dataManager.loadFromURLConfig(urlConfig);
+            console.log('[App] Successfully loaded from URL config:', {
+              tokens: snapshot.tokens.length,
+              collections: snapshot.collections.length,
+              dimensions: snapshot.dimensions.length
+            });
+            
+            // Set view-only mode for URL-based access
+            setIsViewOnlyMode(true);
+            
+            // Manually update React state since callbacks should have been called
+            // but let's ensure the state is updated
+            setCollections(snapshot.collections);
+            setModes(snapshot.modes);
+            setDimensions(snapshot.dimensions);
+            setResolvedValueTypes(snapshot.resolvedValueTypes);
+            setPlatforms(snapshot.platforms);
+            setThemes(snapshot.themes);
+            setTokens(snapshot.tokens);
+            setTaxonomies(snapshot.taxonomies);
+            setComponentProperties(snapshot.componentProperties);
+            setComponentCategories(snapshot.componentCategories);
+            setComponents(snapshot.components);
+            setAlgorithms(snapshot.algorithms);
+            setTaxonomyOrder(snapshot.taxonomyOrder);
+            setDimensionOrder(snapshot.dimensionOrder);
+            
+            setLoading(false);
+          } catch (urlError) {
+            console.warn('[App] Failed to load from URL, falling back to default initialization:', urlError);
+            
+            // Show user-friendly error message
+            const errorMessage = urlError instanceof Error ? urlError.message : 'Unknown error';
+            console.log('[App] Showing error toast for:', errorMessage);
+            
+            if (errorMessage.includes('Repository not found')) {
+              console.log('[App] Showing "Repository not found" toast');
+              toast({
+                title: 'Repository Not Found',
+                description: `The repository ${repo} does not exist. Loading default data instead.`,
+                status: 'warning',
+                duration: 5000,
+                isClosable: true,
+              });
+            } else if (errorMessage.includes('File not found')) {
+              console.log('[App] Showing "File not found" toast');
+              toast({
+                title: 'Repository File Not Found',
+                description: `The file "${path}" was not found in ${repo}. Loading default data instead.`,
+                status: 'warning',
+                duration: 5000,
+                isClosable: true,
+              });
+            } else if (errorMessage.includes('Repository is private')) {
+              console.log('[App] Showing "Private repository" toast');
+              toast({
+                title: 'Private Repository',
+                description: `The repository ${repo} is private. Please connect to GitHub to access private repositories. Loading default data instead.`,
+                status: 'warning',
+                duration: 5000,
+                isClosable: true,
+              });
+            } else {
+              console.log('[App] Showing "General error" toast');
+              toast({
+                title: 'URL Loading Failed',
+                description: `Failed to load data from ${repo}. Loading default data instead.`,
+                status: 'warning',
+                duration: 5000,
+                isClosable: true,
+              });
+            }
+            
+            // Fall back to default initialization if URL loading fails
+            await dataManager.initialize(callbacks);
+            setIsViewOnlyMode(false);
+          }
+        } else {
+          // Use existing initialization logic
+          await dataManager.initialize(callbacks);
+          setIsViewOnlyMode(false);
+        }
         
         // Initialize GitHub state
         const currentUser = GitHubAuthService.getCurrentUser();
@@ -719,6 +813,15 @@ const App = () => {
               onFileSelected={handleFileSelected}
               currentView={currentView}
               onNavigate={navigateToView}
+              isViewOnlyMode={isViewOnlyMode}
+              urlRepoInfo={isViewOnlyMode ? (() => {
+                const urlParams = new URLSearchParams(window.location.search);
+                return {
+                  repo: urlParams.get('repo') || '',
+                  path: urlParams.get('path') || 'schema.json',
+                  branch: urlParams.get('branch') || 'main'
+                };
+              })() : null}
             >
               <Routes>
                 <Route path="/auth/github/callback" element={<GitHubCallback />} />
@@ -743,6 +846,7 @@ const App = () => {
                 taxonomyOrder={taxonomyOrder}
                 schema={schema}
                 githubUser={githubUser}
+                isViewOnlyMode={isViewOnlyMode}
                 onUpdateTokens={handleUpdateTokens}
                 onUpdateCollections={handleUpdateCollections}
                 onUpdateDimensions={handleUpdateDimensions}

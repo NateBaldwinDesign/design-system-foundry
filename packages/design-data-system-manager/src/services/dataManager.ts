@@ -1,5 +1,9 @@
 import { StorageService } from './storage';
 import { ChangeTrackingService } from './changeTrackingService';
+import { GitHubApiService } from './githubApi';
+import { GitHubAuthService } from './githubAuth';
+import { PlatformExtensionDataService } from './platformExtensionDataService';
+import { PlatformExtensionAnalyticsService } from './platformExtensionAnalyticsService';
 import type { 
   TokenCollection, 
   Mode, 
@@ -16,6 +20,12 @@ import type {
 } from '@token-model/data-model';
 import type { Algorithm } from '../types/algorithm';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
+
+export interface URLConfig {
+  repo: string;           // "owner/repo"
+  path?: string;          // "schema.json" (default)
+  branch?: string;        // "main" (default)
+}
 
 export interface DataSnapshot {
   collections: TokenCollection[];
@@ -93,6 +103,11 @@ export class DataManager {
     // Load data from storage
     const snapshot = this.loadFromStorage();
     
+    // Pre-load platform extension data if user is authenticated
+    if (snapshot.platforms.length > 0) {
+      await this.preloadPlatformExtensions(snapshot.platforms);
+    }
+    
     // Set baseline for change tracking
     this.setBaseline(snapshot);
     
@@ -104,7 +119,8 @@ export class DataManager {
     console.log('[DataManager] Initialized with data:', {
       tokens: snapshot.tokens.length,
       collections: snapshot.collections.length,
-      dimensions: snapshot.dimensions.length
+      dimensions: snapshot.dimensions.length,
+      platforms: snapshot.platforms.length
     });
     
     return snapshot;
@@ -114,7 +130,7 @@ export class DataManager {
    * Load data from GitHub and update storage and state
    */
   async loadFromGitHub(fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override'): Promise<DataSnapshot> {
-    console.log('[DataManager] Loading data from GitHub:', { fileType, fileContent });
+    console.log('[DataManager] Loading GitHub data, file type:', fileType);
     
     try {
       let snapshot: DataSnapshot;
@@ -135,6 +151,11 @@ export class DataManager {
         platforms: snapshot.platforms.length,
         themes: snapshot.themes.length
       });
+      
+      // Pre-load platform extension data if user is authenticated
+      if (snapshot.platforms.length > 0) {
+        await this.preloadPlatformExtensions(snapshot.platforms);
+      }
       
       // Store in localStorage
       this.storeSnapshot(snapshot);
@@ -165,16 +186,23 @@ export class DataManager {
    * Load data from example source and update storage and state
    */
   async loadFromExampleSource(dataSourceKey: string, exampleData: Record<string, unknown>, algorithmData?: Record<string, unknown>): Promise<DataSnapshot> {
-    console.log('[DataManager] Loading data from example source:', dataSourceKey);
+    console.log('[DataManager] Loading example data from source:', dataSourceKey);
     
     try {
       const snapshot = this.processExampleData(dataSourceKey, exampleData, algorithmData);
       
+      // Pre-load platform extension data if user is authenticated
+      if (snapshot.platforms.length > 0) {
+        await this.preloadPlatformExtensions(snapshot.platforms);
+      }
+      
       // Store in localStorage
       this.storeSnapshot(snapshot);
+      console.log('[DataManager] Stored example data snapshot in localStorage');
       
       // Set new baseline for change tracking - this establishes the new "original" state
       this.setBaseline(snapshot);
+      console.log('[DataManager] Set new baseline for change tracking');
       
       // Notify that data has been loaded with new baseline
       this.callbacks.onDataLoaded?.(snapshot);
@@ -189,6 +217,70 @@ export class DataManager {
       return snapshot;
     } catch (error) {
       console.error('[DataManager] Error loading example data:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Load data from URL configuration (public repository access)
+   */
+  async loadFromURLConfig(config: URLConfig): Promise<DataSnapshot> {
+    console.log('[DataManager] Loading data from URL config:', config);
+    
+    try {
+      const path = config.path || 'schema.json';
+      const branch = config.branch || 'main';
+      
+      // Check if user is authenticated for private repository access
+      const isAuthenticated = GitHubAuthService.isAuthenticated();
+      
+      let fileContent;
+      if (isAuthenticated) {
+        // Use authenticated access for private repositories
+        console.log('[DataManager] Using authenticated access for repository:', config.repo);
+        fileContent = await GitHubApiService.getFileContent(
+          config.repo,
+          path,
+          branch
+        );
+      } else {
+        // Use public access (will fail for private repositories)
+        console.log('[DataManager] Using public access for repository:', config.repo);
+        fileContent = await GitHubApiService.getPublicFileContent(
+          config.repo,
+          path,
+          branch
+        );
+      }
+      
+      // Parse the file content
+      const parsedData = JSON.parse(fileContent.content);
+      
+      // Process the data using existing logic
+      const snapshot = this.processSchemaData(parsedData);
+      
+      // Store in localStorage
+      this.storeSnapshot(snapshot);
+      
+      // Set new baseline for change tracking
+      this.setBaseline(snapshot);
+      
+      // Notify that data has been loaded with new baseline
+      this.callbacks.onDataLoaded?.(snapshot);
+      this.callbacks.onBaselineUpdated?.(snapshot);
+      
+      console.log('[DataManager] Successfully loaded URL config data:', {
+        repo: config.repo,
+        path,
+        branch,
+        tokens: snapshot.tokens.length,
+        collections: snapshot.collections.length,
+        dimensions: snapshot.dimensions.length
+      });
+      
+      return snapshot;
+    } catch (error) {
+      console.error('[DataManager] Error loading URL config data:', error);
       throw error;
     }
   }
@@ -541,5 +633,50 @@ export class DataManager {
       themeOverrides: null,
       figmaConfiguration: null,
     };
+  }
+
+  /**
+   * Pre-load platform extension data for all platforms with extension sources
+   */
+  private async preloadPlatformExtensions(platforms: Platform[]): Promise<void> {
+    const platformsWithExtensions = platforms.filter(p => p.extensionSource);
+    if (platformsWithExtensions.length === 0) {
+      console.log('[DataManager] No platforms with extensions to pre-load');
+      return;
+    }
+
+    console.log('[DataManager] Pre-loading platform extensions for', platformsWithExtensions.length, 'platforms');
+    
+    // Clear existing cache to ensure fresh data
+    PlatformExtensionDataService.clearAllCache();
+    PlatformExtensionAnalyticsService.getInstance().clearCache();
+    
+    // Pre-load all platform extensions in parallel
+    const preloadPromises = platformsWithExtensions.map(async (platform) => {
+      try {
+        const { repositoryUri, filePath } = platform.extensionSource!;
+        console.log(`[DataManager] Pre-loading platform extension for ${platform.id} from ${repositoryUri}/${filePath}`);
+        
+        await PlatformExtensionDataService.getPlatformExtensionData(
+          repositoryUri,
+          filePath,
+          'main', // Default branch
+          platform.id
+        );
+        
+        console.log(`[DataManager] Successfully pre-loaded platform extension for ${platform.id}`);
+      } catch (error) {
+        console.warn(`[DataManager] Failed to pre-load platform extension for ${platform.id}:`, error);
+        // Don't throw here - we want to continue loading other extensions even if one fails
+      }
+    });
+
+    try {
+      await Promise.allSettled(preloadPromises);
+      console.log('[DataManager] Completed platform extension pre-loading');
+    } catch (error) {
+      console.error('[DataManager] Error during platform extension pre-loading:', error);
+      // Don't throw here - this is a best-effort operation
+    }
   }
 } 

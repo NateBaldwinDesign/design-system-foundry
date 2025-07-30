@@ -1,5 +1,6 @@
 import { GitHubApiService } from './githubApi';
 import { StorageService } from './storage';
+import type { GitHubFile } from '../config/github';
 
 export interface PlatformExtensionData {
   systemId: string;
@@ -89,8 +90,19 @@ export class PlatformExtensionDataService {
     try {
       console.log(`[PlatformExtensionDataService] Fetching data for ${platformId} from ${repositoryUri}/${filePath}`);
       
-      // Fetch from GitHub
-      const fileContent = await GitHubApiService.getFileContent(repositoryUri, filePath, branch);
+      let fileContent: GitHubFile;
+      
+      // Check if user is authenticated
+      const isAuthenticated = await import('./githubAuth').then(module => module.GitHubAuthService.isAuthenticated());
+      
+      if (isAuthenticated) {
+        // Use authenticated API call
+        fileContent = await GitHubApiService.getFileContent(repositoryUri, filePath, branch);
+      } else {
+        // Use public API call for unauthenticated users
+        console.log(`[PlatformExtensionDataService] Using public API for ${platformId} (user not authenticated)`);
+        fileContent = await GitHubApiService.getPublicFileContent(repositoryUri, filePath, branch);
+      }
       
       if (!fileContent || !fileContent.content) {
         console.warn(`[PlatformExtensionDataService] No content found for ${platformId}`);

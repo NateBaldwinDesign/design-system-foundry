@@ -214,6 +214,66 @@ export class GitHubApiService {
     
     return fileData;
   }
+
+  /**
+   * Get file content from a public repository (no authentication required)
+   */
+  static async getPublicFileContent(repo: string, path: string, branch: string): Promise<GitHubFile> {
+    console.log('[GitHubApiService] Fetching public file content:', { repo, path, branch });
+    
+    // First, check if the repository exists
+    const repoResponse = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}`, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    if (!repoResponse.ok) {
+      if (repoResponse.status === 404) {
+        throw new Error(`Repository not found: ${repo}`);
+      } else if (repoResponse.status === 403) {
+        throw new Error(`Repository is private: ${repo}`);
+      } else {
+        throw new Error(`Failed to access repository: ${repoResponse.status} ${repoResponse.statusText}`);
+      }
+    }
+    
+    // Now try to get the specific file
+    const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}/contents/${path}?ref=${branch}`, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`File not found: ${path} in ${repo}/${branch}`);
+      } else if (response.status === 403) {
+        throw new Error(`Repository is private: ${repo}`);
+      } else {
+        throw new Error(`Failed to fetch file content: ${response.status} ${response.statusText}`);
+      }
+    }
+    
+    const fileData = await response.json();
+    
+    // GitHub API returns content as base64 encoded string
+    // We need to decode it to get the actual content
+    if (fileData.content && fileData.encoding === 'base64') {
+      try {
+        // Decode base64 content
+        const decodedContent = atob(fileData.content);
+        return {
+          ...fileData,
+          content: decodedContent,
+        };
+      } catch (error) {
+        throw new Error('Failed to decode file content');
+      }
+    }
+    
+    return fileData;
+  }
   
   /**
    * Create or update a file in the repository (idempotent)

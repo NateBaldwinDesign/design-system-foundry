@@ -26,6 +26,7 @@ interface ComponentPropertiesViewProps {
   dimensions: Dimension[];
   platforms: Platform[];
   resolvedValueTypes: ResolvedValueType[];
+  canEdit?: boolean;
 }
 
 function normalizeOptions(options: { id: string; displayName: string; description?: string }[]): { id: string; displayName: string; description: string }[] {
@@ -42,7 +43,8 @@ export function ComponentPropertiesView({
   collections, 
   dimensions, 
   platforms, 
-  resolvedValueTypes 
+  resolvedValueTypes,
+  canEdit = true
 }: ComponentPropertiesViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
@@ -373,11 +375,13 @@ export function ComponentPropertiesView({
   return (
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={2}>Component Properties</Text>
-      <Text fontSize="sm" color="gray.600" mb={6}>Component properties define attributes that can be applied to components. They can be boolean (true/false) or list-based with predefined options.</Text>
+      <Text fontSize="sm" color="gray.600" mb={6}>Component properties define the configurable aspects of components, such as colors, spacing, and behavior options.</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
-          Add Component Property
-        </Button>
+        {canEdit && (
+          <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+            Add Component Property
+          </Button>
+        )}
         <VStack align="stretch" spacing={2}>
           {localComponentProperties.map((property: ComponentProperty, i: number) => (
             <Box
@@ -405,10 +409,12 @@ export function ComponentPropertiesView({
                     </Text>
                   )}
                 </Box>
-                <HStack>
-                  <IconButton aria-label="Edit component property" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
-                  <IconButton aria-label="Delete component property" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
-                </HStack>
+                {canEdit && (
+                  <HStack>
+                    <IconButton aria-label="Edit component property" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
+                    <IconButton aria-label="Delete component property" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
+                  </HStack>
+                )}
               </HStack>
             </Box>
           ))}

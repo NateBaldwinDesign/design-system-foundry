@@ -25,9 +25,10 @@ interface CollectionsViewProps {
   onUpdate: (collections: TokenCollection[]) => void;
   tokens: Token[];
   resolvedValueTypes: ResolvedValueType[];
+  canEdit?: boolean;
 }
 
-export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTypes }: CollectionsViewProps) {
+export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTypes, canEdit = true }: CollectionsViewProps) {
   const { colorMode } = useColorMode();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCollection, setEditingCollection] = useState<TokenCollection | null>(null);
@@ -112,9 +113,11 @@ export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTy
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Collections</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4} leftIcon={<LuPlus />}>
-          Create New Collection
-        </Button>
+        {canEdit && (
+          <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4} leftIcon={<LuPlus />}>
+            Create New Collection
+          </Button>
+        )}
         <VStack align="stretch" spacing={2}>
           {collections.map((collection) => {
             const isTypeBased = collection.resolvedValueTypeIds.length === 1;
@@ -138,10 +141,12 @@ export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTy
                       )}
                     </HStack>
                   </Box>
-                  <HStack>
-                    <IconButton aria-label="Edit collection" icon={<LuPencil />} size="sm" onClick={() => handleOpenEdit(collection)} />
-                    <IconButton aria-label="Delete collection" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDeleteCollection(collection.id)} />
-                  </HStack>
+                  {canEdit && (
+                    <HStack>
+                      <IconButton aria-label="Edit collection" icon={<LuPencil />} size="sm" onClick={() => handleOpenEdit(collection)} />
+                      <IconButton aria-label="Delete collection" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDeleteCollection(collection.id)} />
+                    </HStack>
+                  )}
                 </HStack>
                 <VStack align="start" spacing={1} mt={2} ml={2}>
                   <Text fontSize="sm" color="gray.600">

@@ -18,6 +18,7 @@ interface TokensViewProps {
   modes: Mode[];
   renderAddTokenButton?: React.ReactNode;
   onEditToken?: (token: ExtendedToken) => void;
+  canEdit?: boolean;
 }
 
 export function TokensView({ 

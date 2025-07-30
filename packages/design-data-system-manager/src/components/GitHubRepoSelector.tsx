@@ -81,6 +81,18 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
     }
   }, [validFiles, selectedFile]);
 
+  // Auto-load files when branch is selected and stable
+  React.useEffect(() => {
+    if (selectedRepo && selectedBranch && validFiles.length === 0 && !loading) {
+      // Small delay to ensure state is stable
+      const timer = setTimeout(() => {
+        loadAndMatchFiles(selectedRepo.full_name, selectedBranch, null);
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [selectedRepo, selectedBranch, validFiles.length, loading]);
+
   const loadOrganizations = async (forceRefresh = false) => {
     setLoading(true);
     setLoadingStep('orgs');
@@ -206,8 +218,6 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
     const repo = filteredRepositories.find(r => r.full_name === repoFullName);
     if (!repo) return;
 
-    const previousFile = selectedFile; // Store current file for matching
-
     setSelectedRepo(repo);
     setSelectedBranch('');
     setValidFiles([]);
@@ -235,12 +245,10 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
       const repoBranches = await GitHubApiService.getBranches(repo.full_name);
       setBranches(repoBranches);
       
-      // Auto-select "main" branch if it exists
+      // Auto-select "main" branch if it exists (file loading handled by useEffect)
       const mainBranch = repoBranches.find(branch => branch.name === 'main');
       if (mainBranch) {
         setSelectedBranch('main');
-        // Automatically trigger file loading for main branch
-        await loadAndMatchFiles(repo.full_name, 'main', previousFile);
       }
       
       // Update cache stats
@@ -265,14 +273,12 @@ export const GitHubRepoSelector: React.FC<GitHubRepoSelectorProps> = ({
   const handleBranchChange = async (branchName: string) => {
     if (!selectedRepo) return;
 
-    const previousFile = selectedFile; // Store current file for matching
-
     setSelectedBranch(branchName);
     setValidFiles([]);
     setSelectedFile(null);
     setError('');
 
-    await loadAndMatchFiles(selectedRepo.full_name, branchName, previousFile);
+    // File loading handled by useEffect
   };
 
   const loadAndMatchFiles = async (repoFullName: string, branchName: string, previousFile: ValidFile | null) => {

@@ -12,18 +12,20 @@ interface Theme {
 interface ThemesViewProps {
   themes: Theme[];
   setThemes: (themes: Theme[]) => void;
+  canEdit?: boolean;
 }
 
 const ThemesView: React.FC<ThemesViewProps> = ({
   themes,
-  setThemes
+  setThemes,
+  canEdit = true
 }) => {
   return (
     <PageTemplate
       title="Themes"
       description="Manage design system themes and their configurations. Themes allow you to create different visual variations of your design system."
     >
-      <ThemesTab themes={themes} setThemes={setThemes} />
+      <ThemesTab themes={themes} setThemes={setThemes} canEdit={canEdit} />
     </PageTemplate>
   );
 };

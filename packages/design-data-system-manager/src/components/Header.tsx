@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   HStack,
@@ -23,27 +23,20 @@ import {
   PopoverArrow,
   Button,
   VStack,
-  Select,
   Spinner,
-  AlertDialog,
-  AlertDialogBody,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
   Divider,
 } from '@chakra-ui/react';
 import {
   History,
   Github,
   Download,
-  Undo2,
   UserRound,
   GitBranch,
   BookMarked,
   RefreshCw,
   GitCommitVertical,
   GitPullRequestArrow,
+  Share2,
 } from 'lucide-react';
 import { ChangeLog } from './ChangeLog';
 import { GitHubAuthService } from '../services/githubAuth';
@@ -60,10 +53,7 @@ interface HeaderProps {
   changeCount?: number;
   currentData: Record<string, unknown> | null;
   baselineData: Record<string, unknown> | null;
-  // Data source control props
-  dataSource?: string;
-  setDataSource?: (source: string) => void;
-  dataOptions?: { label: string; value: string; hasAlgorithms: boolean }[];
+  // Data source control props - removed unused props
   onResetData?: () => void;
   onExportData?: () => void;
   isGitHubConnected?: boolean;
@@ -78,6 +68,13 @@ interface HeaderProps {
   onGitHubConnect?: () => Promise<void>;
   onGitHubDisconnect?: () => void;
   onFileSelected?: (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => void;
+  // URL-based access props
+  isURLBasedAccess?: boolean;
+  urlRepoInfo?: {
+    repo: string;
+    path: string;
+    branch: string;
+  } | null;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -85,10 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
   changeCount = 0,
   currentData,
   baselineData,
-  // Data source control props
-  dataSource,
-  setDataSource,
-  dataOptions,
+  // Data source control props - removed unused props
   onResetData,
   onExportData,
   isGitHubConnected = false,
@@ -98,6 +92,9 @@ export const Header: React.FC<HeaderProps> = ({
   onGitHubConnect,
   onGitHubDisconnect,
   onFileSelected,
+  // URL-based access props
+  isURLBasedAccess = false,
+  urlRepoInfo = null,
 }) => {
   const { colorMode } = useColorMode();
   const borderColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
@@ -109,10 +106,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isGitHubWorkflowMenuOpen, setIsGitHubWorkflowMenuOpen] = useState(false);
   const [isGitHubConnecting, setIsGitHubConnecting] = useState(false);
-  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
-  const [isRefreshDialogOpen, setIsRefreshDialogOpen] = useState(false);
   const toast = useToast();
-  const cancelRef = useRef<HTMLButtonElement>(null);
 
   // Clear GitHub connecting state when user returns from OAuth flow
   useEffect(() => {
@@ -135,6 +129,26 @@ export const Header: React.FC<HeaderProps> = ({
     // Get system name from stored root data
     const rootData = StorageService.getRootData();
     const systemName = rootData.systemName || 'Design System';
+
+    // Check for URL parameters first (regardless of loading success)
+    const urlParams = new URLSearchParams(window.location.search);
+    const repo = urlParams.get('repo');
+    const branch = urlParams.get('branch') || 'main';
+
+    if (repo) {
+      // URL parameters present - check if data was successfully loaded
+      if (isURLBasedAccess && urlRepoInfo) {
+        // URL loading was successful - show system name from data
+        title = systemName;
+        subtitle = `(${branch}) - View Only`;
+      } else {
+        // URL loading failed - show repository name as fallback
+        const [owner, repoName] = repo.split('/');
+        title = `${owner}/${repoName}`;
+        subtitle = `(${branch}) - Loading Failed`;
+      }
+      return { title, subtitle };
+    }
 
     // Determine if we're editing core data or theme overrides based on selected repo info
     if (selectedRepoInfo) {
@@ -202,6 +216,11 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const handleGitHubDisconnect = () => {
+    // Clear URL parameters when disconnecting from GitHub
+    const url = new URL(window.location.href);
+    url.search = '';
+    window.history.replaceState({}, '', url.toString());
+    
     // Use the app-level handler
     if (onGitHubDisconnect) {
       onGitHubDisconnect();
@@ -215,6 +234,11 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const handleFileSelected = (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => {
+    // Clear URL parameters when switching to a new repository
+    const url = new URL(window.location.href);
+    url.search = '';
+    window.history.replaceState({}, '', url.toString());
+    
     // Use the app-level handler
     if (onFileSelected) {
       onFileSelected(fileContent, fileType);
@@ -280,76 +304,10 @@ export const Header: React.FC<HeaderProps> = ({
     setShowSaveDialog(true);
   };
 
-  // Data source control handlers
-  const handleDataSourceChange = (newDataSource: string) => {
-    if (setDataSource) {
-      setDataSource(newDataSource);
-    }
-  };
-
-  const handleResetData = () => {
-    setIsResetDialogOpen(true);
-  };
-
-  const handleConfirmReset = async () => {
-    // If connected to GitHub and have a selected repository, reload from GitHub
-    if (selectedRepoInfo && githubUser) {
-      try {
-        await handleReloadCurrentFile();
-        // Toast is now handled by the onFileSelected callback in App.tsx
-      } catch (error) {
-        toast({
-          title: 'Reset Failed',
-          description: 'Failed to reload data from GitHub. Please try again.',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    } else {
-      // Use the default app-level reset handler for local data sources
-      if (onResetData) {
-        onResetData();
-        // Dispatch event to notify change detection that data has been reset
-        window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
-        toast({
-          title: 'Data Reset',
-          description: 'Data has been reset to baseline.',
-          status: 'info',
-          duration: 3000,
-          isClosable: true,
-        });
-      }
-    }
-    setIsResetDialogOpen(false);
-  };
-
-  const handleCancelReset = () => {
-    setIsResetDialogOpen(false);
-  };
+  // Data source control handlers - removed unused handlers
 
   const handleRefreshData = () => {
-    setIsRefreshDialogOpen(true);
-  };
-
-  const handleConfirmRefresh = async () => {
-    try {
-      await handleReloadCurrentFile();
-      // Toast is now handled by the onFileSelected callback in App.tsx
-    } catch (error) {
-      toast({
-        title: 'Refresh Failed',
-        description: 'Failed to refresh data from GitHub. Please try again.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-    setIsRefreshDialogOpen(false);
-  };
-
-  const handleCancelRefresh = () => {
-    setIsRefreshDialogOpen(false);
+    handleReloadCurrentFile();
   };
 
   const handleExportData = () => {
@@ -359,6 +317,70 @@ export const Header: React.FC<HeaderProps> = ({
         title: 'Data Exported',
         description: 'Data has been exported successfully.',
         status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Generate shareable URL for current repository
+  const generateShareableURL = () => {
+    // Check for URL parameters first (regardless of loading success)
+    const urlParams = new URLSearchParams(window.location.search);
+    const repo = urlParams.get('repo');
+    const path = urlParams.get('path') || 'schema.json';
+    const branch = urlParams.get('branch') || 'main';
+
+    if (repo) {
+      // URL parameters present - generate URL from parameters
+      const baseURL = window.location.origin;
+      const params = new URLSearchParams();
+      params.set('repo', repo);
+      params.set('path', path);
+      params.set('branch', branch);
+      return `${baseURL}?${params.toString()}`;
+    } else if (selectedRepoInfo) {
+      // Fall back to selected repository info
+      const baseURL = window.location.origin;
+      const params = new URLSearchParams();
+      params.set('repo', selectedRepoInfo.fullName);
+      params.set('path', selectedRepoInfo.filePath);
+      params.set('branch', selectedRepoInfo.branch);
+      return `${baseURL}?${params.toString()}`;
+    }
+    return null;
+  };
+
+  // Handle share functionality
+  const handleShare = async () => {
+    const shareURL = generateShareableURL();
+    
+    if (!shareURL) {
+      toast({
+        title: 'Cannot Share',
+        description: 'No repository information available to share.',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareURL);
+      toast({
+        title: 'URL Copied',
+        description: 'Repository URL has been copied to clipboard.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error('Copy failed:', error);
+      toast({
+        title: 'Copy Failed',
+        description: 'Failed to copy the repository URL to clipboard.',
+        status: 'error',
         duration: 3000,
         isClosable: true,
       });
@@ -387,22 +409,7 @@ export const Header: React.FC<HeaderProps> = ({
         </HStack>
         <HStack spacing={2}>
           {/* Data Source Controls - Only show when not connected to GitHub */}
-          {!isGitHubConnected && dataOptions && dataSource && setDataSource && (
-            <HStack spacing={2}>
-              <Select
-                size="sm"
-                value={dataSource}
-                onChange={(e) => handleDataSourceChange(e.target.value)}
-                minW="200px"
-              >
-                {dataOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </Select>
-            </HStack>
-          )}
+          {/* Removed: Data source picker dropdown for logged-out view */}
 
           {/* GitHub Connection */}
           {githubUser ? (
@@ -479,6 +486,19 @@ export const Header: React.FC<HeaderProps> = ({
                           >
                             Create Pull Request
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            justifyContent="flex-start"
+                            borderRadius={0}
+                            leftIcon={<Share2 size={16} />}
+                            onClick={() => {
+                              handleShare();
+                              setIsGitHubWorkflowMenuOpen(false);
+                            }}
+                          >
+                            Copy Repository URL
+                          </Button>
                         </>
                       )}
                     </VStack>
@@ -487,21 +507,20 @@ export const Header: React.FC<HeaderProps> = ({
               </Popover>
             </HStack>
           ) : (
-            <Tooltip label={isGitHubConnecting ? "Connecting to GitHub..." : "Connect GitHub"}>
-              <IconButton
-                aria-label="Connect GitHub"
-                icon={isGitHubConnecting ? <Spinner size="sm" /> : <Github size={16} />}
-                size="sm"
-                variant="ghost"
-                onClick={handleGitHubConnect}
-                isLoading={isGitHubConnecting}
-                isDisabled={isGitHubConnecting}
-              />
-            </Tooltip>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleGitHubConnect}
+              isLoading={isGitHubConnecting}
+              isDisabled={isGitHubConnecting}
+              leftIcon={isGitHubConnecting ? <Spinner size="sm" /> : <Github size={16} />}
+            >
+              Sign in
+            </Button>
           )}
 
           {/* Data Action Buttons - Always available when handlers are provided */}
-          {(onExportData || onResetData) && (
+          {(onExportData || onResetData || isURLBasedAccess) && (
             <HStack spacing={2}>
               {onExportData && (
                 <Tooltip label="Export Data">
@@ -514,39 +533,57 @@ export const Header: React.FC<HeaderProps> = ({
                   />
                 </Tooltip>
               )}
+              {(isURLBasedAccess || (() => {
+                const urlParams = new URLSearchParams(window.location.search);
+                return urlParams.get('repo') !== null;
+              })()) && (
+                <Tooltip label="Copy Repository URL">
+                  <IconButton
+                    aria-label="Copy Repository URL"
+                    icon={<Share2 size={16} />}
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleShare}
+                  />
+                </Tooltip>
+              )}
             </HStack>
           )}
-          <Box position="relative">
-            <Tooltip label="History" placement="bottom">
-              <IconButton
-                aria-label="History"
-                icon={<History size={16} />}
-                variant="ghost"
-                size="sm"
-                onClick={handleOpenModal}
-              />
-            </Tooltip>
-            {hasChanges && (
-              <Badge
-                position="absolute"
-                top="-2px"
-                right="-2px"
-                colorScheme="red"
-                variant="solid"
-                size="sm"
-                borderRadius="full"
-                minW="18px"
-                h="18px"
-                fontSize="xs"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                zIndex={1}
-              >
-                {changeCount > 99 ? '99+' : changeCount}
-              </Badge>
-            )}
-          </Box>
+          
+          {/* Change Log - Only show when connected to GitHub */}
+          {githubUser && (
+            <Box position="relative">
+              <Tooltip label="History" placement="bottom">
+                <IconButton
+                  aria-label="History"
+                  icon={<History size={16} />}
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleOpenModal}
+                />
+              </Tooltip>
+              {hasChanges && (
+                <Badge
+                  position="absolute"
+                  top="-2px"
+                  right="-2px"
+                  colorScheme="red"
+                  variant="solid"
+                  size="sm"
+                  borderRadius="full"
+                  minW="18px"
+                  h="18px"
+                  fontSize="xs"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  zIndex={1}
+                >
+                  {changeCount > 99 ? '99+' : changeCount}
+                </Badge>
+              )}
+            </Box>
+          )}
 
           {/* User Menu - Moved to the end */}
           {githubUser && (
@@ -663,64 +700,6 @@ export const Header: React.FC<HeaderProps> = ({
           </ModalBody>
         </ModalContent>
       </Modal>
-
-      <AlertDialog
-        isOpen={isResetDialogOpen}
-        onClose={handleCancelReset}
-        leastDestructiveRef={cancelRef}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              {selectedRepoInfo && githubUser ? 'Reset to GitHub source?' : 'Reset data?'}
-            </AlertDialogHeader>
-            <AlertDialogBody>
-              {selectedRepoInfo && githubUser ? (
-                `This will reload all data from ${selectedRepoInfo.filePath} on GitHub and you will lose all of your local changes. This cannot be undone.`
-              ) : (
-                'This will revert to the original state and you will lose all of your changes. This cannot be undone.'
-              )}
-            </AlertDialogBody>
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={handleCancelReset}>
-                Cancel
-              </Button>
-              <Button colorScheme="red" onClick={handleConfirmReset} ml={3}>
-                {selectedRepoInfo && githubUser ? 'Reset to GitHub' : 'Reset data'}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
-
-      <AlertDialog
-        isOpen={isRefreshDialogOpen}
-        onClose={handleCancelRefresh}
-        leastDestructiveRef={cancelRef}
-      >
-        <AlertDialogOverlay>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              {selectedRepoInfo && githubUser ? 'Refresh data from GitHub?' : 'Refresh data?'}
-            </AlertDialogHeader>
-            <AlertDialogBody>
-              {selectedRepoInfo && githubUser ? (
-                `This will reload all data from ${selectedRepoInfo.filePath} on GitHub and you will lose all of your local changes. This cannot be undone.`
-              ) : (
-                'This will revert to the original state and you will lose all of your changes. This cannot be undone.'
-              )}
-            </AlertDialogBody>
-            <AlertDialogFooter>
-              <Button ref={cancelRef} onClick={handleCancelRefresh}>
-                Cancel
-              </Button>
-              <Button colorScheme="blue" onClick={handleConfirmRefresh} ml={3}>
-                {selectedRepoInfo && githubUser ? 'Refresh from GitHub' : 'Refresh data'}
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialogOverlay>
-      </AlertDialog>
     </>
   );
 }; 

@@ -74,6 +74,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({
       setPlatformStatsError(null);
       
       try {
+        // Add a small delay to allow for pre-loading to complete
+        // This ensures that if DataManager is still pre-loading, we give it time
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const stats = await getPlatformExtensionStats(platforms);
         setPlatformExtensionStats(stats);
       } catch (error) {
@@ -162,6 +166,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
               <VStack spacing={4}>
                 <Spinner />
                 <Text fontSize="sm" color="gray.500">Loading platform extension analytics...</Text>
+                <Text fontSize="xs" color="gray.400">This may take a moment for external repositories</Text>
               </VStack>
             ) : platformExtensionStats ? (
               <VStack align="start" spacing={4}>
@@ -243,7 +248,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                 )}
               </VStack>
             ) : (
-              <Text fontSize="sm" color="gray.500">No platform extension data available</Text>
+              <VStack spacing={2}>
+                <Text fontSize="sm" color="gray.500">No platform extension data available</Text>
+                <Text fontSize="xs" color="gray.400">Platform extensions are loaded from external repositories</Text>
+              </VStack>
             )}
           </Box>
         </SimpleGrid>

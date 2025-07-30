@@ -24,11 +24,12 @@ import type { Token } from '@token-model/data-model';
 
 interface AlgorithmsViewProps {
   algorithms: Algorithm[];
-  onUpdate: (updatedAlgorithms: Algorithm[]) => void;
+  onUpdate: (algorithms: Algorithm[]) => void;
   onUpdateTokens: (updatedTokens: Token[]) => void;
+  canEdit?: boolean;
 }
 
-const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms, onUpdate, onUpdateTokens }) => {
+const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms, onUpdate, onUpdateTokens, canEdit = true }) => {
   const { colorMode } = useColorMode();
   const toast = useToast();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -76,50 +77,44 @@ const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms, onUpdate, o
   return (
     <PageTemplate
       title="Algorithms"
-      description="Create and manage algorithms for dynamic token generation and value calculations."
+      description="Algorithms define automated processes for generating and managing design tokens based on mathematical formulas and business rules."
     >
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button
-            leftIcon={<LuPlus />}
-            colorScheme="blue"
-            size="sm"
-            mb={4}
-            onClick={() => {
-              setEditingAlgorithm(undefined);
-              setIsEditorOpen(true);
-            }}
-          >
-            New Algorithm
+        {canEdit && (
+          <Button size="sm" leftIcon={<LuPlus />} onClick={() => setIsEditorOpen(true)} colorScheme="blue" mb={4}>
+            Add Algorithm
           </Button>
-        {/* Algorithm List */}
-        <VStack align="stretch" spacing={2}>
+        )}
+        <VStack align="stretch" spacing={3}>
           {algorithms.map(algorithm => (
             <Box
               key={algorithm.id}
               p={4}
-              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-              borderRadius="md"
               borderWidth={1}
+              borderRadius="md"
+              bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
               borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
             >
               <VStack align="stretch" spacing={2}>
                 <HStack justify="space-between">
                   <CardTitle title={algorithm.name} cardType="algorithm" />
-                  <HStack>
-                    <IconButton
-                      aria-label="Edit algorithm"
-                      icon={<LuPencil />}
-                      size="sm"
-                      onClick={() => handleEditAlgorithm(algorithm)}
-                    />
-                    <IconButton
-                      aria-label="Delete algorithm"
-                      icon={<LuTrash2 />}
-                      size="sm"
-                      colorScheme="red"
-                      onClick={() => handleDeleteAlgorithm(algorithm.id)}
-                    />
-                  </HStack>
+                  {canEdit && (
+                    <HStack>
+                      <IconButton
+                        aria-label="Edit algorithm"
+                        icon={<LuPencil />}
+                        size="sm"
+                        onClick={() => handleEditAlgorithm(algorithm)}
+                      />
+                      <IconButton
+                        aria-label="Delete algorithm"
+                        icon={<LuTrash2 />}
+                        size="sm"
+                        colorScheme="red"
+                        onClick={() => handleDeleteAlgorithm(algorithm.id)}
+                      />
+                    </HStack>
+                  )}
                 </HStack>
                 {algorithm.description && (
                   <Text color="gray.500">{algorithm.description}</Text>
@@ -133,22 +128,24 @@ const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms, onUpdate, o
         </VStack>
 
         {/* Algorithm Editor Modal */}
-        <Modal isOpen={isEditorOpen} onClose={() => setIsEditorOpen(false)} size="6xl">
-          <ModalOverlay />
-          <ModalContent>
-            <ModalHeader>
-              {editingAlgorithm ? 'Edit Algorithm' : 'New Algorithm'}
-            </ModalHeader>
-            <ModalCloseButton />
-            <ModalBody>
-              <AlgorithmEditor
-                algorithm={editingAlgorithm}
-                onSave={handleSaveAlgorithm}
-                onUpdateTokens={onUpdateTokens}
-              />
-            </ModalBody>
-          </ModalContent>
-        </Modal>
+        {canEdit && (
+          <Modal isOpen={isEditorOpen} onClose={() => setIsEditorOpen(false)} size="6xl">
+            <ModalOverlay />
+            <ModalContent>
+              <ModalHeader>
+                {editingAlgorithm ? 'Edit Algorithm' : 'New Algorithm'}
+              </ModalHeader>
+              <ModalCloseButton />
+              <ModalBody>
+                <AlgorithmEditor
+                  algorithm={editingAlgorithm}
+                  onSave={handleSaveAlgorithm}
+                  onUpdateTokens={onUpdateTokens}
+                />
+              </ModalBody>
+            </ModalContent>
+          </Modal>
+        )}
       </Box>
     </PageTemplate>
   );

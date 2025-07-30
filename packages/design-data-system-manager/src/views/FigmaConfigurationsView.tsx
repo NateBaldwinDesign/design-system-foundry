@@ -42,9 +42,13 @@ import { CollectionsView } from './CollectionsView';
 
 interface FigmaConfigurationsViewProps {
   tokenSystem: TokenSystem;
+  canEdit?: boolean;
 }
 
-export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = ({ tokenSystem }) => {
+export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = ({ 
+  tokenSystem,
+  canEdit = true
+}) => {
   const { colorMode } = useColorMode();
   const toast = useToast();
   
@@ -639,14 +643,16 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       {/* Tabs */}
       <Tabs>
         <TabList>
-          <Tab>Publishing</Tab>
+          {canEdit && <Tab>Publishing</Tab>}
           <Tab>Variable Collections</Tab>
         </TabList>
 
         <TabPanels mt={4}>
-          <TabPanel>
-            {renderPublishingTab()}
-          </TabPanel>
+          {canEdit && (
+            <TabPanel>
+              {renderPublishingTab()}
+            </TabPanel>
+          )}
           
           <TabPanel>
             <CollectionsView
@@ -654,6 +660,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
               onUpdate={(collections) => StorageService.setCollections(collections)}
               tokens={tokens}
               resolvedValueTypes={resolvedValueTypes}
+              canEdit={canEdit}
             />
           </TabPanel>
         </TabPanels>

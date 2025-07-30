@@ -15,10 +15,10 @@ import { PageTemplate } from '../../components/PageTemplate';
 import { StorageService } from '../../services/storage';
 
 interface SystemViewProps {
-  // Add any props that might be needed for system functionality
+  canEdit?: boolean;
 }
 
-export const SystemView: React.FC<SystemViewProps> = () => {
+export const SystemView: React.FC<SystemViewProps> = ({ canEdit = true }) => {
   // Get data directly from storage for each component
   const dimensions = StorageService.getDimensions();
   const taxonomies = StorageService.getTaxonomies();
@@ -48,6 +48,7 @@ export const SystemView: React.FC<SystemViewProps> = () => {
             <DimensionsView
               dimensions={dimensions}
               setDimensions={(dims) => StorageService.setDimensions(dims)}
+              canEdit={canEdit}
             />
           </TabPanel>
           
@@ -60,6 +61,7 @@ export const SystemView: React.FC<SystemViewProps> = () => {
               dimensions={dimensions}
               platforms={platforms}
               resolvedValueTypes={resolvedValueTypes}
+              canEdit={canEdit}
             />
           </TabPanel>
           
@@ -73,6 +75,7 @@ export const SystemView: React.FC<SystemViewProps> = () => {
               platforms={platforms}
               taxonomies={taxonomies}
               themes={themes}
+              canEdit={canEdit}
             />
           </TabPanel>
 
@@ -80,6 +83,7 @@ export const SystemView: React.FC<SystemViewProps> = () => {
             <ComponentCategoriesView
               componentCategories={componentCategories}
               setComponentCategories={(categories) => StorageService.setComponentCategories(categories)}
+              canEdit={canEdit}
             />
           </TabPanel>
 
@@ -92,6 +96,7 @@ export const SystemView: React.FC<SystemViewProps> = () => {
               dimensions={dimensions}
               platforms={platforms}
               resolvedValueTypes={resolvedValueTypes}
+              canEdit={canEdit}
             />
           </TabPanel>
         </TabPanels>

@@ -22,12 +22,14 @@ import { CardTitle } from '../../components/CardTitle';
 
 interface DimensionsViewProps {
   dimensions: Dimension[];
-  setDimensions: (dims: Dimension[]) => void;
+  setDimensions: (dimensions: Dimension[]) => void;
+  canEdit?: boolean;
 }
 
 export function DimensionsView({ 
   dimensions, 
-  setDimensions
+  setDimensions,
+  canEdit = true
 }: DimensionsViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
@@ -186,12 +188,14 @@ export function DimensionsView({
   return (
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={2}>Dimensions</Text>
-      <Text fontSize="sm" color="gray.600" mb={6}>Dimensions are groups of related modes. Ordering them will affect generated token structure.</Text>
+      <Text fontSize="sm" color="gray.600" mb={6}>Dimensions define mutually exclusive modes that share a common theme. Each dimension can have multiple modes, and tokens can have different values for each mode.</Text>
 
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
-          Add Dimension
-        </Button>
+        {canEdit && (
+          <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+            Add Dimension
+          </Button>
+        )}
         <DragDropContext onDragEnd={handleDragEnd}>
           <Droppable droppableId="dimensions">
             {(provided) => (
@@ -212,17 +216,18 @@ export function DimensionsView({
                         borderRadius="md"
                         bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
                         borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-                        boxShadow={snapshot.isDragging ? "md" : "sm"}
-                        transition="all 0.2s"
+                        opacity={snapshot.isDragging ? 0.8 : 1}
                       >
                         <HStack justify="space-between" align="center">
                           <HStack spacing={2}>
                             <Box w="32px" textAlign="center" fontWeight="bold" color="gray.500">
                               {i + 1}
                             </Box>
-                            <Box {...provided.dragHandleProps} cursor="grab">
-                              <LuGripVertical />
-                            </Box>
+                            {canEdit && (
+                              <Box {...provided.dragHandleProps} cursor="grab">
+                                <LuGripVertical />
+                              </Box>
+                            )}
                             <Box>
                               <CardTitle title={dim.displayName} cardType="dimension" />
                               <Text fontSize="sm" color="gray.600">Modes: {dim.modes.map((m: Mode) => m.name).join(', ')}</Text>
@@ -241,10 +246,12 @@ export function DimensionsView({
                               )}
                             </Box>
                           </HStack>
-                          <HStack>
-                            <IconButton aria-label="Edit dimension" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
-                            <IconButton aria-label="Delete dimension" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
-                          </HStack>
+                          {canEdit && (
+                            <HStack>
+                              <IconButton aria-label="Edit dimension" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
+                              <IconButton aria-label="Delete dimension" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
+                            </HStack>
+                          )}
                         </HStack>
                       </Box>
                     )}
