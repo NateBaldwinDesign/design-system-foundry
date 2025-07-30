@@ -40,6 +40,8 @@ interface AppLayoutProps {
     path: string;
     branch: string;
   } | null;
+  // GitHub permissions
+  hasEditPermissions?: boolean;
 }
 
 // Custom event for data changes
@@ -63,6 +65,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   // URL-based access props
   isViewOnlyMode = false,
   urlRepoInfo = null,
+  // GitHub permissions
+  hasEditPermissions = false,
 }: AppLayoutProps) => {
   const { colorMode } = useColorMode();
   const [hasChanges, setHasChanges] = useState(false);
@@ -338,9 +342,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           changeCount={changeCount}
           currentData={currentData}
           baselineData={baselineData}
-          dataSource={dataSource}
-          setDataSource={setDataSource}
-          dataOptions={dataOptions}
           onResetData={onResetData}
           onExportData={onExportData}
           isGitHubConnected={isGitHubConnected}
@@ -351,6 +352,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           onFileSelected={onFileSelected}
           isURLBasedAccess={isViewOnlyMode}
           urlRepoInfo={urlRepoInfo}
+          hasEditPermissions={hasEditPermissions}
         />
         <Box flex="1" overflow="auto"  bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
           {children}

@@ -41,6 +41,7 @@ import { ViewRenderer } from './components/ViewRenderer';
 import { ChangeTrackingService } from './services/changeTrackingService';
 import { DataManager, type DataSnapshot, type URLConfig } from './services/dataManager';
 import { MultiRepositoryManager } from './services/multiRepositoryManager';
+import { exampleData, algorithmData } from '@token-model/data-model';
 
 const App = () => {
   const { schema } = useSchema();
@@ -78,6 +79,7 @@ const App = () => {
     fileType: 'schema' | 'theme-override' | 'platform-extension';
   } | null>(null);
   const [isViewOnlyMode, setIsViewOnlyMode] = useState(false);
+  const [hasEditPermissions, setHasEditPermissions] = useState(false);
   const toast = useToast();
 
   const [changeLogData, setChangeLogData] = useState<{ currentData: Record<string, unknown>; baselineData: Record<string, unknown> | null }>({ currentData: {}, baselineData: null });
@@ -332,12 +334,29 @@ const App = () => {
       refreshDataFromStorage();
     };
 
+    // Listen for permissions checked events from GitHubCallback
+    const handlePermissionsChecked = (event: CustomEvent) => {
+      const { hasWriteAccess, repoInfo } = event.detail;
+      
+      console.log('[App] Permissions checked:', { hasWriteAccess, repoInfo });
+      
+      // Update state based on permissions
+      setHasEditPermissions(hasWriteAccess);
+      setSelectedRepoInfo(repoInfo);
+      setIsGitHubConnected(true);
+      
+      // Refresh App component state from storage
+      refreshDataFromStorage();
+    };
+
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('github:file-loaded', handleGitHubFileLoaded);
+    window.addEventListener('github:permissions-checked', handlePermissionsChecked as EventListener);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('github:file-loaded', handleGitHubFileLoaded);
+      window.removeEventListener('github:permissions-checked', handlePermissionsChecked as EventListener);
     };
   }, []);
 
@@ -513,18 +532,43 @@ const App = () => {
   // GitHub state management handlers
   const handleGitHubConnect = async () => {
     try {
-      // Only clear OAuth state if user is already authenticated
-      // This prevents clearing valid OAuth state during the callback process
-      if (GitHubAuthService.isAuthenticated()) {
-        console.log('User already authenticated, clearing OAuth state before new auth');
-        GitHubAuthService.clearOAuthState();
+      // Check for URL parameters first
+      const urlParams = new URLSearchParams(window.location.search);
+      const repo = urlParams.get('repo');
+      const path = urlParams.get('path');
+      const branch = urlParams.get('branch') || 'main';
+
+      if (repo && path) {
+        // URL parameters present - skip repository selection dialog
+        console.log('[App] URL parameters detected, proceeding with direct authentication');
+        
+        // Only clear OAuth state if user is already authenticated
+        if (GitHubAuthService.isAuthenticated()) {
+          console.log('User already authenticated, clearing OAuth state before new auth');
+          GitHubAuthService.clearOAuthState();
+        }
+        
+        // Initiate the OAuth flow
+        await GitHubAuthService.initiateAuth();
+        
+        // Note: initiateAuth() redirects to GitHub, so code after this won't execute
+        // The state will be updated when the user returns from GitHub
+      } else {
+        // No URL parameters - show repository selection dialog (current behavior)
+        console.log('[App] No URL parameters, showing repository selection dialog');
+        
+        // Only clear OAuth state if user is already authenticated
+        if (GitHubAuthService.isAuthenticated()) {
+          console.log('User already authenticated, clearing OAuth state before new auth');
+          GitHubAuthService.clearOAuthState();
+        }
+        
+        // Initiate the OAuth flow
+        await GitHubAuthService.initiateAuth();
+        
+        // Note: initiateAuth() redirects to GitHub, so code after this won't execute
+        // The state will be updated when the user returns from GitHub
       }
-      
-      // Initiate the OAuth flow
-      await GitHubAuthService.initiateAuth();
-      
-      // Note: initiateAuth() redirects to GitHub, so code after this won't execute
-      // The state will be updated when the user returns from GitHub
       
     } catch (error) {
       console.error('GitHub connection error:', error);
@@ -822,6 +866,7 @@ const App = () => {
                   branch: urlParams.get('branch') || 'main'
                 };
               })() : null}
+              hasEditPermissions={hasEditPermissions}
             >
               <Routes>
                 <Route path="/auth/github/callback" element={<GitHubCallback />} />
@@ -847,6 +892,7 @@ const App = () => {
                 schema={schema}
                 githubUser={githubUser}
                 isViewOnlyMode={isViewOnlyMode}
+                hasEditPermissions={hasEditPermissions}
                 onUpdateTokens={handleUpdateTokens}
                 onUpdateCollections={handleUpdateCollections}
                 onUpdateDimensions={handleUpdateDimensions}

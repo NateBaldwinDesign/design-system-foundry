@@ -61,6 +61,7 @@ interface ViewRendererProps {
   githubUser: GitHubUser | null;
   // View mode
   isViewOnlyMode?: boolean;
+  hasEditPermissions?: boolean;
   // Handler props
   onUpdateTokens: (tokens: ExtendedToken[]) => void;
   onUpdateCollections: (collections: TokenCollection[]) => void;
@@ -100,6 +101,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   schema,
   githubUser,
   isViewOnlyMode = false,
+  hasEditPermissions = false,
   onUpdateTokens,
   onUpdateCollections,
   onUpdateDimensions,
@@ -119,7 +121,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   onSaveToken,
   onDeleteToken,
 }) => {
-  const auth = useAuth({ githubUser, isViewOnlyMode });
+  const auth = useAuth({ githubUser, isViewOnlyMode, hasEditPermissions });
 
   const renderView = () => {
     switch (currentView) {

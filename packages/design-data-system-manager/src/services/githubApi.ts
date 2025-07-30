@@ -664,4 +664,35 @@ export class GitHubApiService {
   static hasSelectedRepository(): boolean {
     return this.getSelectedRepositoryInfo() !== null;
   }
+
+  /**
+   * Check if the authenticated user has write access to a specific repository
+   * Uses /user/repos with affiliation=owner,collaborator to find repos where user has push access
+   */
+  static async hasWriteAccessToRepository(repoFullName: string): Promise<boolean> {
+    console.log(`[GitHubApiService] Checking write access for repository: ${repoFullName}`);
+    const accessToken = await GitHubAuthService.getValidAccessToken();
+    
+    // Use /user/repos with affiliation=owner,collaborator to get repos where user has write access
+    const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/user/repos?affiliation=owner,collaborator&per_page=100`, {
+      headers: {
+        'Authorization': `token ${accessToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    if (!response.ok) {
+      console.error(`[GitHubApiService] Failed to check repository access: ${response.statusText}`);
+      // Default to view-only access if we can't determine permissions
+      return false;
+    }
+    
+    const repos = await response.json();
+    
+    // Check if the target repository is in the list of repos where user has write access
+    const hasAccess = repos.some((repo: GitHubRepo) => repo.full_name === repoFullName);
+    
+    console.log(`[GitHubApiService] User ${hasAccess ? 'has' : 'does not have'} write access to ${repoFullName}`);
+    return hasAccess;
+  }
 } 

@@ -75,6 +75,8 @@ interface HeaderProps {
     path: string;
     branch: string;
   } | null;
+  // GitHub permissions
+  hasEditPermissions?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -95,6 +97,8 @@ export const Header: React.FC<HeaderProps> = ({
   // URL-based access props
   isURLBasedAccess = false,
   urlRepoInfo = null,
+  // GitHub permissions
+  hasEditPermissions = false,
 }) => {
   const { colorMode } = useColorMode();
   const borderColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
@@ -447,45 +451,49 @@ export const Header: React.FC<HeaderProps> = ({
                       </Button>
                       {selectedRepoInfo && (
                         <>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            justifyContent="flex-start"
-                            borderRadius={0}
-                            leftIcon={<RefreshCw size={16} />}
-                            onClick={() => {
-                              handleRefreshData();
-                              setIsGitHubWorkflowMenuOpen(false);
-                            }}
-                          >
-                            Refresh (pull) data
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            justifyContent="flex-start"
-                            borderRadius={0}
-                            leftIcon={<GitCommitVertical size={16} />}
-                            onClick={() => {
-                              handleSaveToGitHub();
-                              setIsGitHubWorkflowMenuOpen(false);
-                            }}
-                          >
-                            Save (commit)
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            justifyContent="flex-start"
-                            borderRadius={0}
-                            leftIcon={<GitPullRequestArrow size={16} />}
-                            onClick={() => {
-                              handleCreatePullRequest();
-                              setIsGitHubWorkflowMenuOpen(false);
-                            }}
-                          >
-                            Create Pull Request
-                          </Button>
+                          {hasEditPermissions && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                justifyContent="flex-start"
+                                borderRadius={0}
+                                leftIcon={<RefreshCw size={16} />}
+                                onClick={() => {
+                                  handleRefreshData();
+                                  setIsGitHubWorkflowMenuOpen(false);
+                                }}
+                              >
+                                Refresh (pull) data
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                justifyContent="flex-start"
+                                borderRadius={0}
+                                leftIcon={<GitCommitVertical size={16} />}
+                                onClick={() => {
+                                  handleSaveToGitHub();
+                                  setIsGitHubWorkflowMenuOpen(false);
+                                }}
+                              >
+                                Save (commit)
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                justifyContent="flex-start"
+                                borderRadius={0}
+                                leftIcon={<GitPullRequestArrow size={16} />}
+                                onClick={() => {
+                                  handleCreatePullRequest();
+                                  setIsGitHubWorkflowMenuOpen(false);
+                                }}
+                              >
+                                Create Pull Request
+                              </Button>
+                            </>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
