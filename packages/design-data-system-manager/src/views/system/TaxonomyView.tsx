@@ -441,75 +441,114 @@ export function TaxonomyView({
             Add Taxonomy
           </Button>
         )}
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="taxonomies">
-            {(provided) => (
-              <VStack
-                {...provided.droppableProps}
-                ref={provided.innerRef}
-                align="stretch"
-                spacing={2}
-              >
-                {sortedTaxonomies.map((taxonomy: Taxonomy, i: number) => (
-                  <Draggable key={taxonomy.id} draggableId={taxonomy.id} index={i}>
-                    {(provided, snapshot) => (
-                      <Box
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        p={3}
-                        borderWidth={1}
-                        borderRadius="md"
-                        bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-                        borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-                        opacity={snapshot.isDragging ? 0.8 : 1}
-                      >
-                        <HStack justify="space-between" align="center">
-                          <HStack spacing={2}>
-                            <Box w="32px" textAlign="center" fontWeight="bold" color="gray.500">
-                              {i + 1}
-                            </Box>
-                            {canEdit && (
+        {canEdit ? (
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="taxonomies">
+              {(provided) => (
+                <VStack
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  align="stretch"
+                  spacing={2}
+                >
+                  {sortedTaxonomies.map((taxonomy: Taxonomy, i: number) => (
+                    <Draggable key={taxonomy.id} draggableId={taxonomy.id} index={i}>
+                      {(provided, snapshot) => (
+                        <Box
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          p={3}
+                          borderWidth={1}
+                          borderRadius="md"
+                          bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                          borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                          opacity={snapshot.isDragging ? 0.8 : 1}
+                        >
+                          <HStack justify="space-between" align="center">
+                            <HStack spacing={2}>
+                              <Box w="32px" textAlign="center" fontWeight="bold" color="gray.500">
+                                {i + 1}
+                              </Box>
                               <Box {...provided.dragHandleProps} cursor="grab">
                                 <LuGripVertical />
                               </Box>
-                            )}
-                            <Box>
-                              <CardTitle title={taxonomy.name} cardType="taxonomy" />
-                              <Text fontSize="sm" color="gray.600">{taxonomy.description}</Text>
-                              <Text fontSize="xs" color="gray.500">ID: {taxonomy.id}</Text>
-                              <Text fontSize="sm" color="gray.600">
-                                Terms: {taxonomy.terms.map((term) => term.name).join(', ')}
-                              </Text>
-                              {Array.isArray(taxonomy.resolvedValueTypeIds) && taxonomy.resolvedValueTypeIds.length > 0 && (
-                                <Wrap mt={2} spacing={2}>
-                                  {taxonomy.resolvedValueTypeIds.map((typeId: string) => {
-                                    const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
-                                    return type ? (
-                                      <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">
-                                        <TagLabel>{type.displayName}</TagLabel>
-                                      </Tag>
-                                    ) : null;
-                                  })}
-                                </Wrap>
-                              )}
-                            </Box>
-                          </HStack>
-                          {canEdit && (
+                              <Box>
+                                <CardTitle title={taxonomy.name} cardType="taxonomy" />
+                                <Text fontSize="sm" color="gray.600">{taxonomy.description}</Text>
+                                <Text fontSize="xs" color="gray.500">ID: {taxonomy.id}</Text>
+                                <Text fontSize="sm" color="gray.600">
+                                  Terms: {taxonomy.terms.map((term) => term.name).join(', ')}
+                                </Text>
+                                {Array.isArray(taxonomy.resolvedValueTypeIds) && taxonomy.resolvedValueTypeIds.length > 0 && (
+                                  <Wrap mt={2} spacing={2}>
+                                    {taxonomy.resolvedValueTypeIds.map((typeId: string) => {
+                                      const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
+                                      return type ? (
+                                        <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">
+                                          <TagLabel>{type.displayName}</TagLabel>
+                                        </Tag>
+                                      ) : null;
+                                    })}
+                                  </Wrap>
+                                )}
+                              </Box>
+                            </HStack>
                             <HStack>
                               <IconButton aria-label="Edit taxonomy" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
                               <IconButton aria-label="Delete taxonomy" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
                             </HStack>
-                          )}
-                        </HStack>
-                      </Box>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </VStack>
-            )}
-          </Droppable>
-        </DragDropContext>
+                          </HStack>
+                        </Box>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </VStack>
+              )}
+            </Droppable>
+          </DragDropContext>
+        ) : (
+          <VStack align="stretch" spacing={2}>
+            {sortedTaxonomies.map((taxonomy: Taxonomy, i: number) => (
+              <Box
+                key={taxonomy.id}
+                p={3}
+                borderWidth={1}
+                borderRadius="md"
+                bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+              >
+                <HStack justify="space-between" align="center">
+                  <HStack spacing={2}>
+                    <Box w="32px" textAlign="center" fontWeight="bold" color="gray.500">
+                      {i + 1}
+                    </Box>
+                    <Box>
+                      <CardTitle title={taxonomy.name} cardType="taxonomy" />
+                      <Text fontSize="sm" color="gray.600">{taxonomy.description}</Text>
+                      <Text fontSize="xs" color="gray.500">ID: {taxonomy.id}</Text>
+                      <Text fontSize="sm" color="gray.600">
+                        Terms: {taxonomy.terms.map((term) => term.name).join(', ')}
+                      </Text>
+                      {Array.isArray(taxonomy.resolvedValueTypeIds) && taxonomy.resolvedValueTypeIds.length > 0 && (
+                        <Wrap mt={2} spacing={2}>
+                          {taxonomy.resolvedValueTypeIds.map((typeId: string) => {
+                            const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
+                            return type ? (
+                              <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">
+                                <TagLabel>{type.displayName}</TagLabel>
+                              </Tag>
+                            ) : null;
+                          })}
+                        </Wrap>
+                      )}
+                    </Box>
+                  </HStack>
+                </HStack>
+              </Box>
+            ))}
+          </VStack>
+        )}
       </Box>
 
       <TaxonomyEditorDialog

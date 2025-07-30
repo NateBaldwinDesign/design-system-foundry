@@ -196,72 +196,108 @@ export function DimensionsView({
             Add Dimension
           </Button>
         )}
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Droppable droppableId="dimensions">
-            {(provided) => (
-              <VStack
-                {...provided.droppableProps}
-                ref={provided.innerRef}
-                align="stretch"
-                spacing={2}
-              >
-                {sortedDimensions.map((dim: Dimension, i: number) => (
-                  <Draggable key={dim.id} draggableId={dim.id} index={i}>
-                    {(provided, snapshot) => (
-                      <Box
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        p={3}
-                        borderWidth={1}
-                        borderRadius="md"
-                        bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
-                        borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
-                        opacity={snapshot.isDragging ? 0.8 : 1}
-                      >
-                        <HStack justify="space-between" align="center">
-                          <HStack spacing={2}>
-                            <Box w="32px" textAlign="center" fontWeight="bold" color="gray.500">
-                              {i + 1}
-                            </Box>
-                            {canEdit && (
+        {canEdit ? (
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="dimensions">
+              {(provided) => (
+                <VStack
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  align="stretch"
+                  spacing={2}
+                >
+                  {sortedDimensions.map((dim: Dimension, i: number) => (
+                    <Draggable key={dim.id} draggableId={dim.id} index={i}>
+                      {(provided, snapshot) => (
+                        <Box
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          p={3}
+                          borderWidth={1}
+                          borderRadius="md"
+                          bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                          borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                          opacity={snapshot.isDragging ? 0.8 : 1}
+                        >
+                          <HStack justify="space-between" align="center">
+                            <HStack spacing={2}>
+                              <Box w="32px" textAlign="center" fontWeight="bold" color="gray.500">
+                                {i + 1}
+                              </Box>
                               <Box {...provided.dragHandleProps} cursor="grab">
                                 <LuGripVertical />
                               </Box>
-                            )}
-                            <Box>
-                              <CardTitle title={dim.displayName} cardType="dimension" />
-                              <Text fontSize="sm" color="gray.600">Modes: {dim.modes.map((m: Mode) => m.name).join(', ')}</Text>
-                              <Text fontSize="xs" color="gray.500">ID: {dim.id}</Text>
-                              {Array.isArray(dim.resolvedValueTypeIds) && dim.resolvedValueTypeIds.length > 0 && (
-                                <Wrap mt={2} spacing={2}>
-                                  {dim.resolvedValueTypeIds.map((typeId: string) => {
-                                    const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
-                                    return type ? (
-                                      <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">
-                                        <TagLabel>{type.displayName}</TagLabel>
-                                      </Tag>
-                                    ) : null;
-                                  })}
-                                </Wrap>
-                              )}
-                            </Box>
-                          </HStack>
-                          {canEdit && (
+                              <Box>
+                                <CardTitle title={dim.displayName} cardType="dimension" />
+                                <Text fontSize="sm" color="gray.600">Modes: {dim.modes.map((m: Mode) => m.name).join(', ')}</Text>
+                                <Text fontSize="xs" color="gray.500">ID: {dim.id}</Text>
+                                {Array.isArray(dim.resolvedValueTypeIds) && dim.resolvedValueTypeIds.length > 0 && (
+                                  <Wrap mt={2} spacing={2}>
+                                    {dim.resolvedValueTypeIds.map((typeId: string) => {
+                                      const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
+                                      return type ? (
+                                        <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">
+                                          <TagLabel>{type.displayName}</TagLabel>
+                                        </Tag>
+                                      ) : null;
+                                    })}
+                                  </Wrap>
+                                )}
+                              </Box>
+                            </HStack>
                             <HStack>
                               <IconButton aria-label="Edit dimension" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
                               <IconButton aria-label="Delete dimension" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
                             </HStack>
-                          )}
-                        </HStack>
-                      </Box>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </VStack>
-            )}
-          </Droppable>
-        </DragDropContext>
+                          </HStack>
+                        </Box>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </VStack>
+              )}
+            </Droppable>
+          </DragDropContext>
+        ) : (
+          <VStack align="stretch" spacing={2}>
+            {sortedDimensions.map((dim: Dimension, i: number) => (
+              <Box
+                key={dim.id}
+                p={3}
+                borderWidth={1}
+                borderRadius="md"
+                bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+              >
+                <HStack justify="space-between" align="center">
+                  <HStack spacing={2}>
+                    <Box w="32px" textAlign="center" fontWeight="bold" color="gray.500">
+                      {i + 1}
+                    </Box>
+                    <Box>
+                      <CardTitle title={dim.displayName} cardType="dimension" />
+                      <Text fontSize="sm" color="gray.600">Modes: {dim.modes.map((m: Mode) => m.name).join(', ')}</Text>
+                      <Text fontSize="xs" color="gray.500">ID: {dim.id}</Text>
+                      {Array.isArray(dim.resolvedValueTypeIds) && dim.resolvedValueTypeIds.length > 0 && (
+                        <Wrap mt={2} spacing={2}>
+                          {dim.resolvedValueTypeIds.map((typeId: string) => {
+                            const type = resolvedValueTypes.find((t: ResolvedValueType) => t.id === typeId);
+                            return type ? (
+                              <Tag key={typeId} size="md" borderRadius="full" variant="subtle" colorScheme="blue">
+                                <TagLabel>{type.displayName}</TagLabel>
+                              </Tag>
+                            ) : null;
+                          })}
+                        </Wrap>
+                      )}
+                    </Box>
+                  </HStack>
+                </HStack>
+              </Box>
+            ))}
+          </VStack>
+        )}
       </Box>
       <DimensionsEditor
         dimensions={dimensions}
