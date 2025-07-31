@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, AlertIcon, Tooltip } from '@chakra-ui/react';
+import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, AlertIcon, Tooltip, Badge } from '@chakra-ui/react';
 import { getTokenStats, getPlatformExtensionStats, getThemeStats, getLatestRelease, getRecentActivity } from '../utils/dashboardStats';
 import type { Platform, Theme, ComponentCategory, ComponentProperty, Component } from '@token-model/data-model';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
 import type { GitHubUser } from '../config/github';
 import type { PlatformExtensionAnalyticsSummary } from '../services/platformExtensionAnalyticsService';
-import { TriangleAlert } from 'lucide-react';
+import type { DataSourceContext } from '../services/dataSourceManager';
+import { TriangleAlert, Monitor, Palette } from 'lucide-react';
 
 interface DashboardViewProps {
   tokens: ExtendedToken[];
@@ -15,6 +16,7 @@ interface DashboardViewProps {
   componentProperties: ComponentProperty[];
   components: Component[];
   githubUser: GitHubUser | null;
+  dataSourceContext?: DataSourceContext;
 }
 
 const DashboardView: React.FC<DashboardViewProps> = ({ 
@@ -24,7 +26,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   componentCategories,
   componentProperties,
   components,
-  githubUser 
+  githubUser,
+  dataSourceContext
 }) => {
   const { colorMode } = useColorMode();
   const [platformExtensionStats, setPlatformExtensionStats] = useState<PlatformExtensionAnalyticsSummary | null>(null);
@@ -118,6 +121,42 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     <Box p={0} borderWidth={0} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
       <Box p={8}>
         <Heading size="xl" mb={8}>{getWelcomeMessage()}</Heading>
+        
+        {/* Data Source Context Indicator */}
+        {dataSourceContext && (dataSourceContext.currentPlatform || dataSourceContext.currentTheme) && (
+          <Box p={4} borderWidth={1} borderRadius="md" bg="chakra-body-bg" mb={6}>
+            <HStack spacing={4} align="center">
+              <Text fontSize="sm" fontWeight="medium" color="gray.600">
+                Current Data Source:
+              </Text>
+              
+              {dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none' && (
+                <HStack spacing={2}>
+                  <Monitor size={16} />
+                  <Badge colorScheme="blue" variant="subtle">
+                    {dataSourceContext.availablePlatforms.find(p => p.id === dataSourceContext.currentPlatform)?.displayName || dataSourceContext.currentPlatform}
+                  </Badge>
+                </HStack>
+              )}
+              
+              {dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none' && (
+                <HStack spacing={2}>
+                  <Palette size={16} />
+                  <Badge colorScheme="purple" variant="subtle">
+                    {dataSourceContext.availableThemes.find(t => t.id === dataSourceContext.currentTheme)?.displayName || dataSourceContext.currentTheme}
+                  </Badge>
+                </HStack>
+              )}
+              
+              {(!dataSourceContext.currentPlatform || dataSourceContext.currentPlatform === 'none') && 
+               (!dataSourceContext.currentTheme || dataSourceContext.currentTheme === 'none') && (
+                <Badge colorScheme="gray" variant="subtle">
+                  Core Data
+                </Badge>
+              )}
+            </HStack>
+          </Box>
+        )}
         
         {/* Platform Extension Analytics Section */}
         {platformStatsError && (

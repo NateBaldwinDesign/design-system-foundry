@@ -6,6 +6,7 @@ import { StorageService } from '../services/storage';
 import type { GitHubUser } from '../config/github';
 import type { ViewId } from '../hooks/useViewState';
 import { DataManager, type DataSnapshot } from '../services/dataManager';
+import type { DataSourceContext } from '../services/dataSourceManager';
 
 interface DataSourceOption {
   label: string;
@@ -25,11 +26,12 @@ interface AppLayoutProps {
     fullName: string;
     branch: string;
     filePath: string;
-    fileType: 'schema' | 'theme-override';
+    fileType: 'schema' | 'theme-override' | 'platform-extension';
   } | null;
   onGitHubConnect?: () => Promise<void>;
   onGitHubDisconnect?: () => void;
-  onFileSelected?: (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => void;
+  onFileSelected?: (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override' | 'platform-extension') => void;
+  onRefreshData?: () => Promise<void>;
   currentView: ViewId;
   onNavigate: (viewId: ViewId) => void;
   children: React.ReactNode;
@@ -42,6 +44,10 @@ interface AppLayoutProps {
   } | null;
   // GitHub permissions
   hasEditPermissions?: boolean;
+  // Data source context props
+  dataSourceContext?: DataSourceContext;
+  onPlatformChange?: (platformId: string | null) => void;
+  onThemeChange?: (themeId: string | null) => void;
 }
 
 // Custom event for data changes
@@ -59,6 +65,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onGitHubConnect,
   onGitHubDisconnect,
   onFileSelected,
+  onRefreshData,
   currentView,
   onNavigate,
   children,
@@ -67,6 +74,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   urlRepoInfo = null,
   // GitHub permissions
   hasEditPermissions = false,
+  // Data source context props
+  dataSourceContext,
+  onPlatformChange,
+  onThemeChange,
 }: AppLayoutProps) => {
   const { colorMode } = useColorMode();
   const [hasChanges, setHasChanges] = useState(false);
@@ -350,9 +361,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           onGitHubConnect={onGitHubConnect}
           onGitHubDisconnect={onGitHubDisconnect}
           onFileSelected={onFileSelected}
+          onRefreshData={onRefreshData}
           isURLBasedAccess={isViewOnlyMode}
           urlRepoInfo={urlRepoInfo}
           hasEditPermissions={hasEditPermissions}
+          dataSourceContext={dataSourceContext}
+          onPlatformChange={onPlatformChange}
+          onThemeChange={onThemeChange}
         />
         <Box flex="1" overflow="auto"  bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
           {children}

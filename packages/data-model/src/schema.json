@@ -618,10 +618,10 @@
       "themes": {
         "type": "array",
         "description": "Themes that can override token values across the entire dataset",
-        "minItems": 1,
+        "minItems": 0,
         "items": {
           "type": "object",
-          "required": ["id", "displayName", "isDefault"],
+          "required": ["id", "displayName"],
           "properties": {
             "id": {
               "type": "string",
@@ -636,13 +636,26 @@
               "type": "string",
               "description": "Detailed description of the theme"
             },
-            "isDefault": {
-              "type": "boolean",
-              "description": "Whether this is the default theme. Exactly one theme must be marked as default."
+            "overrideSource": {
+              "type": "object",
+              "description": "Reference to external theme override file containing theme-specific configuration and overrides.",
+              "properties": {
+                "repositoryUri": {
+                  "type": "string",
+                  "description": "GitHub repository URI (e.g., 'owner/repo')"
+                },
+                "filePath": {
+                  "type": "string",
+                  "description": "Path to the theme override file within the repository"
+                }
+              },
+              "required": ["repositoryUri", "filePath"]
             },
-            "overrideFileUri": {
+            "status": {
               "type": "string",
-              "description": "URI pointing to the theme override file for this theme"
+              "enum": ["active", "deprecated"],
+              "description": "Lifecycle status of this theme",
+              "default": "active"
             }
           }
         }

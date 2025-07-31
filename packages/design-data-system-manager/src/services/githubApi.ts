@@ -617,19 +617,21 @@ export class GitHubApiService {
     try {
       const data = JSON.parse(content);
       
-      // Check for schema.json structure
-      if (data.tokenCollections && data.dimensions && data.tokens && data.platforms) {
-        return 'schema';
+      // Check for platform-extension.json structure FIRST (most specific)
+      if (data.systemId && data.platformId && data.version && data.figmaFileKey) {
+        return 'platform-extension';
       }
       
       // Check for theme-override.json structure
-      if (data.systemId && data.themeId && data.tokenOverrides) {
+      if (data.systemId && data.themeId && data.tokenOverrides && !data.platformId) {
         return 'theme-override';
       }
       
-      // Check for platform-extension.json structure
-      if (data.systemId && data.platformId && data.version) {
-        return 'platform-extension';
+      // Check for schema.json structure (core design system schema) - most general
+      // Must have these core properties that define a complete design system
+      if (data.tokenCollections && data.dimensions && data.tokens && data.platforms && 
+          data.systemName && data.systemId && data.version && !data.platformId) {
+        return 'schema';
       }
       
       return 'unknown';
@@ -673,26 +675,71 @@ export class GitHubApiService {
     console.log(`[GitHubApiService] Checking write access for repository: ${repoFullName}`);
     const accessToken = await GitHubAuthService.getValidAccessToken();
     
-    // Use /user/repos with affiliation=owner,collaborator to get repos where user has write access
-    const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/user/repos?affiliation=owner,collaborator&per_page=100`, {
-      headers: {
-        'Authorization': `token ${accessToken}`,
-        'Accept': 'application/vnd.github.v3+json',
-      },
-    });
-    
-    if (!response.ok) {
-      console.error(`[GitHubApiService] Failed to check repository access: ${response.statusText}`);
-      // Default to view-only access if we can't determine permissions
-      return false;
+    // First, try to get the specific repository directly to check permissions
+    try {
+      const repoResponse = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repoFullName}`, {
+        headers: {
+          'Authorization': `token ${accessToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      });
+      
+      if (repoResponse.ok) {
+        const repo = await repoResponse.json();
+        // Check if user has push access (admin, write, or maintain permissions)
+        const hasPushAccess = repo.permissions?.push === true || 
+                             repo.permissions?.admin === true || 
+                             repo.permissions?.maintain === true;
+        
+        console.log(`[GitHubApiService] Direct repo check: User ${hasPushAccess ? 'has' : 'does not have'} write access to ${repoFullName}`);
+        return hasPushAccess;
+      }
+    } catch (error) {
+      console.warn(`[GitHubApiService] Direct repo check failed for ${repoFullName}:`, error);
+      // Fall back to the list method
     }
     
-    const repos = await response.json();
+    // Fallback: Use /user/repos with affiliation=owner,collaborator to get repos where user has write access
+    // Fetch all pages to ensure we don't miss repositories due to pagination
+    const allRepos: GitHubRepo[] = [];
+    let page = 1;
+    const perPage = 100;
+    
+    while (page <= 10) { // Safety limit to prevent infinite loops
+      const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/user/repos?affiliation=owner,collaborator&per_page=${perPage}&page=${page}`, {
+        headers: {
+          'Authorization': `token ${accessToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      });
+      
+      if (!response.ok) {
+        console.error(`[GitHubApiService] Failed to check repository access: ${response.statusText}`);
+        // Default to view-only access if we can't determine permissions
+        return false;
+      }
+      
+      const repos = await response.json();
+      
+      // If no more repositories, break
+      if (repos.length === 0) {
+        break;
+      }
+      
+      allRepos.push(...repos);
+      
+      // If we got fewer than perPage results, we've reached the end
+      if (repos.length < perPage) {
+        break;
+      }
+      
+      page++;
+    }
     
     // Check if the target repository is in the list of repos where user has write access
-    const hasAccess = repos.some((repo: GitHubRepo) => repo.full_name === repoFullName);
+    const hasAccess = allRepos.some((repo: GitHubRepo) => repo.full_name === repoFullName);
     
-    console.log(`[GitHubApiService] User ${hasAccess ? 'has' : 'does not have'} write access to ${repoFullName}`);
+    console.log(`[GitHubApiService] List method: User ${hasAccess ? 'has' : 'does not have'} write access to ${repoFullName} (checked ${allRepos.length} repos)`);
     return hasAccess;
   }
 } 

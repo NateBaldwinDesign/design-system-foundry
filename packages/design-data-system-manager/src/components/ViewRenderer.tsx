@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '@chakra-ui/react';
 import { Plus } from 'lucide-react';
 import type { ViewId } from '../hooks/useViewState';
+import { PageLoader } from './PageLoader';
 import type { 
   TokenCollection, 
   Mode, 
@@ -41,6 +42,8 @@ import SchemasView from '../views/SchemasView';
 import ComponentsView from '../views/ComponentsView';
 import { CollectionsView } from '../views/CollectionsView';
 
+import type { DataSourceContext } from '../services/dataSourceManager';
+
 interface ViewRendererProps {
   currentView: ViewId;
   // Data props
@@ -62,6 +65,15 @@ interface ViewRendererProps {
   // View mode
   isViewOnlyMode?: boolean;
   hasEditPermissions?: boolean;
+  // Data source context
+  dataSourceContext?: DataSourceContext;
+  // App loading state
+  isAppLoading?: boolean;
+  // Order props
+  dimensionOrder?: string[];
+  taxonomyOrder?: string[];
+  setDimensionOrder?: (order: string[]) => void;
+  setTaxonomyOrder?: (order: string[]) => void;
   // Handler props
   onUpdateTokens: (tokens: ExtendedToken[]) => void;
   onUpdateCollections: (collections: TokenCollection[]) => void;
@@ -102,6 +114,12 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   githubUser,
   isViewOnlyMode = false,
   hasEditPermissions = false,
+  dataSourceContext,
+  isAppLoading = false,
+  dimensionOrder,
+  taxonomyOrder,
+  setDimensionOrder,
+  setTaxonomyOrder,
   onUpdateTokens,
   onUpdateCollections,
   onUpdateDimensions,
@@ -121,7 +139,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   onSaveToken,
   onDeleteToken,
 }) => {
-  const auth = useAuth({ githubUser, isViewOnlyMode, hasEditPermissions });
+  const auth = useAuth({ githubUser, isViewOnlyMode, hasEditPermissions, dataSourceContext });
 
   const renderView = () => {
     switch (currentView) {
@@ -246,5 +264,9 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
     }
   };
 
-  return <>{renderView()}</>;
+  return (
+    <PageLoader isLoading={isAppLoading}>
+      {renderView()}
+    </PageLoader>
+  );
 }; 

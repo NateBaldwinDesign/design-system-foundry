@@ -2482,37 +2482,46 @@
     {
       "id": "theme-default",
       "displayName": "Default Theme",
+      "description": "The default theme for the design system",
       "platforms": [
         "platform-figma",
         "platform-web",
         "platform-ios",
         "platform-android"
       ],
-      "isDefault": true
+      "status": "active"
     },
     {
       "id": "theme-brand-a",
       "displayName": "Brand A",
+      "description": "Brand A theme with custom color palette",
       "platforms": [
         "platform-figma",
         "platform-web",
         "platform-ios",
         "platform-android"
       ],
-      "isDefault": false,
-      "overrideFileUri": "themed/brand-a-overrides.json"
+      "status": "active",
+      "overrideSource": {
+        "repositoryUri": "design-system/brand-a-theme",
+        "filePath": "theme-brand-a.json"
+      }
     },
     {
       "id": "theme-brand-b",
       "displayName": "Brand B",
+      "description": "Brand B theme with alternative styling",
       "platforms": [
         "platform-figma",
         "platform-web",
         "platform-ios",
         "platform-android"
       ],
-      "isDefault": false,
-      "overrideFileUri": "themed/brand-b-overrides.json"
+      "status": "active",
+      "overrideSource": {
+        "repositoryUri": "design-system/brand-b-theme",
+        "filePath": "theme-brand-b.json"
+      }
     }
   ],
   "taxonomyOrder": [

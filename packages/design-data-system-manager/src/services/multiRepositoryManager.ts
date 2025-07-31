@@ -10,7 +10,9 @@ import type {
 import { 
   validateTokenSystem, 
   validateThemeOverrides,
-  validatePlatformExtension
+  validatePlatformExtension,
+  SchemaValidationService,
+  type ValidationResult
 } from '@token-model/data-model';
 
 // Import data merging functionality
@@ -573,6 +575,113 @@ export class MultiRepositoryManager {
     } catch (error) {
       link.status = 'error';
       link.error = error instanceof Error ? error.message : 'Unknown error';
+    }
+  }
+
+  // ============================================================================
+  // Schema-Aware Data Updates (Phase 4.4)
+  // ============================================================================
+
+  /**
+   * Update data for specific source with schema validation
+   */
+  async updateDataForSource(
+    sourceType: 'core' | 'platform-extension' | 'theme-override',
+    sourceId: string,
+    updates: Record<string, unknown>
+  ): Promise<ValidationResult> {
+    try {
+      // Get current data for the source
+      let currentData: Record<string, unknown>;
+      
+      switch (sourceType) {
+        case 'core': {
+          currentData = this.currentData.core || {};
+          break;
+        }
+        case 'platform-extension': {
+          currentData = this.currentData.platformExtensions.get(sourceId) || {};
+          break;
+        }
+        case 'theme-override': {
+          currentData = this.currentData.themeOverrides || {};
+          break;
+        }
+      }
+
+      // Merge updates with current data
+      const updatedData = { ...currentData, ...updates };
+
+      // Validate against appropriate schema
+      const validationResult = this.validateDataAgainstSchema(updatedData, sourceType);
+      if (!validationResult.isValid) {
+        return validationResult;
+      }
+
+      // Update storage data
+      switch (sourceType) {
+        case 'core': {
+          this.currentData.core = updatedData as TokenSystem;
+          break;
+        }
+        case 'platform-extension': {
+          this.currentData.platformExtensions.set(sourceId, updatedData as PlatformExtension);
+          break;
+        }
+        case 'theme-override': {
+          this.currentData.themeOverrides = updatedData as ThemeOverrides;
+          break;
+        }
+      }
+
+      // Update merged data for presentation
+      await this.updateMergedData();
+      
+      // Persist changes
+      this.persistData();
+      
+      // Notify callbacks
+      this.callbacks.onDataChanged?.(this.currentData);
+
+      return { isValid: true, errors: [], warnings: [] };
+    } catch (error) {
+      return {
+        isValid: false,
+        errors: [error instanceof Error ? error.message : 'Update failed'],
+        warnings: []
+      };
+    }
+  }
+
+  /**
+   * Validate data against appropriate schema
+   */
+  private validateDataAgainstSchema(
+    data: Record<string, unknown>,
+    sourceType: 'core' | 'platform-extension' | 'theme-override'
+  ): ValidationResult {
+    try {
+      switch (sourceType) {
+        case 'core': {
+          SchemaValidationService.validateCoreData(data as TokenSystem);
+          break;
+        }
+        case 'platform-extension': {
+          SchemaValidationService.validatePlatformExtension(data as PlatformExtension);
+          break;
+        }
+        case 'theme-override': {
+          SchemaValidationService.validateThemeOverrideFile(data as ThemeOverrides);
+          break;
+        }
+      }
+      return { isValid: true, errors: [], warnings: [] };
+    } catch (error) {
+      return {
+        isValid: false,
+        errors: [error instanceof Error ? error.message : 'Validation failed'],
+        warnings: []
+      };
     }
   }
 } 

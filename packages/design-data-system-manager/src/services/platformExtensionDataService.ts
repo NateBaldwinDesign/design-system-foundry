@@ -1,5 +1,6 @@
 import { GitHubApiService } from './githubApi';
 import { StorageService } from './storage';
+import { JsonValidator } from '../utils/jsonValidator';
 import type { GitHubFile } from '../config/github';
 
 export interface PlatformExtensionData {
@@ -113,8 +114,32 @@ export class PlatformExtensionDataService {
         };
       }
 
-      // Parse the JSON content
-      const data = JSON.parse(fileContent.content) as PlatformExtensionData;
+      // Parse the JSON content with better error handling
+      let data: PlatformExtensionData;
+      try {
+        data = JSON.parse(fileContent.content) as PlatformExtensionData;
+      } catch (parseError) {
+        console.error(`[PlatformExtensionDataService] JSON parse error for ${platformId}:`, {
+          error: parseError,
+          contentLength: fileContent.content.length,
+          contentPreview: fileContent.content.substring(0, 200) + '...',
+          repositoryUri,
+          filePath,
+          branch
+        });
+        
+        // Use JsonValidator for detailed error analysis
+        if (parseError instanceof SyntaxError) {
+          const errorInfo = JsonValidator.formatErrorInfo(
+            parseError, 
+            fileContent.content, 
+            `Platform Extension ${platformId} (${repositoryUri}/${filePath})`
+          );
+          console.error(errorInfo);
+        }
+        
+        throw parseError;
+      }
       
       // Validate that this is a platform extension file
       if (!data.systemId || !data.platformId || !data.version) {

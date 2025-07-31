@@ -4,6 +4,11 @@ import { GitHubApiService } from './githubApi';
 import { GitHubAuthService } from './githubAuth';
 import { PlatformExtensionDataService } from './platformExtensionDataService';
 import { PlatformExtensionAnalyticsService } from './platformExtensionAnalyticsService';
+import { ThemeOverrideDataService } from './themeOverrideDataService';
+import { 
+  SchemaValidationService,
+  type ValidationResult 
+} from '@token-model/data-model';
 import type { 
   TokenCollection, 
   Mode, 
@@ -16,7 +21,10 @@ import type {
   FigmaConfiguration,
   ComponentProperty,
   ComponentCategory,
-  Component
+  Component,
+  TokenSystem,
+  PlatformExtension,
+  ThemeOverrideFile
 } from '@token-model/data-model';
 import type { Algorithm } from '../types/algorithm';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
@@ -67,10 +75,61 @@ export interface DataManagerCallbacks {
   onBaselineUpdated?: (data: DataSnapshot) => void;
 }
 
+// Schema-aware storage interfaces
+export interface StorageData {
+  core: TokenSystem | null;
+  platformExtensions: Record<string, PlatformExtension>;
+  themeOverrides: Record<string, ThemeOverrideFile>;
+}
+
+export interface DataManagerState {
+  // Presentation data (merged for UI)
+  presentationData: DataSnapshot;
+  
+  // Storage data (schema-compliant for each source)
+  storageData: StorageData;
+  
+  // Current data source context (will be integrated with DataSourceManager)
+  currentSourceType: 'core' | 'platform-extension' | 'theme-override';
+  currentSourceId?: string;
+}
+
 export class DataManager {
   private static instance: DataManager;
   private callbacks: DataManagerCallbacks = {};
   private isInitialized = false;
+  
+  // Schema-aware storage state
+  private state: DataManagerState = {
+    presentationData: {
+      collections: [],
+      modes: [],
+      dimensions: [],
+      resolvedValueTypes: [],
+      platforms: [],
+      themes: [],
+      tokens: [],
+      taxonomies: [],
+      componentProperties: [],
+      componentCategories: [],
+      components: [],
+      algorithms: [],
+      taxonomyOrder: [],
+      dimensionOrder: [],
+      algorithmFile: null,
+      linkedRepositories: [],
+      platformExtensions: {},
+      themeOverrides: null,
+      figmaConfiguration: null
+    },
+    storageData: {
+      core: null,
+      platformExtensions: {},
+      themeOverrides: {}
+    },
+    currentSourceType: 'core',
+    currentSourceId: undefined
+  };
 
   private constructor() {}
 
@@ -108,6 +167,16 @@ export class DataManager {
       await this.preloadPlatformExtensions(snapshot.platforms);
     }
     
+    // Pre-load theme override data if themes have external sources
+    if (snapshot.themes.length > 0) {
+      await this.preloadThemeOverrides(snapshot.themes);
+    }
+    
+    // Pre-load theme override data if themes have external sources
+    if (snapshot.themes.length > 0) {
+      await this.preloadThemeOverrides(snapshot.themes);
+    }
+    
     // Set baseline for change tracking
     this.setBaseline(snapshot);
     
@@ -129,7 +198,7 @@ export class DataManager {
   /**
    * Load data from GitHub and update storage and state
    */
-  async loadFromGitHub(fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override'): Promise<DataSnapshot> {
+  async loadFromGitHub(fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override' | 'platform-extension'): Promise<DataSnapshot> {
     console.log('[DataManager] Loading GitHub data, file type:', fileType);
     
     try {
@@ -139,6 +208,11 @@ export class DataManager {
         snapshot = this.processSchemaData(fileContent);
       } else if (fileType === 'theme-override') {
         snapshot = this.processThemeOverrideData(fileContent);
+      } else if (fileType === 'platform-extension') {
+        // For platform extension files, treat them as schema files for now
+        // This allows the "Select new repository" action to work properly
+        console.log('[DataManager] Treating platform extension as schema file for repository selection');
+        snapshot = this.processSchemaData(fileContent);
       } else {
         throw new Error(`Unsupported file type: ${fileType}`);
       }
@@ -255,6 +329,7 @@ export class DataManager {
       
       // Parse the file content
       const parsedData = JSON.parse(fileContent.content);
+      console.log('[DataManager] Parsed data themes:', parsedData.themes);
       
       // Process the data using existing logic
       const snapshot = this.processSchemaData(parsedData);
@@ -409,6 +484,9 @@ export class DataManager {
    * Store snapshot in localStorage
    */
   private storeSnapshot(snapshot: DataSnapshot): void {
+    console.log('[DataManager] storeSnapshot called at:', new Date().toISOString());
+    console.log('[DataManager] Storing themes:', snapshot.themes);
+    
     StorageService.setCollections(snapshot.collections);
     StorageService.setModes(snapshot.modes);
     StorageService.setDimensions(snapshot.dimensions);
@@ -468,6 +546,9 @@ export class DataManager {
    * Process schema data from GitHub
    */
   private processSchemaData(fileContent: Record<string, unknown>): DataSnapshot {
+    console.log('[DataManager] processSchemaData called at:', new Date().toISOString());
+    console.log('[DataManager] Raw themes from fileContent:', fileContent.themes);
+    
     const normalizedCollections = (fileContent.tokenCollections as TokenCollection[]) ?? [];
     const normalizedDimensions = (fileContent.dimensions as Dimension[]) ?? [];
     const normalizedTokens = ((fileContent.tokens as Token[]) ?? []).map((token: Token) => ({
@@ -475,12 +556,18 @@ export class DataManager {
       valuesByMode: token.valuesByMode
     }));
     const normalizedPlatforms = (fileContent.platforms as Platform[]) ?? [];
-    const normalizedThemes = ((fileContent.themes as Theme[]) ?? []).map((theme: Theme) => ({
-      id: theme.id,
-      displayName: theme.displayName,
-      isDefault: theme.isDefault ?? false,
-      description: theme.description
-    }));
+    const normalizedThemes = ((fileContent.themes as Theme[]) ?? []).map((theme: Theme) => {
+      console.log(`[DataManager] Processing theme ${theme.id}:`, theme);
+      return {
+        id: theme.id,
+        displayName: theme.displayName,
+        description: theme.description,
+        overrideSource: theme.overrideSource,
+        status: theme.status
+      };
+    });
+    
+    console.log('[DataManager] Normalized themes:', normalizedThemes);
     const normalizedTaxonomies = (fileContent.taxonomies as Taxonomy[]) ?? [];
     const normalizedResolvedValueTypes = (fileContent.resolvedValueTypes as ResolvedValueType[]) ?? [];
     const normalizedTaxonomyOrder = ((fileContent.taxonomyOrder as string[]) ?? normalizedTaxonomies.map(t => t.id));
@@ -567,8 +654,9 @@ export class DataManager {
     const normalizedThemes = ((d.themes as Theme[]) ?? []).map((theme: Theme) => ({
       id: theme.id,
       displayName: theme.displayName,
-      isDefault: theme.isDefault ?? false,
-      description: theme.description
+      description: theme.description,
+      overrideSource: theme.overrideSource,
+      status: theme.status
     }));
     const normalizedTaxonomies = (d.taxonomies as Taxonomy[]) ?? [];
     const normalizedResolvedValueTypes = (d.resolvedValueTypes as ResolvedValueType[]) ?? [];
@@ -655,18 +743,29 @@ export class DataManager {
     const preloadPromises = platformsWithExtensions.map(async (platform) => {
       try {
         const { repositoryUri, filePath } = platform.extensionSource!;
-        console.log(`[DataManager] Pre-loading platform extension for ${platform.id} from ${repositoryUri}/${filePath}`);
+        console.log(`[DataManager] Pre-loading platform extension for ${platform.id} (${platform.displayName}) from ${repositoryUri}/${filePath}`);
         
-        await PlatformExtensionDataService.getPlatformExtensionData(
+        const result = await PlatformExtensionDataService.getPlatformExtensionData(
           repositoryUri,
           filePath,
           'main', // Default branch
           platform.id
         );
         
-        console.log(`[DataManager] Successfully pre-loaded platform extension for ${platform.id}`);
+        if (result.error) {
+          console.warn(`[DataManager] Platform extension ${platform.id} (${platform.displayName}) returned error:`, result.error);
+        } else {
+          console.log(`[DataManager] Successfully pre-loaded platform extension for ${platform.id} (${platform.displayName})`);
+        }
       } catch (error) {
-        console.warn(`[DataManager] Failed to pre-load platform extension for ${platform.id}:`, error);
+        console.error(`[DataManager] Failed to pre-load platform extension for ${platform.id} (${platform.displayName}):`, {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          platform: {
+            id: platform.id,
+            displayName: platform.displayName,
+            extensionSource: platform.extensionSource
+          }
+        });
         // Don't throw here - we want to continue loading other extensions even if one fails
       }
     });
@@ -678,5 +777,226 @@ export class DataManager {
       console.error('[DataManager] Error during platform extension pre-loading:', error);
       // Don't throw here - this is a best-effort operation
     }
+  }
+
+  /**
+   * Pre-load theme override data for themes with external sources
+   */
+  private async preloadThemeOverrides(themes: Theme[]): Promise<void> {
+    const themesWithOverrides = themes.filter(t => t.overrideSource);
+    if (themesWithOverrides.length === 0) {
+      console.log('[DataManager] No themes with external sources to pre-load');
+      return;
+    }
+
+    console.log('[DataManager] Pre-loading theme overrides for', themesWithOverrides.length, 'themes');
+    
+    // Clear existing cache to ensure fresh data
+    ThemeOverrideDataService.clearAllCache();
+    
+    // Pre-load all theme overrides in parallel
+    const preloadPromises = themesWithOverrides.map(async (theme) => {
+      try {
+        const { repositoryUri, filePath } = theme.overrideSource!;
+        console.log(`[DataManager] Pre-loading theme override for ${theme.id} (${theme.displayName}) from ${repositoryUri}/${filePath}`);
+        
+        const result = await ThemeOverrideDataService.getThemeOverrideData(
+          repositoryUri,
+          filePath,
+          'main', // Default branch
+          theme.id
+        );
+        
+        if (result.error) {
+          console.warn(`[DataManager] Theme override ${theme.id} (${theme.displayName}) returned error:`, result.error);
+        } else {
+          console.log(`[DataManager] Successfully pre-loaded theme override for ${theme.id} (${theme.displayName})`);
+        }
+      } catch (error) {
+        console.error(`[DataManager] Failed to pre-load theme override for ${theme.id} (${theme.displayName}):`, {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          theme: {
+            id: theme.id,
+            displayName: theme.displayName,
+            overrideSource: theme.overrideSource
+          }
+        });
+        // Don't throw here - we want to continue loading other overrides even if one fails
+      }
+    });
+
+    try {
+      await Promise.allSettled(preloadPromises);
+      console.log('[DataManager] Completed theme override pre-loading');
+    } catch (error) {
+      console.error('[DataManager] Error during theme override pre-loading:', error);
+      // Don't throw here - this is a best-effort operation
+    }
+  }
+
+  // ============================================================================
+  // Schema-Aware Storage Methods (Phase 4.1)
+  // ============================================================================
+
+  /**
+   * Get data for presentation (merged)
+   */
+  getPresentationSnapshot(): DataSnapshot {
+    return this.state.presentationData;
+  }
+
+  /**
+   * Get data for storage (schema-compliant)
+   */
+  getStorageDataForSource(
+    sourceType: 'core' | 'platform-extension' | 'theme-override', 
+    sourceId?: string
+  ): Record<string, unknown> {
+    switch (sourceType) {
+      case 'core':
+        return this.state.storageData.core || {};
+      case 'platform-extension':
+        if (!sourceId) {
+          throw new Error('Platform ID required for platform extension data');
+        }
+        return this.state.storageData.platformExtensions[sourceId] || {};
+      case 'theme-override':
+        if (!sourceId) {
+          throw new Error('Theme ID required for theme override data');
+        }
+        return this.state.storageData.themeOverrides[sourceId] || {};
+      default:
+        throw new Error(`Unknown source type: ${sourceType}`);
+    }
+  }
+
+  /**
+   * Update data with schema validation
+   */
+  updateDataWithSchemaValidation(
+    updates: Partial<DataSnapshot>, 
+    sourceType: 'core' | 'platform-extension' | 'theme-override',
+    sourceId?: string
+  ): ValidationResult {
+    try {
+      // Validate the updates against the appropriate schema
+      const validationResult = this.validateDataForStorage(updates, sourceType);
+      if (!validationResult.isValid) {
+        return validationResult;
+      }
+
+      // Update the storage data
+      switch (sourceType) {
+        case 'core':
+          this.state.storageData.core = { ...this.state.storageData.core, ...updates } as TokenSystem;
+          break;
+        case 'platform-extension':
+          if (!sourceId) {
+            throw new Error('Platform ID required for platform extension update');
+          }
+          this.state.storageData.platformExtensions[sourceId] = {
+            ...this.state.storageData.platformExtensions[sourceId],
+            ...updates
+          } as PlatformExtension;
+          break;
+        case 'theme-override':
+          if (!sourceId) {
+            throw new Error('Theme ID required for theme override update');
+          }
+          this.state.storageData.themeOverrides[sourceId] = {
+            ...this.state.storageData.themeOverrides[sourceId],
+            ...updates
+          } as ThemeOverrideFile;
+          break;
+      }
+
+      // Update presentation data (this will trigger a merge)
+      this.updatePresentationData();
+
+      return { isValid: true, errors: [], warnings: [] };
+    } catch (error) {
+      return {
+        isValid: false,
+        errors: [error instanceof Error ? error.message : 'Update failed'],
+        warnings: []
+      };
+    }
+  }
+
+  /**
+   * Validate storage data against appropriate schema
+   */
+  validateStorageData(
+    data: Record<string, unknown>,
+    sourceType: 'core' | 'platform-extension' | 'theme-override'
+  ): ValidationResult {
+    return this.validateDataForStorage(data, sourceType);
+  }
+
+  /**
+   * Set current data source context
+   */
+  setCurrentDataSource(
+    sourceType: 'core' | 'platform-extension' | 'theme-override',
+    sourceId?: string
+  ): void {
+    this.state.currentSourceType = sourceType;
+    this.state.currentSourceId = sourceId;
+  }
+
+  /**
+   * Get current data source context
+   */
+  getCurrentDataSource(): { sourceType: 'core' | 'platform-extension' | 'theme-override'; sourceId?: string } {
+    return {
+      sourceType: this.state.currentSourceType,
+      sourceId: this.state.currentSourceId
+    };
+  }
+
+  // ============================================================================
+  // Private Helper Methods
+  // ============================================================================
+
+  /**
+   * Validate data for storage against appropriate schema
+   */
+  private validateDataForStorage(
+    data: Record<string, unknown>,
+    sourceType: 'core' | 'platform-extension' | 'theme-override'
+  ): ValidationResult {
+    try {
+      switch (sourceType) {
+        case 'core':
+          SchemaValidationService.validateCoreData(data as TokenSystem);
+          break;
+        case 'platform-extension':
+          SchemaValidationService.validatePlatformExtension(data as PlatformExtension);
+          break;
+        case 'theme-override':
+          SchemaValidationService.validateThemeOverrideFile(data as ThemeOverrideFile);
+          break;
+      }
+      return { isValid: true, errors: [], warnings: [] };
+    } catch (error) {
+      return {
+        isValid: false,
+        errors: [error instanceof Error ? error.message : 'Validation failed'],
+        warnings: []
+      };
+    }
+  }
+
+  /**
+   * Update presentation data by merging storage data
+   */
+  private updatePresentationData(): void {
+    // This will be enhanced in Phase 4.3 with EnhancedDataMerger
+    // For now, just update the presentation data with current storage data
+    const currentSnapshot = this.getCurrentSnapshot();
+    this.state.presentationData = currentSnapshot;
+    
+    // Trigger callbacks
+    this.callbacks.onDataChanged?.(currentSnapshot);
   }
 } 

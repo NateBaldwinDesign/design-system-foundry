@@ -1,6 +1,7 @@
 import { GitHubApiService } from './githubApi';
 import { StorageService } from './storage';
 import { DataManager } from './dataManager';
+import type { DataSourceContext } from './dataSourceManager';
 
 export interface SaveOptions {
   message?: string;
@@ -8,6 +9,7 @@ export interface SaveOptions {
   targetBranch?: string;
   prTitle?: string;
   prDescription?: string;
+  dataSourceContext?: DataSourceContext;
 }
 
 export interface SaveResult {
@@ -28,11 +30,29 @@ export class GitHubSaveService {
         throw new Error('No repository selected. Please load a file from GitHub first.');
       }
 
-      // Handle platform-extension file type by treating it as schema
-      const fileType = repoInfo.fileType === 'platform-extension' ? 'schema' : repoInfo.fileType;
+      // Determine source type and ID from data source context
+      let sourceType: 'core' | 'platform-extension' | 'theme-override';
+      let sourceId: string | undefined;
 
-      // Get current data from storage
-      const currentData = this.getCurrentDataForFileType(fileType);
+      if (options.dataSourceContext?.currentPlatform && options.dataSourceContext.currentPlatform !== 'none') {
+        sourceType = 'platform-extension';
+        sourceId = options.dataSourceContext.currentPlatform;
+      } else if (options.dataSourceContext?.currentTheme && options.dataSourceContext.currentTheme !== 'none') {
+        sourceType = 'theme-override';
+        sourceId = options.dataSourceContext.currentTheme;
+      } else {
+        sourceType = 'core';
+      }
+
+      // Get schema-compliant data for storage
+      const currentData = this.getCurrentDataForFileType(sourceType, sourceId);
+      
+      // Validate data against appropriate schema before saving
+      const dataManager = DataManager.getInstance();
+      const validationResult = dataManager.validateStorageData(currentData, sourceType);
+      if (!validationResult.isValid) {
+        throw new Error(`Data validation failed: ${validationResult.errors.join(', ')}`);
+      }
       
       // Convert to JSON string
       const jsonContent = JSON.stringify(currentData, null, 2);
@@ -149,52 +169,64 @@ export class GitHubSaveService {
   }
 
   /**
-   * Get current data based on file type
+   * Get current data for the specified source type and ID
    */
-  private static getCurrentDataForFileType(fileType: 'schema' | 'theme-override'): Record<string, unknown> {
-    if (fileType === 'schema') {
-      // Get root-level data from storage
-      const rootData = StorageService.getRootData();
-      
-      // Get platform extensions from DataManager
-      const dataManager = DataManager.getInstance();
-      const snapshot = dataManager.getCurrentSnapshot();
-      const platformExtensions = Array.from(Object.values(snapshot.platformExtensions));
-      
-      // Return core data structure with platform extensions
-      return {
-        tokenCollections: StorageService.getCollections(),
-        dimensions: StorageService.getDimensions(),
-        tokens: StorageService.getTokens(),
-        platforms: StorageService.getPlatforms(),
-        themes: StorageService.getThemes(),
-        taxonomies: StorageService.getTaxonomies(),
-        resolvedValueTypes: StorageService.getValueTypes(),
-        componentProperties: StorageService.getComponentProperties(),
-        componentCategories: StorageService.getComponentCategories(),
-        components: StorageService.getComponents(),
-        taxonomyOrder: StorageService.getTaxonomyOrder(),
-        versionHistory: rootData.versionHistory || [],
-        systemName: rootData.systemName || 'Design System',
-        systemId: rootData.systemId || 'design-system',
-        description: rootData.description || 'A comprehensive design system with tokens, dimensions, and themes',
-        version: rootData.version || '1.0.0',
-        figmaConfiguration: snapshot.figmaConfiguration,
-        // Include platform extensions in the core schema
-        platformExtensions: platformExtensions
-      };
-    } else if (fileType === 'theme-override') {
-      // Return theme override structure
-      // This would need to be implemented based on your theme override schema
-      return {
-        systemId: 'design-system',
-        themeId: 'default-theme',
-        tokenOverrides: {},
-        version: '1.0.0'
-      };
+  private static getCurrentDataForFileType(
+    sourceType: 'core' | 'platform-extension' | 'theme-override',
+    sourceId?: string
+  ): Record<string, unknown> {
+    const dataManager = DataManager.getInstance();
+    
+    switch (sourceType) {
+      case 'core': {
+        // Get root-level data from storage
+        const rootData = StorageService.getRootData();
+        
+        // Get platform extensions from DataManager
+        const snapshot = dataManager.getCurrentSnapshot();
+        const platformExtensions = Array.from(Object.values(snapshot.platformExtensions));
+        
+        // Return core data structure with platform extensions
+        return {
+          tokenCollections: StorageService.getCollections(),
+          dimensions: StorageService.getDimensions(),
+          tokens: StorageService.getTokens(),
+          platforms: StorageService.getPlatforms(),
+          themes: StorageService.getThemes(),
+          taxonomies: StorageService.getTaxonomies(),
+          resolvedValueTypes: StorageService.getValueTypes(),
+          componentProperties: StorageService.getComponentProperties(),
+          componentCategories: StorageService.getComponentCategories(),
+          components: StorageService.getComponents(),
+          taxonomyOrder: StorageService.getTaxonomyOrder(),
+          versionHistory: rootData.versionHistory || [],
+          systemName: rootData.systemName || 'Design System',
+          systemId: rootData.systemId || 'design-system',
+          description: rootData.description || 'A comprehensive design system with tokens, dimensions, and themes',
+          version: rootData.version || '1.0.0',
+          figmaConfiguration: snapshot.figmaConfiguration,
+          // Include platform extensions in the core schema
+          platformExtensions: platformExtensions
+        };
+      }
+        
+      case 'platform-extension': {
+        if (!sourceId) {
+          throw new Error('Platform ID required for platform extension save');
+        }
+        return dataManager.getStorageDataForSource('platform-extension', sourceId);
+      }
+        
+      case 'theme-override': {
+        if (!sourceId) {
+          throw new Error('Theme ID required for theme override save');
+        }
+        return dataManager.getStorageDataForSource('theme-override', sourceId);
+      }
+        
+      default:
+        throw new Error(`Unsupported source type: ${sourceType}`);
     }
-
-    throw new Error(`Unsupported file type: ${fileType}`);
   }
 
   /**

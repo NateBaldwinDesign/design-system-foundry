@@ -74,10 +74,8 @@ export class DataTypeDetector {
       themeScore += 3;
       reasons.push('Has themeOverrides array (strong theme indicator)');
     }
-    if (fileContent.isDefault !== undefined) {
-      themeScore += 1;
-      reasons.push('Has isDefault property (theme indicator)');
-    }
+    // Note: isDefault property has been removed from themes schema
+    // No longer using isDefault as a theme indicator
 
     // Determine the type based on highest score
     const maxScore = Math.max(coreScore, extensionScore, themeScore);

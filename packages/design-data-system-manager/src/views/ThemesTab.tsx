@@ -18,7 +18,9 @@ import {
   ModalFooter,
   ModalCloseButton,
   Tag,
-  useColorMode
+  useColorMode,
+  Select,
+  FormHelperText
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
 
@@ -27,6 +29,11 @@ interface Theme {
   displayName: string;
   description?: string;
   isDefault?: boolean;
+  overrideSource?: {
+    repositoryUri: string;
+    filePath: string;
+  };
+  status?: 'active' | 'deprecated';
 }
 
 interface ThemesTabProps {
@@ -43,7 +50,8 @@ export function ThemesTab({ themes, setThemes, canEdit = true }: ThemesTabProps)
     id: '',
     displayName: '',
     description: '',
-    isDefault: false
+    isDefault: false,
+    status: 'active'
   });
   const toast = useToast();
 
@@ -56,7 +64,8 @@ export function ThemesTab({ themes, setThemes, canEdit = true }: ThemesTabProps)
         id: '',
         displayName: '',
         description: '',
-        isDefault: false
+        isDefault: false,
+        status: 'active'
       });
     }
     setOpen(true);
@@ -171,9 +180,17 @@ export function ThemesTab({ themes, setThemes, canEdit = true }: ThemesTabProps)
                   <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.400' : 'gray.600'}>
                     {theme.description || ''}
                   </Text>
-                  {theme.isDefault && (
-                    <Tag colorScheme="green" size="sm" mt={1}>Default</Tag>
-                  )}
+                  <HStack spacing={2} mt={1}>
+                    {theme.isDefault && (
+                      <Tag colorScheme="green" size="sm">Default</Tag>
+                    )}
+                    {theme.status === 'deprecated' && (
+                      <Tag colorScheme="red" size="sm">Deprecated</Tag>
+                    )}
+                    {theme.overrideSource && (
+                      <Tag colorScheme="blue" size="sm">External</Tag>
+                    )}
+                  </HStack>
                 </Box>
                 {canEdit && (
                   <HStack>
@@ -231,6 +248,52 @@ export function ThemesTab({ themes, setThemes, canEdit = true }: ThemesTabProps)
                 >
                   {form.isDefault ? 'Default Theme' : 'Set as Default'}
                 </Button>
+              </FormControl>
+              
+              <FormControl>
+                <FormLabel>Status</FormLabel>
+                <Select
+                  value={form.status || 'active'}
+                  onChange={e => handleFormChange('status', e.target.value)}
+                  bg={colorMode === 'dark' ? 'gray.700' : 'white'}
+                >
+                  <option value="active">Active</option>
+                  <option value="deprecated">Deprecated</option>
+                </Select>
+                <FormHelperText>Lifecycle status of this theme</FormHelperText>
+              </FormControl>
+              
+              <FormControl>
+                <FormLabel>External Theme Override</FormLabel>
+                <VStack spacing={2} align="stretch">
+                  <Input
+                    placeholder="Repository URI (e.g., owner/repo)"
+                    value={form.overrideSource?.repositoryUri || ''}
+                    onChange={e => {
+                      const repositoryUri = e.target.value;
+                      const filePath = form.overrideSource?.filePath || '';
+                      setForm(prev => ({
+                        ...prev,
+                        overrideSource: repositoryUri && filePath ? { repositoryUri, filePath } : undefined
+                      }));
+                    }}
+                    bg={colorMode === 'dark' ? 'gray.700' : 'white'}
+                  />
+                  <Input
+                    placeholder="File path (e.g., theme-dark.json)"
+                    value={form.overrideSource?.filePath || ''}
+                    onChange={e => {
+                      const repositoryUri = form.overrideSource?.repositoryUri || '';
+                      const filePath = e.target.value;
+                      setForm(prev => ({
+                        ...prev,
+                        overrideSource: repositoryUri && filePath ? { repositoryUri, filePath } : undefined
+                      }));
+                    }}
+                    bg={colorMode === 'dark' ? 'gray.700' : 'white'}
+                  />
+                </VStack>
+                <FormHelperText>Optional: Reference to external theme override file</FormHelperText>
               </FormControl>
             </VStack>
           </ModalBody>

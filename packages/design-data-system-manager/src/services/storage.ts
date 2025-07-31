@@ -10,7 +10,10 @@ import type {
   FigmaConfiguration,
   ComponentProperty,
   ComponentCategory,
-  Component
+  Component,
+  TokenSystem,
+  PlatformExtension,
+  ThemeOverrideFile
 } from '@token-model/data-model';
 import { generateDefaultValueTypes } from '../utils/defaultValueTypes';
 import { Algorithm } from '../types/algorithm';
@@ -44,7 +47,12 @@ const STORAGE_KEYS = {
   FIGMA_CONFIGURATION: 'token-model:figma-configuration',
   COMPONENT_PROPERTIES: 'token-model:component-properties',
   COMPONENT_CATEGORIES: 'token-model:component-categories',
-  COMPONENTS: 'token-model:components'
+  COMPONENTS: 'token-model:components',
+  // Schema-specific storage keys (Phase 4.3)
+  CORE_DATA: 'token-model:core-data',
+  PLATFORM_EXTENSION_DATA: 'token-model:platform-extension-data',
+  THEME_OVERRIDE_DATA: 'token-model:theme-override-data',
+  PRESENTATION_DATA: 'token-model:presentation-data'
 } as const;
 
 export class StorageService {
@@ -332,5 +340,126 @@ export class StorageService {
 
   static clearAll(): void {
     Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+  }
+
+  // ============================================================================
+  // Schema-Specific Storage Methods (Phase 4.3)
+  // ============================================================================
+
+  /**
+   * Core data storage (TokenSystem schema)
+   */
+  static getCoreData(): TokenSystem | null {
+    return this.getItem(STORAGE_KEYS.CORE_DATA, null);
+  }
+
+  static setCoreData(data: TokenSystem): void {
+    this.setItem(STORAGE_KEYS.CORE_DATA, data);
+  }
+
+  /**
+   * Platform extension storage (PlatformExtension schema)
+   */
+  static getPlatformExtensionData(platformId: string): PlatformExtension | null {
+    const key = this.getStorageKey('platform-extension', platformId);
+    return this.getItem(key, null);
+  }
+
+  static setPlatformExtensionData(platformId: string, data: PlatformExtension): void {
+    const key = this.getStorageKey('platform-extension', platformId);
+    this.setItem(key, data);
+  }
+
+  static getAllPlatformExtensionData(): Record<string, PlatformExtension> {
+    const allData: Record<string, PlatformExtension> = {};
+    const platformExtensions = this.getPlatformExtensions();
+    
+    Object.keys(platformExtensions).forEach(platformId => {
+      const data = this.getPlatformExtensionData(platformId);
+      if (data) {
+        allData[platformId] = data;
+      }
+    });
+    
+    return allData;
+  }
+
+  /**
+   * Theme override storage (ThemeOverrideFile schema)
+   */
+  static getThemeOverrideData(themeId: string): ThemeOverrideFile | null {
+    const key = this.getStorageKey('theme-override', themeId);
+    return this.getItem(key, null);
+  }
+
+  static setThemeOverrideData(themeId: string, data: ThemeOverrideFile): void {
+    const key = this.getStorageKey('theme-override', themeId);
+    this.setItem(key, data);
+  }
+
+  static getAllThemeOverrideData(): Record<string, ThemeOverrideFile> {
+    const allData: Record<string, ThemeOverrideFile> = {};
+    const themes = this.getThemes();
+    
+    themes.forEach(theme => {
+      const data = this.getThemeOverrideData(theme.id);
+      if (data) {
+        allData[theme.id] = data;
+      }
+    });
+    
+    return allData;
+  }
+
+  /**
+   * Presentation data storage (merged for UI)
+   */
+  static getPresentationData(): Record<string, unknown> | null {
+    return this.getItem(STORAGE_KEYS.PRESENTATION_DATA, null);
+  }
+
+  static setPresentationData(data: Record<string, unknown>): void {
+    this.setItem(STORAGE_KEYS.PRESENTATION_DATA, data);
+  }
+
+  /**
+   * Clear schema-specific storage
+   */
+  static clearSchemaStorage(): void {
+    // Clear core data
+    localStorage.removeItem(STORAGE_KEYS.CORE_DATA);
+    
+    // Clear platform extension data
+    const platformExtensions = this.getPlatformExtensions();
+    Object.keys(platformExtensions).forEach(platformId => {
+      const key = this.getStorageKey('platform-extension', platformId);
+      localStorage.removeItem(key);
+    });
+    
+    // Clear theme override data
+    const themes = this.getThemes();
+    themes.forEach(theme => {
+      const key = this.getStorageKey('theme-override', theme.id);
+      localStorage.removeItem(key);
+    });
+    
+    // Clear presentation data
+    localStorage.removeItem(STORAGE_KEYS.PRESENTATION_DATA);
+  }
+
+  /**
+   * Get storage key for schema-specific data
+   */
+  private static getStorageKey(type: 'core' | 'platform-extension' | 'theme-override', id?: string): string {
+    switch (type) {
+      case 'core':
+        return STORAGE_KEYS.CORE_DATA;
+      case 'platform-extension':
+        return `${STORAGE_KEYS.PLATFORM_EXTENSION_DATA}:${id}`;
+      case 'theme-override':
+        return `${STORAGE_KEYS.THEME_OVERRIDE_DATA}:${id}`;
+      default:
+        throw new Error(`Unknown storage type: ${type}`);
+    }
   }
 } 

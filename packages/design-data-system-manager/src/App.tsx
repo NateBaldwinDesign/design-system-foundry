@@ -41,7 +41,10 @@ import { ViewRenderer } from './components/ViewRenderer';
 import { ChangeTrackingService } from './services/changeTrackingService';
 import { DataManager, type DataSnapshot, type URLConfig } from './services/dataManager';
 import { MultiRepositoryManager } from './services/multiRepositoryManager';
-import { exampleData, algorithmData } from '@token-model/data-model';
+import { DataSourceManager, type DataSourceContext } from './services/dataSourceManager';
+import { GitHubCacheService } from './services/githubCache';
+import { PermissionManager } from './services/permissionManager';
+import { exampleData, algorithmData, mergeData } from '@token-model/data-model';
 
 const App = () => {
   const { schema } = useSchema();
@@ -80,6 +83,8 @@ const App = () => {
   } | null>(null);
   const [isViewOnlyMode, setIsViewOnlyMode] = useState(false);
   const [hasEditPermissions, setHasEditPermissions] = useState(false);
+  const [dataSourceContext, setDataSourceContext] = useState<DataSourceContext | undefined>(undefined);
+  const [isAppLoading, setIsAppLoading] = useState(false);
   const toast = useToast();
 
   const [changeLogData, setChangeLogData] = useState<{ currentData: Record<string, unknown>; baselineData: Record<string, unknown> | null }>({ currentData: {}, baselineData: null });
@@ -168,6 +173,7 @@ const App = () => {
             updateChangeLogData();
             
             setLoading(false);
+            setIsAppLoading(false); // End app loading state
           },
           onDataChanged: (snapshot: DataSnapshot) => {
             // Update React state when data changes
@@ -197,6 +203,12 @@ const App = () => {
           }
         };
         
+        // Initialize DataSourceManager
+        const dataSourceManager = DataSourceManager.getInstance();
+        dataSourceManager.initializeFromURL();
+        
+        setDataSourceContext(dataSourceManager.getCurrentContext());
+        
         // Check for URL parameters first
         const urlParams = new URLSearchParams(window.location.search);
         const repo = urlParams.get('repo');
@@ -206,9 +218,23 @@ const App = () => {
         if (repo) {
           // Load from URL parameters
           console.log('[App] Loading from URL parameters:', { repo, path, branch });
+          setIsAppLoading(true); // Start app loading state
           const urlConfig: URLConfig = { repo, path, branch };
           
           try {
+            // Clear all caches before loading from URL to ensure fresh data
+            console.log('[App] Clearing caches before loading from URL');
+            StorageService.clearAll();
+            GitHubCacheService.clearAll();
+            
+            // Clear DataSourceManager state
+            const dataSourceManager = DataSourceManager.getInstance();
+            dataSourceManager.clear();
+            
+            // Clear permission cache
+            const permissionManager = PermissionManager.getInstance();
+            permissionManager.clearCache();
+            
             console.log('[App] Attempting to load from URL config...');
             const snapshot = await dataManager.loadFromURLConfig(urlConfig);
             console.log('[App] Successfully loaded from URL config:', {
@@ -217,8 +243,35 @@ const App = () => {
               dimensions: snapshot.dimensions.length
             });
             
-            // Set view-only mode for URL-based access
-            setIsViewOnlyMode(true);
+            // Update DataSourceManager with repository information
+            dataSourceManager.updateRepositoryInfo('core', {
+              fullName: repo,
+              branch: branch,
+              filePath: path,
+              fileType: 'schema' as const
+            });
+            
+            // Update available sources after data is loaded
+            dataSourceManager.updateAvailableSources();
+            
+            // Check if user is authenticated and has permissions
+            const currentUser = GitHubAuthService.getCurrentUser();
+            if (currentUser) {
+              // User is authenticated, check permissions
+              const hasWriteAccess = await GitHubApiService.hasWriteAccessToRepository(repo);
+              setHasEditPermissions(hasWriteAccess);
+              setIsViewOnlyMode(!hasWriteAccess);
+              
+              // Update DataSourceManager permissions for all sources
+              await dataSourceManager.updatePermissions();
+            } else {
+              // User is not authenticated, set view-only mode
+              setIsViewOnlyMode(true);
+              setHasEditPermissions(false);
+            }
+            
+            // Update data source context
+            setDataSourceContext(dataSourceManager.getCurrentContext());
             
             // Manually update React state since callbacks should have been called
             // but let's ensure the state is updated
@@ -238,6 +291,7 @@ const App = () => {
             setDimensionOrder(snapshot.dimensionOrder);
             
             setLoading(false);
+            setIsAppLoading(false); // End app loading state for URL loading
           } catch (urlError) {
             console.warn('[App] Failed to load from URL, falling back to default initialization:', urlError);
             
@@ -285,12 +339,46 @@ const App = () => {
             
             // Fall back to default initialization if URL loading fails
             await dataManager.initialize(callbacks);
+            
+            // Update DataSourceManager after data is loaded
+            const dataSourceManager = DataSourceManager.getInstance();
+            dataSourceManager.updateAvailableSources();
+            
             setIsViewOnlyMode(false);
+            setIsAppLoading(false); // End app loading state for URL error fallback
           }
         } else {
+          // No URL parameters - check if we should clear cache for fresh start
+          const urlParams = new URLSearchParams(window.location.search);
+          const shouldClearCache = urlParams.toString() === ''; // No URL parameters
+          
+          if (shouldClearCache) {
+            console.log('[App] No URL parameters detected - clearing cache for fresh start');
+            
+            // Clear all caches
+            StorageService.clearAll();
+            GitHubCacheService.clearAll();
+            
+            // Clear DataSourceManager state
+            const dataSourceManager = DataSourceManager.getInstance();
+            dataSourceManager.clear();
+            
+            // Clear permission cache
+            const permissionManager = PermissionManager.getInstance();
+            permissionManager.clearCache();
+            
+            console.log('[App] Cache cleared - loading fresh example data');
+          }
+          
           // Use existing initialization logic
           await dataManager.initialize(callbacks);
+          
+          // Update DataSourceManager after data is loaded
+          const dataSourceManager = DataSourceManager.getInstance();
+          dataSourceManager.updateAvailableSources();
+          
           setIsViewOnlyMode(false);
+          setIsAppLoading(false); // End app loading state for default initialization
         }
         
         // Initialize GitHub state
@@ -302,6 +390,7 @@ const App = () => {
       } catch (error) {
         console.error('[App] Error initializing data manager:', error);
         setLoading(false);
+        setIsAppLoading(false); // End app loading state for initialization error
       }
     };
     
@@ -423,6 +512,21 @@ const App = () => {
       loadDataFromSource(dataSource);
     } else if (hasStoredData || hasGitHubData) {
       console.log('[App] Found existing data, not loading example data');
+      
+      // Even with existing data, we need to ensure DataSourceManager is properly initialized
+      // This is especially important for theme permissions when no URL parameters are present
+      const dataSourceManager = DataSourceManager.getInstance();
+      dataSourceManager.updateAvailableSources();
+      
+      // Check if user is authenticated and update permissions
+      const authenticatedUser = GitHubAuthService.getCurrentUser();
+      if (authenticatedUser) {
+        dataSourceManager.updatePermissions().catch(error => {
+          console.error('[App] Failed to update permissions:', error);
+        });
+      }
+      
+      setDataSourceContext(dataSourceManager.getCurrentContext());
       setLoading(false);
     }
   }, [dataSource, isGitHubConnected, loadDataFromSource]);
@@ -536,6 +640,7 @@ const App = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const repo = urlParams.get('repo');
       const path = urlParams.get('path');
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const branch = urlParams.get('branch') || 'main';
 
       if (repo && path) {
@@ -602,10 +707,25 @@ const App = () => {
     });
   };
 
-  const handleFileSelected = async (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => {
+  const handleFileSelected = async (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override' | 'platform-extension') => {
     console.log('[App] handleFileSelected called with:', { fileType, fileContent });
     
+    setIsAppLoading(true); // Start app loading state
+    
     try {
+      // Clear all caches before loading new source to ensure fresh data
+      console.log('[App] Clearing caches before loading new source');
+      StorageService.clearAll();
+      GitHubCacheService.clearAll();
+      
+      // Clear DataSourceManager state
+      const dataSourceManager = DataSourceManager.getInstance();
+      dataSourceManager.clear();
+      
+      // Clear permission cache
+      const permissionManager = PermissionManager.getInstance();
+      permissionManager.clearCache();
+      
       const dataManager = DataManager.getInstance();
       
       // Load data via DataManager
@@ -630,6 +750,90 @@ const App = () => {
         duration: 5000,
         isClosable: true,
       });
+    } finally {
+      setIsAppLoading(false); // End app loading state
+    }
+  };
+
+  const handleRefreshCurrentData = async () => {
+    console.log('[App] handleRefreshCurrentData called');
+    
+    setIsAppLoading(true); // Start app loading state
+    
+    try {
+      // Get current data source context BEFORE clearing cache
+      const dataSourceManager = DataSourceManager.getInstance();
+      const currentContext = dataSourceManager.getCurrentContext();
+      
+      // Check if we have a core repository to refresh from
+      const coreRepo = currentContext.repositories.core;
+      if (!coreRepo) {
+        console.warn('[App] No core repository found for refresh');
+        toast({
+          title: 'Refresh Failed',
+          description: 'No repository information available for refresh.',
+          status: 'warning',
+          duration: 3000,
+          isClosable: true,
+        });
+        return;
+      }
+      
+      console.log('[App] Found core repository for refresh:', coreRepo);
+      
+      // Clear all caches before refreshing to ensure fresh data
+      console.log('[App] Clearing caches before refresh');
+      StorageService.clearAll();
+      GitHubCacheService.clearAll();
+      
+      // Clear DataSourceManager state
+      dataSourceManager.clear();
+      
+      // Clear permission cache
+      const permissionManager = PermissionManager.getInstance();
+      permissionManager.clearCache();
+      
+      console.log('[App] Refreshing from core repository:', coreRepo);
+      
+      // Load updated core data from GitHub
+      const fileContent = await GitHubApiService.getFileContent(
+        coreRepo.fullName,
+        coreRepo.filePath,
+        coreRepo.branch
+      );
+      
+      if (!fileContent || !fileContent.content) {
+        throw new Error('Failed to load file content from GitHub');
+      }
+      
+      const parsedData = JSON.parse(fileContent.content);
+      
+      // Load the updated core data via DataManager
+      const dataManager = DataManager.getInstance();
+      await dataManager.loadFromGitHub(parsedData, 'schema');
+      
+      // Re-merge data with current platform/theme context
+      await mergeDataForCurrentContext(currentContext);
+      
+      toast({
+        title: 'Data Refreshed',
+        description: 'Successfully refreshed data from GitHub',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      
+    } catch (error) {
+      console.error('[App] Error refreshing data:', error);
+      toast({
+        title: 'Refresh Failed',
+        description: error instanceof Error ? error.message : 'Failed to refresh data from GitHub',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsAppLoading(false); // End app loading state
     }
   };
 
@@ -761,6 +965,14 @@ const App = () => {
   const handleUpdatePlatforms = (updatedPlatforms: Platform[]) => {
     setPlatforms(updatedPlatforms);
     StorageService.setPlatforms(updatedPlatforms);
+    
+    // Update DataSourceManager with new platform data
+    const dataSourceManager = DataSourceManager.getInstance();
+    dataSourceManager.updateAvailableSources();
+    if (GitHubAuthService.getCurrentUser()) {
+      dataSourceManager.updatePermissions();
+    }
+    
     // Update change log data
     updateChangeLogData();
     // Dispatch event to notify change detection
@@ -770,6 +982,14 @@ const App = () => {
   const handleUpdateThemes = (updatedThemes: Theme[]) => {
     setThemes(updatedThemes);
     StorageService.setThemes(updatedThemes);
+    
+    // Update DataSourceManager with new theme data
+    const dataSourceManager = DataSourceManager.getInstance();
+    dataSourceManager.updateAvailableSources();
+    if (GitHubAuthService.getCurrentUser()) {
+      dataSourceManager.updatePermissions();
+    }
+    
     // Update change log data
     updateChangeLogData();
     // Dispatch event to notify change detection
@@ -821,6 +1041,282 @@ const App = () => {
     window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
+  // Data merging function - simplified version
+  const mergeDataForCurrentContext = async (context: DataSourceContext) => {
+    try {
+      console.log('[App] Merging data for context:', context);
+      
+      // Get base data from storage (core data)
+      const rootData = StorageService.getRootData();
+      const coreData = {
+        systemName: rootData.systemName || 'Design System',
+        systemId: rootData.systemId || 'design-system',
+        version: rootData.version || '1.0.0',
+        versionHistory: (rootData.versionHistory || []).map(vh => ({
+          date: vh.date,
+          version: vh.version,
+          dimensions: vh.dimensions,
+          migrationStrategy: vh.migrationStrategy ? {
+            emptyModeIds: vh.migrationStrategy.emptyModeIds as 'mapToDefaults' | 'preserveEmpty' | 'requireExplicit',
+            preserveOriginalValues: vh.migrationStrategy.preserveOriginalValues
+          } : undefined
+        })),
+        tokens: StorageService.getTokens(),
+        tokenCollections: StorageService.getCollections(),
+        dimensions: StorageService.getDimensions(),
+        platforms: StorageService.getPlatforms(),
+        themes: StorageService.getThemes(),
+        taxonomies: StorageService.getTaxonomies(),
+        componentProperties: StorageService.getComponentProperties(),
+        componentCategories: StorageService.getComponentCategories(),
+        components: StorageService.getComponents(),
+        resolvedValueTypes: StorageService.getValueTypes(),
+        algorithms: StorageService.getAlgorithms(),
+        taxonomyOrder: StorageService.getTaxonomyOrder() || [],
+        dimensionOrder: StorageService.getDimensionOrder() || [],
+        propertyTypes: [],
+        standardPropertyTypes: [],
+        figmaConfiguration: StorageService.getFigmaConfiguration() || { fileKey: '' }
+      };
+
+      // Prepare platform extensions array
+      const platformExtensions = [];
+      
+      // Load platform extension data if a platform is selected
+      if (context.currentPlatform && context.currentPlatform !== 'none') {
+        try {
+          const platformRepo = context.repositories.platforms[context.currentPlatform];
+          if (platformRepo) {
+            console.log(`[App] Loading platform extension from ${platformRepo.fullName}/${platformRepo.filePath}`);
+            
+            const fileContent = await GitHubApiService.getFileContent(
+              platformRepo.fullName,
+              platformRepo.filePath,
+              platformRepo.branch
+            );
+            
+            if (fileContent && fileContent.content) {
+              const platformData = JSON.parse(fileContent.content);
+              console.log('[App] Platform extension data:', platformData);
+              platformExtensions.push(platformData);
+            }
+          }
+        } catch (error) {
+          console.warn(`[App] Failed to load platform extension for ${context.currentPlatform}:`, error);
+        }
+      }
+
+      // Prepare theme overrides object
+      let themeOverrides = undefined;
+      
+      // Load theme override data if a theme is selected
+      if (context.currentTheme && context.currentTheme !== 'none') {
+        try {
+          const themeRepo = context.repositories.themes[context.currentTheme];
+          if (themeRepo) {
+            console.log(`[App] Loading theme override from ${themeRepo.fullName}/${themeRepo.filePath}`);
+            
+            const fileContent = await GitHubApiService.getFileContent(
+              themeRepo.fullName,
+              themeRepo.filePath,
+              themeRepo.branch
+            );
+            
+            if (fileContent && fileContent.content) {
+              const themeData = JSON.parse(fileContent.content);
+              console.log('[App] Theme override data:', themeData);
+              
+              // Extract theme overrides from the theme data
+              if (themeData.themeId && themeData.tokenOverrides) {
+                // Transform the theme override file structure to match ThemeOverride type
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const transformedOverrides = themeData.tokenOverrides.map((tokenOverride: any) => {
+                  // Take the first valueByMode entry as the main override value
+                  const firstValueByMode = tokenOverride.valuesByMode?.[0];
+                  if (!firstValueByMode) {
+                    console.warn(`[App] Token override ${tokenOverride.tokenId} has no valuesByMode`);
+                    return null;
+                  }
+
+                  // Transform platform overrides to match ThemePlatformOverride structure
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  const transformedPlatformOverrides = firstValueByMode.platformOverrides?.map((platformOverride: any) => ({
+                    platformId: platformOverride.platformId,
+                    value: {
+                      value: platformOverride.value,
+                      tokenId: platformOverride.value?.tokenId
+                    }
+                  }));
+
+                  return {
+                    tokenId: tokenOverride.tokenId,
+                    value: {
+                      value: firstValueByMode.value?.value || firstValueByMode.value,
+                      tokenId: firstValueByMode.value?.tokenId
+                    },
+                    platformOverrides: transformedPlatformOverrides
+                  };
+                }).filter(Boolean); // Remove null entries
+
+                // Validate theme ID consistency between core data and theme override file
+                const coreThemeId = context.currentTheme;
+                const themeOverrideFileId = themeData.themeId;
+                
+                if (coreThemeId !== themeOverrideFileId) {
+                  const errorMessage = `Theme ID mismatch: Core data theme "${coreThemeId}" does not match theme override file "${themeOverrideFileId}". Theme overrides cannot be applied.`;
+                  console.error('[App] Theme ID mismatch:', {
+                    coreThemeId,
+                    themeOverrideFileId,
+                    contextCurrentTheme: context.currentTheme
+                  });
+                  
+                  toast({
+                    title: 'Theme Override Error',
+                    description: errorMessage,
+                    status: 'error',
+                    duration: 8000,
+                    isClosable: true,
+                  });
+                  
+                  // Don't apply theme overrides if IDs don't match
+                  themeOverrides = undefined;
+                } else {
+                  // IDs match - apply theme overrides
+                  themeOverrides = {
+                    [coreThemeId]: transformedOverrides
+                  };
+                  
+                  console.log('[App] Theme ID mapping (valid):', {
+                    themeOverrideFileId,
+                    coreThemeId,
+                    contextCurrentTheme: context.currentTheme
+                  });
+                }
+                console.log('[App] Transformed theme overrides:', themeOverrides);
+                console.log('[App] Transformed overrides array:', transformedOverrides);
+                console.log('[App] Is transformedOverrides an array?', Array.isArray(transformedOverrides));
+                console.log('[App] Transformed overrides length:', transformedOverrides?.length);
+              }
+            }
+          }
+        } catch (error) {
+          console.warn(`[App] Failed to load theme override for ${context.currentTheme}:`, error);
+        }
+      }
+
+      // Use the proper mergeData function from data-model with correct merge order
+      const mergeOptions = {
+        targetPlatformId: context.currentPlatform && context.currentPlatform !== 'none' ? context.currentPlatform : undefined,
+        targetThemeId: context.currentTheme && context.currentTheme !== 'none' ? context.currentTheme : undefined,
+        includeOmitted: false
+      };
+
+      console.log('[App] Calling mergeData with options:', mergeOptions);
+      const mergedResult = mergeData(coreData, platformExtensions, themeOverrides, mergeOptions);
+      
+      console.log('[App] Merge result analytics:', mergedResult.analytics);
+
+      // Update UI state with merged data
+      setTokens(mergedResult.mergedTokens);
+      setCollections(coreData.tokenCollections); // Collections don't change in merging
+      setDimensions(coreData.dimensions); // Dimensions don't change in merging
+      setPlatforms(mergedResult.mergedPlatforms);
+      setThemes(coreData.themes); // Themes don't change in merging
+      setTaxonomies(coreData.taxonomies); // Taxonomies don't change in merging
+      setComponentProperties(coreData.componentProperties); // Component properties don't change in merging
+      setComponentCategories(coreData.componentCategories); // Component categories don't change in merging
+      setComponents(coreData.components); // Components don't change in merging
+      setResolvedValueTypes(coreData.resolvedValueTypes); // Value types don't change in merging
+
+      // Update change tracking baseline
+      const newBaselineData = {
+        collections: coreData.tokenCollections,
+        modes: StorageService.getModes(), // Modes don't change in merging
+        dimensions: coreData.dimensions,
+        resolvedValueTypes: coreData.resolvedValueTypes,
+        platforms: mergedResult.mergedPlatforms,
+        themes: coreData.themes,
+        tokens: mergedResult.mergedTokens,
+        taxonomies: coreData.taxonomies,
+        componentProperties: coreData.componentProperties,
+        componentCategories: coreData.componentCategories,
+        components: coreData.components,
+        algorithms: coreData.algorithms,
+        taxonomyOrder: coreData.taxonomyOrder,
+      };
+
+      ChangeTrackingService.setBaselineData(newBaselineData);
+      setChangeLogData({
+        currentData: newBaselineData,
+        baselineData: newBaselineData
+      });
+
+      // Dispatch event to notify change detection
+      window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
+      
+      console.log('[App] Data merging completed. Tokens:', mergedResult.mergedTokens.length);
+      console.log('[App] Excluded theme overrides:', mergedResult.analytics.excludedThemeOverrides);
+      console.log('[App] Valid theme overrides:', mergedResult.analytics.validThemeOverrides);
+      
+    } catch (error) {
+      console.error('Error merging data:', error);
+      toast({
+        title: 'Error merging data',
+        description: error instanceof Error ? error.message : 'Failed to merge data sources',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // Data source change handlers
+  const handlePlatformChange = async (platformId: string | null) => {
+    setIsAppLoading(true); // Start app loading state
+    try {
+      const dataSourceManager = DataSourceManager.getInstance();
+      await dataSourceManager.switchToPlatform(platformId);
+      const newContext = dataSourceManager.getCurrentContext();
+      setDataSourceContext(newContext);
+      
+      // Merge data for the new context
+      await mergeDataForCurrentContext(newContext);
+    } catch (error) {
+      toast({
+        title: 'Error switching platform',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsAppLoading(false); // End app loading state
+    }
+  };
+
+  const handleThemeChange = async (themeId: string | null) => {
+    setIsAppLoading(true); // Start app loading state
+    try {
+      const dataSourceManager = DataSourceManager.getInstance();
+      await dataSourceManager.switchToTheme(themeId);
+      const newContext = dataSourceManager.getCurrentContext();
+      setDataSourceContext(newContext);
+      
+      // Merge data for the new context
+      await mergeDataForCurrentContext(newContext);
+    } catch (error) {
+      toast({
+        title: 'Error switching theme',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsAppLoading(false); // End app loading state
+    }
+  };
+
   const onClose = () => {
     setIsOpen(false);
   };
@@ -855,6 +1351,7 @@ const App = () => {
               onGitHubConnect={handleGitHubConnect}
               onGitHubDisconnect={handleGitHubDisconnect}
               onFileSelected={handleFileSelected}
+              onRefreshData={handleRefreshCurrentData}
               currentView={currentView}
               onNavigate={navigateToView}
               isViewOnlyMode={isViewOnlyMode}
@@ -867,6 +1364,9 @@ const App = () => {
                 };
               })() : null}
               hasEditPermissions={hasEditPermissions}
+              dataSourceContext={dataSourceContext}
+              onPlatformChange={handlePlatformChange}
+              onThemeChange={handleThemeChange}
             >
               <Routes>
                 <Route path="/auth/github/callback" element={<GitHubCallback />} />
@@ -893,6 +1393,8 @@ const App = () => {
                 githubUser={githubUser}
                 isViewOnlyMode={isViewOnlyMode}
                 hasEditPermissions={hasEditPermissions}
+                dataSourceContext={dataSourceContext}
+                isAppLoading={isAppLoading}
                 onUpdateTokens={handleUpdateTokens}
                 onUpdateCollections={handleUpdateCollections}
                 onUpdateDimensions={handleUpdateDimensions}

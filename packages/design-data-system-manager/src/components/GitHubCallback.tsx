@@ -13,15 +13,17 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { GitHubAuthService } from '../services/githubAuth';
 import { useToast } from '@chakra-ui/react';
-import { GitHubRepoSelector } from './GitHubRepoSelector';
+
 import { ChangeTrackingService } from '../services/changeTrackingService';
+import { URLStateManager } from '../services/urlStateManager';
+import { DataSourceManager } from '../services/dataSourceManager';
 
 export const GitHubCallback: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [error, setError] = useState<string>('');
-  const [showRepoSelector, setShowRepoSelector] = useState(false);
+
   const hasProcessedCallback = useRef(false);
 
   useEffect(() => {
@@ -49,7 +51,8 @@ export const GitHubCallback: React.FC = () => {
           // Check if they're already authenticated
           if (GitHubAuthService.isAuthenticated()) {
             setStatus('success');
-            setShowRepoSelector(true);
+            // Redirect to main app - user can use "Find New Design System" from there
+            navigate('/');
             return;
           }
           throw new Error('Missing authorization code or state parameter');
@@ -65,6 +68,8 @@ export const GitHubCallback: React.FC = () => {
         const repo = callbackUrlParams.get('repo');
         const path = callbackUrlParams.get('path');
         const branch = callbackUrlParams.get('branch') || 'main';
+        const platform = callbackUrlParams.get('platform');
+        const theme = callbackUrlParams.get('theme');
 
         if (repo && path) {
           // URL parameters present - check permissions and load data directly
@@ -98,6 +103,21 @@ export const GitHubCallback: React.FC = () => {
               window.dispatchEvent(new CustomEvent('github:file-loaded'));
               window.dispatchEvent(new CustomEvent('token-model:data-change'));
               
+              // Initialize data source context from URL parameters
+              const dataSourceManager = DataSourceManager.getInstance();
+              if (platform || theme) {
+                console.log('[GitHubCallback] Initializing data source context from URL parameters:', { platform, theme });
+                
+                // Initialize data source context from URL
+                dataSourceManager.initializeFromURL();
+                
+                // Update URL parameters to reflect data source context
+                URLStateManager.updateMultipleURLParameters({
+                  platform: platform || undefined,
+                  theme: theme || undefined
+                });
+              }
+
               // Set repository info and permissions
               window.dispatchEvent(new CustomEvent('github:permissions-checked', {
                 detail: {
@@ -144,6 +164,21 @@ export const GitHubCallback: React.FC = () => {
               // Dispatch events to notify the main app
               window.dispatchEvent(new CustomEvent('github:file-loaded'));
               window.dispatchEvent(new CustomEvent('token-model:data-change'));
+              
+              // Initialize data source context from URL parameters
+              const dataSourceManager = DataSourceManager.getInstance();
+              if (platform || theme) {
+                console.log('[GitHubCallback] Initializing data source context from URL parameters (view-only):', { platform, theme });
+                
+                // Initialize data source context from URL
+                dataSourceManager.initializeFromURL();
+                
+                // Update URL parameters to reflect data source context
+                URLStateManager.updateMultipleURLParameters({
+                  platform: platform || undefined,
+                  theme: theme || undefined
+                });
+              }
               
               // Set repository info and permissions
               window.dispatchEvent(new CustomEvent('github:permissions-checked', {
@@ -211,8 +246,8 @@ export const GitHubCallback: React.FC = () => {
             isClosable: true,
           });
 
-          // Show repository selector instead of redirecting
-          setShowRepoSelector(true);
+          // Redirect to main app - user can use "Find New Design System" from there
+          navigate('/');
         }
 
       } catch (error) {
@@ -227,50 +262,11 @@ export const GitHubCallback: React.FC = () => {
     handleCallback();
   }, [navigate, toast]);
 
-  const handleFileSelected = async (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => {
-    try {
-      // Load data via DataManager to ensure it's properly stored
-      const { DataManager } = await import('../services/dataManager');
-      const dataManager = DataManager.getInstance();
-      await dataManager.loadFromGitHub(fileContent, fileType);
-      
-      // Update last GitHub sync timestamp
-      ChangeTrackingService.updateLastGitHubSync();
-      
-      // Dispatch event to notify the main app that GitHub data has been loaded
-      window.dispatchEvent(new CustomEvent('github:file-loaded'));
-      
-      // Dispatch data change event to update change log
-      window.dispatchEvent(new CustomEvent('token-model:data-change'));
-      
-      // Redirect to the main app
-      navigate('/');
-    } catch (error) {
-      console.error('[GitHubCallback] Error loading file data:', error);
-      toast({
-        title: 'Error Loading Data',
-        description: 'Failed to load data from GitHub. Please try again.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-  };
-
-  const handleRepoSelectorClose = () => {
-    // If user cancels repository selection, redirect to main app
-    navigate('/');
-  };
-
   const handleRetryAuth = async () => {
     // Clear any existing auth data and stale state parameters
     GitHubAuthService.logout();
     GitHubAuthService.clearOAuthState();
     await GitHubAuthService.initiateAuth();
-  };
-
-  const handleShowRepoSelector = () => {
-    setShowRepoSelector(true);
   };
 
   const handleClearAndRetry = async () => {
@@ -282,16 +278,6 @@ export const GitHubCallback: React.FC = () => {
     // Retry authentication
     await GitHubAuthService.initiateAuth();
   };
-
-  if (showRepoSelector) {
-    return (
-      <GitHubRepoSelector
-        isOpen={showRepoSelector}
-        onClose={handleRepoSelectorClose}
-        onFileSelected={handleFileSelected}
-      />
-    );
-  }
 
   if (status === 'loading') {
     return (
@@ -347,9 +333,9 @@ export const GitHubCallback: React.FC = () => {
             {GitHubAuthService.isAuthenticated() && (
               <Button
                 variant="outline"
-                onClick={handleShowRepoSelector}
+                onClick={() => navigate('/')}
               >
-                Select Repository
+                Go to App
               </Button>
             )}
             

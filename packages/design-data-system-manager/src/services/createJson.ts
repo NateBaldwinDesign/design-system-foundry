@@ -93,13 +93,8 @@ export function createSchemaJsonFromLocalStorage() {
     }
   }));
 
-  // Ensure themes array exists and has at least one default theme
-  const normalizedThemes = Array.isArray(themes) && themes.length > 0 ? themes : [{
-    id: 'default',
-    displayName: 'Default Theme',
-    description: 'The default theme for the design system',
-    isDefault: true
-  }];
+  // Ensure themes array exists (themes are optional)
+  const normalizedThemes = Array.isArray(themes) ? themes : [];
 
   // Compose the final schema-compliant object
   const schemaJson = {

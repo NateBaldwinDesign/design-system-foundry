@@ -44,9 +44,13 @@ import { GitHubApiService } from '../services/githubApi';
 import { StorageService } from '../services/storage';
 import { ChangeTrackingService } from '../services/changeTrackingService';
 import type { GitHubUser } from '../config/github';
-import { GitHubRepoSelector } from './GitHubRepoSelector';
+import { FindDesignSystemDialog } from './FindDesignSystemDialog';
 import { GitHubSaveDialog } from './GitHubSaveDialog';
 import { DATA_CHANGE_EVENT } from './AppLayout';
+import { PlatformDropdown } from './PlatformDropdown';
+import { ThemeDropdown } from './ThemeDropdown';
+
+import type { DataSourceContext } from '../services/dataSourceManager';
 
 interface HeaderProps {
   hasChanges?: boolean;
@@ -63,11 +67,12 @@ interface HeaderProps {
     fullName: string;
     branch: string;
     filePath: string;
-    fileType: 'schema' | 'theme-override';
+    fileType: 'schema' | 'theme-override' | 'platform-extension';
   } | null;
   onGitHubConnect?: () => Promise<void>;
   onGitHubDisconnect?: () => void;
-  onFileSelected?: (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => void;
+  onFileSelected?: (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override' | 'platform-extension') => void;
+  onRefreshData?: () => Promise<void>;
   // URL-based access props
   isURLBasedAccess?: boolean;
   urlRepoInfo?: {
@@ -77,6 +82,10 @@ interface HeaderProps {
   } | null;
   // GitHub permissions
   hasEditPermissions?: boolean;
+  // Data source context props
+  dataSourceContext?: DataSourceContext;
+  onPlatformChange?: (platformId: string | null) => void;
+  onThemeChange?: (themeId: string | null) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -94,17 +103,23 @@ export const Header: React.FC<HeaderProps> = ({
   onGitHubConnect,
   onGitHubDisconnect,
   onFileSelected,
+  onRefreshData,
   // URL-based access props
   isURLBasedAccess = false,
-  urlRepoInfo = null,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  urlRepoInfo = null, // Keep for interface compatibility but not used in logic
   // GitHub permissions
   hasEditPermissions = false,
+  // Data source context props
+  dataSourceContext,
+  onPlatformChange,
+  onThemeChange,
 }) => {
   const { colorMode } = useColorMode();
   const borderColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
   const bgColor = colorMode === 'dark' ? 'gray.800' : 'white';
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [showRepoSelector, setShowRepoSelector] = useState(false);
+  const [showFindDesignSystem, setShowFindDesignSystem] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveDialogMode, setSaveDialogMode] = useState<'direct' | 'pullRequest'>('direct');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -141,16 +156,51 @@ export const Header: React.FC<HeaderProps> = ({
 
     if (repo) {
       // URL parameters present - check if data was successfully loaded
-      if (isURLBasedAccess && urlRepoInfo) {
-        // URL loading was successful - show system name from data
+      // Check if we have actual data loaded (collections, tokens, etc.)
+      const collections = StorageService.getCollections();
+      const tokens = StorageService.getTokens();
+      const hasDataLoaded = collections && collections.length > 0 && tokens && tokens.length > 0;
+      
+      if (hasDataLoaded) {
+        // Data was successfully loaded - show system name from data
         title = systemName;
-        subtitle = `(${branch}) - View Only`;
+        // Check actual permissions to determine access level
+        if (hasEditPermissions) {
+          subtitle = `(${branch}) - Edit Access`;
+        } else {
+          subtitle = `(${branch}) - View Only`;
+        }
       } else {
         // URL loading failed - show repository name as fallback
         const [owner, repoName] = repo.split('/');
         title = `${owner}/${repoName}`;
         subtitle = `(${branch}) - Loading Failed`;
       }
+      return { title, subtitle };
+    }
+
+    // Check if we have a data source context (platform/theme switching)
+    if (dataSourceContext) {
+      title = systemName;
+      
+      // Show current platform/theme selection
+      const platformName = dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none' 
+        ? dataSourceContext.availablePlatforms.find(p => p.id === dataSourceContext.currentPlatform)?.displayName 
+        : null;
+      const themeName = dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none'
+        ? dataSourceContext.availableThemes.find(t => t.id === dataSourceContext.currentTheme)?.displayName
+        : null;
+      
+      if (platformName && themeName) {
+        subtitle = `${platformName} + ${themeName}`;
+      } else if (platformName) {
+        subtitle = platformName;
+      } else if (themeName) {
+        subtitle = themeName;
+      } else {
+        subtitle = 'Core Data';
+      }
+      
       return { title, subtitle };
     }
 
@@ -162,7 +212,7 @@ export const Header: React.FC<HeaderProps> = ({
       } else if (selectedRepoInfo.fileType === 'theme-override') {
         // Theme override - use "System: Theme" format
         const themes = StorageService.getThemes();
-        const currentTheme = themes.find(theme => theme.isDefault) || themes[0];
+        const currentTheme = themes[0];
         const themeName = currentTheme?.displayName || 'Default Theme';
         title = `${systemName}: ${themeName}`;
       }
@@ -177,7 +227,7 @@ export const Header: React.FC<HeaderProps> = ({
       if (collections && collections.length > 0) {
         title = systemName;
       } else if (themes && themes.length > 0) {
-        const currentTheme = themes.find(theme => theme.isDefault) || themes[0];
+        const currentTheme = themes[0];
         const themeName = currentTheme?.displayName || 'Default Theme';
         title = `${systemName}: ${themeName}`;
       }
@@ -231,29 +281,13 @@ export const Header: React.FC<HeaderProps> = ({
     }
     
     // Clear local UI state
-    setShowRepoSelector(false);
+    setShowFindDesignSystem(false);
     setShowSaveDialog(false);
     setIsUserMenuOpen(false);
     setIsGitHubConnecting(false);
   };
 
-  const handleFileSelected = (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => {
-    // Clear URL parameters when switching to a new repository
-    const url = new URL(window.location.href);
-    url.search = '';
-    window.history.replaceState({}, '', url.toString());
-    
-    // Use the app-level handler
-    if (onFileSelected) {
-      onFileSelected(fileContent, fileType);
-    }
-    
-    // Dispatch event to notify change detection that new data has been loaded
-    window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
-    
-    setShowRepoSelector(false);
-    // Note: Toast message is already shown by GitHubRepoSelector with repository details
-  };
+
 
   const handleReloadCurrentFile = async () => {
     if (!selectedRepoInfo) return;
@@ -310,8 +344,13 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Data source control handlers - removed unused handlers
 
-  const handleRefreshData = () => {
-    handleReloadCurrentFile();
+  const handleRefreshData = async () => {
+    if (onRefreshData) {
+      await onRefreshData();
+    } else {
+      // Fallback to old behavior if onRefreshData is not provided
+      handleReloadCurrentFile();
+    }
   };
 
   const handleExportData = () => {
@@ -412,8 +451,24 @@ export const Header: React.FC<HeaderProps> = ({
           <Text fontSize="xs">{subtitle}</Text>
         </HStack>
         <HStack spacing={2}>
-          {/* Data Source Controls - Only show when not connected to GitHub */}
-          {/* Removed: Data source picker dropdown for logged-out view */}
+                        {/* Platform and Theme Dropdowns */}
+              {dataSourceContext && (
+                <HStack spacing={4}>
+                  <PlatformDropdown
+                    availablePlatforms={dataSourceContext.availablePlatforms}
+                    currentPlatform={dataSourceContext.currentPlatform}
+                    permissions={dataSourceContext.permissions.platforms}
+                    onPlatformChange={onPlatformChange || (() => {})}
+                  />
+                  <ThemeDropdown
+                    availableThemes={dataSourceContext.availableThemes}
+                    currentTheme={dataSourceContext.currentTheme}
+                    permissions={dataSourceContext.permissions.themes}
+                    onThemeChange={onThemeChange || (() => {})}
+                  />
+
+                </HStack>
+              )}
 
           {/* GitHub Connection */}
           {githubUser ? (
@@ -443,11 +498,11 @@ export const Header: React.FC<HeaderProps> = ({
                         borderRadius={0}
                         leftIcon={<BookMarked size={16} />}
                         onClick={() => {
-                          setShowRepoSelector(true);
+                          setShowFindDesignSystem(true);
                           setIsGitHubWorkflowMenuOpen(false);
                         }}
                       >
-                        Select new repository
+                        Load design system from URL
                       </Button>
                       {selectedRepoInfo && (
                         <>
@@ -668,11 +723,18 @@ export const Header: React.FC<HeaderProps> = ({
         </HStack>
       </Box>
 
-      {/* GitHub Repository Selector Modal */}
-      <GitHubRepoSelector
-        isOpen={showRepoSelector}
-        onClose={() => setShowRepoSelector(false)}
-        onFileSelected={handleFileSelected}
+      {/* Find Design System Dialog */}
+      <FindDesignSystemDialog
+        isOpen={showFindDesignSystem}
+        onClose={() => setShowFindDesignSystem(false)}
+        onDesignSystemSelected={(repo, filePath) => {
+          // Load the design system using the existing URL-based logic
+          const url = new URL(window.location.href);
+          url.searchParams.set('repo', repo);
+          url.searchParams.set('path', filePath);
+          url.searchParams.set('branch', 'main');
+          window.location.href = url.toString();
+        }}
       />
 
       {/* GitHub Save Dialog */}

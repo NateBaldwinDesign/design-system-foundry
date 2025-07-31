@@ -470,7 +470,6 @@
       {
         "id": "default",
         "displayName": "Default Theme",
-        "isDefault": true,
         "description": "The default theme for the design system"
       }
     ],

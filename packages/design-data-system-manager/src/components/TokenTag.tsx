@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, HStack, Text } from "@chakra-ui/react"
 import type { ResolvedValueType } from '@token-model/data-model';
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
+import { TokenSourceBadge, type TokenSource } from './TokenSourceBadge';
 
 interface TokenTagProps {
     displayName: string;
@@ -10,6 +11,10 @@ interface TokenTagProps {
     value: string | number;
     isPill?: boolean;
     onClick?: () => void;
+    source?: TokenSource;
+    platformName?: string;
+    themeName?: string;
+    showSourceBadge?: boolean;
 }
 
 const TokenTag: React.FC<TokenTagProps> = ({
@@ -18,7 +23,11 @@ const TokenTag: React.FC<TokenTagProps> = ({
     resolvedValueTypes,
     value,
     isPill = false,
-    onClick
+    onClick,
+    source,
+    platformName,
+    themeName,
+    showSourceBadge = false
 }) => {
     const iconSize = 14;
     const valueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
@@ -49,6 +58,15 @@ const TokenTag: React.FC<TokenTagProps> = ({
                         </div>
                     )}
                     <Text className="kode-mono">{displayName}</Text>
+                    {showSourceBadge && source && (
+                        <TokenSourceBadge
+                            source={source}
+                            platformName={platformName}
+                            themeName={themeName}
+                            size="sm"
+                            showIcon={false}
+                        />
+                    )}
                 </HStack>
                 <Text color="gray.500" fontSize="xs" pl={2}>{String(value)}</Text>
             </HStack>

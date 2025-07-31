@@ -1,6 +1,7 @@
 import { StorageService } from './storage';
 import { GitHubApiService } from './githubApi';
 import { GitHubAuthService } from './githubAuth';
+import type { TokenSystem, PlatformExtension, ThemeOverrideFile } from '@token-model/data-model';
 
 export interface ChangeTrackingState {
   hasLocalChanges: boolean;
@@ -235,4 +236,219 @@ export class ChangeTrackingService {
   static updateLastGitHubSync(): void {
     localStorage.setItem('token-model:last-github-sync', new Date().toISOString());
   }
+
+  // ============================================================================
+  // Schema-Aware Change Tracking (Phase 4.6)
+  // ============================================================================
+
+  private static baselines: {
+    core: TokenSystem | null;
+    platformExtensions: Record<string, PlatformExtension>;
+    themeOverrides: Record<string, ThemeOverrideFile>;
+  } = {
+    core: null,
+    platformExtensions: {},
+    themeOverrides: {}
+  };
+
+  /**
+   * Set baseline for specific source
+   */
+  static setBaselineForSource(
+    sourceType: 'core' | 'platform-extension' | 'theme-override',
+    sourceId: string,
+    data: Record<string, unknown>
+  ): void {
+    switch (sourceType) {
+      case 'core': {
+        this.baselines.core = data as TokenSystem;
+        break;
+      }
+      case 'platform-extension': {
+        this.baselines.platformExtensions[sourceId] = data as PlatformExtension;
+        break;
+      }
+      case 'theme-override': {
+        this.baselines.themeOverrides[sourceId] = data as ThemeOverrideFile;
+        break;
+      }
+    }
+  }
+
+  /**
+   * Check for changes in specific source
+   */
+  static hasChangesInSource(
+    sourceType: 'core' | 'platform-extension' | 'theme-override',
+    sourceId: string
+  ): boolean {
+    const currentData = this.getCurrentDataForSource(sourceType, sourceId);
+    const baselineData = this.getBaselineForSource(sourceType, sourceId);
+    
+    return JSON.stringify(currentData) !== JSON.stringify(baselineData);
+  }
+
+  /**
+   * Get changes for specific source
+   */
+  static getChangesForSource(
+    sourceType: 'core' | 'platform-extension' | 'theme-override',
+    sourceId: string
+  ): ChangeSet {
+    const currentData = this.getCurrentDataForSource(sourceType, sourceId);
+    const baselineData = this.getBaselineForSource(sourceType, sourceId);
+    
+    return this.computeChanges(baselineData, currentData);
+  }
+
+  /**
+   * Get current data for specific source
+   */
+  private static getCurrentDataForSource(
+    sourceType: 'core' | 'platform-extension' | 'theme-override',
+    sourceId: string
+  ): Record<string, unknown> {
+    switch (sourceType) {
+      case 'core': {
+        return StorageService.getCoreData() || {};
+      }
+      case 'platform-extension': {
+        return StorageService.getPlatformExtensionData(sourceId) || {};
+      }
+      case 'theme-override': {
+        return StorageService.getThemeOverrideData(sourceId) || {};
+      }
+      default:
+        throw new Error(`Unknown source type: ${sourceType}`);
+    }
+  }
+
+  /**
+   * Get baseline data for specific source
+   */
+  private static getBaselineForSource(
+    sourceType: 'core' | 'platform-extension' | 'theme-override',
+    sourceId: string
+  ): Record<string, unknown> {
+    switch (sourceType) {
+      case 'core': {
+        return this.baselines.core || {};
+      }
+      case 'platform-extension': {
+        return this.baselines.platformExtensions[sourceId] || {};
+      }
+      case 'theme-override': {
+        return this.baselines.themeOverrides[sourceId] || {};
+      }
+      default:
+        throw new Error(`Unknown source type: ${sourceType}`);
+    }
+  }
+
+  /**
+   * Compute changes between baseline and current data
+   */
+  private static computeChanges(
+    baselineData: Record<string, unknown>,
+    currentData: Record<string, unknown>
+  ): ChangeSet {
+    const changes: ChangeSet = {
+      added: [],
+      modified: [],
+      removed: [],
+      totalChanges: 0
+    };
+
+    // Compare objects recursively
+    const baselineKeys = Object.keys(baselineData);
+    const currentKeys = Object.keys(currentData);
+
+    // Find added keys
+    currentKeys.forEach(key => {
+      if (!baselineKeys.includes(key)) {
+        changes.added.push(key);
+      }
+    });
+
+    // Find removed keys
+    baselineKeys.forEach(key => {
+      if (!currentKeys.includes(key)) {
+        changes.removed.push(key);
+      }
+    });
+
+    // Find modified keys
+    baselineKeys.forEach(key => {
+      if (currentKeys.includes(key)) {
+        const baselineValue = baselineData[key];
+        const currentValue = currentData[key];
+        
+        if (JSON.stringify(baselineValue) !== JSON.stringify(currentValue)) {
+          changes.modified.push(key);
+        }
+      }
+    });
+
+    changes.totalChanges = changes.added.length + changes.modified.length + changes.removed.length;
+    return changes;
+  }
+
+  /**
+   * Clear all baselines
+   */
+  static clearAllBaselines(): void {
+    this.baselines = {
+      core: null,
+      platformExtensions: {},
+      themeOverrides: {}
+    };
+  }
+
+  /**
+   * Get change summary for all sources
+   */
+  static getChangeSummary(): {
+    core: boolean;
+    platforms: Record<string, boolean>;
+    themes: Record<string, boolean>;
+    totalChanges: number;
+  } {
+    const summary = {
+      core: this.hasChangesInSource('core', ''),
+      platforms: {} as Record<string, boolean>,
+      themes: {} as Record<string, boolean>,
+      totalChanges: 0
+    };
+
+    // Check platform changes
+    Object.keys(this.baselines.platformExtensions).forEach(platformId => {
+      summary.platforms[platformId] = this.hasChangesInSource('platform-extension', platformId);
+    });
+
+    // Check theme changes
+    Object.keys(this.baselines.themeOverrides).forEach(themeId => {
+      summary.themes[themeId] = this.hasChangesInSource('theme-override', themeId);
+    });
+
+    // Count total changes
+    if (summary.core) summary.totalChanges++;
+    Object.values(summary.platforms).forEach(hasChanges => {
+      if (hasChanges) summary.totalChanges++;
+    });
+    Object.values(summary.themes).forEach(hasChanges => {
+      if (hasChanges) summary.totalChanges++;
+    });
+
+    return summary;
+  }
+}
+
+/**
+ * Change set interface
+ */
+export interface ChangeSet {
+  added: string[];
+  modified: string[];
+  removed: string[];
+  totalChanges: number;
 } 

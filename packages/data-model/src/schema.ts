@@ -386,7 +386,11 @@ export const Theme = z.object({
   id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
   displayName: z.string(),
   description: z.string().optional(),
-  isDefault: z.boolean()
+  overrideSource: z.object({
+    repositoryUri: z.string(),
+    filePath: z.string()
+  }).optional(),
+  status: z.enum(['active', 'deprecated']).optional()
 });
 
 // ThemeOverride schema
