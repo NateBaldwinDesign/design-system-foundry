@@ -508,6 +508,22 @@ export class GitHubApiService {
       throw new Error(`Failed to create branch: ${response.statusText}`);
     }
   }
+
+  /**
+   * Check if a branch exists
+   */
+  static async branchExists(repo: string, branchName: string): Promise<boolean> {
+    const accessToken = await GitHubAuthService.getValidAccessToken();
+    
+    const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}/branches/${branchName}`, {
+      headers: {
+        'Authorization': `token ${accessToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    return response.ok;
+  }
   
   /**
    * Scan repository for valid JSON files

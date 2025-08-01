@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
-  ChakraProvider,
   Spinner,
   useToast,
   Modal,
@@ -9,7 +8,8 @@ import {
   ModalContent,
   ModalHeader,
   ModalCloseButton,
-  ModalBody
+  ModalBody,
+  useColorMode
 } from '@chakra-ui/react';
 import type { 
   TokenCollection, 
@@ -27,10 +27,10 @@ import { StorageService } from './services/storage';
 import { Algorithm } from './types/algorithm';
 import './App.css';
 import { AppLayout, DATA_CHANGE_EVENT } from './components/AppLayout';
-import theme from './theme';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useSchema } from './hooks/useSchema';
 import { GitHubCallback } from './components/GitHubCallback';
+import { Homepage } from './views/Homepage';
 import { GitHubAuthService } from './services/githubAuth';
 import { GitHubApiService } from './services/githubApi';
 import type { GitHubUser } from './config/github';
@@ -45,10 +45,17 @@ import { DataSourceManager, type DataSourceContext } from './services/dataSource
 import { GitHubCacheService } from './services/githubCache';
 import { PermissionManager } from './services/permissionManager';
 import { exampleData, algorithmData, mergeData } from '@token-model/data-model';
+import { isMainBranch } from './utils/BranchValidationUtils';
 
 const App = () => {
+  console.log('🔍 [App] App component rendering');
+  
+  const { colorMode } = useColorMode();
   const { schema } = useSchema();
   const [dataSource, setDataSource] = useState<string>('minimal');
+  
+  console.log('🔍 [App] Current color mode:', colorMode);
+  
   const [collections, setCollections] = useState<TokenCollection[]>([]);
   const [modes, setModes] = useState<Mode[]>([]);
   const [dimensions, setDimensions] = useState<Dimension[]>([]);
@@ -85,11 +92,61 @@ const App = () => {
   const [hasEditPermissions, setHasEditPermissions] = useState(false);
   const [dataSourceContext, setDataSourceContext] = useState<DataSourceContext | undefined>(undefined);
   const [isAppLoading, setIsAppLoading] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
+  // Branch-based governance state
+  const [isEditMode, setIsEditMode] = useState(() => {
+    // Try to restore edit mode state from localStorage
+    const saved = localStorage.getItem('token-model-edit-mode');
+    if (saved) {
+      try {
+        const { isEditMode: savedEditMode, branch: savedBranch } = JSON.parse(saved);
+        return savedEditMode && savedBranch === currentBranch;
+      } catch (error) {
+        console.warn('Failed to parse saved edit mode state:', error);
+      }
+    }
+    return false;
+  });
+  const [currentBranch, setCurrentBranch] = useState<string>('main');
+  const [editModeBranch, setEditModeBranch] = useState<string | null>(() => {
+    // Try to restore edit mode branch from localStorage
+    const saved = localStorage.getItem('token-model-edit-mode');
+    if (saved) {
+      try {
+        const { branch: savedBranch } = JSON.parse(saved);
+        return savedBranch === currentBranch ? savedBranch : null;
+      } catch (error) {
+        console.warn('Failed to parse saved edit mode branch:', error);
+      }
+    }
+    return null;
+  });
   const toast = useToast();
 
   const [changeLogData, setChangeLogData] = useState<{ currentData: Record<string, unknown>; baselineData: Record<string, unknown> | null }>({ currentData: {}, baselineData: null });
+
+  // Use refs to track previous GitHub state to prevent unnecessary re-renders
+  const previousGitHubState = useRef<{ isConnected: boolean; user: GitHubUser | null }>({ isConnected: false, user: null });
+
   const [isOpen, setIsOpen] = useState(false);
   const { currentView, navigateToView } = useViewState();
+
+  // Determine if we should show the homepage
+  const shouldShowHomepage = () => {
+    // Check for URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasUrlParams = urlParams.get('repo') !== null;
+    
+    // Check if we have stored data
+    const dataManager = DataManager.getInstance();
+    const hasStoredData = dataManager.hasExistingData();
+    
+    // Check if we have GitHub repository info
+    const hasGitHubData = GitHubApiService.hasSelectedRepository();
+    
+    // Show homepage if no URL parameters, no stored data, and no GitHub data
+    return !hasUrlParams && !hasStoredData && !hasGitHubData;
+  };
 
   // Helper function to create a data snapshot for change tracking
   const createDataSnapshot = useCallback(() => {
@@ -214,6 +271,15 @@ const App = () => {
         const repo = urlParams.get('repo');
         const path = urlParams.get('path') || 'schema.json';
         const branch = urlParams.get('branch') || 'main';
+        
+        // Update branch state from URL
+        setCurrentBranch(branch);
+        
+        // Manual URL changes should reset to view mode (not edit mode)
+        // This ensures users can't accidentally stay in edit mode when navigating via URL
+        setIsEditMode(false);
+        setEditModeBranch(null);
+        clearEditModeState();
         
         if (repo) {
           // Load from URL parameters
@@ -404,20 +470,42 @@ const App = () => {
       const currentUser = GitHubAuthService.getCurrentUser();
       const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
       
+      console.log('[App] Checking GitHub connection:', { isConnected, currentUser, repoInfo });
+      
       setIsGitHubConnected(isConnected);
       setGithubUser(currentUser);
       setSelectedRepoInfo(repoInfo);
     };
 
+    // Check immediately on mount
     checkGitHubConnection();
+    
+    // Set up periodic check for GitHub connection state
+    const intervalId = setInterval(() => {
+      const isConnected = GitHubAuthService.isAuthenticated();
+      const currentUser = GitHubAuthService.getCurrentUser();
+      
+      // Compare actual values, not object references
+      const isConnectedChanged = isConnected !== previousGitHubState.current.isConnected;
+      const userChanged = JSON.stringify(currentUser) !== JSON.stringify(previousGitHubState.current.user);
+      
+      // Only update if state has actually changed
+      if (isConnectedChanged || userChanged) {
+        console.log('[App] Periodic check: GitHub state changed, updating');
+        previousGitHubState.current = { isConnected, user: currentUser };
+        checkGitHubConnection();
+      }
+    }, 10000); // Check every 10 seconds
     
     // Listen for storage changes to detect GitHub data updates
     const handleStorageChange = () => {
+      console.log('[App] Storage change detected, rechecking GitHub connection');
       checkGitHubConnection();
     };
 
     // Listen for GitHub file loaded events from GitHubCallback
     const handleGitHubFileLoaded = () => {
+      console.log('[App] GitHub file loaded event received');
       checkGitHubConnection();
       // Refresh App component state from storage to reflect the new GitHub data
       refreshDataFromStorage();
@@ -434,20 +522,33 @@ const App = () => {
       setSelectedRepoInfo(repoInfo);
       setIsGitHubConnected(true);
       
+      // Also check for current user
+      const currentUser = GitHubAuthService.getCurrentUser();
+      setGithubUser(currentUser);
+      
       // Refresh App component state from storage
       refreshDataFromStorage();
+    };
+
+    // Listen for OAuth completion events
+    const handleOAuthComplete = () => {
+      console.log('[App] OAuth completion event received');
+      checkGitHubConnection();
     };
 
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('github:file-loaded', handleGitHubFileLoaded);
     window.addEventListener('github:permissions-checked', handlePermissionsChecked as EventListener);
+    window.addEventListener('github:oauth-complete', handleOAuthComplete);
     
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('github:file-loaded', handleGitHubFileLoaded);
       window.removeEventListener('github:permissions-checked', handlePermissionsChecked as EventListener);
+      window.removeEventListener('github:oauth-complete', handleOAuthComplete);
+      clearInterval(intervalId); // Clear the interval on unmount
     };
-  }, []);
+  }, []); // Empty dependency array
 
   useEffect(() => {
     // Create data options from the package exports
@@ -495,7 +596,7 @@ const App = () => {
       alert(message);
       setLoading(false);
     }
-  }, []);
+  }, []); // Empty dependency array since it doesn't depend on any state
 
   useEffect(() => {
     // Only load example data if:
@@ -503,15 +604,21 @@ const App = () => {
     // 2. We're not connected to GitHub
     // 3. We don't have any stored data
     // 4. We don't have GitHub repository info stored
+    // 5. We haven't already initialized
+    // 6. We shouldn't show the homepage
+    if (hasInitialized || shouldShowHomepage()) return;
+    
     const dataManager = DataManager.getInstance();
     const hasStoredData = dataManager.hasExistingData();
     const hasGitHubData = GitHubApiService.hasSelectedRepository();
     
     if (dataSource && !isGitHubConnected && !hasStoredData && !hasGitHubData) {
       console.log('[App] Loading example data - no existing data found');
+      setHasInitialized(true);
       loadDataFromSource(dataSource);
     } else if (hasStoredData || hasGitHubData) {
       console.log('[App] Found existing data, not loading example data');
+      setHasInitialized(true);
       
       // Even with existing data, we need to ensure DataSourceManager is properly initialized
       // This is especially important for theme permissions when no URL parameters are present
@@ -529,10 +636,10 @@ const App = () => {
       setDataSourceContext(dataSourceManager.getCurrentContext());
       setLoading(false);
     }
-  }, [dataSource, isGitHubConnected, loadDataFromSource]);
+  }, [dataSource, isGitHubConnected, hasInitialized]); // Added hasInitialized to dependencies
 
   // Function to refresh data from storage (called when GitHub data is loaded)
-  const refreshDataFromStorage = () => {
+  const refreshDataFromStorage = useCallback(() => {
     const storedCollections = StorageService.getCollections();
     const storedModes = StorageService.getModes();
     const storedDimensions = StorageService.getDimensions();
@@ -590,7 +697,7 @@ const App = () => {
     // Dispatch event to notify change detection that new data has been loaded
     // This will reset the change tracking baseline in AppLayout
     window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
-  };
+  }, []);
 
   // Expose refresh function globally for GitHub components to call
   useEffect(() => {
@@ -598,11 +705,12 @@ const App = () => {
     return () => {
       delete (window as Window & { refreshAppData?: () => void }).refreshAppData;
     };
-  }, []);
+  }, [refreshDataFromStorage]);
 
   // Listen for data change events to update change log data
   useEffect(() => {
     const handleDataChange = () => {
+      // Update change log data when data changes
       updateChangeLogData();
     };
 
@@ -715,7 +823,7 @@ const App = () => {
     try {
       // Clear all caches before loading new source to ensure fresh data
       console.log('[App] Clearing caches before loading new source');
-      StorageService.clearAll();
+      StorageService.clearSchemaData(); // Use clearSchemaData to preserve GitHub auth
       GitHubCacheService.clearAll();
       
       // Clear DataSourceManager state
@@ -783,7 +891,7 @@ const App = () => {
       
       // Clear all caches before refreshing to ensure fresh data
       console.log('[App] Clearing caches before refresh');
-      StorageService.clearAll();
+      StorageService.clearSchemaData(); // Use clearSchemaData to preserve GitHub auth
       GitHubCacheService.clearAll();
       
       // Clear DataSourceManager state
@@ -1317,6 +1425,99 @@ const App = () => {
     }
   };
 
+  // Branch-based governance handlers
+  const handleBranchCreated = async (newBranchName: string) => {
+    try {
+      // Update URL parameters with new branch
+      const url = new URL(window.location.href);
+      url.searchParams.set('branch', newBranchName);
+      window.history.replaceState({}, '', url.toString());
+      
+      // Update branch state
+      setCurrentBranch(newBranchName);
+      setEditModeBranch(newBranchName);
+      setIsEditMode(true);
+      
+      // Save edit mode state
+      saveEditModeState(true, newBranchName);
+      
+      // Refresh data from the new branch
+      await handleRefreshCurrentData();
+      
+      toast({
+        title: 'Branch Switched',
+        description: `Now editing on branch "${newBranchName}"`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error('Failed to switch to new branch:', error);
+      toast({
+        title: 'Branch Switch Failed',
+        description: error instanceof Error ? error.message : 'Failed to switch to new branch',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleEnterEditMode = () => {
+    // Check if we're on a main branch
+    if (isMainBranch(currentBranch)) {
+      // Will be handled by Header component opening branch creation dialog
+      return;
+    } else {
+      // Non-main branch - enter edit mode directly
+      setEditModeBranch(currentBranch);
+      setIsEditMode(true);
+      
+      // Save edit mode state
+      saveEditModeState(true, currentBranch);
+    }
+  };
+
+  // Helper functions for edit mode persistence
+  const saveEditModeState = (isEdit: boolean, branch: string | null) => {
+    try {
+      localStorage.setItem('token-model-edit-mode', JSON.stringify({
+        isEditMode: isEdit,
+        branch: branch
+      }));
+    } catch (error) {
+      console.warn('Failed to save edit mode state:', error);
+    }
+  };
+
+  const clearEditModeState = () => {
+    try {
+      localStorage.removeItem('token-model-edit-mode');
+    } catch (error) {
+      console.warn('Failed to clear edit mode state:', error);
+    }
+  };
+
+  const handleExitEditMode = async () => {
+    // Revert changes (same as refresh)
+    await handleRefreshCurrentData();
+    
+    // Exit edit mode
+    setIsEditMode(false);
+    setEditModeBranch(null);
+    
+    // Clear persisted state
+    clearEditModeState();
+    
+    toast({
+      title: 'Edit Mode Cancelled',
+      description: 'Changes have been reverted',
+      status: 'info',
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
   const onClose = () => {
     setIsOpen(false);
   };
@@ -1335,10 +1536,17 @@ const App = () => {
   }
 
   return (
-    <ChakraProvider theme={theme}>
-      <BrowserRouter>
-        <Box h="100vh" display="flex" flexDirection="column">
-          <Box flex="1" position="relative">
+    <BrowserRouter>
+      <Box h="100vh" display="flex" flexDirection="column">
+        <Box flex="1" position="relative">
+          {shouldShowHomepage() ? (
+            <Homepage
+              isGitHubConnected={isGitHubConnected}
+              githubUser={githubUser}
+              onGitHubConnect={handleGitHubConnect}
+              onGitHubDisconnect={handleGitHubDisconnect}
+            />
+          ) : (
             <AppLayout
               dataSource={dataSource}
               setDataSource={setDataSource}
@@ -1357,19 +1565,25 @@ const App = () => {
               isViewOnlyMode={isViewOnlyMode}
               urlRepoInfo={isViewOnlyMode ? (() => {
                 const urlParams = new URLSearchParams(window.location.search);
-                return {
-                  repo: urlParams.get('repo') || '',
-                  path: urlParams.get('path') || 'schema.json',
-                  branch: urlParams.get('branch') || 'main'
-                };
+                const repo = urlParams.get('repo');
+                const path = urlParams.get('path');
+                const branch = urlParams.get('branch');
+                return repo && path && branch ? { repo, path, branch } : null;
               })() : null}
               hasEditPermissions={hasEditPermissions}
               dataSourceContext={dataSourceContext}
               onPlatformChange={handlePlatformChange}
               onThemeChange={handleThemeChange}
+              isEditMode={isEditMode}
+              currentBranch={currentBranch}
+              editModeBranch={editModeBranch}
+              onBranchCreated={handleBranchCreated}
+              onEnterEditMode={handleEnterEditMode}
+              onExitEditMode={handleExitEditMode}
             >
               <Routes>
                 <Route path="/auth/github/callback" element={<GitHubCallback />} />
+                <Route path="/" element={<div />} />
                 <Route path="*" element={<div />} />
               </Routes>
               
@@ -1395,6 +1609,7 @@ const App = () => {
                 hasEditPermissions={hasEditPermissions}
                 dataSourceContext={dataSourceContext}
                 isAppLoading={isAppLoading}
+                canEdit={hasEditPermissions && isEditMode}
                 onUpdateTokens={handleUpdateTokens}
                 onUpdateCollections={handleUpdateCollections}
                 onUpdateDimensions={handleUpdateDimensions}
@@ -1417,32 +1632,25 @@ const App = () => {
                 onDeleteToken={handleDeleteToken}
               />
             </AppLayout>
-          </Box>
+          )}
         </Box>
-      </BrowserRouter>
-      <Modal 
-        isOpen={isOpen} 
-        onClose={onClose} 
-        size="xl" 
-        scrollBehavior="inside"
-        closeOnOverlayClick={true}
-        closeOnEsc={true}
-        isCentered={true}
-      >
-        <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
-        <ModalContent>
-          <ModalHeader>Change History</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody pb={6}>
-            <ChangeLog 
-              previousData={changeLogData?.baselineData}
-              currentData={changeLogData?.currentData}
-            />
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-    </ChakraProvider>
-  );
-};
 
-export default App; 
+        {/* Change Log Modal */}
+        <Modal isOpen={isOpen} onClose={onClose} size="6xl">
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Change Log</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody pb={6}>
+              <ChangeLog
+                previousData={changeLogData.baselineData}
+                currentData={changeLogData.currentData}
+              />
+            </ModalBody>
+          </ModalContent>
+        </Modal>
+      </Box>
+    </BrowserRouter>
+  );
+};export default App; 
+

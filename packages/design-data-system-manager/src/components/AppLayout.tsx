@@ -48,6 +48,13 @@ interface AppLayoutProps {
   dataSourceContext?: DataSourceContext;
   onPlatformChange?: (platformId: string | null) => void;
   onThemeChange?: (themeId: string | null) => void;
+  // Branch-based governance props
+  isEditMode?: boolean;
+  currentBranch?: string;
+  editModeBranch?: string | null;
+  onBranchCreated?: (branchName: string) => void;
+  onEnterEditMode?: () => void;
+  onExitEditMode?: () => void;
 }
 
 // Custom event for data changes
@@ -78,6 +85,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   dataSourceContext,
   onPlatformChange,
   onThemeChange,
+  // Branch-based governance props
+  isEditMode = false,
+  currentBranch = 'main',
+  editModeBranch = null,
+  onBranchCreated,
+  onEnterEditMode,
+  onExitEditMode,
 }: AppLayoutProps) => {
   const { colorMode } = useColorMode();
   const [hasChanges, setHasChanges] = useState(false);
@@ -368,6 +382,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           dataSourceContext={dataSourceContext}
           onPlatformChange={onPlatformChange}
           onThemeChange={onThemeChange}
+          // Branch-based governance props
+          isEditMode={isEditMode}
+          currentBranch={currentBranch}
+          editModeBranch={editModeBranch}
+          onBranchCreated={onBranchCreated}
+          onEnterEditMode={onEnterEditMode}
+          onExitEditMode={onExitEditMode}
         />
         <Box flex="1" overflow="auto"  bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
           {children}

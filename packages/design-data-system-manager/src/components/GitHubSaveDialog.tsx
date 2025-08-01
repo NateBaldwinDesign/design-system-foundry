@@ -31,6 +31,9 @@ interface GitHubSaveDialogProps {
   onClose: () => void;
   saveMode: 'direct' | 'pullRequest';
   onSuccess?: (result: { success: boolean; message: string; pullRequestUrl?: string }) => void;
+  // Branch-based governance props
+  currentBranch?: string;
+  isEditMode?: boolean;
 }
 
 export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
@@ -38,6 +41,9 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
   onClose,
   saveMode,
   onSuccess,
+  // Branch-based governance props
+  currentBranch = 'main',
+  isEditMode = false,
 }) => {
   const [commitMessage, setCommitMessage] = useState('');
   const [prTitle, setPrTitle] = useState('');
@@ -191,9 +197,16 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
             {repoInfo && (
               <Box p={4} bg="gray.50" borderRadius="md">
                 <Text fontWeight="bold">Repository: {repoInfo.fullName}</Text>
-                <Text>Branch: {repoInfo.branch}</Text>
+                <Text fontWeight="medium" color={isEditMode ? 'blue.600' : 'gray.700'}>
+                  Branch: {currentBranch} {isEditMode && '(Editing)'}
+                </Text>
                 <Text>File: {repoInfo.filePath}</Text>
                 <Text>Type: {repoInfo.fileType === 'schema' ? 'Core Data' : 'Theme Override'}</Text>
+                {isEditMode && (
+                  <Text fontSize="sm" color="blue.600" mt={2}>
+                    💡 You&apos;re editing on a feature branch. Changes will be saved to this branch.
+                  </Text>
+                )}
               </Box>
             )}
 

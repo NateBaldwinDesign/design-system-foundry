@@ -27,6 +27,47 @@
         }
       }(window.location))
     </script>
+    <!-- ColorModeScript must be in head to prevent flash of unstyled content -->
+    <script type="text/javascript">
+      // Initialize color mode before React renders
+      (function() {
+        var colorMode = localStorage.getItem('chakra-ui-color-mode');
+        var systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        console.log('🔍 [HTML] ColorModeScript initialization:');
+        console.log('  - Stored color mode:', colorMode);
+        console.log('  - System prefers dark:', systemPrefersDark);
+        
+        // If no color mode is stored, use system preference
+        if (!colorMode) {
+          colorMode = systemPrefersDark ? 'dark' : 'light';
+          localStorage.setItem('chakra-ui-color-mode', colorMode);
+          console.log('🔍 [HTML] Set initial color mode to:', colorMode);
+        }
+        
+        // Set the color mode class on the document
+        document.documentElement.setAttribute('data-theme', colorMode);
+        document.documentElement.style.colorScheme = colorMode;
+        
+        // Add CSS variables for immediate effect
+        var style = document.createElement('style');
+        style.textContent = `
+          :root {
+            --chakra-colors-chakra-body-text: ${colorMode === 'dark' ? '#ffffff' : '#1a202c'};
+            --chakra-colors-chakra-body-bg: ${colorMode === 'dark' ? '#171923' : '#ffffff'};
+            --chakra-colors-chakra-border-color: ${colorMode === 'dark' ? '#2d3748' : '#e2e8f0'};
+          }
+          body {
+            background-color: var(--chakra-colors-chakra-body-bg);
+            color: var(--chakra-colors-chakra-body-text);
+            transition: background-color 0.2s, color 0.2s;
+          }
+        `;
+        document.head.appendChild(style);
+        
+        console.log('🔍 [HTML] ColorModeScript completed, color mode:', colorMode);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

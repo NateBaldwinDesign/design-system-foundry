@@ -76,11 +76,11 @@ export class PlatformExtensionDataService {
     branch: string,
     platformId: string
   ): Promise<PlatformExtensionDataResult> {
-    const cacheKey = `${repositoryUri}:${filePath}:${branch}:${platformId}`;
+    const cacheKey = `${platformId}-${repositoryUri}-${filePath}-${branch}`;
     
     // Check cache first
     const cached = this.cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+    if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
       console.log(`[PlatformExtensionDataService] Using cached data for ${platformId}`);
       return {
         data: cached.data,
@@ -96,11 +96,22 @@ export class PlatformExtensionDataService {
       // Check if user is authenticated
       const isAuthenticated = await import('./githubAuth').then(module => module.GitHubAuthService.isAuthenticated());
       
+      // Check if this is a private repository pattern (company/design-system-*)
+      const isPrivateRepoPattern = repositoryUri.match(/^company\/design-system-/);
+      
       if (isAuthenticated) {
         // Use authenticated API call
         fileContent = await GitHubApiService.getFileContent(repositoryUri, filePath, branch);
+      } else if (isPrivateRepoPattern) {
+        // Skip fetching for private repository patterns when not authenticated
+        console.log(`[PlatformExtensionDataService] Skipping private repository pattern for ${platformId} (user not authenticated): ${repositoryUri}`);
+        return {
+          data: null,
+          source: 'not-found',
+          error: 'Private repository - authentication required'
+        };
       } else {
-        // Use public API call for unauthenticated users
+        // Use public API call for unauthenticated users (only for public repositories)
         console.log(`[PlatformExtensionDataService] Using public API for ${platformId} (user not authenticated)`);
         fileContent = await GitHubApiService.getPublicFileContent(repositoryUri, filePath, branch);
       }

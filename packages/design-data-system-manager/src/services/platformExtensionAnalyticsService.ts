@@ -17,7 +17,7 @@ export interface PlatformExtensionAnalyticsSummary {
     omittedModesCount: number;
     omittedDimensionsCount: number;
     hasError?: boolean;
-    errorType?: 'file-not-found' | 'repository-not-found' | 'validation-error';
+    errorType?: 'file-not-found' | 'repository-not-found' | 'validation-error' | 'private-repository';
     errorMessage?: string;
   }>;
 }
@@ -166,10 +166,21 @@ export class PlatformExtensionAnalyticsService {
         } else {
           // Data not found - determine if it's a file or repository issue
           const isLocalFile = platform.extensionSource.repositoryUri === 'local';
-          const errorType = isLocalFile ? 'file-not-found' : 'repository-not-found';
-          const errorMessage = isLocalFile 
-            ? `File not found: ${platform.extensionSource.filePath}`
-            : `Repository not found: ${platform.extensionSource.repositoryUri}`;
+          const isPrivateRepoPattern = platform.extensionSource.repositoryUri.match(/^company\/design-system-/);
+          
+          let errorType: 'file-not-found' | 'repository-not-found' | 'validation-error' | 'private-repository';
+          let errorMessage: string;
+          
+          if (isPrivateRepoPattern) {
+            errorType = 'private-repository';
+            errorMessage = 'Private repository - sign in to access';
+          } else if (isLocalFile) {
+            errorType = 'file-not-found';
+            errorMessage = `File not found: ${platform.extensionSource.filePath}`;
+          } else {
+            errorType = 'repository-not-found';
+            errorMessage = `Repository not found: ${platform.extensionSource.repositoryUri}`;
+          }
 
           platformAnalytics.push({
             platformId: platform.id,

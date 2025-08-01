@@ -478,7 +478,7 @@ export const useSchema = () => {
       }
     };
     loadDefaultSchema();
-  }, [schema, toast]);
+  }, [toast]); // Removed schema from dependencies to prevent infinite loop
 
   useEffect(() => {
     if (schema) {

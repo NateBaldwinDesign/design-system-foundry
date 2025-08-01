@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, AlertIcon, Tooltip, Badge } from '@chakra-ui/react';
+import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, AlertIcon, Tooltip, Badge, AlertTitle, AlertDescription } from '@chakra-ui/react';
 import { getTokenStats, getPlatformExtensionStats, getThemeStats, getLatestRelease, getRecentActivity } from '../utils/dashboardStats';
 import type { Platform, Theme, ComponentCategory, ComponentProperty, Component } from '@token-model/data-model';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
@@ -166,6 +166,19 @@ const DashboardView: React.FC<DashboardViewProps> = ({
           </Alert>
         )}
         
+        {/* Private Repository Alert */}
+        {platformExtensionStats?.platformAnalytics?.some(p => p.errorType === 'private-repository') && (
+          <Alert status="info" mb={4}>
+            <AlertIcon />
+            <Box>
+              <AlertTitle>Private Repositories Detected</AlertTitle>
+              <AlertDescription>
+                Some platform extensions are in private repositories. Sign in with GitHub to access them.
+              </AlertDescription>
+            </Box>
+          </Alert>
+        )}
+        
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mb={8}>
           {/* Tokens Section */}
           <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
@@ -253,12 +266,29 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                                 <Text>{platform.platformName}</Text>
                                 {platform.hasError && (
                                   <Tooltip
-                                    label={platform.errorMessage || 'File or repository is not found'}
-                                    aria-label={`Error for ${platform.platformName}: ${platform.errorMessage || 'File or repository is not found'}`}
+                                    label={
+                                      platform.errorType === 'private-repository' 
+                                        ? 'Private repository - sign in with GitHub to access'
+                                        : platform.errorMessage || 'File or repository is not found'
+                                    }
+                                    aria-label={`Error for ${platform.platformName}: ${
+                                      platform.errorType === 'private-repository' 
+                                        ? 'Private repository - sign in with GitHub to access'
+                                        : platform.errorMessage || 'File or repository is not found'
+                                    }`}
                                     hasArrow
                                     placement="top"
                                   >
-                                    <Text as="span" color="red.500" fontWeight="bold" aria-live="polite" aria-label={`Error: ${platform.errorMessage || 'File or repository is not found'}`}
+                                    <Text 
+                                      as="span" 
+                                      color={platform.errorType === 'private-repository' ? 'orange.500' : 'red.500'} 
+                                      fontWeight="bold" 
+                                      aria-live="polite" 
+                                      aria-label={`Error: ${
+                                        platform.errorType === 'private-repository' 
+                                          ? 'Private repository - sign in with GitHub to access'
+                                          : platform.errorMessage || 'File or repository is not found'
+                                      }`}
                                       tabIndex={0} // for keyboard accessibility
                                       ml={1}
                                     >
@@ -274,7 +304,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({
                             <Td isNumeric>{platform.hasError ? '-' : (platform.omittedModesCount + platform.omittedDimensionsCount)}</Td>
                             <Td>
                               {platform.hasError ? (
-                                <Tag colorScheme="red" size="sm">Not found</Tag>
+                                <Tag 
+                                  colorScheme={platform.errorType === 'private-repository' ? 'orange' : 'red'} 
+                                  size="sm"
+                                >
+                                  {platform.errorType === 'private-repository' ? 'Private' : 'Not found'}
+                                </Tag>
                               ) : (
                                 <Tag colorScheme="green" size="sm">OK</Tag>
                               )}

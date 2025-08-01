@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import {
   Box,
   HStack,
@@ -49,6 +49,8 @@ import { GitHubSaveDialog } from './GitHubSaveDialog';
 import { DATA_CHANGE_EVENT } from './AppLayout';
 import { PlatformDropdown } from './PlatformDropdown';
 import { ThemeDropdown } from './ThemeDropdown';
+import { BranchCreationDialog } from './BranchCreationDialog';
+import { isMainBranch } from '../utils/BranchValidationUtils';
 
 import type { DataSourceContext } from '../services/dataSourceManager';
 
@@ -86,6 +88,12 @@ interface HeaderProps {
   dataSourceContext?: DataSourceContext;
   onPlatformChange?: (platformId: string | null) => void;
   onThemeChange?: (themeId: string | null) => void;
+  // Branch-based governance props
+  isEditMode?: boolean;
+  currentBranch?: string;
+  onBranchCreated?: (branchName: string) => void;
+  onEnterEditMode?: () => void;
+  onExitEditMode?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -114,10 +122,18 @@ export const Header: React.FC<HeaderProps> = ({
   dataSourceContext,
   onPlatformChange,
   onThemeChange,
+  // Branch-based governance props
+  isEditMode = false,
+  currentBranch = 'main',
+  onBranchCreated,
+  onEnterEditMode,
+  onExitEditMode,
 }) => {
   const { colorMode } = useColorMode();
+  
   const borderColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
   const bgColor = colorMode === 'dark' ? 'gray.800' : 'white';
+  
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [showFindDesignSystem, setShowFindDesignSystem] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -125,6 +141,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isGitHubWorkflowMenuOpen, setIsGitHubWorkflowMenuOpen] = useState(false);
   const [isGitHubConnecting, setIsGitHubConnecting] = useState(false);
+  const [showBranchCreationDialog, setShowBranchCreationDialog] = useState(false);
   const toast = useToast();
 
   // Clear GitHub connecting state when user returns from OAuth flow
@@ -164,11 +181,13 @@ export const Header: React.FC<HeaderProps> = ({
       if (hasDataLoaded) {
         // Data was successfully loaded - show system name from data
         title = systemName;
-        // Check actual permissions to determine access level
-        if (hasEditPermissions) {
-          subtitle = `(${branch}) - Edit Access`;
+        // Check actual permissions and edit mode to determine access level
+        if (isEditMode) {
+          subtitle = `(${currentBranch}) - Editing`;
+        } else if (hasEditPermissions) {
+          subtitle = `(${currentBranch}) - Edit Access`;
         } else {
-          subtitle = `(${branch}) - View Only`;
+          subtitle = `(${currentBranch}) - View Only`;
         }
       } else {
         // URL loading failed - show repository name as fallback
@@ -430,6 +449,27 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  // Branch-based governance handlers
+  const handleEnterEditMode = () => {
+    // Check if we're on a main branch
+    if (isMainBranch(currentBranch)) {
+      // Main branch - open branch creation dialog
+      setShowBranchCreationDialog(true);
+    } else {
+      // Non-main branch - call the app-level handler
+      if (onEnterEditMode) {
+        onEnterEditMode();
+      }
+    }
+  };
+
+  const handleBranchCreated = (branchName: string) => {
+    if (onBranchCreated) {
+      onBranchCreated(branchName);
+    }
+    setShowBranchCreationDialog(false);
+  };
+
   return (
     <>
       <Box
@@ -580,6 +620,39 @@ export const Header: React.FC<HeaderProps> = ({
             >
               Sign in
             </Button>
+          )}
+
+          {/* Branch-based Governance Buttons */}
+          {githubUser && hasEditPermissions && (
+            <HStack spacing={2}>
+              {isEditMode ? (
+                <>
+                  <Button
+                    size="sm"
+                    colorScheme="blue"
+                    onClick={handleSaveToGitHub}
+                    leftIcon={<GitCommitVertical size={16} />}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={onExitEditMode}
+                  >
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="sm"
+                  colorScheme="green"
+                  onClick={handleEnterEditMode}
+                >
+                  Edit
+                </Button>
+              )}
+            </HStack>
           )}
 
           {/* Data Action Buttons - Always available when handlers are provided */}
@@ -737,6 +810,16 @@ export const Header: React.FC<HeaderProps> = ({
         }}
       />
 
+      {/* Branch Creation Dialog */}
+      <BranchCreationDialog
+        isOpen={showBranchCreationDialog}
+        onClose={() => setShowBranchCreationDialog(false)}
+        onBranchCreated={handleBranchCreated}
+        currentBranch={currentBranch}
+        repositoryFullName={selectedRepoInfo?.fullName || ''}
+        githubUser={githubUser || null}
+      />
+
       {/* GitHub Save Dialog */}
       <GitHubSaveDialog
         isOpen={showSaveDialog}
@@ -746,6 +829,9 @@ export const Header: React.FC<HeaderProps> = ({
         }}
         saveMode={saveDialogMode}
         onSuccess={handleSaveSuccess}
+        // Branch-based governance props
+        currentBranch={currentBranch}
+        isEditMode={isEditMode}
       />
 
       <Modal 
@@ -772,4 +858,6 @@ export const Header: React.FC<HeaderProps> = ({
       </Modal>
     </>
   );
-}; 
+};
+
+export default memo(Header); 

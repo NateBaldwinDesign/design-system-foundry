@@ -65,6 +65,7 @@ interface ViewRendererProps {
   // View mode
   isViewOnlyMode?: boolean;
   hasEditPermissions?: boolean;
+  canEdit?: boolean;
   // Data source context
   dataSourceContext?: DataSourceContext;
   // App loading state
@@ -114,6 +115,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   githubUser,
   isViewOnlyMode = false,
   hasEditPermissions = false,
+  canEdit = false,
   dataSourceContext,
   isAppLoading = false,
   dimensionOrder,
@@ -139,7 +141,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   onSaveToken,
   onDeleteToken,
 }) => {
-  const auth = useAuth({ githubUser, isViewOnlyMode, hasEditPermissions, dataSourceContext });
+  const auth = useAuth({ githubUser, isViewOnlyMode, hasEditPermissions: canEdit, dataSourceContext });
 
   const renderView = () => {
     switch (currentView) {

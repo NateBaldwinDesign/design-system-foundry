@@ -181,6 +181,69 @@ When making any change, explicitly state:
 - Check `@technical-decisions.md` before making architectural decisions
 - Use pnpm for package and workspace management
 
+## AI Agent Investigation & Problem-Solving Standards
+
+### **INVESTIGATIVE APPROACH**
+- **ALWAYS perform secondary analysis** - Even when the "obvious" solution seems clear, investigate deeper to find the root cause
+- **Trace the complete data flow** - Follow every step from user action to final result, don't assume intermediate steps work
+- **Question assumptions** - If something "should work" but doesn't, investigate why the assumption is wrong
+- **Look for missing dependencies** - When components fail, check if all required providers, imports, and dependencies are present
+- **Examine error stack traces completely** - Don't just read the first line, trace through the entire call stack to understand the failure point
+
+### **THOROUGHNESS REQUIREMENTS**
+- **Evaluate impact on ALL system components** - Every change affects multiple parts of the system
+- **Check for circular dependencies** - React Context, hooks, and component hierarchies can create circular references
+- **Verify data flow integrity** - Ensure data passes correctly through all layers: UI → Handlers → Services → Context → UI
+- **Test the complete user journey** - Don't just fix the immediate error, ensure the entire workflow functions
+- **Consider edge cases** - What happens when data is null, undefined, or in unexpected formats?
+
+### **PREVENTATIVE MEASURES**
+- **Before implementing any fix:**
+  1. Identify ALL components that will be affected
+  2. Check for existing dependencies and imports
+  3. Verify the component hierarchy and provider structure
+  4. Ensure no circular dependencies will be created
+  5. Test the complete data flow path
+  6. Ensure it is the simplest form of the solution possible
+  7. Ensure it is NOT overly verbose or complicated
+
+- **When modifying React Context or Providers:**
+  1. Verify ALL components using the context are properly wrapped
+  2. Check that provider hierarchy is correct (parent → child order)
+  3. Ensure hooks are only called within provider scope
+  4. Validate that context values are properly passed down
+
+- **When changing component structure:**
+  1. Update ALL import statements
+  2. Verify ALL prop interfaces match
+  3. Check that event handlers are properly connected
+  4. Ensure state management flows correctly
+
+### **ROOT CAUSE ANALYSIS METHODOLOGY**
+1. **Start with the error message** - Read it completely, understand what it's telling you
+2. **Trace the call stack** - Follow the error through the component hierarchy
+3. **Identify the missing piece** - What dependency, provider, or connection is missing?
+4. **Check the data flow** - Is data being passed correctly through all layers?
+5. **Verify the fix addresses the root cause** - Don't just patch symptoms
+
+### **QUALITY ASSURANCE CHECKLIST**
+Before considering any fix complete:
+- [ ] Error is resolved without creating new errors
+- [ ] All related functionality still works
+- [ ] Data flows correctly through the entire system
+- [ ] No console errors or warnings remain
+- [ ] User can complete the intended workflow
+- [ ] Performance is not degraded
+- [ ] Code follows existing patterns and conventions
+- [ ] SOLUTION IS THE SIMPLEST IT CAN POSSIBLY BE
+
+### **COMMON FAILURE PATTERNS TO AVOID**
+- **Context Provider Missing** - Components using hooks must be wrapped in appropriate providers
+- **Circular Dependencies** - Components importing each other or creating dependency loops
+- **Incomplete Data Flow** - Data being generated but not properly passed to UI components
+- **Assumption-Based Fixes** - Implementing solutions without understanding the actual problem
+- **Symptom Patching** - Fixing error messages without addressing underlying causes
+
 ## AI Prompt Context
 - **FOCUS ANY SOLUTION/RESPONSE TO SPECIFIC CONTEXT PROVIDED IN PROMPT**. Do not implement changes outside of this context.
 - **RETAIN PRIOR CONTEXT**. For successive chat prompts, if no specific context given in a prompt, maintain focused context on prior context that was provided.
@@ -258,3 +321,4 @@ Before suggesting any code:
 - [ ] **Planned UI mapping logic as constants, not inline JSX**
 - [ ] **Included ValidationService for all mutations**
 - [ ] **Considered toast notifications for user feedback**
+- [ ] **Considered all aspects of quality assurance checklist**

@@ -56,13 +56,16 @@ const STORAGE_KEYS = {
 } as const;
 
 export class StorageService {
+  private static valueTypesCache: ValueType[] | null = null;
+
   private static getItem<T>(key: string, defaultValue: T): T {
-    const item = localStorage.getItem(key);
-    if (!item) {
-      localStorage.setItem(key, JSON.stringify(defaultValue));
+    try {
+      const item = localStorage.getItem(key);
+      return item ? JSON.parse(item) : defaultValue;
+    } catch (error) {
+      console.error(`[StorageService] Error parsing item for key ${key}:`, error);
       return defaultValue;
     }
-    return JSON.parse(item);
   }
 
   private static setItem<T>(key: string, value: T): void {
@@ -94,14 +97,24 @@ export class StorageService {
   }
 
   static getValueTypes(): ValueType[] {
+    // Use cache if available
+    if (this.valueTypesCache !== null) {
+      return this.valueTypesCache;
+    }
+    
     const valueTypes = this.getItem(STORAGE_KEYS.VALUE_TYPES, DEFAULT_VALUE_TYPES);
     console.debug('[StorageService] Retrieved value types:', valueTypes);
+    
+    // Cache the result
+    this.valueTypesCache = valueTypes;
     return valueTypes;
   }
 
   static setValueTypes(valueTypes: ValueType[]): void {
     console.debug('[StorageService] Setting value types:', valueTypes);
     localStorage.setItem(STORAGE_KEYS.VALUE_TYPES, JSON.stringify(valueTypes));
+    // Clear cache when setting new values
+    this.valueTypesCache = null;
   }
 
   static getDimensions(): Dimension[] {
@@ -339,7 +352,40 @@ export class StorageService {
   }
 
   static clearAll(): void {
-    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+    // Preserve GitHub authentication data
+    const githubToken = localStorage.getItem('github_token_encrypted');
+    const githubUser = localStorage.getItem('github_user');
+    const githubRepo = localStorage.getItem('github_repo');
+    
+    // Clear all localStorage
+    localStorage.clear();
+    
+    // Restore GitHub authentication data
+    if (githubToken) {
+      localStorage.setItem('github_token_encrypted', githubToken);
+    }
+    if (githubUser) {
+      localStorage.setItem('github_user', githubUser);
+    }
+    if (githubRepo) {
+      localStorage.setItem('github_repo', githubRepo);
+    }
+    
+    // Clear caches
+    this.valueTypesCache = null;
+  }
+
+  /**
+   * Clear only schema-related data, preserving GitHub authentication
+   */
+  static clearSchemaData(): void {
+    // Clear all schema-related keys, preserving GitHub authentication
+    Object.values(STORAGE_KEYS).forEach(key => {
+      localStorage.removeItem(key);
+    });
+    
+    // Clear caches
+    this.valueTypesCache = null;
   }
 
   // ============================================================================

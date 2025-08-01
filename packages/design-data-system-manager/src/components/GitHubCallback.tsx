@@ -63,6 +63,11 @@ export const GitHubCallback: React.FC = () => {
 
         setStatus('success');
         
+        // Dispatch OAuth completion event to notify App component
+        window.dispatchEvent(new CustomEvent('github:oauth-complete', {
+          detail: { user }
+        }));
+        
         // Check for URL parameters to determine next steps
         const callbackUrlParams = new URLSearchParams(window.location.search);
         const repo = callbackUrlParams.get('repo');
