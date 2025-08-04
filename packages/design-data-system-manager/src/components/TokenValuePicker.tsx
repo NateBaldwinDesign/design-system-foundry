@@ -68,10 +68,24 @@ export function TokenValuePicker({
   const [colorError, setColorError] = useState<string | null>(null);
 
   // Get the value type from schema
+  console.log('[TokenValuePicker] Debug info:', {
+    resolvedValueTypeId,
+    resolvedValueTypesCount: resolvedValueTypes.length,
+    resolvedValueTypes: resolvedValueTypes.map(vt => ({ id: vt.id, displayName: vt.displayName, type: vt.type })),
+    availableIds: resolvedValueTypes.map(vt => vt.id)
+  });
+  
   const valueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
   if (!valueType) {
+    console.error('[TokenValuePicker] Value type not found:', {
+      requestedId: resolvedValueTypeId,
+      availableIds: resolvedValueTypes.map(vt => vt.id),
+      allValueTypes: resolvedValueTypes
+    });
     throw new Error(`Unknown value type: ${resolvedValueTypeId}`);
   }
+  
+  console.log('[TokenValuePicker] Found value type:', valueType);
 
   // Validate initial color value
   useEffect(() => {
