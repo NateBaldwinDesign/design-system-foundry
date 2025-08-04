@@ -766,6 +766,19 @@ export const Header: React.FC<HeaderProps> = ({
                 </HStack>
               )}
 
+              {/* Branch-based Governance Buttons */}
+              {githubUser && hasDataSourceEditPermissions() && (
+                <HStack spacing={2}>
+                  <Button
+                    size="sm"
+                    colorScheme="green"
+                    onClick={handleEnterEditMode}
+                  >
+                    Edit
+                  </Button>
+                </HStack>
+              )}
+
               {/* GitHub Connection */}
               {githubUser ? (
                 <HStack spacing={2}>
@@ -802,7 +815,7 @@ export const Header: React.FC<HeaderProps> = ({
                           </Button>
                           {selectedRepoInfo && (
                             <>
-                                                             {hasDataSourceEditPermissions() && (
+                              {hasDataSourceEditPermissions() && (
                                 <>
                                   <Button
                                     variant="ghost"
@@ -876,19 +889,6 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   Sign in
                 </Button>
-              )}
-
-              {/* Branch-based Governance Buttons */}
-                             {githubUser && hasDataSourceEditPermissions() && (
-                <HStack spacing={2}>
-                  <Button
-                    size="sm"
-                    colorScheme="green"
-                    onClick={handleEnterEditMode}
-                  >
-                    Edit
-                  </Button>
-                </HStack>
               )}
 
               {/* Data Action Buttons - Always available when handlers are provided */}

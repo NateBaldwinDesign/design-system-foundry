@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, AlertIcon, Tooltip, Badge, AlertTitle, AlertDescription } from '@chakra-ui/react';
+import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, AlertIcon, Tooltip, Badge, AlertTitle, AlertDescription, Button } from '@chakra-ui/react';
 import { getTokenStats, getPlatformExtensionStats, getThemeStats, getLatestRelease, getRecentActivity } from '../utils/dashboardStats';
 import type { Platform, Theme, ComponentCategory, ComponentProperty, Component } from '@token-model/data-model';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
 import type { GitHubUser } from '../config/github';
 import type { PlatformExtensionAnalyticsSummary } from '../services/platformExtensionAnalyticsService';
+import type { ThemeAnalyticsSummary } from '../services/themeAnalyticsService';
 import type { DataSourceContext } from '../services/dataSourceManager';
+import { StorageService } from '../services/storage';
 import { TriangleAlert, Monitor, Palette } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -33,11 +35,32 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   const [platformExtensionStats, setPlatformExtensionStats] = useState<PlatformExtensionAnalyticsSummary | null>(null);
   const [loadingPlatformStats, setLoadingPlatformStats] = useState(false);
   const [platformStatsError, setPlatformStatsError] = useState<string | null>(null);
+  const [themeAnalyticsStats, setThemeAnalyticsStats] = useState<ThemeAnalyticsSummary | null>(null);
+  const [loadingThemeStats, setLoadingThemeStats] = useState(false);
+  const [themeStatsError, setThemeStatsError] = useState<string | null>(null);
+  const [latestReleaseData, setLatestReleaseData] = useState<{
+    version: string;
+    date: string;
+    sourceName: string;
+    repositoryUrl: string;
+    releaseUrl?: string;
+  } | null>(null);
+  const [recentActivityData, setRecentActivityData] = useState<{
+    commits: Array<{
+      id: number;
+      sha: string;
+      message: string;
+      date: string;
+      author: string;
+      commitUrl: string;
+    }>;
+    sourceName: string;
+    repositoryUrl: string;
+  } | null>(null);
+  const [loadingGitHubData, setLoadingGitHubData] = useState(false);
+  const [gitHubDataError, setGitHubDataError] = useState<string | null>(null);
   
   const tokenStats = getTokenStats(tokens);
-  const themeStats = getThemeStats(themes);
-  const latestRelease = getLatestRelease();
-  const recentActivity = getRecentActivity();
 
   // Component Registry Status
   const componentRegistryStatus = {
@@ -92,6 +115,61 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
     loadPlatformExtensionStats();
   }, [platforms]);
+
+  // Load theme analytics
+  useEffect(() => {
+    const loadThemeAnalytics = async () => {
+      if (themes.length === 0) return;
+      
+      setLoadingThemeStats(true);
+      setThemeStatsError(null);
+      
+      try {
+        // Add a small delay to allow for pre-loading to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const stats = await getThemeStats(themes, tokens);
+        setThemeAnalyticsStats(stats);
+      } catch (error) {
+        setThemeStatsError(error instanceof Error ? error.message : 'Failed to load theme analytics');
+      } finally {
+        setLoadingThemeStats(false);
+      }
+    };
+
+    loadThemeAnalytics();
+  }, [themes, tokens]);
+
+  // Load GitHub analytics (releases and commits)
+  useEffect(() => {
+    const loadGitHubAnalytics = async () => {
+      if (!dataSourceContext) return;
+      
+      setLoadingGitHubData(true);
+      setGitHubDataError(null);
+      
+      try {
+        // Add a small delay to allow for pre-loading to complete
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const systemName = StorageService.getRootData().systemName || 'Design System';
+        
+        const [releaseData, activityData] = await Promise.all([
+          getLatestRelease(dataSourceContext, systemName),
+          getRecentActivity(dataSourceContext, systemName)
+        ]);
+        
+        setLatestReleaseData(releaseData);
+        setRecentActivityData(activityData);
+      } catch (error) {
+        setGitHubDataError(error instanceof Error ? error.message : 'Failed to load GitHub analytics');
+      } finally {
+        setLoadingGitHubData(false);
+      }
+    };
+
+    loadGitHubAnalytics();
+  }, [dataSourceContext]);
 
   // Get the user's first name from GitHub user data
   const getWelcomeMessage = () => {
@@ -166,6 +244,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({
           </Alert>
         )}
         
+        {/* Theme Analytics Section */}
+        {themeStatsError && (
+          <Alert status="error" mb={4}>
+            <AlertIcon />
+            {themeStatsError}
+          </Alert>
+        )}
+        
         {/* Private Repository Alert */}
         {platformExtensionStats?.platformAnalytics?.some(p => p.errorType === 'private-repository') && (
           <Alert status="info" mb={4}>
@@ -179,7 +265,21 @@ const DashboardView: React.FC<DashboardViewProps> = ({
           </Alert>
         )}
         
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mb={8}>
+        {/* Private Theme Repository Alert */}
+        {themeAnalyticsStats?.themeAnalytics?.some(t => t.errorType === 'private-repository') && (
+          <Alert status="info" mb={4}>
+            <AlertIcon />
+            <Box>
+              <AlertTitle>Private Theme Repositories Detected</AlertTitle>
+              <AlertDescription>
+                Some theme overrides are in private repositories. Sign in with GitHub to access them.
+              </AlertDescription>
+            </Box>
+          </Alert>
+        )}
+        
+        {/* Main Dashboard Grid - Single SimpleGrid for responsive layout */}
+        <SimpleGrid minChildWidth="550px" spacing={8} mb={8}>
           {/* Tokens Section */}
           <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
             <Heading size="md" mb={4}>Tokens</Heading>
@@ -328,34 +428,121 @@ const DashboardView: React.FC<DashboardViewProps> = ({
               </VStack>
             )}
           </Box>
-        </SimpleGrid>
-        
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mb={8}>
+          
           {/* Themes Section */}
           <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
             <Heading size="md" mb={4}>Themes</Heading>
-            <Stat>
-              <StatLabel>Total Themes</StatLabel>
-              <StatNumber>{themeStats.totalThemes}</StatNumber>
-            </Stat>
-            <Divider my={4} />
-            <Heading size="sm" mb={2}>Theme Overrides</Heading>
-            <Table size="sm" variant="simple">
-              <Thead>
-                <Tr>
-                  <Th>Theme</Th>
-                  <Th isNumeric>% Tokens w/ Override</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {themeStats.themeOverrides.map(t => (
-                  <Tr key={t.themeId}>
-                    <Td>{t.themeName}</Td>
-                    <Td isNumeric>{t.percentWithOverride}%</Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
+            {loadingThemeStats ? (
+              <VStack spacing={4}>
+                <Spinner />
+                <Text fontSize="sm" color="gray.500">Loading theme analytics...</Text>
+                <Text fontSize="xs" color="gray.400">This may take a moment for external repositories</Text>
+              </VStack>
+            ) : themeAnalyticsStats ? (
+              <VStack align="start" spacing={4}>
+                <SimpleGrid columns={2} spacing={4} width="100%">
+                  <Stat>
+                    <StatLabel>Total Themes</StatLabel>
+                    <StatNumber>{themeAnalyticsStats.totalThemes}</StatNumber>
+                  </Stat>
+                  <Stat>
+                    <StatLabel>Themes with Overrides</StatLabel>
+                    <StatNumber>{themeAnalyticsStats.themesWithOverrides}</StatNumber>
+                    <StatHelpText>of {themeAnalyticsStats.totalThemes} total</StatHelpText>
+                  </Stat>
+                  <Stat>
+                    <StatLabel>Total Token Overrides</StatLabel>
+                    <StatNumber>{themeAnalyticsStats.totalTokenOverrides}</StatNumber>
+                  </Stat>
+                  <Stat>
+                    <StatLabel>Themeable Tokens in Core</StatLabel>
+                    <StatNumber>{themeAnalyticsStats.themeableTokensInCore}</StatNumber>
+                    <StatHelpText>Available for override</StatHelpText>
+                  </Stat>
+                </SimpleGrid>
+                
+                {themeAnalyticsStats.themeAnalytics.length > 0 && (
+                  <>
+                    <Divider />
+                    <Text fontSize="sm" fontWeight="bold">Theme Details</Text>
+                    <Table size="sm" variant="simple" width="100%">
+                      <Thead>
+                        <Tr>
+                          <Th>Theme</Th>
+                          <Th>Version</Th>
+                          <Th isNumeric>Token Overrides</Th>
+                          <Th isNumeric>% of Themeable</Th>
+                          <Th>Status</Th>
+                        </Tr>
+                      </Thead>
+                      <Tbody>
+                        {themeAnalyticsStats.themeAnalytics.map(theme => (
+                          <Tr key={theme.themeId}>
+                            <Td>
+                              <HStack spacing={2}>
+                                <Text>{theme.themeName}</Text>
+                                {theme.hasError && (
+                                  <Tooltip
+                                    label={
+                                      theme.errorType === 'private-repository' 
+                                        ? 'Private repository - sign in with GitHub to access'
+                                        : theme.errorMessage || 'Theme override file not found'
+                                    }
+                                    aria-label={`Error for ${theme.themeName}: ${
+                                      theme.errorType === 'private-repository' 
+                                        ? 'Private repository - sign in with GitHub to access'
+                                        : theme.errorMessage || 'Theme override file not found'
+                                    }`}
+                                    hasArrow
+                                    placement="top"
+                                  >
+                                    <Text 
+                                      as="span" 
+                                      color={theme.errorType === 'private-repository' ? 'orange.500' : 'red.500'} 
+                                      fontWeight="bold" 
+                                      aria-live="polite" 
+                                      aria-label={`Error: ${
+                                        theme.errorType === 'private-repository' 
+                                          ? 'Private repository - sign in with GitHub to access'
+                                          : theme.errorMessage || 'Theme override file not found'
+                                      }`}
+                                      tabIndex={0}
+                                      ml={1}
+                                    >
+                                      <TriangleAlert size={14} />
+                                    </Text>
+                                  </Tooltip>
+                                )}
+                              </HStack>
+                            </Td>
+                            <Td>{theme.hasError ? '-' : (theme.version || 'N/A')}</Td>
+                            <Td isNumeric>{theme.hasError ? '-' : theme.tokenOverridesCount}</Td>
+                            <Td isNumeric>{theme.hasError ? '-' : theme.percentOfThemeableTokens.toFixed(1)}%</Td>
+                            <Td>
+                              {theme.hasError ? (
+                                <Tag 
+                                  colorScheme={theme.errorType === 'private-repository' ? 'orange' : 'red'} 
+                                  size="sm"
+                                >
+                                  {theme.errorType === 'private-repository' ? 'Private' : 'Not found'}
+                                </Tag>
+                              ) : (
+                                <Tag colorScheme="green" size="sm">OK</Tag>
+                              )}
+                            </Td>
+                          </Tr>
+                        ))}
+                      </Tbody>
+                    </Table>
+                  </>
+                )}
+              </VStack>
+            ) : (
+              <VStack spacing={2}>
+                <Text fontSize="sm" color="gray.500">No theme analytics data available</Text>
+                <Text fontSize="xs" color="gray.400">Theme overrides are loaded from external repositories</Text>
+              </VStack>
+            )}
           </Box>
           
           {/* Component Registry Section */}
@@ -413,34 +600,118 @@ const DashboardView: React.FC<DashboardViewProps> = ({
               </>
             )}
           </Box>
-        </SimpleGrid>
-        
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={8} mb={8}>
+          
           {/* Releases Section */}
           <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
             <Heading size="md" mb={4}>Releases</Heading>
-            <VStack align="start" spacing={2}>
-              <Text><b>Latest Version:</b> {latestRelease.version}</Text>
-              <Text><b>Date:</b> {latestRelease.date}</Text>
-              <Tag colorScheme="gray">Placeholder</Tag>
-            </VStack>
+            {loadingGitHubData ? (
+              <VStack spacing={4}>
+                <Spinner />
+                <Text fontSize="sm" color="gray.500">Loading GitHub releases...</Text>
+              </VStack>
+            ) : gitHubDataError ? (
+              <Alert status="error">
+                <AlertIcon />
+                {gitHubDataError}
+              </Alert>
+            ) : latestReleaseData ? (
+              <VStack align="start" spacing={4}>
+                <HStack spacing={2} align="center">
+                  <Text fontSize="sm" fontWeight="medium" color="gray.600">
+                    Source: {latestReleaseData.sourceName}
+                  </Text>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => window.open(latestReleaseData.repositoryUrl, '_blank')}
+                  >
+                    View Repository
+                  </Button>
+                </HStack>
+                
+                <VStack align="start" spacing={2}>
+                  <Text><b>Latest Version:</b> {latestReleaseData.version}</Text>
+                  <Text><b>Date:</b> {latestReleaseData.date}</Text>
+                  {latestReleaseData.releaseUrl && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.open(latestReleaseData.releaseUrl!, '_blank')}
+                    >
+                      View Release
+                    </Button>
+                  )}
+                </VStack>
+              </VStack>
+            ) : (
+              <Text fontSize="sm" color="gray.500">No release data available</Text>
+            )}
+          </Box>
+          
+          {/* Latest Activity Section */}
+          <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
+            <Heading size="md" mb={4}>Latest Activity</Heading>
+            {loadingGitHubData ? (
+              <VStack spacing={4}>
+                <Spinner />
+                <Text fontSize="sm" color="gray.500">Loading GitHub activity...</Text>
+              </VStack>
+            ) : gitHubDataError ? (
+              <Alert status="error">
+                <AlertIcon />
+                {gitHubDataError}
+              </Alert>
+            ) : recentActivityData ? (
+              <VStack align="start" spacing={4}>
+                <HStack spacing={2} align="center">
+                  <Text fontSize="sm" fontWeight="medium" color="gray.600">
+                    Source: {recentActivityData.sourceName}
+                  </Text>
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => window.open(recentActivityData.repositoryUrl, '_blank')}
+                  >
+                    View Repository
+                  </Button>
+                </HStack>
+                
+                {recentActivityData.commits.length > 0 ? (
+                  <VStack align="start" spacing={2} width="100%">
+                    {recentActivityData.commits.map(commit => (
+                      <HStack key={commit.id} spacing={4} width="100%" justify="space-between">
+                        <VStack align="start" spacing={1} flex={1}>
+                          <Text fontSize="sm" fontWeight="medium">
+                            {commit.message}
+                          </Text>
+                          <HStack spacing={2}>
+                            <Text fontSize="xs" color="gray.500">
+                              {commit.author} • {commit.date}
+                            </Text>
+                            <Text fontSize="xs" color="gray.400" fontFamily="mono">
+                              {commit.sha}
+                            </Text>
+                          </HStack>
+                        </VStack>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => window.open(commit.commitUrl, '_blank')}
+                        >
+                          View
+                        </Button>
+                      </HStack>
+                    ))}
+                  </VStack>
+                ) : (
+                  <Text fontSize="sm" color="gray.500">No recent commits found</Text>
+                )}
+              </VStack>
+            ) : (
+              <Text fontSize="sm" color="gray.500">No activity data available</Text>
+            )}
           </Box>
         </SimpleGrid>
-        
-        
-        {/* Latest Activity Section */}
-        <Box p={6} borderWidth={1} borderRadius="md" bg="chakra-body-bg">
-          <Heading size="md" mb={4}>Latest Activity</Heading>
-          <VStack align="start" spacing={2}>
-            {recentActivity.map(item => (
-              <HStack key={item.id} spacing={4}>
-                <Text>{item.description}</Text>
-                <Text color="gray.500" fontSize="sm">{item.date}</Text>
-              </HStack>
-            ))}
-            <Tag colorScheme="gray">Placeholder</Tag>
-          </VStack>
-        </Box>
       </Box>
       {/* Add an aria-live region for a11y error announcement */}
       {platformExtensionStats?.platformAnalytics.some(p => p.hasError) && (
