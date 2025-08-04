@@ -62,6 +62,9 @@ import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/code
 import { getDefaultValueForType, getValueTypeFromId } from '../utils/valueTypeUtils';
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
 import type { Schema as SchemaType } from '../hooks/useSchema';
+import type { DataSourceContext } from '../services/dataSourceManager';
+import { OverrideCreationService } from '../services/overrideCreationService';
+import { OverrideTrackingService } from '../services/overrideTrackingService';
 
 // ExtendedToken type to include platformOverrides
 export interface ValueByMode {
@@ -107,6 +110,8 @@ export interface TokenEditorDialogProps {
   schema: SchemaType | null;
   onDeleteToken: (tokenId: string) => void;
   collections: TokenCollection[];
+  // NEW: Data source context for override creation
+  dataSourceContext?: DataSourceContext;
 }
 
 // Helper function to filter taxonomies by value type
@@ -417,7 +422,8 @@ export function TokenEditorDialog({
     onViewClassifications,
     schema,
     onDeleteToken,
-    collections
+    collections,
+    dataSourceContext
   }: TokenEditorDialogProps) {
   console.debug('[TokenEditorDialog] Received resolvedValueTypes:', resolvedValueTypes);
 
@@ -1071,6 +1077,33 @@ export function TokenEditorDialog({
     }
 
     console.log('[TokenEditorDialog] Calling onSave with token:', updatedToken);
+    
+    // NEW: Create override if in edit mode for platform/theme
+    if (dataSourceContext?.editMode.isActive && dataSourceContext.editMode.sourceType !== 'core') {
+      const originalToken = tokens.find(t => t.id === token.id) || null;
+      const overrideResult = OverrideCreationService.createOverrideForContext(
+        updatedToken,
+        originalToken,
+        dataSourceContext
+      );
+      
+      if (!overrideResult.success) {
+        console.error('[TokenEditorDialog] Override creation failed:', overrideResult.error);
+        // TODO: Show error to user
+        return;
+      }
+      
+      if (overrideResult.overrideData) {
+        console.log('[TokenEditorDialog] Override created:', overrideResult.overrideData);
+        // Store override data for later commit
+        OverrideTrackingService.addOverride(
+          updatedToken.id,
+          overrideResult.overrideData,
+          overrideResult.changes
+        );
+      }
+    }
+    
     onSave(updatedToken);
     onClose();
   };

@@ -39,15 +39,21 @@ import { FigmaConfigurationService } from '../services/figmaConfigurationService
 import { SyntaxPatternsEditor, SyntaxPatterns } from '../components/shared/SyntaxPatternsEditor';
 import { StorageService } from '../services/storage';
 import { CollectionsView } from './CollectionsView';
+import type { DataSourceContext } from '../services/dataSourceManager';
+import { GitHubApiService } from '../services/githubApi';
+import { FigmaConfigurationOverrideService } from '../services/figmaConfigurationOverrideService';
 
 interface FigmaConfigurationsViewProps {
   tokenSystem: TokenSystem;
   canEdit?: boolean;
+  // NEW: Data source context for source-specific Figma configuration
+  dataSourceContext?: DataSourceContext;
 }
 
 export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = ({ 
   tokenSystem,
-  canEdit = true
+  canEdit = true,
+  dataSourceContext
 }) => {
   const { colorMode } = useColorMode();
   const toast = useToast();
@@ -74,24 +80,190 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
   const tokens = StorageService.getTokens();
   const resolvedValueTypes = StorageService.getValueTypes();
 
-  // Load configuration and check change tracking state on mount
+    // Load configuration and check change tracking state on mount
   useEffect(() => {
     const initializeSettings = async () => {
       setCheckingChanges(true);
       
-      // Load Figma configuration from main data system
-      const currentFigmaConfig = tokenSystem.figmaConfiguration;
-      if (currentFigmaConfig) {
-        setFileKey(currentFigmaConfig.fileKey || '');
-        const schemaPatterns = currentFigmaConfig.syntaxPatterns || {};
-        setSyntaxPatterns({
-          prefix: schemaPatterns.prefix || '',
-          suffix: schemaPatterns.suffix || '',
-          delimiter: schemaPatterns.delimiter || '_',
-          capitalization: schemaPatterns.capitalization === 'camel' ? 'none' : (schemaPatterns.capitalization || 'none'),
-          formatString: schemaPatterns.formatString || ''
-        });
+      // Initialize Figma configuration override session if in edit mode
+      if (dataSourceContext?.editMode.isActive) {
+        FigmaConfigurationOverrideService.initializeSession(dataSourceContext);
       }
+      
+      // Get Figma configuration from current data source context
+      let sourceFileKey = '';
+      let sourceSyntaxPatterns: {
+        prefix?: string;
+        suffix?: string;
+        delimiter?: string;
+        capitalization?: string;
+        formatString?: string;
+      } = {};
+      
+      // Determine the current source type and ID
+      const currentSourceType = dataSourceContext?.editMode.isActive 
+        ? dataSourceContext.editMode.sourceType 
+        : 'core';
+      const currentSourceId = dataSourceContext?.editMode.isActive 
+        ? dataSourceContext.editMode.sourceId 
+        : null;
+      
+      console.log('[FigmaConfigurationsView] Loading config for:', { currentSourceType, currentSourceId, isEditMode: dataSourceContext?.editMode.isActive });
+      
+      // Check for staged changes first (only in edit mode)
+      if (dataSourceContext?.editMode.isActive) {
+        const stagedChanges = FigmaConfigurationOverrideService.getStagedConfigurationChanges();
+        console.log('[FigmaConfigurationsView] Checking for staged changes...');
+        console.log('[FigmaConfigurationsView] Staged changes found:', stagedChanges);
+        
+        if (stagedChanges) {
+          console.log('[FigmaConfigurationsView] === USING STAGED CHANGES ===');
+          console.log('[FigmaConfigurationsView] Staged figmaFileKey:', stagedChanges.figmaFileKey);
+          console.log('[FigmaConfigurationsView] Staged syntaxPatterns:', stagedChanges.syntaxPatterns);
+          sourceFileKey = stagedChanges.figmaFileKey || '';
+          sourceSyntaxPatterns = stagedChanges.syntaxPatterns || {};
+        } else {
+          console.log('[FigmaConfigurationsView] No staged changes found');
+        }
+      } else {
+        console.log('[FigmaConfigurationsView] Not in edit mode, skipping staged changes check');
+      }
+      
+      // If no staged changes, load from source data
+      if (!sourceFileKey && !sourceSyntaxPatterns.prefix) {
+        console.log('[FigmaConfigurationsView] No staged changes found, loading from source data');
+        console.log('[FigmaConfigurationsView] Current source type:', currentSourceType);
+        console.log('[FigmaConfigurationsView] Current source ID:', currentSourceId);
+        
+        if (currentSourceType === 'core') {
+          // Core data - use figmaConfiguration from tokenSystem
+          const currentFigmaConfig = tokenSystem.figmaConfiguration;
+          console.log('[FigmaConfigurationsView] === CORE DATA SOURCE ===');
+          console.log('[FigmaConfigurationsView] Source: tokenSystem.figmaConfiguration');
+          console.log('[FigmaConfigurationsView] Raw figmaConfiguration:', currentFigmaConfig);
+          console.log('[FigmaConfigurationsView] figmaConfiguration.fileKey:', currentFigmaConfig?.fileKey);
+          console.log('[FigmaConfigurationsView] figmaConfiguration.syntaxPatterns:', currentFigmaConfig?.syntaxPatterns);
+          
+          if (currentFigmaConfig) {
+            sourceFileKey = currentFigmaConfig.fileKey || '';
+            sourceSyntaxPatterns = currentFigmaConfig.syntaxPatterns || {};
+            console.log('[FigmaConfigurationsView] Extracted core fileKey:', sourceFileKey);
+            console.log('[FigmaConfigurationsView] Extracted core syntaxPatterns:', sourceSyntaxPatterns);
+          } else {
+            console.log('[FigmaConfigurationsView] WARNING: No figmaConfiguration found in tokenSystem');
+          }
+        } else if (currentSourceType === 'platform-extension' && currentSourceId) {
+          // Platform extension - get figmaFileKey from root level of platform extension data
+          console.log('[FigmaConfigurationsView] === PLATFORM EXTENSION SOURCE ===');
+          console.log('[FigmaConfigurationsView] Source ID:', currentSourceId);
+          
+          try {
+            const platformRepo = dataSourceContext?.repositories.platforms[currentSourceId];
+            console.log('[FigmaConfigurationsView] Platform repo info:', platformRepo);
+            
+            if (platformRepo) {
+              console.log('[FigmaConfigurationsView] Loading from GitHub:', {
+                fullName: platformRepo.fullName,
+                filePath: platformRepo.filePath,
+                branch: platformRepo.branch
+              });
+              
+              const fileContent = await GitHubApiService.getFileContent(
+                platformRepo.fullName,
+                platformRepo.filePath,
+                platformRepo.branch
+              );
+              
+              console.log('[FigmaConfigurationsView] GitHub API response:', fileContent);
+              
+              if (fileContent && fileContent.content) {
+                const platformData = JSON.parse(fileContent.content);
+                console.log('[FigmaConfigurationsView] Parsed platform data:', platformData);
+                console.log('[FigmaConfigurationsView] platformData.figmaFileKey:', platformData.figmaFileKey);
+                console.log('[FigmaConfigurationsView] platformData.syntaxPatterns:', platformData.syntaxPatterns);
+                
+                // Platform extensions have figmaFileKey at root level
+                sourceFileKey = platformData.figmaFileKey || '';
+                sourceSyntaxPatterns = platformData.syntaxPatterns || {};
+                console.log('[FigmaConfigurationsView] Extracted platform fileKey:', sourceFileKey);
+                console.log('[FigmaConfigurationsView] Extracted platform syntaxPatterns:', sourceSyntaxPatterns);
+              } else {
+                console.log('[FigmaConfigurationsView] WARNING: No file content received from GitHub API');
+              }
+            } else {
+              console.log('[FigmaConfigurationsView] WARNING: No platform repo found for ID:', currentSourceId);
+            }
+          } catch (error) {
+            console.error('[FigmaConfigurationsView] ERROR loading platform Figma config:', error);
+          }
+        } else if (currentSourceType === 'theme-override' && currentSourceId) {
+          // Theme override - get figmaFileKey from root level of theme override data
+          console.log('[FigmaConfigurationsView] === THEME OVERRIDE SOURCE ===');
+          console.log('[FigmaConfigurationsView] Source ID:', currentSourceId);
+          
+          try {
+            const themeRepo = dataSourceContext?.repositories.themes[currentSourceId];
+            console.log('[FigmaConfigurationsView] Theme repo info:', themeRepo);
+            
+            if (themeRepo) {
+              console.log('[FigmaConfigurationsView] Loading from GitHub:', {
+                fullName: themeRepo.fullName,
+                filePath: themeRepo.filePath,
+                branch: themeRepo.branch
+              });
+              
+              const fileContent = await GitHubApiService.getFileContent(
+                themeRepo.fullName,
+                themeRepo.filePath,
+                themeRepo.branch
+              );
+              
+              console.log('[FigmaConfigurationsView] GitHub API response:', fileContent);
+              
+              if (fileContent && fileContent.content) {
+                const themeData = JSON.parse(fileContent.content);
+                console.log('[FigmaConfigurationsView] Parsed theme data:', themeData);
+                console.log('[FigmaConfigurationsView] themeData.figmaFileKey:', themeData.figmaFileKey);
+                
+                // Theme overrides have figmaFileKey at root level
+                sourceFileKey = themeData.figmaFileKey || '';
+                // Theme overrides don't have syntax patterns, use core patterns
+                const currentFigmaConfig = tokenSystem.figmaConfiguration;
+                sourceSyntaxPatterns = currentFigmaConfig?.syntaxPatterns || {};
+                console.log('[FigmaConfigurationsView] Extracted theme fileKey:', sourceFileKey);
+                console.log('[FigmaConfigurationsView] Using core syntaxPatterns for theme:', sourceSyntaxPatterns);
+              } else {
+                console.log('[FigmaConfigurationsView] WARNING: No file content received from GitHub API');
+              }
+            } else {
+              console.log('[FigmaConfigurationsView] WARNING: No theme repo found for ID:', currentSourceId);
+            }
+          } catch (error) {
+            console.error('[FigmaConfigurationsView] ERROR loading theme Figma config:', error);
+          }
+        }
+      } else {
+        console.log('[FigmaConfigurationsView] Using staged changes, skipping source data loading');
+      }
+      
+      console.log('[FigmaConfigurationsView] === FINAL CONFIGURATION ===');
+      console.log('[FigmaConfigurationsView] Final sourceFileKey:', sourceFileKey);
+      console.log('[FigmaConfigurationsView] Final sourceSyntaxPatterns:', sourceSyntaxPatterns);
+      
+      // Set the file key and syntax patterns
+      setFileKey(sourceFileKey);
+      const finalSyntaxPatterns = {
+        prefix: sourceSyntaxPatterns.prefix || '',
+        suffix: sourceSyntaxPatterns.suffix || '',
+        delimiter: (sourceSyntaxPatterns.delimiter as '_' | '-' | '.' | '/' | '') || '_',
+        capitalization: sourceSyntaxPatterns.capitalization === 'camel' ? 'none' : (sourceSyntaxPatterns.capitalization as 'none' | 'uppercase' | 'lowercase' | 'capitalize') || 'none',
+        formatString: sourceSyntaxPatterns.formatString || ''
+      };
+      setSyntaxPatterns(finalSyntaxPatterns);
+      
+      console.log('[FigmaConfigurationsView] === UI STATE UPDATES ===');
+      console.log('[FigmaConfigurationsView] Setting fileKey state to:', sourceFileKey);
+      console.log('[FigmaConfigurationsView] Setting syntaxPatterns state to:', finalSyntaxPatterns);
       
       // Load access token from separate storage (not part of schema)
       const config = FigmaConfigurationService.getConfiguration();
@@ -128,7 +300,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
     return () => {
       window.removeEventListener('token-model:data-change', handleDataChange);
     };
-  }, [tokenSystem.figmaConfiguration]);
+  }, [tokenSystem.figmaConfiguration, dataSourceContext]);
 
   // Test Figma access token and file
   const testTokenManually = async () => {
@@ -407,30 +579,79 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       capitalization: newPatterns.capitalization === 'none' ? 'camel' as const : newPatterns.capitalization
     };
     
-    // Update the main data system
-    const updatedFigmaConfig = {
-      fileKey: tokenSystem.figmaConfiguration?.fileKey || '',
-      syntaxPatterns: schemaPatterns
-    };
-    
-    // Save to storage and trigger change tracking
-    StorageService.setFigmaConfiguration(updatedFigmaConfig);
-    window.dispatchEvent(new CustomEvent('token-model:data-change'));
+    if (dataSourceContext?.editMode.isActive) {
+      // In edit mode, stage changes for the current source
+      const { sourceType, sourceId } = dataSourceContext.editMode;
+      
+      if (sourceType === 'core') {
+        // Core data - update via StorageService
+        const updatedFigmaConfig = {
+          fileKey: fileKey,
+          syntaxPatterns: schemaPatterns
+        };
+        StorageService.setFigmaConfiguration(updatedFigmaConfig);
+        window.dispatchEvent(new CustomEvent('token-model:data-change'));
+      } else if (sourceType === 'platform-extension' && sourceId) {
+        // Platform extension - stage changes for later commit
+        FigmaConfigurationOverrideService.stageConfigurationChange(fileKey, schemaPatterns);
+      } else if (sourceType === 'theme-override' && sourceId) {
+        // Theme overrides don't have syntax patterns, but we can log this
+        console.log('[FigmaConfigurationsView] Theme overrides do not support syntax pattern changes');
+      }
+    } else {
+      // In view mode, update core data
+      const updatedFigmaConfig = {
+        fileKey: fileKey,
+        syntaxPatterns: schemaPatterns
+      };
+      StorageService.setFigmaConfiguration(updatedFigmaConfig);
+      window.dispatchEvent(new CustomEvent('token-model:data-change'));
+    }
   };
 
   // Handle file key changes
   const handleFileKeyChange = (newFileKey: string) => {
     setFileKey(newFileKey);
     
-    // Update the main data system
-    const updatedFigmaConfig = {
-      fileKey: newFileKey,
-      syntaxPatterns: tokenSystem.figmaConfiguration?.syntaxPatterns
-    };
+    if (dataSourceContext?.editMode.isActive) {
+      // In edit mode, stage changes for the current source
+      const { sourceType, sourceId } = dataSourceContext.editMode;
+      
+      if (sourceType === 'core') {
+        // Core data - update via StorageService
+        const updatedFigmaConfig = {
+          fileKey: newFileKey,
+          syntaxPatterns: tokenSystem.figmaConfiguration?.syntaxPatterns
+        };
+        StorageService.setFigmaConfiguration(updatedFigmaConfig);
+        window.dispatchEvent(new CustomEvent('token-model:data-change'));
+      } else if (sourceType === 'platform-extension' && sourceId) {
+        // Platform extension - stage changes for later commit
+        FigmaConfigurationOverrideService.stageConfigurationChange(newFileKey, tokenSystem.figmaConfiguration?.syntaxPatterns);
+      } else if (sourceType === 'theme-override' && sourceId) {
+        // Theme override - stage changes for later commit
+        FigmaConfigurationOverrideService.stageConfigurationChange(newFileKey);
+      }
+    } else {
+      // In view mode, update core data
+      const updatedFigmaConfig = {
+        fileKey: newFileKey,
+        syntaxPatterns: tokenSystem.figmaConfiguration?.syntaxPatterns
+      };
+      StorageService.setFigmaConfiguration(updatedFigmaConfig);
+      window.dispatchEvent(new CustomEvent('token-model:data-change'));
+    }
+  };
+
+  // Helper function to determine if syntax patterns should be shown
+  const shouldShowSyntaxPatterns = (): boolean => {
+    // Show syntax patterns only for core data (not for platform or theme sources)
+    if (!dataSourceContext?.editMode.isActive) {
+      return true; // View mode - show syntax patterns (core data)
+    }
     
-    // Save to storage and trigger change tracking
-    StorageService.setFigmaConfiguration(updatedFigmaConfig);
-    window.dispatchEvent(new CustomEvent('token-model:data-change'));
+    const { sourceType } = dataSourceContext.editMode;
+    return sourceType === 'core'; // Only show for core, hide for platform/theme
   };
 
   // Render change tracking status
@@ -521,17 +742,21 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
 
             <Divider />
 
-            {/* Syntax Patterns */}
-            <Box>
-              <Heading size="sm" mb={4}>Syntax Patterns</Heading>
-              <SyntaxPatternsEditor
-                syntaxPatterns={syntaxPatterns}
-                onSyntaxPatternsChange={handleSyntaxPatternsChange}
-                showTitle={false}
-              />
-            </Box>
+            {/* Syntax Patterns - Only show for core data */}
+            {shouldShowSyntaxPatterns() && (
+              <>
+                <Box>
+                  <Heading size="sm" mb={4}>Syntax Patterns</Heading>
+                  <SyntaxPatternsEditor
+                    syntaxPatterns={syntaxPatterns}
+                    onSyntaxPatternsChange={handleSyntaxPatternsChange}
+                    showTitle={false}
+                  />
+                </Box>
 
-            <Divider />
+                <Divider />
+              </>
+            )}
 
             {/* Actions */}
             <HStack spacing={3} justify="flex-end">

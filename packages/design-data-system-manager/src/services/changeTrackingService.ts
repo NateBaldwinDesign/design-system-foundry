@@ -2,6 +2,8 @@ import { StorageService } from './storage';
 import { GitHubApiService } from './githubApi';
 import { GitHubAuthService } from './githubAuth';
 import type { TokenSystem, PlatformExtension, ThemeOverrideFile } from '@token-model/data-model';
+import { OverrideTrackingService } from './overrideTrackingService';
+import { FigmaConfigurationOverrideService } from './figmaConfigurationOverrideService';
 
 export interface ChangeTrackingState {
   hasLocalChanges: boolean;
@@ -24,7 +26,11 @@ export class ChangeTrackingService {
       return false;
     }
     
-    return JSON.stringify(currentData) !== JSON.stringify(baselineData);
+    const dataChanges = JSON.stringify(currentData) !== JSON.stringify(baselineData);
+    const overrideChanges = OverrideTrackingService.hasPendingOverrides();
+    const figmaConfigChanges = FigmaConfigurationOverrideService.hasStagedChanges();
+    
+    return dataChanges || overrideChanges || figmaConfigChanges;
   }
 
   /**
@@ -86,6 +92,14 @@ export class ChangeTrackingService {
     if (JSON.stringify(currentTaxonomyOrder) !== JSON.stringify(baselineTaxonomyOrder)) {
       totalChanges += 1; // Count as one change for taxonomyOrder modifications
     }
+    
+    // NEW: Include override changes in the total count
+    const overrideChanges = OverrideTrackingService.getChangeCount();
+    totalChanges += overrideChanges;
+    
+    // NEW: Include Figma configuration override changes
+    const figmaConfigChanges = FigmaConfigurationOverrideService.hasStagedChanges() ? 1 : 0;
+    totalChanges += figmaConfigChanges;
     
     return totalChanges;
   }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Text, HStack, Flex, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Tabs, TabList, Tab, InputGroup, InputRightElement, Center, Icon, InputLeftElement, useColorMode } from '@chakra-ui/react';
+import { Box, Text, HStack, Flex, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Tabs, TabList, Tab, InputGroup, InputRightElement, Center, Icon, InputLeftElement, useColorMode, Switch, FormControl, FormLabel } from '@chakra-ui/react';
 import { Edit, Columns, Filter, X, Search } from 'lucide-react';
 import type { TokenCollection, ResolvedValueType, Taxonomy, Mode } from '@token-model/data-model';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
@@ -9,6 +9,7 @@ import { formatValueForDisplay } from '../utils/valueTypeUtils';
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
 import TokenIcon from '../icons/TokenIcon';
 import { PageTemplate } from '../components/PageTemplate';
+import type { DataSourceContext } from '../services/dataSourceManager';
 
 interface TokensViewProps {
   tokens: ExtendedToken[];
@@ -19,6 +20,8 @@ interface TokensViewProps {
   renderAddTokenButton?: React.ReactNode;
   onEditToken?: (token: ExtendedToken) => void;
   canEdit?: boolean;
+  // NEW: Data source context for edit mode filtering
+  dataSourceContext?: DataSourceContext;
 }
 
 export function TokensView({ 
@@ -27,7 +30,8 @@ export function TokensView({
   resolvedValueTypes, 
   taxonomies,
   renderAddTokenButton,
-  onEditToken
+  onEditToken,
+  dataSourceContext
 }: TokensViewProps) {
   // Filter state
   const [activeTab, setActiveTab] = useState<string>('PRIMITIVE');
@@ -38,6 +42,7 @@ export function TokensView({
   const [privateFilters, setPrivateFilters] = useState<boolean[]>([]);
   const [themeableFilters, setThemeableFilters] = useState<boolean[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sourceSpecificDataOnly, setSourceSpecificDataOnly] = useState(false);
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
@@ -61,6 +66,7 @@ export function TokensView({
     setPrivateFilters([]);
     setThemeableFilters([]);
     setSearchTerm('');
+    setSourceSpecificDataOnly(false);
   };
 
   // Unique values for filters
@@ -93,7 +99,35 @@ export function TokensView({
     const matchesPrivate = privateFilters.length === 0 || privateFilters.includes(token.private);
     const matchesThemeable = themeableFilters.length === 0 || themeableFilters.includes(token.themeable);
 
-    return matchesSearch && matchesTokenTier && matchesCollection && matchesType && matchesStatus && matchesPrivate && matchesThemeable;
+    // NEW: Apply source-specific data only filter
+    const matchesSourceSpecific = !sourceSpecificDataOnly || (() => {
+      if (!dataSourceContext?.editMode.isActive) return true;
+      
+      const { sourceType, sourceId } = dataSourceContext.editMode;
+      
+      // For platform extensions, check if token has platform overrides or is platform-specific
+      if (sourceType === 'platform-extension' && sourceId) {
+        // Check if token has platform overrides for this platform
+        const hasPlatformOverrides = token.valuesByMode?.some(vbm => 
+          vbm.platformOverrides?.some(po => po.platformId === sourceId)
+        );
+        
+        // Check if token is omitted by this platform (would be in omittedTokens)
+        // For now, we'll show all tokens and let the user filter manually
+        return hasPlatformOverrides;
+      }
+      
+      // For theme overrides, check if token is themeable and has theme overrides
+      if (sourceType === 'theme-override' && sourceId) {
+        // Only show themeable tokens
+        return token.themeable === true;
+      }
+      
+      // For core data, show all tokens
+      return true;
+    })();
+
+    return matchesSearch && matchesTokenTier && matchesCollection && matchesType && matchesStatus && matchesPrivate && matchesThemeable && matchesSourceSpecific;
   });
 
   // Get type from ID
@@ -237,27 +271,44 @@ export function TokensView({
     <PageTemplate 
       title="Tokens"
       headerComponent={
-        <InputGroup width="300px">
-          <InputLeftElement pointerEvents='none'>
-            <Search size={16} />
-          </InputLeftElement>
-          <Input
-            placeholder="Search tokens..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <InputRightElement>
-              <IconButton
-                aria-label="Clear search"
-                icon={<X size={14} />}
+        <HStack spacing={4} width="100%" justify="space-between">
+          <InputGroup width="300px">
+            <InputLeftElement pointerEvents='none'>
+              <Search size={16} />
+            </InputLeftElement>
+            <Input
+              placeholder="Search tokens..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <InputRightElement>
+                <IconButton
+                  aria-label="Clear search"
+                  icon={<X size={14} />}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSearchTerm('')}
+                />
+              </InputRightElement>
+            )}
+          </InputGroup>
+          
+          {/* NEW: Source-specific data only toggle */}
+          {dataSourceContext?.editMode.isActive && dataSourceContext.editMode.sourceType !== 'core' && (
+            <FormControl display="flex" alignItems="center" width="auto">
+              <FormLabel htmlFor="source-specific-data-only" mb="0" fontSize="sm">
+                Source-specific data only
+              </FormLabel>
+              <Switch
+                id="source-specific-data-only"
+                isChecked={sourceSpecificDataOnly}
+                onChange={(e) => setSourceSpecificDataOnly(e.target.checked)}
                 size="sm"
-                variant="ghost"
-                onClick={() => setSearchTerm('')}
               />
-            </InputRightElement>
+            </FormControl>
           )}
-        </InputGroup>
+        </HStack>
       }
       maxWidth="100%"
     >
@@ -412,6 +463,8 @@ export function TokensView({
                         </Checkbox>
                       </VStack>
                     </Box>
+
+                    
 
                     <Button
                       size="sm"

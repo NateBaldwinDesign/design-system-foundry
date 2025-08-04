@@ -166,6 +166,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
               modes={modes}
               taxonomies={taxonomies}
               canEdit={auth.canEdit}
+              dataSourceContext={dataSourceContext}
               renderAddTokenButton={
                 auth.canEdit ? (
                   <Button colorScheme="blue" size="sm" onClick={onAddToken} leftIcon={<Plus />}>
@@ -192,6 +193,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
                 onDeleteToken={onDeleteToken}
                 collections={collections}
                 schema={schema}
+                dataSourceContext={dataSourceContext}
               />
             )}
           </>
@@ -231,7 +233,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} canEdit={auth.canEdit} />;
       
       case 'figma-settings':
-        return <FigmaConfigurationsView tokenSystem={createSchemaJsonFromLocalStorage() as unknown as TokenSystem} canEdit={auth.canEdit} />;
+        return <FigmaConfigurationsView tokenSystem={createSchemaJsonFromLocalStorage()} canEdit={auth.canEdit} dataSourceContext={dataSourceContext} />;
       
       case 'validation':
         return <ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />;

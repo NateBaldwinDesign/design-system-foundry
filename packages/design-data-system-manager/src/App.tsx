@@ -44,6 +44,7 @@ import { MultiRepositoryManager } from './services/multiRepositoryManager';
 import { DataSourceManager, type DataSourceContext } from './services/dataSourceManager';
 import { GitHubCacheService } from './services/githubCache';
 import { PermissionManager } from './services/permissionManager';
+import { OverrideTrackingService } from './services/overrideTrackingService';
 import { exampleData, algorithmData, mergeData } from '@token-model/data-model';
 import { isMainBranch } from './utils/BranchValidationUtils';
 
@@ -142,19 +143,17 @@ const App = () => {
   // NEW: Update pending overrides when data changes
   useEffect(() => {
     if (isEditMode && dataSourceContext) {
-      const dataManager = DataManager.getInstance();
-      const overrides = dataManager.getPendingOverrides();
+      const pendingOverrides = OverrideTrackingService.getPendingOverrides();
       
       // Convert to UI format
-      const uiOverrides = overrides.map(override => {
+      const uiOverrides = pendingOverrides.map(override => {
         const token = tokens.find(t => t.id === override.tokenId);
-        const sourceType = dataSourceContext.editMode.sourceType;
         
         return {
           tokenId: override.tokenId,
           tokenName: token?.displayName || override.tokenId,
-          overrideType: (sourceType === 'platform-extension' ? 'platform' : 'theme') as 'platform' | 'theme',
-          overrideSource: dataSourceContext.editMode.sourceId || 'unknown'
+          overrideType: (override.sourceType === 'platform-extension' ? 'platform' : 'theme') as 'platform' | 'theme',
+          overrideSource: override.sourceId
         };
       });
       
@@ -1714,6 +1713,9 @@ const App = () => {
   // NEW: Enhanced discard changes handler
   const handleDiscardChanges = async () => {
     try {
+      // Clear override tracking session
+      OverrideTrackingService.clearSession();
+      
       // Refresh data to discard changes
       await handleRefreshCurrentData();
       

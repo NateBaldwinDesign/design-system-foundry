@@ -36,7 +36,7 @@ export function createSchemaJsonFromLocalStorage() {
     migrationStrategy: vh.migrationStrategy ? {
       ...vh.migrationStrategy,
       emptyModeIds: ['mapToDefaults', 'preserveEmpty', 'requireExplicit'].includes(vh.migrationStrategy.emptyModeIds)
-        ? vh.migrationStrategy.emptyModeIds
+        ? (vh.migrationStrategy.emptyModeIds as 'mapToDefaults' | 'preserveEmpty' | 'requireExplicit')
         : 'mapToDefaults'
     } : undefined
   })) : [{
@@ -44,7 +44,7 @@ export function createSchemaJsonFromLocalStorage() {
     dimensions: Array.isArray(dimensions) ? dimensions.map((d) => d.id) : [],
     date: new Date().toISOString().slice(0, 10),
     migrationStrategy: {
-      emptyModeIds: 'mapToDefaults',
+      emptyModeIds: 'mapToDefaults' as const,
       preserveOriginalValues: true
     }
   }];
@@ -112,7 +112,13 @@ export function createSchemaJsonFromLocalStorage() {
     taxonomies,
     resolvedValueTypes: resolvedValueTypesArray,
     taxonomyOrder: taxonomyOrder || [],
-    figmaConfiguration: figmaConfiguration || {}
+    figmaConfiguration: figmaConfiguration || { fileKey: '' },
+    // Add missing required fields with empty arrays/objects
+    standardPropertyTypes: [],
+    propertyTypes: [],
+    componentProperties: [],
+    componentCategories: [],
+    components: []
   };
 
   return schemaJson;

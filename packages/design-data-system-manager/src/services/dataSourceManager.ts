@@ -2,6 +2,7 @@ import { GitHubApiService } from './githubApi';
 import { StorageService } from './storage';
 import { PermissionManager } from './permissionManager';
 import { ChangeTrackingService } from './changeTrackingService';
+import { OverrideTrackingService } from './overrideTrackingService';
 import type { Platform, Theme } from '@token-model/data-model';
 
 export interface RepositoryInfo {
@@ -600,6 +601,10 @@ export class DataSourceManager {
    */
   enterEditMode(): void {
     this.currentContext.editMode.isActive = true;
+    
+    // Initialize override tracking session for platform/theme editing
+    OverrideTrackingService.initializeSession(this.currentContext);
+    
     this.persistToStorage();
     this.callbacks.onDataSourceChanged?.(this.getCurrentContext());
   }
@@ -609,6 +614,10 @@ export class DataSourceManager {
    */
   exitEditMode(): void {
     this.currentContext.editMode.isActive = false;
+    
+    // Clear override tracking session when exiting edit mode
+    OverrideTrackingService.clearSession();
+    
     this.persistToStorage();
     this.callbacks.onDataSourceChanged?.(this.getCurrentContext());
   }
