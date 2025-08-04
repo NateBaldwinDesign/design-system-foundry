@@ -164,6 +164,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
               collections={collections}
               resolvedValueTypes={resolvedValueTypes}
               modes={modes}
+              dimensions={dimensions}
               taxonomies={taxonomies}
               canEdit={auth.canEdit}
               dataSourceContext={dataSourceContext}

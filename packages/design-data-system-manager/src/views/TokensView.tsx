@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Box, Text, HStack, Flex, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Tabs, TabList, Tab, InputGroup, InputRightElement, Center, Icon, InputLeftElement, useColorMode, Switch, FormControl, FormLabel } from '@chakra-ui/react';
+import { Box, Text, HStack, Flex, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Tabs, TabList, Tab, InputGroup, InputRightElement, Center, Icon, InputLeftElement, useColorMode, Switch, FormControl, FormLabel, Select } from '@chakra-ui/react';
 import { Edit, Columns, Filter, X, Search } from 'lucide-react';
-import type { TokenCollection, ResolvedValueType, Taxonomy, Mode } from '@token-model/data-model';
+import type { TokenCollection, ResolvedValueType, Taxonomy, Mode, Dimension } from '@token-model/data-model';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
 import TokenTag from '../components/TokenTag';
 import TokenResolvedValueTag from '../components/TokenResolvedValueTag';
@@ -17,6 +17,7 @@ interface TokensViewProps {
   resolvedValueTypes: ResolvedValueType[];
   taxonomies: Taxonomy[];
   modes: Mode[];
+  dimensions: Dimension[];
   renderAddTokenButton?: React.ReactNode;
   onEditToken?: (token: ExtendedToken) => void;
   canEdit?: boolean;
@@ -29,6 +30,8 @@ export function TokensView({
   collections, 
   resolvedValueTypes, 
   taxonomies,
+  modes,
+  dimensions,
   renderAddTokenButton,
   onEditToken,
   dataSourceContext
@@ -43,6 +46,21 @@ export function TokensView({
   const [themeableFilters, setThemeableFilters] = useState<boolean[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sourceSpecificDataOnly, setSourceSpecificDataOnly] = useState(false);
+  
+  // NEW: Dimension mode filtering state - initialize with default modes
+  const [dimensionModeFilters, setDimensionModeFilters] = useState<Record<string, string>>(() => {
+    const initialFilters: Record<string, string> = {};
+    dimensions.forEach(dimension => {
+      if (dimension.defaultMode) {
+        // Find the mode name that matches the defaultMode ID
+        const defaultMode = dimension.modes.find(mode => mode.id === dimension.defaultMode);
+        if (defaultMode) {
+          initialFilters[dimension.id] = dimension.defaultMode;
+        }
+      }
+    });
+    return initialFilters;
+  });
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
@@ -67,6 +85,7 @@ export function TokensView({
     setThemeableFilters([]);
     setSearchTerm('');
     setSourceSpecificDataOnly(false);
+    // Note: dimension mode filters are not cleared as they control value display, not token filtering
   };
 
   // Unique values for filters
@@ -98,6 +117,8 @@ export function TokensView({
     const matchesStatus = statusFilters.length === 0 || statusFilters.includes(token.status || 'experimental');
     const matchesPrivate = privateFilters.length === 0 || privateFilters.includes(token.private);
     const matchesThemeable = themeableFilters.length === 0 || themeableFilters.includes(token.themeable);
+
+
 
     // NEW: Apply source-specific data only filter
     const matchesSourceSpecific = !sourceSpecificDataOnly || (() => {
@@ -146,7 +167,40 @@ export function TokensView({
   const getValueDisplay = (token: ExtendedToken) => {
     if (!token.valuesByMode?.length) return '-';
 
-    return token.valuesByMode.map((modeValue) => {
+    // Filter valuesByMode based on dimension mode selections
+    const filteredModeValues = token.valuesByMode.filter((modeValue) => {
+      // If no dimension mode filters are set, show all values (existing behavior)
+      if (Object.keys(dimensionModeFilters).length === 0) {
+        return true;
+      }
+
+      // If modeIds is empty array [], this value should always be shown (schema validation)
+      if (modeValue.modeIds.length === 0) {
+        return true;
+      }
+
+      // Check if this modeValue matches any of the selected dimension modes
+      return modeValue.modeIds.some(modeId => {
+        // Find which dimension this mode belongs to
+        const dimension = dimensions.find(dim => 
+          dim.modes.some(mode => mode.id === modeId)
+        );
+        
+        if (!dimension) return false;
+        
+        // Check if this dimension has a filter set
+        const selectedModeId = dimensionModeFilters[dimension.id];
+        if (!selectedModeId) return true; // No filter for this dimension, show all
+        
+        // Only show if this mode matches the selected mode for this dimension
+        return modeId === selectedModeId;
+      });
+    });
+
+    // If no values match the filters, show '-'
+    if (filteredModeValues.length === 0) return '-';
+
+    return filteredModeValues.map((modeValue) => {
       const value = modeValue.value;
       if (!value) return null;
 
@@ -267,11 +321,27 @@ export function TokensView({
     }));
   };
 
+
   return (
     <PageTemplate 
       title="Tokens"
       headerComponent={
-        <HStack spacing={4} width="100%" justify="space-between">
+        <HStack spacing={4} width="auto" justify="space-between">
+          {/* NEW: Source-specific data only toggle */}
+          {dataSourceContext?.editMode.isActive && dataSourceContext.editMode.sourceType !== 'core' && (
+            <FormControl display="flex" alignItems="center" width="auto">
+              <FormLabel htmlFor="source-specific-data-only" mb="0" fontSize="sm">
+                Source-specific data only
+              </FormLabel>
+              <Switch
+                id="source-specific-data-only"
+                isChecked={sourceSpecificDataOnly}
+                onChange={(e) => setSourceSpecificDataOnly(e.target.checked)}
+                size="sm"
+              />
+            </FormControl>
+          )}
+
           <InputGroup width="300px">
             <InputLeftElement pointerEvents='none'>
               <Search size={16} />
@@ -294,24 +364,42 @@ export function TokensView({
             )}
           </InputGroup>
           
-          {/* NEW: Source-specific data only toggle */}
-          {dataSourceContext?.editMode.isActive && dataSourceContext.editMode.sourceType !== 'core' && (
-            <FormControl display="flex" alignItems="center" width="auto">
-              <FormLabel htmlFor="source-specific-data-only" mb="0" fontSize="sm">
-                Source-specific data only
-              </FormLabel>
-              <Switch
-                id="source-specific-data-only"
-                isChecked={sourceSpecificDataOnly}
-                onChange={(e) => setSourceSpecificDataOnly(e.target.checked)}
-                size="sm"
-              />
-            </FormControl>
-          )}
         </HStack>
       }
       maxWidth="100%"
     >
+      {/* NEW: Dimension mode dropdowns */}
+      {dimensions.length > 0 && (
+        <Box>
+          <HStack spacing={4} align="flex-end">
+            {dimensions.map(dimension => (
+              <FormControl key={dimension.id} width="auto">
+                <FormLabel htmlFor={`dimension-${dimension.id}`} mb="0" fontSize="sm">
+                  {dimension.displayName}
+                </FormLabel>
+                <Select
+                  id={`dimension-${dimension.id}`}
+                  value={dimensionModeFilters[dimension.id] || ''}
+                  onChange={(e) => setDimensionModeFilters(prev => ({
+                    ...prev,
+                    [dimension.id]: e.target.value
+                  }))}
+                  size="sm"
+                  width="150px"
+                >
+                  <option value="">All modes</option>
+                  {dimension.modes.map(mode => (
+                    <option key={mode.id} value={mode.id}>
+                      {mode.name}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            ))}
+          </HStack>
+        </Box>
+      )}
+
       <Tabs 
         onChange={(index) => {
           const tabs = ['PRIMITIVE', 'SEMANTIC', 'COMPONENT'];

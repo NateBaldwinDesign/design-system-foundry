@@ -95,33 +95,9 @@ const App = () => {
   const [isAppLoading, setIsAppLoading] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
   // Branch-based governance state
-  const [isEditMode, setIsEditMode] = useState(() => {
-    // Try to restore edit mode state from localStorage
-    const saved = localStorage.getItem('token-model-edit-mode');
-    if (saved) {
-      try {
-        const { isEditMode: savedEditMode, branch: savedBranch } = JSON.parse(saved);
-        return savedEditMode && savedBranch === currentBranch;
-      } catch (error) {
-        console.warn('Failed to parse saved edit mode state:', error);
-      }
-    }
-    return false;
-  });
   const [currentBranch, setCurrentBranch] = useState<string>('main');
-  const [editModeBranch, setEditModeBranch] = useState<string | null>(() => {
-    // Try to restore edit mode branch from localStorage
-    const saved = localStorage.getItem('token-model-edit-mode');
-    if (saved) {
-      try {
-        const { branch: savedBranch } = JSON.parse(saved);
-        return savedBranch === currentBranch ? savedBranch : null;
-      } catch (error) {
-        console.warn('Failed to parse saved edit mode branch:', error);
-      }
-    }
-    return null;
-  });
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editModeBranch, setEditModeBranch] = useState<string | null>(null);
   const toast = useToast();
 
   const [changeLogData, setChangeLogData] = useState<{ currentData: Record<string, unknown>; baselineData: Record<string, unknown> | null }>({ currentData: {}, baselineData: null });
@@ -139,6 +115,30 @@ const App = () => {
 
   const [isOpen, setIsOpen] = useState(false);
   const { currentView, navigateToView } = useViewState();
+
+  // Restore edit mode state when currentBranch changes
+  useEffect(() => {
+    const saved = localStorage.getItem('token-model-edit-mode');
+    if (saved) {
+      try {
+        const { isEditMode: savedEditMode, branch: savedBranch } = JSON.parse(saved);
+        if (savedEditMode && savedBranch === currentBranch) {
+          setIsEditMode(true);
+          setEditModeBranch(savedBranch);
+        } else {
+          setIsEditMode(false);
+          setEditModeBranch(null);
+        }
+      } catch (error) {
+        console.warn('Failed to parse saved edit mode state:', error);
+        setIsEditMode(false);
+        setEditModeBranch(null);
+      }
+    } else {
+      setIsEditMode(false);
+      setEditModeBranch(null);
+    }
+  }, [currentBranch]);
 
   // NEW: Update pending overrides when data changes
   useEffect(() => {

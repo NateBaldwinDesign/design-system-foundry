@@ -30,7 +30,7 @@ export const PageTemplate: React.FC<PageTemplateProps> = ({
       <VStack spacing={8} align="stretch">
         {/* Header */}
         <Box>
-          <HStack spacing={4} align="center" mb={2} justify="space-between">
+          <HStack spacing={4} align="center" mb={2} justify="space-between" width="100%">
             <Heading size="lg">{title}</Heading>
             {headerComponent}
           </HStack>
