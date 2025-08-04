@@ -43,6 +43,7 @@ import {
   GitCommitVertical,
   GitPullRequestArrow,
   Share2,
+  Database,
 } from 'lucide-react';
 import { ChangeLog } from './ChangeLog';
 import { GitHubAuthService } from '../services/githubAuth';
@@ -711,6 +712,37 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   Submit for Review
                 </Button>
+                
+                {/* Change Log - Only visible in Edit mode */}
+                <Box position="relative">
+                  <Tooltip label="History" placement="bottom">
+                    <IconButton
+                      aria-label="History"
+                      icon={<History size={16} />}
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleOpenModal}
+                    />
+                  </Tooltip>
+                  {changeCount > 0 && (
+                    <Badge
+                      position="absolute"
+                      top="-1"
+                      right="-1"
+                      colorScheme="red"
+                      variant="solid"
+                      fontSize="xs"
+                      borderRadius="full"
+                      minW="20px"
+                      h="20px"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                    >
+                      {changeCount}
+                    </Badge>
+                  )}
+                </Box>
               </HStack>
             </>
           ) : (
@@ -744,8 +776,8 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <PopoverTrigger>
                       <IconButton
-                        aria-label="GitHub Workflow"
-                        icon={<GitBranch size={16} />}
+                        aria-label="Source Data Management"
+                        icon={<Database size={16} />}
                         size="sm"
                         variant="ghost"
                         onClick={() => setIsGitHubWorkflowMenuOpen(true)}
@@ -888,39 +920,6 @@ export const Header: React.FC<HeaderProps> = ({
                     </Tooltip>
                   )}
                 </HStack>
-              )}
-              
-              {/* Change Log - Only show when connected to GitHub */}
-              {githubUser && (
-                <Box position="relative">
-                  <Tooltip label="History" placement="bottom">
-                    <IconButton
-                      aria-label="History"
-                      icon={<History size={16} />}
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleOpenModal}
-                    />
-                  </Tooltip>
-                  {changeCount > 0 && (
-                    <Badge
-                      position="absolute"
-                      top="-1"
-                      right="-1"
-                      colorScheme="red"
-                      variant="solid"
-                      fontSize="xs"
-                      borderRadius="full"
-                      minW="20px"
-                      h="20px"
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                    >
-                      {changeCount}
-                    </Badge>
-                  )}
-                </Box>
               )}
             </>
           )}
