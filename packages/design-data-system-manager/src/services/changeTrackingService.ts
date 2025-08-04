@@ -180,7 +180,7 @@ export class ChangeTrackingService {
   /**
    * Get current data snapshot from storage
    */
-  private static getCurrentDataSnapshot(): Record<string, unknown> {
+  static getCurrentDataSnapshot(): Record<string, unknown> {
     return {
       tokens: StorageService.getTokens(),
       collections: StorageService.getCollections(),
@@ -441,6 +441,88 @@ export class ChangeTrackingService {
 
     return summary;
   }
+
+  // NEW: Override change tracking methods
+  private static overrideChanges: OverrideChange[] = [];
+
+  /**
+   * Track override changes during editing
+   */
+  static trackOverrideChanges(
+    tokenId: string,
+    originalValue: Record<string, unknown>,
+    newValue: Record<string, unknown>,
+    sourceType: string,
+    sourceId: string
+  ): void {
+    const overrideChange: OverrideChange = {
+      tokenId,
+      originalValue,
+      newValue,
+      sourceType,
+      sourceId,
+      timestamp: new Date().toISOString()
+    };
+
+    // Remove existing change for this token if it exists
+    this.overrideChanges = this.overrideChanges.filter(change => change.tokenId !== tokenId);
+    
+    // Add new change
+    this.overrideChanges.push(overrideChange);
+  }
+
+  /**
+   * Get override changes
+   */
+  static getOverrideChanges(): OverrideChange[] {
+    return [...this.overrideChanges];
+  }
+
+  /**
+   * Get changes relative to edit source only
+   */
+  static getChangesForEditSource(
+    sourceType: 'core' | 'platform-extension' | 'theme-override',
+    sourceId?: string
+  ): ChangeSet {
+    if (sourceType === 'core') {
+      return this.getChangesForSource('core', 'main');
+    } else if (sourceId) {
+      return this.getChangesForSource(sourceType, sourceId);
+    } else {
+      return {
+        added: [],
+        modified: [],
+        removed: [],
+        totalChanges: 0
+      };
+    }
+  }
+
+  /**
+   * Clear override changes
+   */
+  static clearOverrideChanges(): void {
+    this.overrideChanges = [];
+  }
+
+  /**
+   * Get override changes for specific source
+   */
+  static getOverrideChangesForSource(sourceType: string, sourceId: string): OverrideChange[] {
+    return this.overrideChanges.filter(change => 
+      change.sourceType === sourceType && change.sourceId === sourceId
+    );
+  }
+
+  /**
+   * Check if there are override changes for specific source
+   */
+  static hasOverrideChangesForSource(sourceType: string, sourceId: string): boolean {
+    return this.overrideChanges.some(change => 
+      change.sourceType === sourceType && change.sourceId === sourceId
+    );
+  }
 }
 
 /**
@@ -451,4 +533,14 @@ export interface ChangeSet {
   modified: string[];
   removed: string[];
   totalChanges: number;
+}
+
+// NEW: Override change tracking interface
+export interface OverrideChange {
+  tokenId: string;
+  originalValue: Record<string, unknown>;
+  newValue: Record<string, unknown>;
+  sourceType: string;
+  sourceId: string;
+  timestamp: string;
 } 

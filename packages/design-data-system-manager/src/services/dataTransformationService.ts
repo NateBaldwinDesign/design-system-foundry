@@ -438,4 +438,131 @@ export class DataTransformationService {
     const theme = presentationData.themes.find(t => t.id === themeId);
     return theme?.figmaFileKey;
   }
+
+  // NEW: Override management methods
+  /**
+   * Transform with override creation
+   */
+  static transformWithOverrides(
+    presentationData: DataSnapshot,
+    sourceType: 'core' | 'platform-extension' | 'theme-override',
+    sourceId?: string,
+    pendingOverrides?: Array<{tokenId: string; override: Record<string, unknown>}>
+  ): Record<string, unknown> {
+    // Apply pending overrides to presentation data
+    let modifiedData = { ...presentationData };
+    
+    if (pendingOverrides && pendingOverrides.length > 0) {
+      // Apply overrides to tokens
+      modifiedData.tokens = modifiedData.tokens.map(token => {
+        const override = pendingOverrides.find(o => o.tokenId === token.id);
+        if (override) {
+          return { ...token, ...override.override };
+        }
+        return token;
+      });
+    }
+
+    // Transform to storage format
+    return this.transformToStorageFormat(modifiedData, sourceType, sourceId);
+  }
+
+  /**
+   * Extract overrides from presentation data for specific source
+   */
+  static extractOverridesForSource(
+    presentationData: DataSnapshot,
+    sourceType: 'platform-extension' | 'theme-override',
+    sourceId: string
+  ): Array<{tokenId: string; override: Record<string, unknown>}> {
+    const overrides: Array<{tokenId: string; override: Record<string, unknown>}> = [];
+
+    // Get current data for comparison
+    const currentData = this.transformToPresentationFormat(
+      null, // coreData - we'll get this from storage
+      {}, // platformExtensions - we'll get this from storage
+      null, // themeOverrides - we'll get this from storage
+      null, // currentPlatform
+      null  // currentTheme
+    );
+
+    // Compare tokens to find overrides
+    presentationData.tokens.forEach(token => {
+      const currentToken = currentData.tokens.find(t => t.id === token.id);
+      if (currentToken && JSON.stringify(token) !== JSON.stringify(currentToken)) {
+        // This token has been modified, create override
+        const override: Record<string, unknown> = {};
+        
+        // Only include modified properties
+        Object.keys(token).forEach(key => {
+          if (JSON.stringify(token[key as keyof typeof token]) !== JSON.stringify(currentToken[key as keyof typeof currentToken])) {
+            override[key] = token[key as keyof typeof token];
+          }
+        });
+
+        if (Object.keys(override).length > 0) {
+          overrides.push({
+            tokenId: token.id,
+            override
+          });
+        }
+      }
+    });
+
+    return overrides;
+  }
+
+  /**
+   * Merge overrides into storage format
+   */
+  static mergeOverridesIntoStorage(
+    storageData: Record<string, unknown>,
+    overrides: Array<{tokenId: string; override: Record<string, unknown>}>,
+    sourceType: 'platform-extension' | 'theme-override',
+    sourceId: string
+  ): Record<string, unknown> {
+    const result = { ...storageData };
+
+    if (sourceType === 'platform-extension') {
+      // Merge into platform extension format
+      const tokenOverrides = (result.tokenOverrides as any[]) || [];
+      
+      overrides.forEach(({ tokenId, override }) => {
+        const existingIndex = tokenOverrides.findIndex((t: any) => t.id === tokenId);
+        if (existingIndex >= 0) {
+          // Update existing override
+          tokenOverrides[existingIndex] = { ...tokenOverrides[existingIndex], ...override };
+        } else {
+          // Add new override
+          tokenOverrides.push({
+            id: tokenId,
+            ...override
+          });
+        }
+      });
+
+      result.tokenOverrides = tokenOverrides;
+    } else if (sourceType === 'theme-override') {
+      // Merge into theme override format
+      const tokenOverrides = (result.tokenOverrides as any[]) || [];
+      
+      overrides.forEach(({ tokenId, override }) => {
+        const existingIndex = tokenOverrides.findIndex((t: any) => t.tokenId === tokenId);
+        if (existingIndex >= 0) {
+          // Update existing override
+          tokenOverrides[existingIndex] = { ...tokenOverrides[existingIndex], ...override };
+        } else {
+          // Add new override
+          tokenOverrides.push({
+            tokenId,
+            ...override
+          });
+        }
+      });
+
+      result.tokenOverrides = tokenOverrides;
+    }
+
+    return result;
+  }
 } 

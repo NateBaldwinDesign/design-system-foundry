@@ -33,9 +33,22 @@ export class ThemeOverrideDataService {
 
       // Try to get from GitHub
       let fileContent;
-      if (GitHubAuthService.isAuthenticated()) {
+      const isAuthenticated = GitHubAuthService.isAuthenticated();
+      const isPrivateRepoPattern = repositoryUri.match(/^company\/design-system-/);
+      
+      if (isAuthenticated && !isPrivateRepoPattern) {
+        // Use authenticated API call for repositories user has access to
         fileContent = await GitHubApiService.getFileContent(repositoryUri, filePath, branch);
+      } else if (isPrivateRepoPattern) {
+        // Skip fetching for private repository patterns (user likely doesn't have access)
+        console.log(`[ThemeOverrideDataService] Skipping private repository pattern for ${themeId}: ${repositoryUri}`);
+        return {
+          error: 'Private repository - access not available',
+          source: 'github'
+        };
       } else {
+        // Use public API call for unauthenticated users (only for public repositories)
+        console.log(`[ThemeOverrideDataService] Using public API for ${themeId} (user not authenticated)`);
         fileContent = await GitHubApiService.getPublicFileContent(repositoryUri, filePath, branch);
       }
 

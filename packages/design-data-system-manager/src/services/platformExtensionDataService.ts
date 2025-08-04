@@ -99,16 +99,16 @@ export class PlatformExtensionDataService {
       // Check if this is a private repository pattern (company/design-system-*)
       const isPrivateRepoPattern = repositoryUri.match(/^company\/design-system-/);
       
-      if (isAuthenticated) {
-        // Use authenticated API call
+      if (isAuthenticated && !isPrivateRepoPattern) {
+        // Use authenticated API call for repositories user has access to
         fileContent = await GitHubApiService.getFileContent(repositoryUri, filePath, branch);
       } else if (isPrivateRepoPattern) {
-        // Skip fetching for private repository patterns when not authenticated
-        console.log(`[PlatformExtensionDataService] Skipping private repository pattern for ${platformId} (user not authenticated): ${repositoryUri}`);
+        // Skip fetching for private repository patterns (user likely doesn't have access)
+        console.log(`[PlatformExtensionDataService] Skipping private repository pattern for ${platformId}: ${repositoryUri}`);
         return {
           data: null,
           source: 'not-found',
-          error: 'Private repository - authentication required'
+          error: 'Private repository - access not available'
         };
       } else {
         // Use public API call for unauthenticated users (only for public repositories)

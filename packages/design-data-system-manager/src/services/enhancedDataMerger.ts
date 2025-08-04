@@ -67,6 +67,15 @@ export class EnhancedDataMerger {
   private static instance: EnhancedDataMerger;
   private sourceTracking: Map<string, DataSourceInfo> = new Map();
 
+  // NEW: Track override creation during editing
+  private overrideTracking: Map<string, {
+    originalValue: Record<string, unknown>;
+    newValue: Record<string, unknown>;
+    sourceType: string;
+    sourceId: string;
+    isOverride: boolean;
+  }> = new Map();
+
   private constructor() {}
 
   static getInstance(): EnhancedDataMerger {
@@ -439,5 +448,87 @@ export class EnhancedDataMerger {
    */
   getAllSourceInfo(): Map<string, DataSourceInfo> {
     return new Map(this.sourceTracking);
+  }
+
+  // NEW: Methods for override management
+  /**
+   * Track override creation during editing
+   */
+  trackOverride(
+    tokenId: string, 
+    originalValue: Record<string, unknown>, 
+    newValue: Record<string, unknown>, 
+    sourceType: string, 
+    sourceId: string
+  ): void {
+    this.overrideTracking.set(tokenId, {
+      originalValue,
+      newValue,
+      sourceType,
+      sourceId,
+      isOverride: true
+    });
+  }
+
+  /**
+   * Get pending overrides
+   */
+  getPendingOverrides(): Array<{tokenId: string; override: Record<string, unknown>}> {
+    return Array.from(this.overrideTracking.entries()).map(([tokenId, tracking]) => ({
+      tokenId,
+      override: tracking.newValue
+    }));
+  }
+
+  /**
+   * Commit overrides (clear tracking)
+   */
+  commitOverrides(): void {
+    this.overrideTracking.clear();
+  }
+
+  /**
+   * Discard overrides (clear tracking)
+   */
+  discardOverrides(): void {
+    this.overrideTracking.clear();
+  }
+
+  /**
+   * Merge data with pending overrides
+   */
+  mergeWithOverrides(
+    coreData: TokenSystem | null,
+    platformExtensions: Record<string, PlatformExtension>,
+    themeOverrides: Record<string, ThemeOverrideFile>,
+    pendingOverrides: Array<{tokenId: string; override: Record<string, unknown>}>
+  ): MergedDataSnapshot {
+    // Start with normal merge
+    const context: DataSourceContext = {
+      currentPlatform: null,
+      currentTheme: null,
+      availablePlatforms: [],
+      availableThemes: [],
+      permissions: { core: false, platforms: {}, themes: {} },
+      repositories: { core: null, platforms: {}, themes: {} },
+      editMode: { isActive: false, sourceType: 'core', sourceId: null, targetRepository: null, validationSchema: 'schema' },
+      viewMode: { isMerged: false, mergeSources: ['core'], displayData: 'core-only' }
+    };
+    
+    const mergedData = this.mergeData(context, coreData, platformExtensions, themeOverrides);
+
+    // Apply pending overrides
+    for (const { tokenId, override } of pendingOverrides) {
+      const tokenIndex = mergedData.tokens.findIndex(t => t.id === tokenId);
+      if (tokenIndex >= 0) {
+        // Apply override to existing token
+        mergedData.tokens[tokenIndex] = {
+          ...mergedData.tokens[tokenIndex],
+          ...override
+        } as Token;
+      }
+    }
+
+    return mergedData;
   }
 } 

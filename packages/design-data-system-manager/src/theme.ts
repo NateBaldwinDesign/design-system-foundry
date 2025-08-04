@@ -39,7 +39,7 @@ const theme = extendTheme({
           bg: 'chakra-body-bg',
         },
       },
-    },
+        },
     Drawer: {
       baseStyle: {
         dialog: {
@@ -63,12 +63,12 @@ const theme = extendTheme({
     },
     Tooltip: {
       baseStyle: {
-        bg: 'chakra-body-bg',
+          bg: 'chakra-body-bg',
         color: 'chakra-body-text',
       },
     },
   },
-  colors: {
+    colors: {
     gray: {
       50: '#f7fafc',
       100: '#edf2f7',

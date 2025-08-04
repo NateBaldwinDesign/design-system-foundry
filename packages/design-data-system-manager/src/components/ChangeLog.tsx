@@ -1823,8 +1823,6 @@ export const ChangeLog: React.FC<ChangeLogProps> = ({ previousData, currentData 
     );
   }
   
-
-  
   // Use the previousData prop directly instead of managing internal baseline
   const changes = detectChanges(previousData, currentData);
 

@@ -125,11 +125,44 @@ const App = () => {
 
   const [changeLogData, setChangeLogData] = useState<{ currentData: Record<string, unknown>; baselineData: Record<string, unknown> | null }>({ currentData: {}, baselineData: null });
 
+  // NEW: Pending overrides tracking
+  const [pendingOverrides, setPendingOverrides] = useState<Array<{
+    tokenId: string;
+    tokenName: string;
+    overrideType: 'platform' | 'theme';
+    overrideSource: string;
+  }>>([]);
+
   // Use refs to track previous GitHub state to prevent unnecessary re-renders
   const previousGitHubState = useRef<{ isConnected: boolean; user: GitHubUser | null }>({ isConnected: false, user: null });
 
   const [isOpen, setIsOpen] = useState(false);
   const { currentView, navigateToView } = useViewState();
+
+  // NEW: Update pending overrides when data changes
+  useEffect(() => {
+    if (isEditMode && dataSourceContext) {
+      const dataManager = DataManager.getInstance();
+      const overrides = dataManager.getPendingOverrides();
+      
+      // Convert to UI format
+      const uiOverrides = overrides.map(override => {
+        const token = tokens.find(t => t.id === override.tokenId);
+        const sourceType = dataSourceContext.editMode.sourceType;
+        
+        return {
+          tokenId: override.tokenId,
+          tokenName: token?.displayName || override.tokenId,
+          overrideType: (sourceType === 'platform-extension' ? 'platform' : 'theme') as 'platform' | 'theme',
+          overrideSource: dataSourceContext.editMode.sourceId || 'unknown'
+        };
+      });
+      
+      setPendingOverrides(uiOverrides);
+    } else {
+      setPendingOverrides([]);
+    }
+  }, [isEditMode, dataSourceContext, tokens]);
 
   // Determine if we should show the homepage
   const shouldShowHomepage = () => {
@@ -271,6 +304,8 @@ const App = () => {
         const repo = urlParams.get('repo');
         const path = urlParams.get('path') || 'schema.json';
         const branch = urlParams.get('branch') || 'main';
+        const platform = urlParams.get('platform');
+        const theme = urlParams.get('theme');
         
         // Update branch state from URL
         setCurrentBranch(branch);
@@ -317,16 +352,47 @@ const App = () => {
               fileType: 'schema' as const
             });
             
+            // Set selectedRepoInfo for branch creation and other operations
+            setSelectedRepoInfo({
+              fullName: repo,
+              branch: branch,
+              filePath: path,
+              fileType: 'schema'
+            });
+            
             // Update available sources after data is loaded
             dataSourceManager.updateAvailableSources();
+            
+            // Initialize platform/theme selection from URL parameters
+            if (platform) {
+              dataSourceManager.initializeFromURL();
+              // Switch to the specified platform
+              await dataSourceManager.switchToPlatform(platform === 'none' ? null : platform);
+            }
+            
+            if (theme) {
+              // If platform wasn't set, initialize from URL now
+              if (!platform) {
+                dataSourceManager.initializeFromURL();
+              }
+              // Switch to the specified theme
+              await dataSourceManager.switchToTheme(theme === 'none' ? null : theme);
+            }
             
             // Check if user is authenticated and has permissions
             const currentUser = GitHubAuthService.getCurrentUser();
             if (currentUser) {
               // User is authenticated, check permissions
               const hasWriteAccess = await GitHubApiService.hasWriteAccessToRepository(repo);
-              setHasEditPermissions(hasWriteAccess);
-              setIsViewOnlyMode(!hasWriteAccess);
+              
+              // Branch-based governance: Show edit button if user has write access
+              // But only allow actual editing on non-main branches
+              const isOnMainBranch = isMainBranch(branch);
+              const canShowEditButton = hasWriteAccess; // Show button if user has write access
+              const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
+              
+              setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
+              setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
               
               // Update DataSourceManager permissions for all sources
               await dataSourceManager.updatePermissions();
@@ -517,8 +583,15 @@ const App = () => {
       
       console.log('[App] Permissions checked:', { hasWriteAccess, repoInfo });
       
-      // Update state based on permissions
-      setHasEditPermissions(hasWriteAccess);
+      // Branch-based governance: Show edit button if user has write access
+      // But only allow actual editing on non-main branches
+      const isOnMainBranch = isMainBranch(currentBranch);
+      const canShowEditButton = hasWriteAccess; // Show button if user has write access
+      const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
+      
+      // Update state based on permissions and branch status
+      setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
+      setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
       setSelectedRepoInfo(repoInfo);
       setIsGitHubConnected(true);
       
@@ -873,10 +946,16 @@ const App = () => {
       const dataSourceManager = DataSourceManager.getInstance();
       const currentContext = dataSourceManager.getCurrentContext();
       
-      // Check if we have a core repository to refresh from
-      const coreRepo = currentContext.repositories.core;
-      if (!coreRepo) {
-        console.warn('[App] No core repository found for refresh');
+      // Determine target repository based on current context
+      let targetRepository = currentContext.repositories.core;
+      if (currentContext.currentPlatform && currentContext.currentPlatform !== 'none') {
+        targetRepository = currentContext.repositories.platforms[currentContext.currentPlatform];
+      } else if (currentContext.currentTheme && currentContext.currentTheme !== 'none') {
+        targetRepository = currentContext.repositories.themes[currentContext.currentTheme];
+      }
+      
+      if (!targetRepository) {
+        console.warn('[App] No target repository found for refresh');
         toast({
           title: 'Refresh Failed',
           description: 'No repository information available for refresh.',
@@ -887,27 +966,24 @@ const App = () => {
         return;
       }
       
-      console.log('[App] Found core repository for refresh:', coreRepo);
+      console.log('[App] Found target repository for refresh:', targetRepository);
       
-      // Clear all caches before refreshing to ensure fresh data
-      console.log('[App] Clearing caches before refresh');
+      // Clear schema data cache but preserve DataSourceManager state
+      console.log('[App] Clearing schema data cache before refresh');
       StorageService.clearSchemaData(); // Use clearSchemaData to preserve GitHub auth
       GitHubCacheService.clearAll();
-      
-      // Clear DataSourceManager state
-      dataSourceManager.clear();
       
       // Clear permission cache
       const permissionManager = PermissionManager.getInstance();
       permissionManager.clearCache();
       
-      console.log('[App] Refreshing from core repository:', coreRepo);
+      console.log('[App] Refreshing from target repository:', targetRepository);
       
-      // Load updated core data from GitHub
+      // Load updated data from the target repository
       const fileContent = await GitHubApiService.getFileContent(
-        coreRepo.fullName,
-        coreRepo.filePath,
-        coreRepo.branch
+        targetRepository.fullName,
+        targetRepository.filePath,
+        targetRepository.branch
       );
       
       if (!fileContent || !fileContent.content) {
@@ -916,9 +992,9 @@ const App = () => {
       
       const parsedData = JSON.parse(fileContent.content);
       
-      // Load the updated core data via DataManager
+      // Load the updated data via DataManager with correct file type
       const dataManager = DataManager.getInstance();
-      await dataManager.loadFromGitHub(parsedData, 'schema');
+      await dataManager.loadFromGitHub(parsedData, targetRepository.fileType);
       
       // Re-merge data with current platform/theme context
       await mergeDataForCurrentContext(currentContext);
@@ -1387,6 +1463,15 @@ const App = () => {
       const newContext = dataSourceManager.getCurrentContext();
       setDataSourceContext(newContext);
       
+      // Update URL parameters
+      const url = new URL(window.location.href);
+      if (platformId) {
+        url.searchParams.set('platform', platformId);
+      } else {
+        url.searchParams.delete('platform');
+      }
+      window.history.replaceState({}, '', url.toString());
+      
       // Merge data for the new context
       await mergeDataForCurrentContext(newContext);
     } catch (error) {
@@ -1410,6 +1495,15 @@ const App = () => {
       const newContext = dataSourceManager.getCurrentContext();
       setDataSourceContext(newContext);
       
+      // Update URL parameters
+      const url = new URL(window.location.href);
+      if (themeId) {
+        url.searchParams.set('theme', themeId);
+      } else {
+        url.searchParams.delete('theme');
+      }
+      window.history.replaceState({}, '', url.toString());
+      
       // Merge data for the new context
       await mergeDataForCurrentContext(newContext);
     } catch (error) {
@@ -1428,9 +1522,40 @@ const App = () => {
   // Branch-based governance handlers
   const handleBranchCreated = async (newBranchName: string) => {
     try {
-      // Update URL parameters with new branch
+      console.log('[App] handleBranchCreated called with:', newBranchName);
+      
+      // Get current data source context to determine target repository
+      const dataSourceManager = DataSourceManager.getInstance();
+      const currentContext = dataSourceManager.getCurrentContext();
+      
+      // Determine target repository based on current context
+      let targetRepository = currentContext.repositories.core;
+      if (currentContext.currentPlatform && currentContext.currentPlatform !== 'none') {
+        targetRepository = currentContext.repositories.platforms[currentContext.currentPlatform];
+      } else if (currentContext.currentTheme && currentContext.currentTheme !== 'none') {
+        targetRepository = currentContext.repositories.themes[currentContext.currentTheme];
+      }
+      
+      // Update URL parameters with new branch for the target repository
       const url = new URL(window.location.href);
-      url.searchParams.set('branch', newBranchName);
+      
+      if (targetRepository && targetRepository !== currentContext.repositories.core) {
+        // If editing a platform or theme, update the core repository branch
+        // (since the URL tracks the core repository)
+        url.searchParams.set('branch', newBranchName);
+      } else {
+        // If editing core data, update the branch
+        url.searchParams.set('branch', newBranchName);
+      }
+      
+      // Ensure platform/theme parameters are preserved
+      if (currentContext.currentPlatform) {
+        url.searchParams.set('platform', currentContext.currentPlatform);
+      }
+      if (currentContext.currentTheme) {
+        url.searchParams.set('theme', currentContext.currentTheme);
+      }
+      
       window.history.replaceState({}, '', url.toString());
       
       // Update branch state
@@ -1438,10 +1563,50 @@ const App = () => {
       setEditModeBranch(newBranchName);
       setIsEditMode(true);
       
+      // Enter edit mode in DataSourceManager
+      const dsManager = DataSourceManager.getInstance();
+      dsManager.enterEditMode();
+      
+      console.log('[App] Target repository for branch creation:', targetRepository);
+      
+      // Update edit permissions based on new branch
+      const isOnMainBranch = isMainBranch(newBranchName);
+      const currentUser = GitHubAuthService.getCurrentUser();
+      if (currentUser && targetRepository) {
+        // Re-check permissions for the target repository
+        const hasWriteAccess = await GitHubApiService.hasWriteAccessToRepository(targetRepository.fullName);
+        const canShowEditButton = hasWriteAccess; // Show button if user has write access
+        const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
+        
+        console.log('[App] Permission check results:', {
+          hasWriteAccess,
+          isOnMainBranch,
+          canShowEditButton,
+          canActuallyEdit
+        });
+        
+        setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
+        setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
+      }
+      
       // Save edit mode state
       saveEditModeState(true, newBranchName);
       
-      // Refresh data from the new branch
+      // Update the target repository's branch in DataSourceManager
+      if (targetRepository) {
+        dataSourceManager.updateRepositoryInfo(
+          currentContext.currentPlatform && currentContext.currentPlatform !== 'none' ? 'platform-extension' :
+          currentContext.currentTheme && currentContext.currentTheme !== 'none' ? 'theme-override' : 'core',
+          {
+            ...targetRepository,
+            branch: newBranchName
+          },
+          currentContext.currentPlatform && currentContext.currentPlatform !== 'none' ? currentContext.currentPlatform :
+          currentContext.currentTheme && currentContext.currentTheme !== 'none' ? currentContext.currentTheme : undefined
+        );
+      }
+      
+      // Refresh data from the new branch (but preserve data source context)
       await handleRefreshCurrentData();
       
       toast({
@@ -1473,6 +1638,10 @@ const App = () => {
       setEditModeBranch(currentBranch);
       setIsEditMode(true);
       
+      // Enter edit mode in DataSourceManager
+      const dsManager = DataSourceManager.getInstance();
+      dsManager.enterEditMode();
+      
       // Save edit mode state
       saveEditModeState(true, currentBranch);
     }
@@ -1499,23 +1668,68 @@ const App = () => {
   };
 
   const handleExitEditMode = async () => {
-    // Revert changes (same as refresh)
-    await handleRefreshCurrentData();
-    
-    // Exit edit mode
-    setIsEditMode(false);
-    setEditModeBranch(null);
-    
-    // Clear persisted state
-    clearEditModeState();
-    
-    toast({
-      title: 'Edit Mode Cancelled',
-      description: 'Changes have been reverted',
-      status: 'info',
-      duration: 3000,
-      isClosable: true,
-    });
+    try {
+      console.log('[App] handleExitEditMode called');
+      
+      // Clear edit mode state
+      setIsEditMode(false);
+      setEditModeBranch(null);
+      
+      // Exit edit mode in DataSourceManager
+      const dsManager = DataSourceManager.getInstance();
+      dsManager.exitEditMode();
+      
+      clearEditModeState();
+      
+      // Reset to main branch if we're on a feature branch
+      if (currentBranch !== 'main') {
+        const url = new URL(window.location.href);
+        url.searchParams.set('branch', 'main');
+        window.history.replaceState({}, '', url.toString());
+        setCurrentBranch('main');
+      }
+      
+      // Refresh data to ensure we're viewing the latest state
+      await handleRefreshCurrentData();
+      
+      toast({
+        title: 'Edit Mode Exited',
+        description: 'Returned to view mode',
+        status: 'info',
+        duration: 2000,
+        isClosable: true,
+      });
+    } catch (error) {
+      console.error('Failed to exit edit mode:', error);
+      toast({
+        title: 'Error Exiting Edit Mode',
+        description: error instanceof Error ? error.message : 'Failed to exit edit mode',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  // NEW: Enhanced discard changes handler
+  const handleDiscardChanges = async () => {
+    try {
+      // Refresh data to discard changes
+      await handleRefreshCurrentData();
+      
+      // Automatically exit edit mode
+      await handleExitEditMode();
+      
+    } catch (error) {
+      console.error('Failed to discard changes:', error);
+      toast({
+        title: 'Discard Failed',
+        description: error instanceof Error ? error.message : 'Failed to discard changes',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
   const onClose = () => {
@@ -1580,6 +1794,44 @@ const App = () => {
               onBranchCreated={handleBranchCreated}
               onEnterEditMode={handleEnterEditMode}
               onExitEditMode={handleExitEditMode}
+              // NEW: Edit context props
+              editContext={isEditMode ? (() => {
+                if (!dataSourceContext) return undefined;
+                
+                const { currentPlatform, currentTheme, availablePlatforms, availableThemes } = dataSourceContext;
+                
+                // Find platform name if platform is selected
+                const platformName = currentPlatform && currentPlatform !== 'none' 
+                  ? availablePlatforms.find(p => p.id === currentPlatform)?.displayName || currentPlatform
+                  : undefined;
+                
+                // Find theme name if theme is selected
+                const themeName = currentTheme && currentTheme !== 'none'
+                  ? availableThemes.find(t => t.id === currentTheme)?.displayName || currentTheme
+                  : undefined;
+                
+                // Determine source type and name
+                let sourceType: 'core' | 'platform-extension' | 'theme-override' = 'core';
+                let sourceName = 'Core Design System';
+                
+                if (currentPlatform && currentPlatform !== 'none') {
+                  sourceType = 'platform-extension';
+                  sourceName = platformName || currentPlatform;
+                } else if (currentTheme && currentTheme !== 'none') {
+                  sourceType = 'theme-override';
+                  sourceName = themeName || currentTheme;
+                }
+                
+                return {
+                  isEditMode: true,
+                  sourceType,
+                  sourceId: currentPlatform !== 'none' ? currentPlatform : currentTheme !== 'none' ? currentTheme : null,
+                  sourceName,
+                };
+              })() : undefined}
+                             onSaveChanges={undefined} // Let Header use its own save workflow
+               onDiscardChanges={handleDiscardChanges}
+              pendingOverrides={pendingOverrides}
             >
               <Routes>
                 <Route path="/auth/github/callback" element={<GitHubCallback />} />

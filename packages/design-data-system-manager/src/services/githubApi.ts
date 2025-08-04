@@ -474,6 +474,7 @@ export class GitHubApiService {
    * Create a new branch
    */
   static async createBranch(repo: string, baseBranch: string, newBranch: string): Promise<void> {
+    console.log('[GitHubApiService] Creating branch:', { repo, baseBranch, newBranch });
     const accessToken = await GitHubAuthService.getValidAccessToken();
     
     // First, get the SHA of the base branch

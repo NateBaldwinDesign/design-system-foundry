@@ -1,6 +1,7 @@
 import { GitHubApiService } from './githubApi';
 import { StorageService } from './storage';
 import { PermissionManager } from './permissionManager';
+import { ChangeTrackingService } from './changeTrackingService';
 import type { Platform, Theme } from '@token-model/data-model';
 
 export interface RepositoryInfo {
@@ -24,6 +25,22 @@ export interface DataSourceContext {
     core: RepositoryInfo | null;
     platforms: Record<string, RepositoryInfo>;
     themes: Record<string, RepositoryInfo>;
+  };
+  
+  // NEW: Edit context properties
+  editMode: {
+    isActive: boolean;
+    sourceType: 'core' | 'platform-extension' | 'theme-override';
+    sourceId: string | null;
+    targetRepository: RepositoryInfo | null;
+    validationSchema: 'schema' | 'platform-extension' | 'theme-override';
+  };
+  
+  // NEW: View context properties
+  viewMode: {
+    isMerged: boolean;
+    mergeSources: Array<'core' | 'platform-extension' | 'theme-override'>;
+    displayData: 'merged' | 'core-only' | 'platform-only' | 'theme-only';
   };
 }
 
@@ -50,6 +67,18 @@ export class DataSourceManager {
       core: null,
       platforms: {},
       themes: {}
+    },
+    editMode: {
+      isActive: false,
+      sourceType: 'core',
+      sourceId: null,
+      targetRepository: null,
+      validationSchema: 'schema'
+    },
+    viewMode: {
+      isMerged: false,
+      mergeSources: ['core'],
+      displayData: 'core-only'
     }
   };
 
@@ -79,42 +108,74 @@ export class DataSourceManager {
   }
 
   /**
-   * Switch to a specific platform
+   * Switch to a specific platform with change detection
    */
   async switchToPlatform(platformId: string | null): Promise<void> {
     try {
+      // Only show unsaved changes warning if in edit mode
+      if (this.currentContext.editMode.isActive) {
+        const changeCount = ChangeTrackingService.getChangeCount();
+        if (changeCount > 0) {
+          // Show warning dialog (this will be handled by the UI layer)
+          const shouldProceed = await this.showSourceSwitchWarning(changeCount);
+          if (!shouldProceed) {
+            return; // User cancelled
+          }
+          // Reset to main branch for new source and discard changes
+          await this.resetToMainBranchForSource('platform-extension', platformId);
+          this.exitEditMode();
+        }
+      }
       this.currentContext.currentPlatform = platformId;
-      
+      // Update edit mode context based on platform selection
+      this.updateEditModeContext();
+      // Update view mode context
+      this.updateViewModeContext();
+      // Update baseline for the new source
+      this.updateBaselineForCurrentSource();
       // Update permissions for the new context
       await this.updatePermissions();
-      
       // Persist to storage
       this.persistToStorage();
-      
       // Notify callbacks
       this.callbacks.onDataSourceChanged?.(this.getCurrentContext());
-      
     } catch (error) {
       this.callbacks.onError?.(error instanceof Error ? error.message : 'Failed to switch platform');
     }
   }
 
   /**
-   * Switch to a specific theme
+   * Switch to a specific theme with change detection
    */
   async switchToTheme(themeId: string | null): Promise<void> {
     try {
+      // Only show unsaved changes warning if in edit mode
+      if (this.currentContext.editMode.isActive) {
+        const changeCount = ChangeTrackingService.getChangeCount();
+        if (changeCount > 0) {
+          // Show warning dialog (this will be handled by the UI layer)
+          const shouldProceed = await this.showSourceSwitchWarning(changeCount);
+          if (!shouldProceed) {
+            return; // User cancelled
+          }
+          // Reset to main branch for new source and discard changes
+          await this.resetToMainBranchForSource('theme-override', themeId);
+          this.exitEditMode();
+        }
+      }
       this.currentContext.currentTheme = themeId;
-      
+      // Update edit mode context based on theme selection
+      this.updateEditModeContext();
+      // Update view mode context
+      this.updateViewModeContext();
+      // Update baseline for the new source
+      this.updateBaselineForCurrentSource();
       // Update permissions for the new context
       await this.updatePermissions();
-      
       // Persist to storage
       this.persistToStorage();
-      
       // Notify callbacks
       this.callbacks.onDataSourceChanged?.(this.getCurrentContext());
-      
     } catch (error) {
       this.callbacks.onError?.(error instanceof Error ? error.message : 'Failed to switch theme');
     }
@@ -447,6 +508,18 @@ export class DataSourceManager {
         core: null,
         platforms: {},
         themes: {}
+      },
+      editMode: {
+        isActive: false,
+        sourceType: 'core',
+        sourceId: null,
+        targetRepository: null,
+        validationSchema: 'schema'
+      },
+      viewMode: {
+        isMerged: false,
+        mergeSources: ['core'],
+        displayData: 'core-only'
       }
     };
 
@@ -454,5 +527,169 @@ export class DataSourceManager {
     
     // Notify callbacks
     this.callbacks.onDataSourceChanged?.(this.getCurrentContext());
+  }
+
+  /**
+   * Update edit mode context based on current platform/theme selection
+   */
+  private updateEditModeContext(): void {
+    const { currentPlatform, currentTheme, repositories } = this.currentContext;
+    
+    // Determine edit source type and target repository
+    if (currentPlatform && currentPlatform !== 'none') {
+      // Platform extension editing
+      this.currentContext.editMode = {
+        isActive: false, // Will be activated when user enters edit mode
+        sourceType: 'platform-extension',
+        sourceId: currentPlatform,
+        targetRepository: repositories.platforms[currentPlatform] || null,
+        validationSchema: 'platform-extension'
+      };
+    } else if (currentTheme && currentTheme !== 'none') {
+      // Theme override editing
+      this.currentContext.editMode = {
+        isActive: false, // Will be activated when user enters edit mode
+        sourceType: 'theme-override',
+        sourceId: currentTheme,
+        targetRepository: repositories.themes[currentTheme] || null,
+        validationSchema: 'theme-override'
+      };
+    } else {
+      // Core data editing
+      this.currentContext.editMode = {
+        isActive: false, // Will be activated when user enters edit mode
+        sourceType: 'core',
+        sourceId: null,
+        targetRepository: repositories.core,
+        validationSchema: 'schema'
+      };
+    }
+  }
+
+  /**
+   * Update view mode context based on current platform/theme selection
+   */
+  private updateViewModeContext(): void {
+    const { currentPlatform, currentTheme } = this.currentContext;
+    
+    const mergeSources: Array<'core' | 'platform-extension' | 'theme-override'> = ['core'];
+    let displayData: 'merged' | 'core-only' | 'platform-only' | 'theme-only' = 'core-only';
+    let isMerged = false;
+
+    if (currentPlatform && currentPlatform !== 'none') {
+      mergeSources.push('platform-extension');
+      isMerged = true;
+      displayData = currentTheme && currentTheme !== 'none' ? 'merged' : 'platform-only';
+    }
+
+    if (currentTheme && currentTheme !== 'none') {
+      mergeSources.push('theme-override');
+      isMerged = true;
+      displayData = currentPlatform && currentPlatform !== 'none' ? 'merged' : 'theme-only';
+    }
+
+    this.currentContext.viewMode = {
+      isMerged,
+      mergeSources,
+      displayData
+    };
+  }
+
+  /**
+   * Enter edit mode for current data source
+   */
+  enterEditMode(): void {
+    this.currentContext.editMode.isActive = true;
+    this.persistToStorage();
+    this.callbacks.onDataSourceChanged?.(this.getCurrentContext());
+  }
+
+  /**
+   * Exit edit mode
+   */
+  exitEditMode(): void {
+    this.currentContext.editMode.isActive = false;
+    this.persistToStorage();
+    this.callbacks.onDataSourceChanged?.(this.getCurrentContext());
+  }
+
+  /**
+   * Get current edit mode information
+   */
+  getCurrentEditMode(): DataSourceContext['editMode'] {
+    return { ...this.currentContext.editMode };
+  }
+
+  /**
+   * Get current view mode information
+   */
+  getCurrentViewMode(): DataSourceContext['viewMode'] {
+    return { ...this.currentContext.viewMode };
+  }
+
+  /**
+   * Update baseline for the current merged data state
+   * This ensures the change log compares against the correct merged baseline
+   */
+  private updateBaselineForCurrentSource(): void {
+    // Get the current merged data snapshot (what the user sees)
+    const currentDataSnapshot = ChangeTrackingService.getCurrentDataSnapshot();
+    
+    if (currentDataSnapshot) {
+      // Set the baseline to the current merged state
+      // This ensures change tracking compares against the merged data, not individual sources
+      ChangeTrackingService.setBaselineData(currentDataSnapshot);
+    }
+  }
+
+  /**
+   * Show warning dialog for source switching with unsaved changes
+   */
+  private async showSourceSwitchWarning(changeCount: number): Promise<boolean> {
+    // This will be handled by the UI layer through callbacks
+    // For now, return true to allow switching (UI will handle the warning)
+    return new Promise((resolve) => {
+      // Dispatch custom event for UI to handle
+      const event = new CustomEvent('token-model:source-switch-warning', {
+        detail: {
+          changeCount,
+          onConfirm: () => resolve(true),
+          onCancel: () => resolve(false)
+        }
+      });
+      window.dispatchEvent(event);
+    });
+  }
+
+  /**
+   * Reset to main branch for the specified source
+   */
+  private async resetToMainBranchForSource(
+    sourceType: 'platform-extension' | 'theme-override',
+    sourceId: string | null
+  ): Promise<void> {
+    try {
+      if (!sourceId) return;
+      
+      const repository = sourceType === 'platform-extension' 
+        ? this.currentContext.repositories.platforms[sourceId]
+        : this.currentContext.repositories.themes[sourceId];
+      
+      if (repository && repository.branch !== 'main') {
+        // Update repository branch to main
+        this.updateRepositoryInfo(sourceType, {
+          ...repository,
+          branch: 'main'
+        }, sourceId);
+        
+        // Clear change tracking for this source
+        ChangeTrackingService.clearOverrideChanges();
+        
+        // Notify that branch was reset
+        this.callbacks.onDataSourceChanged?.(this.getCurrentContext());
+      }
+    } catch (error) {
+      console.error('Failed to reset to main branch:', error);
+    }
   }
 } 

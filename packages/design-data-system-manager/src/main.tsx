@@ -28,6 +28,6 @@ ReactDOM.createRoot(rootElement).render(
       <App />
     </ChakraProvider>
   </React.StrictMode>
-);
+); 
 
 console.log('🔍 [Main] App rendered with ChakraProvider'); 

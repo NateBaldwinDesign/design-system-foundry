@@ -60,7 +60,7 @@ export class StorageService {
 
   private static getItem<T>(key: string, defaultValue: T): T {
     try {
-      const item = localStorage.getItem(key);
+    const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : defaultValue;
     } catch (error) {
       console.error(`[StorageService] Error parsing item for key ${key}:`, error);
@@ -507,5 +507,92 @@ export class StorageService {
       default:
         throw new Error(`Unknown storage type: ${type}`);
     }
+  }
+
+  // NEW: Override-specific storage methods
+  /**
+   * Get pending overrides for specific source
+   */
+  static getPendingOverrides(sourceType: string, sourceId: string): Array<{tokenId: string; override: Record<string, unknown>}> {
+    const key = `token-model:pending-overrides:${sourceType}:${sourceId}`;
+    return this.getItem(key, []);
+  }
+
+  /**
+   * Set pending overrides for specific source
+   */
+  static setPendingOverrides(sourceType: string, sourceId: string, overrides: Array<{tokenId: string; override: Record<string, unknown>}>): void {
+    const key = `token-model:pending-overrides:${sourceType}:${sourceId}`;
+    this.setItem(key, overrides);
+  }
+
+  /**
+   * Clear pending overrides for specific source
+   */
+  static clearPendingOverrides(sourceType: string, sourceId: string): void {
+    const key = `token-model:pending-overrides:${sourceType}:${sourceId}`;
+    localStorage.removeItem(key);
+  }
+
+  /**
+   * Get edit context
+   */
+  static getEditContext(): {sourceType: string; sourceId?: string; isEditMode: boolean} {
+    return this.getItem('token-model:edit-context', {
+      sourceType: 'core',
+      sourceId: undefined,
+      isEditMode: false
+    });
+  }
+
+  /**
+   * Set edit context
+   */
+  static setEditContext(context: {sourceType: string; sourceId?: string; isEditMode: boolean}): void {
+    this.setItem('token-model:edit-context', context);
+  }
+
+  /**
+   * Get override history
+   */
+  static getOverrideHistory(): Array<{
+    timestamp: string;
+    tokenId: string;
+    sourceType: string;
+    sourceId: string;
+    action: 'created' | 'modified' | 'deleted';
+  }> {
+    return this.getItem('token-model:override-history', []);
+  }
+
+  /**
+   * Add override history entry
+   */
+  static addOverrideHistoryEntry(entry: {
+    tokenId: string;
+    sourceType: string;
+    sourceId: string;
+    action: 'created' | 'modified' | 'deleted';
+  }): void {
+    const history = this.getOverrideHistory();
+    const newEntry = {
+      ...entry,
+      timestamp: new Date().toISOString()
+    };
+    history.push(newEntry);
+    
+    // Keep only last 100 entries
+    if (history.length > 100) {
+      history.splice(0, history.length - 100);
+    }
+    
+    this.setItem('token-model:override-history', history);
+  }
+
+  /**
+   * Clear override history
+   */
+  static clearOverrideHistory(): void {
+    localStorage.removeItem('token-model:override-history');
   }
 } 

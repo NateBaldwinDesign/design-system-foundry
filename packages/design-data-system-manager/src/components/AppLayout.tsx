@@ -55,6 +55,21 @@ interface AppLayoutProps {
   onBranchCreated?: (branchName: string) => void;
   onEnterEditMode?: () => void;
   onExitEditMode?: () => void;
+  // NEW: Edit context props
+  editContext?: {
+    isEditMode: boolean;
+    sourceType: 'core' | 'platform-extension' | 'theme-override';
+    sourceId: string | null;
+    sourceName: string;
+  };
+  onSaveChanges?: () => void;
+  onDiscardChanges?: () => void;
+  pendingOverrides?: Array<{
+    tokenId: string;
+    tokenName: string;
+    overrideType: 'platform' | 'theme';
+    overrideSource: string;
+  }>;
 }
 
 // Custom event for data changes
@@ -92,6 +107,11 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onBranchCreated,
   onEnterEditMode,
   onExitEditMode,
+  // NEW: Edit context props
+  editContext,
+  onSaveChanges,
+  onDiscardChanges,
+  pendingOverrides = [],
 }: AppLayoutProps) => {
   const { colorMode } = useColorMode();
   const [hasChanges, setHasChanges] = useState(false);
@@ -385,10 +405,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           // Branch-based governance props
           isEditMode={isEditMode}
           currentBranch={currentBranch}
-          editModeBranch={editModeBranch}
           onBranchCreated={onBranchCreated}
           onEnterEditMode={onEnterEditMode}
           onExitEditMode={onExitEditMode}
+          // NEW: Edit context props
+          editContext={editContext}
+          onSaveChanges={onSaveChanges}
+          onDiscardChanges={onDiscardChanges}
+          pendingOverrides={pendingOverrides}
         />
         <Box flex="1" overflow="auto"  bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
           {children}

@@ -5,6 +5,7 @@ import { GitHubAuthService } from './githubAuth';
 import { PlatformExtensionDataService } from './platformExtensionDataService';
 import { PlatformExtensionAnalyticsService } from './platformExtensionAnalyticsService';
 import { ThemeOverrideDataService } from './themeOverrideDataService';
+import { EnhancedDataMerger } from './enhancedDataMerger';
 import { 
   SchemaValidationService,
   type ValidationResult 
@@ -98,6 +99,8 @@ export class DataManager {
   private static instance: DataManager;
   private callbacks: DataManagerCallbacks = {};
   private isInitialized = false;
+  private isPreloadingPlatformExtensions = false;
+  private isPreloadingThemeOverrides = false;
   
   // Schema-aware storage state
   private state: DataManagerState = {
@@ -733,6 +736,13 @@ export class DataManager {
       return;
     }
 
+    // Prevent duplicate preloading by checking if we're already in progress
+    if (this.isPreloadingPlatformExtensions) {
+      console.log('[DataManager] Platform extension preloading already in progress, skipping');
+      return;
+    }
+
+    this.isPreloadingPlatformExtensions = true;
     console.log('[DataManager] Pre-loading platform extensions for', platformsWithExtensions.length, 'platforms');
     
     // Clear existing cache to ensure fresh data
@@ -753,7 +763,15 @@ export class DataManager {
         );
         
         if (result.error) {
-          console.warn(`[DataManager] Platform extension ${platform.id} (${platform.displayName}) returned error:`, result.error);
+          // Check if this is an authentication-related error for private repositories
+          const isPrivateRepoPattern = platform.extensionSource?.repositoryUri.match(/^company\/design-system-/);
+          const isAuthError = result.error.includes('Private repository') || result.error.includes('authentication required') || result.error.includes('access not available');
+          
+          if (isPrivateRepoPattern && isAuthError) {
+            console.log(`[DataManager] Skipping private platform extension ${platform.id} (${platform.displayName}) - authentication required`);
+          } else {
+            console.warn(`[DataManager] Platform extension ${platform.id} (${platform.displayName}) returned error:`, result.error);
+          }
         } else {
           console.log(`[DataManager] Successfully pre-loaded platform extension for ${platform.id} (${platform.displayName})`);
         }
@@ -776,6 +794,8 @@ export class DataManager {
     } catch (error) {
       console.error('[DataManager] Error during platform extension pre-loading:', error);
       // Don't throw here - this is a best-effort operation
+    } finally {
+      this.isPreloadingPlatformExtensions = false;
     }
   }
 
@@ -789,6 +809,13 @@ export class DataManager {
       return;
     }
 
+    // Prevent duplicate preloading by checking if we're already in progress
+    if (this.isPreloadingThemeOverrides) {
+      console.log('[DataManager] Theme override preloading already in progress, skipping');
+      return;
+    }
+
+    this.isPreloadingThemeOverrides = true;
     console.log('[DataManager] Pre-loading theme overrides for', themesWithOverrides.length, 'themes');
     
     // Clear existing cache to ensure fresh data
@@ -808,7 +835,15 @@ export class DataManager {
         );
         
         if (result.error) {
-          console.warn(`[DataManager] Theme override ${theme.id} (${theme.displayName}) returned error:`, result.error);
+          // Check if this is an authentication-related error for private repositories
+          const isPrivateRepoPattern = theme.overrideSource?.repositoryUri.match(/^company\/design-system-/);
+          const isAuthError = result.error.includes('Private repository') || result.error.includes('authentication required') || result.error.includes('access not available') || result.error.includes('404');
+          
+          if (isPrivateRepoPattern && isAuthError) {
+            console.log(`[DataManager] Skipping private theme override ${theme.id} (${theme.displayName}) - authentication required`);
+          } else {
+            console.warn(`[DataManager] Theme override ${theme.id} (${theme.displayName}) returned error:`, result.error);
+          }
         } else {
           console.log(`[DataManager] Successfully pre-loaded theme override for ${theme.id} (${theme.displayName})`);
         }
@@ -831,6 +866,8 @@ export class DataManager {
     } catch (error) {
       console.error('[DataManager] Error during theme override pre-loading:', error);
       // Don't throw here - this is a best-effort operation
+    } finally {
+      this.isPreloadingThemeOverrides = false;
     }
   }
 
@@ -955,6 +992,132 @@ export class DataManager {
   }
 
   // ============================================================================
+  // NEW: Edit/View Distinction Methods
+  // ============================================================================
+
+  /**
+   * Get edit data for specific source (source-specific data for changes)
+   */
+  getEditData(
+    sourceType: 'core' | 'platform-extension' | 'theme-override', 
+    sourceId?: string
+  ): Record<string, unknown> {
+    return this.getStorageDataForSource(sourceType, sourceId);
+  }
+
+  /**
+   * Get view data (merged data for display)
+   */
+  getViewData(): DataSnapshot {
+    return this.getPresentationSnapshot();
+  }
+
+  /**
+   * Update edit data with validation and override creation
+   */
+  updateEditData(
+    updates: Partial<DataSnapshot>, 
+    sourceType: 'core' | 'platform-extension' | 'theme-override', 
+    sourceId?: string
+  ): ValidationResult {
+    try {
+      // Import OverrideManager dynamically to avoid circular dependencies
+      const { OverrideManager } = require('./overrideManager');
+      const overrideManager = OverrideManager.getInstance();
+
+      // Validate the updates against the appropriate schema
+      const validationResult = this.validateDataForStorage(updates, sourceType);
+      if (!validationResult.isValid) {
+        return validationResult;
+      }
+
+      // Handle override creation for platform/theme editing
+      if (sourceType === 'platform-extension' && sourceId) {
+        // Check if any token changes would create overrides
+        const tokenUpdates = updates.tokens;
+        if (tokenUpdates) {
+          for (const token of tokenUpdates) {
+            // Track override changes
+            const originalToken = this.findTokenInCoreData(token.id);
+            if (originalToken) {
+              ChangeTrackingService.trackOverrideChanges(
+                token.id,
+                originalToken,
+                token,
+                sourceType,
+                sourceId
+              );
+            }
+          }
+        }
+      } else if (sourceType === 'theme-override' && sourceId) {
+        // Check if any token changes would create theme overrides
+        const tokenUpdates = updates.tokens;
+        if (tokenUpdates) {
+          for (const token of tokenUpdates) {
+            // Validate that token is themeable
+            if (!overrideManager.isTokenThemeable(token.id, this.state.storageData.core)) {
+              return {
+                isValid: false,
+                errors: [`Token ${token.id} is not themeable and cannot be edited in theme mode`],
+                warnings: []
+              };
+            }
+
+            // Track override changes
+            const originalToken = this.findTokenInCoreData(token.id);
+            if (originalToken) {
+              ChangeTrackingService.trackOverrideChanges(
+                token.id,
+                originalToken,
+                token,
+                sourceType,
+                sourceId
+              );
+            }
+          }
+        }
+      }
+
+      // Update the storage data using existing method
+      return this.updateDataWithSchemaValidation(updates, sourceType, sourceId);
+    } catch (error) {
+      return {
+        isValid: false,
+        errors: [error instanceof Error ? error.message : 'Update failed'],
+        warnings: []
+      };
+    }
+  }
+
+  /**
+   * Find token in core data
+   */
+  private findTokenInCoreData(tokenId: string): Token | null {
+    if (!this.state.storageData.core?.tokens) {
+      return null;
+    }
+    return this.state.storageData.core.tokens.find(t => t.id === tokenId) || null;
+  }
+
+  /**
+   * Get pending overrides for current edit source
+   */
+  getPendingOverrides(): Array<{tokenId: string, override: Record<string, unknown>}> {
+    return ChangeTrackingService.getOverrideChanges().map(change => ({
+      tokenId: change.tokenId,
+      override: change.newValue
+    }));
+  }
+
+  /**
+   * Clear pending overrides
+   */
+  clearPendingOverrides(): void {
+    ChangeTrackingService.clearOverrideChanges();
+  }
+
+  // ============================================================================
   // Private Helper Methods
   // ============================================================================
 
@@ -991,12 +1154,49 @@ export class DataManager {
    * Update presentation data by merging storage data
    */
   private updatePresentationData(): void {
-    // This will be enhanced in Phase 4.3 with EnhancedDataMerger
-    // For now, just update the presentation data with current storage data
-    const currentSnapshot = this.getCurrentSnapshot();
-    this.state.presentationData = currentSnapshot;
+    // Use EnhancedDataMerger to merge data with override support
+    const enhancedMerger = EnhancedDataMerger.getInstance();
+    
+    // Get current data source context from DataSourceManager
+    const { DataSourceManager } = require('./dataSourceManager');
+    const dataSourceManager = DataSourceManager.getInstance();
+    const context = dataSourceManager.getCurrentContext();
+    
+    // Get pending overrides
+    const pendingOverrides = this.getPendingOverrides();
+    
+    // Merge data with overrides
+    const mergedSnapshot = enhancedMerger.mergeWithOverrides(
+      this.state.storageData.core,
+      this.state.storageData.platformExtensions,
+      this.state.storageData.themeOverrides,
+      pendingOverrides
+    );
+    
+    // Convert MergedDataSnapshot to DataSnapshot format
+    this.state.presentationData = {
+      collections: mergedSnapshot.collections,
+      modes: mergedSnapshot.modes,
+      dimensions: mergedSnapshot.dimensions,
+      resolvedValueTypes: mergedSnapshot.resolvedValueTypes,
+      platforms: mergedSnapshot.platforms,
+      themes: mergedSnapshot.themes,
+      tokens: mergedSnapshot.tokens,
+      taxonomies: mergedSnapshot.taxonomies,
+      componentProperties: mergedSnapshot.componentProperties,
+      componentCategories: mergedSnapshot.componentCategories,
+      components: mergedSnapshot.components,
+      algorithms: [], // TODO: Add algorithms support
+      taxonomyOrder: mergedSnapshot.taxonomyOrder,
+      dimensionOrder: mergedSnapshot.dimensionOrder,
+      algorithmFile: mergedSnapshot.algorithmFile,
+      linkedRepositories: [], // TODO: Add linked repositories support
+      platformExtensions: this.state.storageData.platformExtensions,
+      themeOverrides: this.state.storageData.themeOverrides,
+      figmaConfiguration: mergedSnapshot.figmaConfiguration
+    };
     
     // Trigger callbacks
-    this.callbacks.onDataChanged?.(currentSnapshot);
+    this.callbacks.onDataChanged?.(this.state.presentationData);
   }
 } 

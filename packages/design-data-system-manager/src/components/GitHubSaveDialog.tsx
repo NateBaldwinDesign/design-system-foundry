@@ -25,6 +25,7 @@ import {
 import { GitHubSaveService, SaveOptions } from '../services/githubSave';
 import { GitHubApiService } from '../services/githubApi';
 import type { GitHubBranch } from '../config/github';
+import type { DataSourceContext } from '../services/dataSourceManager';
 
 interface GitHubSaveDialogProps {
   isOpen: boolean;
@@ -34,6 +35,8 @@ interface GitHubSaveDialogProps {
   // Branch-based governance props
   currentBranch?: string;
   isEditMode?: boolean;
+  // Data source context for proper repository targeting
+  dataSourceContext?: DataSourceContext;
 }
 
 export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
@@ -44,6 +47,8 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
   // Branch-based governance props
   currentBranch = 'main',
   isEditMode = false,
+  // Data source context for proper repository targeting
+  dataSourceContext,
 }) => {
   const [commitMessage, setCommitMessage] = useState('');
   const [prTitle, setPrTitle] = useState('');
@@ -114,7 +119,7 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
     const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
     if (!repoInfo) return;
 
-    const currentData = GitHubSaveService['getCurrentDataForFileType'](repoInfo.fileType);
+    const currentData = GitHubSaveService['getCurrentDataForFileType'](repoInfo.fileType === 'schema' ? 'core' : repoInfo.fileType);
     const warning = GitHubSaveService.getFileSizeWarning(currentData);
     setFileSizeWarning(warning);
   };
@@ -129,6 +134,7 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
         targetBranch: saveMode === 'pullRequest' ? targetBranch : undefined,
         prTitle: saveMode === 'pullRequest' ? prTitle : undefined,
         prDescription: saveMode === 'pullRequest' ? prDescription : undefined,
+        dataSourceContext: dataSourceContext,
       };
 
       const result = await GitHubSaveService.saveToGitHub(options);

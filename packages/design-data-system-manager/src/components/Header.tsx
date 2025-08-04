@@ -25,6 +25,12 @@ import {
   VStack,
   Spinner,
   Divider,
+  AlertDialog,
+  AlertDialogOverlay,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogBody,
+  AlertDialogFooter,
 } from '@chakra-ui/react';
 import {
   History,
@@ -49,7 +55,7 @@ import { GitHubSaveDialog } from './GitHubSaveDialog';
 import { DATA_CHANGE_EVENT } from './AppLayout';
 import { PlatformDropdown } from './PlatformDropdown';
 import { ThemeDropdown } from './ThemeDropdown';
-import { BranchCreationDialog } from './BranchCreationDialog';
+import { BranchSelectionDialog } from './BranchSelectionDialog';
 import { isMainBranch } from '../utils/BranchValidationUtils';
 
 import type { DataSourceContext } from '../services/dataSourceManager';
@@ -94,6 +100,26 @@ interface HeaderProps {
   onBranchCreated?: (branchName: string) => void;
   onEnterEditMode?: () => void;
   onExitEditMode?: () => void;
+  
+  // NEW: Edit context props
+  editContext?: {
+    isEditMode: boolean;
+    sourceType: 'core' | 'platform-extension' | 'theme-override';
+    sourceId: string | null;
+    sourceName: string;
+  };
+  
+  // NEW: Edit mode handlers
+  onSaveChanges?: () => void;
+  onDiscardChanges?: () => void;
+  
+  // NEW: Override information
+  pendingOverrides?: Array<{
+    tokenId: string;
+    tokenName: string;
+    overrideType: 'platform' | 'theme';
+    overrideSource: string;
+  }>;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -128,6 +154,11 @@ export const Header: React.FC<HeaderProps> = ({
   onBranchCreated,
   onEnterEditMode,
   onExitEditMode,
+  // NEW: Edit context props
+  editContext,
+  onSaveChanges,
+  onDiscardChanges,
+  pendingOverrides = [],
 }) => {
   const { colorMode } = useColorMode();
   
@@ -141,8 +172,46 @@ export const Header: React.FC<HeaderProps> = ({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isGitHubWorkflowMenuOpen, setIsGitHubWorkflowMenuOpen] = useState(false);
   const [isGitHubConnecting, setIsGitHubConnecting] = useState(false);
-  const [showBranchCreationDialog, setShowBranchCreationDialog] = useState(false);
+  const [showBranchSelectionDialog, setShowBranchSelectionDialog] = useState(false);
+  const [targetRepositoryForBranch, setTargetRepositoryForBranch] = useState<{ fullName: string; branch: string; filePath: string; fileType: string } | null>(null);
+  const [targetBranchForBranch, setTargetBranchForBranch] = useState<string>('main');
   const toast = useToast();
+  const [showSourceSwitchWarning, setShowSourceSwitchWarning] = useState(false);
+  const [sourceSwitchWarningData, setSourceSwitchWarningData] = useState<{
+    changeCount: number;
+    onConfirm: () => void;
+    onCancel: () => void;
+  } | null>(null);
+
+  // Handle source switching warning events
+  useEffect(() => {
+    const handleSourceSwitchWarning = (event: CustomEvent) => {
+      setSourceSwitchWarningData(event.detail);
+      setShowSourceSwitchWarning(true);
+    };
+
+    window.addEventListener('token-model:source-switch-warning', handleSourceSwitchWarning as EventListener);
+    
+    return () => {
+      window.removeEventListener('token-model:source-switch-warning', handleSourceSwitchWarning as EventListener);
+    };
+  }, []);
+
+  const handleSourceSwitchConfirm = () => {
+    if (sourceSwitchWarningData) {
+      sourceSwitchWarningData.onConfirm();
+      setShowSourceSwitchWarning(false);
+      setSourceSwitchWarningData(null);
+    }
+  };
+
+  const handleSourceSwitchCancel = () => {
+    if (sourceSwitchWarningData) {
+      sourceSwitchWarningData.onCancel();
+      setShowSourceSwitchWarning(false);
+      setSourceSwitchWarningData(null);
+    }
+  };
 
   // Clear GitHub connecting state when user returns from OAuth flow
   useEffect(() => {
@@ -159,14 +228,12 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Get the current title and subtitle based on data context
   const getTitleAndSubtitle = () => {
-    let title = 'Design System Manager';
-    let subtitle = '';
-
-    // Get system name from stored root data
     const rootData = StorageService.getRootData();
     const systemName = rootData.systemName || 'Design System';
+    let title = systemName;
+    let subtitle = '';
 
-    // Check for URL parameters first (regardless of loading success)
+    // Check for URL-based access
     const urlParams = new URLSearchParams(window.location.search);
     const repo = urlParams.get('repo');
     const branch = urlParams.get('branch') || 'main';
@@ -202,22 +269,48 @@ export const Header: React.FC<HeaderProps> = ({
     if (dataSourceContext) {
       title = systemName;
       
-      // Show current platform/theme selection
-      const platformName = dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none' 
-        ? dataSourceContext.availablePlatforms.find(p => p.id === dataSourceContext.currentPlatform)?.displayName 
-        : null;
-      const themeName = dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none'
-        ? dataSourceContext.availableThemes.find(t => t.id === dataSourceContext.currentTheme)?.displayName
-        : null;
-      
-      if (platformName && themeName) {
-        subtitle = `${platformName} + ${themeName}`;
-      } else if (platformName) {
-        subtitle = platformName;
-      } else if (themeName) {
-        subtitle = themeName;
+      // NEW: Enhanced edit mode display
+      if (dataSourceContext.editMode.isActive) {
+        // Edit mode: show repository URL and edit source
+        const { editMode } = dataSourceContext;
+        const repository = editMode.targetRepository;
+        
+        if (repository) {
+          title = `${systemName} - ${repository.fullName}@${repository.branch}`;
+          subtitle = 'Editing';
+        } else {
+          title = systemName;
+          subtitle = 'Editing';
+        }
       } else {
-        subtitle = 'Core Data';
+        // View mode: show current platform/theme selection
+        const platformName = dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none' 
+          ? dataSourceContext.availablePlatforms.find(p => p.id === dataSourceContext.currentPlatform)?.displayName 
+          : null;
+        const themeName = dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none'
+          ? dataSourceContext.availableThemes.find(t => t.id === dataSourceContext.currentTheme)?.displayName
+          : null;
+        
+        if (platformName && themeName) {
+          subtitle = `${platformName} + ${themeName}`;
+        } else if (platformName) {
+          subtitle = platformName;
+        } else if (themeName) {
+          subtitle = themeName;
+        } else {
+          subtitle = 'Core Data';
+        }
+        
+        // NEW: Enhanced two-tier permission system
+        const hasEditAccess = dataSourceContext.permissions.core || 
+          Object.values(dataSourceContext.permissions.platforms).some(Boolean) ||
+          Object.values(dataSourceContext.permissions.themes).some(Boolean);
+        
+        if (hasEditAccess) {
+          subtitle += ' - Edit Access';
+        } else {
+          subtitle += ' - View Only';
+        }
       }
       
       return { title, subtitle };
@@ -253,6 +346,21 @@ export const Header: React.FC<HeaderProps> = ({
     }
 
     return { title, subtitle };
+  };
+
+  // NEW: Helper function to determine if user has edit permissions from data source context
+  const hasDataSourceEditPermissions = () => {
+    if (dataSourceContext) {
+      return dataSourceContext.permissions.core || 
+        Object.values(dataSourceContext.permissions.platforms).some(Boolean) ||
+        Object.values(dataSourceContext.permissions.themes).some(Boolean);
+    }
+    return false;
+  };
+
+  // NEW: Helper function to determine if user is view-only
+  const isViewOnlyUser = () => {
+    return !hasDataSourceEditPermissions();
   };
 
   const { title, subtitle } = getTitleAndSubtitle();
@@ -349,6 +457,11 @@ export const Header: React.FC<HeaderProps> = ({
     // Dispatch event to notify change detection that data has been saved to GitHub
     // This will establish a new baseline and clear the change log
     window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
+    
+    // NEW: Automatically exit edit mode after successful save
+    if (onExitEditMode) {
+      onExitEditMode();
+    }
   };
 
   const handleSaveToGitHub = () => {
@@ -392,6 +505,8 @@ export const Header: React.FC<HeaderProps> = ({
     const repo = urlParams.get('repo');
     const path = urlParams.get('path') || 'schema.json';
     const branch = urlParams.get('branch') || 'main';
+    const platform = urlParams.get('platform');
+    const theme = urlParams.get('theme');
 
     if (repo) {
       // URL parameters present - generate URL from parameters
@@ -400,6 +515,15 @@ export const Header: React.FC<HeaderProps> = ({
       params.set('repo', repo);
       params.set('path', path);
       params.set('branch', branch);
+      
+      // Include platform and theme parameters if present
+      if (platform) {
+        params.set('platform', platform);
+      }
+      if (theme) {
+        params.set('theme', theme);
+      }
+      
       return `${baseURL}?${params.toString()}`;
     } else if (selectedRepoInfo) {
       // Fall back to selected repository info
@@ -408,6 +532,15 @@ export const Header: React.FC<HeaderProps> = ({
       params.set('repo', selectedRepoInfo.fullName);
       params.set('path', selectedRepoInfo.filePath);
       params.set('branch', selectedRepoInfo.branch);
+      
+      // Include current platform/theme selection from data source context
+      if (dataSourceContext?.currentPlatform) {
+        params.set('platform', dataSourceContext.currentPlatform);
+      }
+      if (dataSourceContext?.currentTheme) {
+        params.set('theme', dataSourceContext.currentTheme);
+      }
+      
       return `${baseURL}?${params.toString()}`;
     }
     return null;
@@ -451,10 +584,51 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Branch-based governance handlers
   const handleEnterEditMode = () => {
+    // Determine the target repository based on data source context
+    let targetRepository: { fullName: string; branch: string; filePath: string; fileType: string } | null = null;
+    
+    if (dataSourceContext) {
+      // Use data source context to determine edit target
+      if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
+        // Platform extension editing
+        targetRepository = dataSourceContext.repositories.platforms[dataSourceContext.currentPlatform] || null;
+      } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
+        // Theme override editing
+        targetRepository = dataSourceContext.repositories.themes[dataSourceContext.currentTheme] || null;
+      } else {
+        // Core data editing
+        targetRepository = dataSourceContext.repositories.core;
+      }
+    } else {
+      // Fallback to selectedRepoInfo for backward compatibility
+      targetRepository = selectedRepoInfo || null;
+    }
+
+    // Check if we have repository information
+    if (!targetRepository?.fullName) {
+      toast({
+        title: 'No Repository Selected',
+        description: 'Please select a platform or theme, or ensure you have a valid repository connection.',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
     // Check if we're on a main branch
     if (isMainBranch(currentBranch)) {
-      // Main branch - open branch creation dialog
-      setShowBranchCreationDialog(true);
+      // Main branch - open branch selection dialog
+      setTargetRepositoryForBranch(targetRepository);
+      // Use the branch from the target repository, or fallback to 'main'
+      const targetBranch = targetRepository?.branch || 'main';
+      console.log('[Header] Setting target branch for branch selection:', {
+        targetRepository: targetRepository?.fullName,
+        targetBranch,
+        currentBranch
+      });
+      setTargetBranchForBranch(targetBranch);
+      setShowBranchSelectionDialog(true);
     } else {
       // Non-main branch - call the app-level handler
       if (onEnterEditMode) {
@@ -463,11 +637,19 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const handleBranchCreated = (branchName: string) => {
+  const handleBranchSelected = (branchName: string) => {
+    // When selecting an existing branch, we need to:
+    // 1. Switch to that branch (similar to branch creation)
+    // 2. Enter edit mode
+    
     if (onBranchCreated) {
+      // Use onBranchCreated which handles branch switching and entering edit mode
       onBranchCreated(branchName);
+    } else if (onEnterEditMode) {
+      // Fallback to just entering edit mode if onBranchCreated is not available
+      onEnterEditMode();
     }
-    setShowBranchCreationDialog(false);
+    setShowBranchSelectionDialog(false);
   };
 
   return (
@@ -491,7 +673,50 @@ export const Header: React.FC<HeaderProps> = ({
           <Text fontSize="xs">{subtitle}</Text>
         </HStack>
         <HStack spacing={2}>
-                        {/* Platform and Theme Dropdowns */}
+          {/* NEW: Edit Mode UI Layout */}
+          {dataSourceContext && dataSourceContext.editMode.isActive ? (
+            // Edit Mode Layout
+            <>
+              {/* Pending Overrides Indicator */}
+              {pendingOverrides.length > 0 && (
+                <HStack spacing={2} px={3} py={1} bg="orange.50" borderRadius="md" border="1px solid" borderColor="orange.200">
+                  <Badge colorScheme="orange" variant="subtle">
+                    {pendingOverrides.length} override{pendingOverrides.length !== 1 ? 's' : ''} pending
+                  </Badge>
+                </HStack>
+              )}
+              
+              {/* Edit Mode Buttons */}
+              <HStack spacing={2}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onDiscardChanges || onExitEditMode}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  colorScheme="blue"
+                  onClick={onSaveChanges || handleSaveToGitHub}
+                  leftIcon={<GitCommitVertical size={16} />}
+                >
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  colorScheme="green"
+                  onClick={handleCreatePullRequest}
+                  leftIcon={<GitPullRequestArrow size={16} />}
+                >
+                  Submit for Review
+                </Button>
+              </HStack>
+            </>
+          ) : (
+            // View Mode Layout
+            <>
+              {/* Platform and Theme Dropdowns */}
               {dataSourceContext && (
                 <HStack spacing={4}>
                   <PlatformDropdown
@@ -506,295 +731,229 @@ export const Header: React.FC<HeaderProps> = ({
                     permissions={dataSourceContext.permissions.themes}
                     onThemeChange={onThemeChange || (() => {})}
                   />
-
                 </HStack>
               )}
 
-          {/* GitHub Connection */}
-          {githubUser ? (
-            <HStack spacing={2}>
-              <Popover 
-                placement="bottom-end" 
-                isOpen={isGitHubWorkflowMenuOpen} 
-                onClose={() => setIsGitHubWorkflowMenuOpen(false)}
-              >
-                <PopoverTrigger>
-                  <IconButton
-                    aria-label="GitHub Workflow"
-                    icon={<GitBranch size={16} />}
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setIsGitHubWorkflowMenuOpen(true)}
-                  />
-                </PopoverTrigger>
-                <PopoverContent p={0} w="auto" minW="200px">
-                  <PopoverArrow />
-                  <PopoverBody p={2}>
-                    <VStack spacing={0} align="stretch">
-                      <Button
-                        variant="ghost"
+              {/* GitHub Connection */}
+              {githubUser ? (
+                <HStack spacing={2}>
+                  <Popover 
+                    placement="bottom-end" 
+                    isOpen={isGitHubWorkflowMenuOpen} 
+                    onClose={() => setIsGitHubWorkflowMenuOpen(false)}
+                  >
+                    <PopoverTrigger>
+                      <IconButton
+                        aria-label="GitHub Workflow"
+                        icon={<GitBranch size={16} />}
                         size="sm"
-                        justifyContent="flex-start"
-                        borderRadius={0}
-                        leftIcon={<BookMarked size={16} />}
-                        onClick={() => {
-                          setShowFindDesignSystem(true);
-                          setIsGitHubWorkflowMenuOpen(false);
-                        }}
-                      >
-                        Load design system from URL
-                      </Button>
-                      {selectedRepoInfo && (
-                        <>
-                          {hasEditPermissions && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                justifyContent="flex-start"
-                                borderRadius={0}
-                                leftIcon={<RefreshCw size={16} />}
-                                onClick={() => {
-                                  handleRefreshData();
-                                  setIsGitHubWorkflowMenuOpen(false);
-                                }}
-                              >
-                                Refresh (pull) data
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                justifyContent="flex-start"
-                                borderRadius={0}
-                                leftIcon={<GitCommitVertical size={16} />}
-                                onClick={() => {
-                                  handleSaveToGitHub();
-                                  setIsGitHubWorkflowMenuOpen(false);
-                                }}
-                              >
-                                Save (commit)
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                justifyContent="flex-start"
-                                borderRadius={0}
-                                leftIcon={<GitPullRequestArrow size={16} />}
-                                onClick={() => {
-                                  handleCreatePullRequest();
-                                  setIsGitHubWorkflowMenuOpen(false);
-                                }}
-                              >
-                                Create Pull Request
-                              </Button>
-                            </>
-                          )}
+                        variant="ghost"
+                        onClick={() => setIsGitHubWorkflowMenuOpen(true)}
+                      />
+                    </PopoverTrigger>
+                    <PopoverContent p={0} w="auto" minW="200px">
+                      <PopoverArrow />
+                      <PopoverBody p={2}>
+                        <VStack spacing={0} align="stretch">
                           <Button
                             variant="ghost"
                             size="sm"
                             justifyContent="flex-start"
                             borderRadius={0}
-                            leftIcon={<Share2 size={16} />}
+                            leftIcon={<BookMarked size={16} />}
                             onClick={() => {
-                              handleShare();
+                              setShowFindDesignSystem(true);
                               setIsGitHubWorkflowMenuOpen(false);
                             }}
                           >
-                            Copy Repository URL
+                            Load design system from URL
                           </Button>
-                        </>
-                      )}
-                    </VStack>
-                  </PopoverBody>
-                </PopoverContent>
-              </Popover>
-            </HStack>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleGitHubConnect}
-              isLoading={isGitHubConnecting}
-              isDisabled={isGitHubConnecting}
-              leftIcon={isGitHubConnecting ? <Spinner size="sm" /> : <Github size={16} />}
-            >
-              Sign in
-            </Button>
-          )}
-
-          {/* Branch-based Governance Buttons */}
-          {githubUser && hasEditPermissions && (
-            <HStack spacing={2}>
-              {isEditMode ? (
-                <>
-                  <Button
-                    size="sm"
-                    colorScheme="blue"
-                    onClick={handleSaveToGitHub}
-                    leftIcon={<GitCommitVertical size={16} />}
-                  >
-                    Save
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={onExitEditMode}
-                  >
-                    Cancel
-                  </Button>
-                </>
+                          {selectedRepoInfo && (
+                            <>
+                                                             {hasDataSourceEditPermissions() && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    justifyContent="flex-start"
+                                    borderRadius={0}
+                                    leftIcon={<RefreshCw size={16} />}
+                                    onClick={() => {
+                                      handleRefreshData();
+                                      setIsGitHubWorkflowMenuOpen(false);
+                                    }}
+                                  >
+                                    Refresh (pull) data
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    justifyContent="flex-start"
+                                    borderRadius={0}
+                                    leftIcon={<GitCommitVertical size={16} />}
+                                    onClick={() => {
+                                      handleSaveToGitHub();
+                                      setIsGitHubWorkflowMenuOpen(false);
+                                    }}
+                                  >
+                                    Save (commit)
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    justifyContent="flex-start"
+                                    borderRadius={0}
+                                    leftIcon={<GitPullRequestArrow size={16} />}
+                                    onClick={() => {
+                                      handleCreatePullRequest();
+                                      setIsGitHubWorkflowMenuOpen(false);
+                                    }}
+                                  >
+                                    Create Pull Request
+                                  </Button>
+                                </>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                justifyContent="flex-start"
+                                borderRadius={0}
+                                leftIcon={<Share2 size={16} />}
+                                onClick={() => {
+                                  handleShare();
+                                  setIsGitHubWorkflowMenuOpen(false);
+                                }}
+                              >
+                                Copy Repository URL
+                              </Button>
+                            </>
+                          )}
+                        </VStack>
+                      </PopoverBody>
+                    </PopoverContent>
+                  </Popover>
+                </HStack>
               ) : (
                 <Button
                   size="sm"
-                  colorScheme="green"
-                  onClick={handleEnterEditMode}
+                  variant="outline"
+                  onClick={handleGitHubConnect}
+                  isLoading={isGitHubConnecting}
+                  isDisabled={isGitHubConnecting}
+                  leftIcon={isGitHubConnecting ? <Spinner size="sm" /> : <Github size={16} />}
                 >
-                  Edit
+                  Sign in
                 </Button>
               )}
-            </HStack>
-          )}
 
-          {/* Data Action Buttons - Always available when handlers are provided */}
-          {(onExportData || onResetData || isURLBasedAccess) && (
-            <HStack spacing={2}>
-              {onExportData && (
-                <Tooltip label="Export Data">
-                  <IconButton
-                    aria-label="Export Data"
-                    icon={<Download size={16} />}
+              {/* Branch-based Governance Buttons */}
+                             {githubUser && hasDataSourceEditPermissions() && (
+                <HStack spacing={2}>
+                  <Button
                     size="sm"
-                    variant="ghost"
-                    onClick={handleExportData}
-                  />
-                </Tooltip>
+                    colorScheme="green"
+                    onClick={handleEnterEditMode}
+                  >
+                    Edit
+                  </Button>
+                </HStack>
               )}
-              {(isURLBasedAccess || (() => {
-                const urlParams = new URLSearchParams(window.location.search);
-                return urlParams.get('repo') !== null;
-              })()) && (
-                <Tooltip label="Copy Repository URL">
-                  <IconButton
-                    aria-label="Copy Repository URL"
-                    icon={<Share2 size={16} />}
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleShare}
-                  />
-                </Tooltip>
-              )}
-            </HStack>
-          )}
-          
-          {/* Change Log - Only show when connected to GitHub */}
-          {githubUser && (
-            <Box position="relative">
-              <Tooltip label="History" placement="bottom">
-                <IconButton
-                  aria-label="History"
-                  icon={<History size={16} />}
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleOpenModal}
-                />
-              </Tooltip>
-              {hasChanges && (
-                <Badge
-                  position="absolute"
-                  top="-2px"
-                  right="-2px"
-                  colorScheme="red"
-                  variant="solid"
-                  size="sm"
-                  borderRadius="full"
-                  minW="18px"
-                  h="18px"
-                  fontSize="xs"
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="center"
-                  zIndex={1}
-                >
-                  {changeCount > 99 ? '99+' : changeCount}
-                </Badge>
-              )}
-            </Box>
-          )}
 
-          {/* User Menu - Moved to the end */}
-          {githubUser && (
-            <Popover 
-              placement="bottom-end" 
-              isOpen={isUserMenuOpen} 
-              onClose={() => setIsUserMenuOpen(false)}
-            >
-              <PopoverTrigger>
-                <IconButton
-                  aria-label="User Menu"
-                  icon={<UserRound size={16} />}
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setIsUserMenuOpen(true)}
-                />
-              </PopoverTrigger>
-              <PopoverContent p={0} w="auto" minW="200px">
-                <PopoverArrow />
-                <PopoverBody p={2}>
-                  <VStack spacing={0} align="stretch">
-                    <HStack p={2} mb={2} w="full" justifyContent="space-between" alignItems="center">
-                      <VStack spacing={0} align="flex-start">
-                        <Avatar size="lg" src={githubUser.avatar_url} mb={2}/>
-                        <Text fontSize="sm" fontWeight="bold">{githubUser.login}</Text>
-                        <Text fontSize="xs" color="gray.500">{githubUser.email}</Text>
-                      </VStack>
-                    </HStack>
-                    <Divider mb={2} />
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      justifyContent="flex-start"
-                      borderRadius={0}
-                      onClick={() => {
-                        window.open(`https://github.com/${githubUser.login}`, '_blank');
-                        setIsUserMenuOpen(false);
-                      }}
-                    >
-                      View Profile
-                    </Button>
-                    {selectedRepoInfo && (
-                      <Button
-                        variant="ghost"
+              {/* Data Action Buttons - Always available when handlers are provided */}
+              {(onExportData || onResetData || isURLBasedAccess) && (
+                <HStack spacing={2}>
+                  {onExportData && (
+                    <Tooltip label="Export Data">
+                      <IconButton
+                        aria-label="Export Data"
+                        icon={<Download size={16} />}
                         size="sm"
-                        justifyContent="flex-start"
-                        borderRadius={0}
-                        onClick={() => {
-                          window.open(`https://github.com/${selectedRepoInfo.fullName}/pulls?q=author:${githubUser.login}`, '_blank');
-                          setIsUserMenuOpen(false);
-                        }}
-                      >
-                        My Pull Requests
-                      </Button>
-                    )}
-                    <Button
+                        variant="ghost"
+                        onClick={handleExportData}
+                      />
+                    </Tooltip>
+                  )}
+                  {(isURLBasedAccess || (() => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    return urlParams.get('repo') !== null;
+                  })()) && (
+                    <Tooltip label="Copy Repository URL">
+                      <IconButton
+                        aria-label="Copy Repository URL"
+                        icon={<Share2 size={16} />}
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleShare}
+                      />
+                    </Tooltip>
+                  )}
+                </HStack>
+              )}
+              
+              {/* Change Log - Only show when connected to GitHub */}
+              {githubUser && (
+                <Box position="relative">
+                  <Tooltip label="History" placement="bottom">
+                    <IconButton
+                      aria-label="History"
+                      icon={<History size={16} />}
                       variant="ghost"
                       size="sm"
-                      justifyContent="flex-start"
-                      borderRadius={0}
+                      onClick={handleOpenModal}
+                    />
+                  </Tooltip>
+                  {changeCount > 0 && (
+                    <Badge
+                      position="absolute"
+                      top="-1"
+                      right="-1"
                       colorScheme="red"
-                      onClick={() => {
-                        handleGitHubDisconnect();
-                        setIsUserMenuOpen(false);
-                      }}
+                      variant="solid"
+                      fontSize="xs"
+                      borderRadius="full"
+                      minW="20px"
+                      h="20px"
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
                     >
-                      Sign out
-                    </Button>
-                  </VStack>
-                </PopoverBody>
-              </PopoverContent>
-            </Popover>
+                      {changeCount}
+                    </Badge>
+                  )}
+                </Box>
+              )}
+            </>
           )}
         </HStack>
       </Box>
+
+      {/* Source Switch Warning Dialog */}
+      <AlertDialog
+        isOpen={showSourceSwitchWarning}
+        onClose={handleSourceSwitchCancel}
+        leastDestructiveRef={React.useRef(null)}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent>
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Unsaved Changes
+            </AlertDialogHeader>
+
+            <AlertDialogBody>
+              You have {sourceSwitchWarningData?.changeCount} unsaved changes. Switching sources will reset to main branch and discard changes. Continue?
+            </AlertDialogBody>
+
+            <AlertDialogFooter>
+              <Button onClick={handleSourceSwitchCancel}>
+                Stay Here
+              </Button>
+              <Button colorScheme="red" onClick={handleSourceSwitchConfirm} ml={3}>
+                Continue
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
 
       {/* Find Design System Dialog */}
       <FindDesignSystemDialog
@@ -810,14 +969,49 @@ export const Header: React.FC<HeaderProps> = ({
         }}
       />
 
-      {/* Branch Creation Dialog */}
-      <BranchCreationDialog
-        isOpen={showBranchCreationDialog}
-        onClose={() => setShowBranchCreationDialog(false)}
-        onBranchCreated={handleBranchCreated}
-        currentBranch={currentBranch}
-        repositoryFullName={selectedRepoInfo?.fullName || ''}
+      {/* Branch Selection Dialog */}
+      <BranchSelectionDialog
+        isOpen={showBranchSelectionDialog}
+        onClose={() => setShowBranchSelectionDialog(false)}
+        onBranchSelected={handleBranchSelected}
+        currentBranch={targetBranchForBranch}
+        repositoryFullName={targetRepositoryForBranch?.fullName || selectedRepoInfo?.fullName || ''}
         githubUser={githubUser || null}
+        sourceContext={(() => {
+          if (!dataSourceContext) return undefined;
+          
+          const { currentPlatform, currentTheme, availablePlatforms, availableThemes } = dataSourceContext;
+          
+          // Find platform name if platform is selected
+          const platformName = currentPlatform && currentPlatform !== 'none' 
+            ? availablePlatforms.find(p => p.id === currentPlatform)?.displayName || currentPlatform
+            : undefined;
+          
+          // Find theme name if theme is selected
+          const themeName = currentTheme && currentTheme !== 'none'
+            ? availableThemes.find(t => t.id === currentTheme)?.displayName || currentTheme
+            : undefined;
+          
+          // Determine source type and name
+          let sourceType: 'core' | 'platform-extension' | 'theme-override' = 'core';
+          let sourceName: string | null = 'Core Design System';
+          
+          if (currentPlatform && currentPlatform !== 'none') {
+            sourceType = 'platform-extension';
+            sourceName = platformName || currentPlatform;
+          } else if (currentTheme && currentTheme !== 'none') {
+            sourceType = 'theme-override';
+            sourceName = themeName || currentTheme;
+          }
+          
+          return {
+            sourceType,
+            sourceId: currentPlatform !== 'none' ? currentPlatform : currentTheme !== 'none' ? currentTheme : null,
+            sourceName,
+            platformName,
+            themeName,
+          };
+        })()}
       />
 
       {/* GitHub Save Dialog */}
@@ -832,6 +1026,8 @@ export const Header: React.FC<HeaderProps> = ({
         // Branch-based governance props
         currentBranch={currentBranch}
         isEditMode={isEditMode}
+        // Data source context for proper repository targeting
+        dataSourceContext={dataSourceContext}
       />
 
       <Modal 

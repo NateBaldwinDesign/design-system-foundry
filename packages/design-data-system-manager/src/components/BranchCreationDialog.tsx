@@ -13,6 +13,7 @@ import {
   FormErrorMessage,
   Text,
   VStack,
+  Box,
   useToast,
 } from '@chakra-ui/react';
 import { GitHubApiService } from '../services/githubApi';
@@ -26,6 +27,14 @@ interface BranchCreationDialogProps {
   currentBranch: string;
   repositoryFullName: string;
   githubUser: GitHubUser | null;
+  // NEW: Source context information
+  sourceContext?: {
+    sourceType: 'core' | 'platform-extension' | 'theme-override';
+    sourceId: string | null;
+    sourceName: string | null;
+    platformName?: string;
+    themeName?: string;
+  };
 }
 
 export const BranchCreationDialog: React.FC<BranchCreationDialogProps> = ({
@@ -35,7 +44,13 @@ export const BranchCreationDialog: React.FC<BranchCreationDialogProps> = ({
   currentBranch,
   repositoryFullName,
   githubUser,
+  sourceContext,
 }) => {
+  console.log('[BranchCreationDialog] Props:', {
+    currentBranch,
+    repositoryFullName,
+    isOpen
+  });
   const [branchName, setBranchName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -70,6 +85,10 @@ export const BranchCreationDialog: React.FC<BranchCreationDialogProps> = ({
   }, [branchName, repositoryFullName]);
 
   const checkBranchExists = async (name: string) => {
+    console.log('[BranchCreationDialog] Checking branch existence:', {
+      repositoryFullName,
+      branchName: name
+    });
     try {
       const exists = await GitHubApiService.branchExists(repositoryFullName, name);
       if (exists) {
@@ -89,10 +108,21 @@ export const BranchCreationDialog: React.FC<BranchCreationDialogProps> = ({
       return;
     }
 
+    if (!repositoryFullName) {
+      toast({
+        title: 'No Repository Selected',
+        description: 'Please select a repository before creating a branch.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       // Create the branch
-      await GitHubApiService.createBranch(repositoryFullName, branchName, currentBranch);
+      await GitHubApiService.createBranch(repositoryFullName, currentBranch, branchName);
       
       toast({
         title: 'Branch Created',
@@ -115,7 +145,9 @@ export const BranchCreationDialog: React.FC<BranchCreationDialogProps> = ({
         } else if (error.message.includes('403')) {
           errorMessage = 'You do not have permission to create branches in this repository';
         } else if (error.message.includes('404')) {
-          errorMessage = 'Repository not found or you do not have access';
+          errorMessage = 'Base branch not found or you do not have access to the repository';
+        } else if (error.message.includes('Failed to get base branch info')) {
+          errorMessage = `Base branch "${currentBranch}" not found in repository "${repositoryFullName}"`;
         } else {
           errorMessage = error.message;
         }
@@ -145,6 +177,40 @@ export const BranchCreationDialog: React.FC<BranchCreationDialogProps> = ({
             <Text fontSize="sm" color="gray.600">
               You&apos;re creating a new branch from <strong>{currentBranch}</strong>
             </Text>
+            
+            {/* Source Context Information */}
+            {sourceContext && (
+              <Box p={3} bg="blue.50" borderRadius="md" border="1px solid" borderColor="blue.200">
+                <VStack spacing={2} align="stretch">
+                  <Text fontSize="sm" fontWeight="medium" color="blue.800">
+                    Source Context
+                  </Text>
+                  <Text fontSize="sm" color="blue.700">
+                    <strong>Repository:</strong> {repositoryFullName}
+                  </Text>
+                  {sourceContext.sourceType === 'core' && (
+                    <Text fontSize="sm" color="blue.700">
+                      <strong>Editing:</strong> Core Design System
+                    </Text>
+                  )}
+                  {sourceContext.sourceType === 'platform-extension' && sourceContext.platformName && (
+                    <Text fontSize="sm" color="blue.700">
+                      <strong>Editing:</strong> Platform Extension - {sourceContext.platformName}
+                    </Text>
+                  )}
+                  {sourceContext.sourceType === 'theme-override' && sourceContext.themeName && (
+                    <Text fontSize="sm" color="blue.700">
+                      <strong>Editing:</strong> Theme Override - {sourceContext.themeName}
+                    </Text>
+                  )}
+                  {sourceContext.sourceType === 'theme-override' && sourceContext.platformName && (
+                    <Text fontSize="sm" color="blue.700">
+                      <strong>Platform:</strong> {sourceContext.platformName} (read-only)
+                    </Text>
+                  )}
+                </VStack>
+              </Box>
+            )}
             
             <FormControl isInvalid={!!validationError || !!branchExistsError}>
               <FormLabel>Branch Name</FormLabel>

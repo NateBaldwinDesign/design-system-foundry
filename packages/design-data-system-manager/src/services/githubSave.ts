@@ -24,24 +24,34 @@ export class GitHubSaveService {
    */
   static async saveToGitHub(options: SaveOptions = {}): Promise<SaveResult> {
     try {
-      // Get the currently selected repository info
-      const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
-      if (!repoInfo) {
-        throw new Error('No repository selected. Please load a file from GitHub first.');
-      }
-
       // Determine source type and ID from data source context
       let sourceType: 'core' | 'platform-extension' | 'theme-override';
       let sourceId: string | undefined;
+      let targetRepoInfo: {
+        fullName: string;
+        branch: string;
+        filePath: string;
+        fileType: 'schema' | 'theme-override' | 'platform-extension';
+      } | null = null;
 
       if (options.dataSourceContext?.currentPlatform && options.dataSourceContext.currentPlatform !== 'none') {
         sourceType = 'platform-extension';
         sourceId = options.dataSourceContext.currentPlatform;
+        // Get platform repository info
+        targetRepoInfo = options.dataSourceContext.repositories.platforms[sourceId] || null;
       } else if (options.dataSourceContext?.currentTheme && options.dataSourceContext.currentTheme !== 'none') {
         sourceType = 'theme-override';
         sourceId = options.dataSourceContext.currentTheme;
+        // Get theme repository info
+        targetRepoInfo = options.dataSourceContext.repositories.themes[sourceId] || null;
       } else {
         sourceType = 'core';
+        // Get core repository info
+        targetRepoInfo = options.dataSourceContext?.repositories.core || GitHubApiService.getSelectedRepositoryInfo();
+      }
+
+      if (!targetRepoInfo) {
+        throw new Error('No repository selected. Please load a file from GitHub first.');
       }
 
       // Get schema-compliant data for storage
@@ -69,14 +79,14 @@ export class GitHubSaveService {
         console.warn(`File size (${fileSizeMB.toFixed(2)}MB) is approaching GitHub's 1MB limit.`);
       }
 
-      const commitMessage = options.message || `Update ${repoInfo.filePath} - ${new Date().toLocaleString()}`;
+      const commitMessage = options.message || `Update ${targetRepoInfo.filePath} - ${new Date().toLocaleString()}`;
 
       if (options.createPullRequest && options.targetBranch) {
         // Create a new branch and pull request
         return await this.createPullRequestWithChanges(
           {
-            ...repoInfo,
-            fileType: repoInfo.fileType === 'platform-extension' ? 'schema' : repoInfo.fileType
+            ...targetRepoInfo,
+            fileType: targetRepoInfo.fileType === 'platform-extension' ? 'schema' : targetRepoInfo.fileType
           },
           jsonContent,
           commitMessage,
@@ -87,10 +97,10 @@ export class GitHubSaveService {
       } else {
         // Direct save to the current branch
         await GitHubApiService.createFile(
-          repoInfo.fullName,
-          repoInfo.filePath,
+          targetRepoInfo.fullName,
+          targetRepoInfo.filePath,
           jsonContent,
-          repoInfo.branch,
+          targetRepoInfo.branch,
           commitMessage
         );
 
@@ -100,7 +110,7 @@ export class GitHubSaveService {
 
         return {
           success: true,
-          message: `Successfully saved changes to ${repoInfo.filePath}`
+          message: `Successfully saved changes to ${targetRepoInfo.filePath}`
         };
       }
 
