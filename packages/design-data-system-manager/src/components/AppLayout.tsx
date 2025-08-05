@@ -7,6 +7,7 @@ import type { GitHubUser } from '../config/github';
 import type { ViewId } from '../hooks/useViewState';
 import { DataManager, type DataSnapshot } from '../services/dataManager';
 import type { DataSourceContext } from '../services/dataSourceManager';
+import { ChangeTrackingService } from '../services/changeTrackingService';
 
 interface DataSourceOption {
   label: string;
@@ -218,71 +219,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     // Update current data state
     setCurrentData(currentDataSnapshot);
 
-    // Compare with baseline
-    const baselineSnapshot = baselineRef.current;
-    const hasAnyChanges = JSON.stringify(currentDataSnapshot) !== JSON.stringify(baselineSnapshot);
+    // Use ChangeTrackingService to get the total change count (includes override changes)
+    const totalChanges = ChangeTrackingService.getChangeCount();
     
-    if (hasAnyChanges) {
-      // Count changes by comparing arrays
-      let totalChanges = 0;
-      const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'taxonomies', 'algorithms', 'platforms', 'componentProperties', 'componentCategories', 'components'];
-      
-      keyFields.forEach(field => {
-        const current = (currentDataSnapshot as Record<string, unknown>)[field] as unknown[] || [];
-        const baseline = (baselineSnapshot as Record<string, unknown>)[field] as unknown[] || [];
-        
-        if (Array.isArray(current) && Array.isArray(baseline)) {
-          const currentIds = new Set(current.map((item: unknown) => {
-            const obj = item as Record<string, unknown>;
-            return obj?.id as string;
-          }).filter(Boolean));
-          const baselineIds = new Set(baseline.map((item: unknown) => {
-            const obj = item as Record<string, unknown>;
-            return obj?.id as string;
-          }).filter(Boolean));
-          
-          // Count added items
-          const added = Array.from(currentIds).filter(id => !baselineIds.has(id)).length;
-          // Count removed items
-          const removed = Array.from(baselineIds).filter(id => !currentIds.has(id)).length;
-          
-          // Count modified items (items that exist in both but have different content)
-          const commonIds = Array.from(currentIds).filter(id => baselineIds.has(id));
-          let modified = 0;
-          commonIds.forEach(id => {
-            const currentItem = current.find((item: unknown) => {
-              const obj = item as Record<string, unknown>;
-              return obj?.id === id;
-            });
-            const baselineItem = baseline.find((item: unknown) => {
-              const obj = item as Record<string, unknown>;
-              return obj?.id === id;
-            });
-            if (currentItem && baselineItem && JSON.stringify(currentItem) !== JSON.stringify(baselineItem)) {
-              modified++;
-            }
-          });
-          
-          totalChanges += added + removed + modified;
-        }
-      });
-      
-      // Check taxonomyOrder (array)
-      const currentTaxonomyOrder = (currentDataSnapshot as Record<string, unknown>).taxonomyOrder as string[] || [];
-      const baselineTaxonomyOrder = (baselineSnapshot as Record<string, unknown>).taxonomyOrder as string[] || [];
-      
-      if (JSON.stringify(currentTaxonomyOrder) !== JSON.stringify(baselineTaxonomyOrder)) {
-        totalChanges += 1; // Count as one change for taxonomyOrder modifications
-      }
-      
-      // Check dimensionOrder (array)
-      const currentDimensionOrder = (currentDataSnapshot as Record<string, unknown>).dimensionOrder as string[] || [];
-      const baselineDimensionOrder = (baselineSnapshot as Record<string, unknown>).dimensionOrder as string[] || [];
-      
-      if (JSON.stringify(currentDimensionOrder) !== JSON.stringify(baselineDimensionOrder)) {
-        totalChanges += 1; // Count as one change for dimensionOrder modifications
-      }
-      
+    if (totalChanges > 0) {
       setHasChanges(true);
       setChangeCount(totalChanges);
     } else {

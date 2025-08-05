@@ -17,9 +17,6 @@ import {
   Spinner,
   InputGroup,
   InputRightElement,
-  Card,
-  CardHeader,
-  CardBody,
   Heading,
   Divider,
   Tabs,
@@ -427,7 +424,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
 
       // Use the FigmaExportService for the complete publishing workflow
       const figmaExportService = new FigmaExportService();
-      const result = await figmaExportService.publishToFigma(canonicalTokenSystem as TokenSystem, {
+      const result = await figmaExportService.publishToFigma({
         accessToken: accessToken,
         fileId: fileKey
       });
@@ -492,7 +489,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       console.log('[FigmaConfigurationsView] Canonical token system:', canonicalTokenSystem);
       const figmaExportService = new FigmaExportService();
       
-      const result = await figmaExportService.exportToFigma(canonicalTokenSystem, {
+      const result = await figmaExportService.exportToFigma({
         accessToken: accessToken,
         fileId: fileKey
       });
@@ -756,7 +753,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
                 onClick={handleExportOnly}
                 isLoading={exportLoading}
                 loadingText="Generating API data..."
-                isDisabled={!accessToken || !fileKey || !changeTrackingState?.canExport}
+                isDisabled={!accessToken || !fileKey || (dataSourceContext?.editMode.isActive && !changeTrackingState?.canExport)}
                 leftIcon={<Download size={14} />}
               >
                 Generate API Data
@@ -767,7 +764,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
                 onClick={handlePublish}
                 isLoading={publishLoading}
                 loadingText="Publishing..."
-                isDisabled={!accessToken || !fileKey || !changeTrackingState?.canExport}
+                isDisabled={!accessToken || !fileKey || (dataSourceContext?.editMode.isActive && !changeTrackingState?.canExport)}
               >
                 Publish to Figma
               </Button>

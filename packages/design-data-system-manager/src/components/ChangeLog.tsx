@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import TokenIcon from '../icons/TokenIcon';
 import { Figma } from 'lucide-react';
+import { OverrideTrackingService } from '../services/overrideTrackingService';
 
 interface ChangeLogProps {
   previousData?: Record<string, unknown> | null | undefined;
@@ -1806,6 +1807,23 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
         }],
       });
     }
+  });
+
+  // Add pending override changes
+  const pendingOverrides = OverrideTrackingService.getPendingOverrides();
+  pendingOverrides.forEach(override => {
+    changes.push({
+      type: 'modified',
+      entityType: 'token',
+      entityId: override.tokenId,
+      entityName: `Token ${override.tokenId} (${override.sourceType})`,
+      changes: [{
+        field: 'override',
+        oldValue: 'Original value',
+        newValue: 'Override value',
+        context: `${override.sourceType} override for ${override.sourceId}`,
+      }],
+    });
   });
 
   return changes;

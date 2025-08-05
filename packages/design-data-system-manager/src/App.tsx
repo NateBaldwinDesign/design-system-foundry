@@ -366,12 +366,16 @@ const App = () => {
             });
             
             // Set selectedRepoInfo for branch creation and other operations
-            setSelectedRepoInfo({
+            const repoInfo = {
               fullName: repo,
               branch: branch,
               filePath: path,
-              fileType: 'schema'
-            });
+              fileType: 'schema' as const
+            };
+            setSelectedRepoInfo(repoInfo);
+            
+            // Save repository info to localStorage so other services can access it
+            localStorage.setItem('github_selected_repo', JSON.stringify(repoInfo));
             
             // Update available sources after data is loaded
             dataSourceManager.updateAvailableSources();
@@ -1557,6 +1561,8 @@ const App = () => {
       if (currentUser) {
         // Re-check permissions for the target repository
         const hasWriteAccess = await GitHubApiService.hasWriteAccessToRepository(currentRepository.fullName);
+        
+        // When on a new branch (not main), user should have edit permissions if they have write access
         const canShowEditButton = hasWriteAccess; // Show button if user has write access
         const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
         
@@ -1564,10 +1570,13 @@ const App = () => {
           hasWriteAccess,
           isOnMainBranch,
           canShowEditButton,
-          canActuallyEdit
+          canActuallyEdit,
+          newBranchName
         });
         
-        setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
+        // Set edit permissions based on the new branch context
+        // When on a new branch, user should have edit permissions if they have write access
+        setHasEditPermissions(canActuallyEdit); // Controls Edit button visibility AND edit capability
         setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
       }
       
@@ -1599,6 +1608,16 @@ const App = () => {
       // Non-main branch - enter edit mode directly
       setEditModeBranch(currentBranch);
       setIsEditMode(true);
+      
+      // Ensure edit permissions are set correctly for non-main branches
+      if (hasEditPermissions) {
+        // User already has edit permissions, keep them
+        console.log('[App] Entering edit mode on non-main branch with existing edit permissions');
+      } else {
+        // Re-check permissions for the current branch
+        console.log('[App] Re-checking edit permissions for non-main branch');
+        // This will be handled by the permission check in the useEffect
+      }
       
       // Enter edit mode in DataSourceManager
       const dsManager = DataSourceManager.getInstance();

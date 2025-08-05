@@ -15,7 +15,6 @@ import {
   Badge,
   Text,
   useToast,
-  Avatar,
   Popover,
   PopoverTrigger,
   PopoverContent,
@@ -24,7 +23,6 @@ import {
   Button,
   VStack,
   Spinner,
-  Divider,
   AlertDialog,
   AlertDialogOverlay,
   AlertDialogContent,
@@ -36,7 +34,6 @@ import {
   History,
   Github,
   Download,
-  UserRound,
   GitBranch,
   BookMarked,
   RefreshCw,
@@ -744,15 +741,6 @@ export const Header: React.FC<HeaderProps> = ({
           {dataSourceContext && dataSourceContext.editMode.isActive ? (
             // Edit Mode Layout
             <>
-              {/* Pending Overrides Indicator */}
-              {pendingOverrides.length > 0 && (
-                <HStack spacing={2} px={3} py={1} bg="orange.50" borderRadius="md" border="1px solid" borderColor="orange.200">
-                  <Badge colorScheme="orange" variant="subtle">
-                    {pendingOverrides.length} override{pendingOverrides.length !== 1 ? 's' : ''} pending
-                  </Badge>
-                </HStack>
-              )}
-              
               {/* Edit Mode Buttons */}
               <HStack spacing={2}>
                 <Button
@@ -894,21 +882,24 @@ export const Header: React.FC<HeaderProps> = ({
                               >
                                 Switch branch
                               </Button>
+                              {/* Refresh (pull) data - Always available for logged-in users */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                justifyContent="flex-start"
+                                borderRadius={0}
+                                leftIcon={<RefreshCw size={16} />}
+                                onClick={() => {
+                                  handleRefreshData();
+                                  setIsGitHubWorkflowMenuOpen(false);
+                                }}
+                              >
+                                Refresh (pull) data
+                              </Button>
+                              
+                              {/* Edit operations - Only available for users with edit permissions */}
                               {hasDataSourceEditPermissions() && (
                                 <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    justifyContent="flex-start"
-                                    borderRadius={0}
-                                    leftIcon={<RefreshCw size={16} />}
-                                    onClick={() => {
-                                      handleRefreshData();
-                                      setIsGitHubWorkflowMenuOpen(false);
-                                    }}
-                                  >
-                                    Refresh (pull) data
-                                  </Button>
                                   <Button
                                     variant="ghost"
                                     size="sm"

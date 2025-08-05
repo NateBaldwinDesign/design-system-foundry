@@ -84,7 +84,46 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     input: TokenSystem, 
     options?: FigmaTransformerOptions
   ): Promise<FigmaTransformationResult> {
-    console.log('[FigmaTransformer] Starting transformation with', input.tokens?.length, 'tokens');
+    console.log('[FigmaTransformer] 🔍 DEEP DEBUG: Starting transformation');
+    console.log('[FigmaTransformer] 🔍 DEEP DEBUG: Input tokenSystem structure:', {
+      hasTokens: !!input.tokens,
+      tokensLength: input.tokens?.length || 0,
+      hasCollections: !!input.tokenCollections,
+      collectionsLength: input.tokenCollections?.length || 0,
+      hasDimensions: !!input.dimensions,
+      dimensionsLength: input.dimensions?.length || 0,
+      hasPlatforms: !!input.platforms,
+      platformsLength: input.platforms?.length || 0,
+      hasResolvedValueTypes: !!input.resolvedValueTypes,
+      resolvedValueTypesLength: input.resolvedValueTypes?.length || 0,
+      dimensionOrder: input.dimensionOrder,
+      systemName: input.systemName,
+      systemId: input.systemId
+    });
+    
+    if (input.tokens && input.tokens.length > 0) {
+      console.log('[FigmaTransformer] 🔍 DEEP DEBUG: Sample tokens:', input.tokens.slice(0, 3).map(t => ({
+        id: t.id,
+        displayName: t.displayName,
+        resolvedValueTypeId: t.resolvedValueTypeId,
+        hasValuesByMode: !!t.valuesByMode,
+        valuesByModeLength: t.valuesByMode?.length || 0,
+        hasCodeSyntax: !!t.codeSyntax,
+        codeSyntaxLength: t.codeSyntax?.length || 0
+      })));
+    } else {
+      console.warn('[FigmaTransformer] 🔍 DEEP DEBUG: NO TOKENS FOUND IN INPUT!');
+    }
+    
+    if (input.platforms && input.platforms.length > 0) {
+      console.log('[FigmaTransformer] 🔍 DEEP DEBUG: Available platforms:', input.platforms.map(p => ({
+        id: p.id,
+        displayName: p.displayName,
+        hasFigmaPlatformMapping: !!p.figmaPlatformMapping
+      })));
+    } else {
+      console.warn('[FigmaTransformer] 🔍 DEEP DEBUG: NO PLATFORMS FOUND IN INPUT!');
+    }
     
     // Validate input first
     const validation = await this.validate(input, options);
@@ -193,9 +232,22 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       
       console.log(`[FigmaTransformer] Creating dimension collection "${dimension.displayName}" action: ${action}`);
       
+      // Find the default mode for this dimension
+      const defaultMode = dimension.modes?.find(mode => mode.id === dimension.defaultMode);
+      if (!defaultMode) {
+        console.warn(`[FigmaTransformer] Default mode ${dimension.defaultMode} not found for dimension ${dimension.id}`);
+        continue;
+      }
+      
       // Generate deterministic ID for the default mode and get the mapped Figma ID
-      const deterministicDefaultModeId = this.idManager.generateDeterministicId(dimension.defaultMode, 'mode');
+      const deterministicDefaultModeId = this.idManager.generateDeterministicId(defaultMode.id, 'mode');
       const figmaDefaultModeId = this.idManager.getFigmaId(deterministicDefaultModeId);
+      
+      console.log(`[FigmaTransformer] Dimension collection "${dimension.displayName}":`, {
+        collectionId: figmaId,
+        defaultModeId: figmaDefaultModeId,
+        defaultModeName: defaultMode.name
+      });
       
       const collection: FigmaVariableCollection = {
         action: action,
@@ -226,11 +278,20 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       
       console.log(`[FigmaTransformer] Creating modeless collection "${collection.name}" action: ${action}`);
       
+      // Generate deterministic ID for the "Value" mode and get the mapped Figma ID
+      const deterministicModeId = `mode-tokenCollection-${deterministicId}`;
+      const figmaModeId = this.idManager.getFigmaId(deterministicModeId);
+      
+      console.log(`[FigmaTransformer] Modeless collection "${collection.name}":`, {
+        collectionId: figmaId,
+        valueModeId: figmaModeId
+      });
+      
       const modelessCollection: FigmaVariableCollection = {
         action: action,
         id: figmaId,
         name: collection.name,
-        initialModeId: this.idManager.getFigmaId(`mode-tokenCollection-${deterministicId}`)
+        initialModeId: figmaModeId
       };
       
       collections.push(modelessCollection);
@@ -258,9 +319,9 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     console.log('[FigmaTransformer] Processing tokens with dimensionOrder:', tokenSystem.dimensionOrder);
 
     for (const token of tokenSystem.tokens || []) {
-      const figmaCodeSyntax = this.getFigmaCodeSyntax(token, tokenSystem);
-      if (!figmaCodeSyntax) {
-        console.warn(`[FigmaTransformer] No Figma code syntax found for token ${token.id}, skipping`);
+      const figmaVariableName = this.generateFigmaVariableName(token, tokenSystem);
+      if (!figmaVariableName) {
+        console.warn(`[FigmaTransformer] No Figma variable name generated for token ${token.id}, skipping`);
         continue;
       }
 
@@ -270,12 +331,12 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       if (hasModeSpecificValues) {
         // Use daisy-chaining for multi-dimensional tokens
         const { variables: tokenVariables, modeValues: tokenModeValues } = 
-          this.daisyChainService.transformTokenWithDaisyChaining(token, tokenSystem, figmaCodeSyntax);
+          this.daisyChainService.transformTokenWithDaisyChaining(token, tokenSystem, { platformId: 'figma', formattedName: figmaVariableName });
         variables.push(...tokenVariables);
         modeValues.push(...tokenModeValues);
       } else {
         // Create simple variable without daisy-chaining
-        const variable = this.createSimpleVariable(token, tokenSystem, figmaCodeSyntax);
+        const variable = this.createSimpleVariable(token, tokenSystem, { platformId: 'figma', formattedName: figmaVariableName });
         variables.push(variable);
         
         // Create mode value for simple variable
@@ -300,10 +361,10 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     const modeValues: FigmaVariableModeValue[] = [];
 
     for (const token of tokenSystem.tokens || []) {
-      const figmaCodeSyntax = this.getFigmaCodeSyntax(token, tokenSystem);
-      if (!figmaCodeSyntax) continue;
+      const figmaVariableName = this.generateFigmaVariableName(token, tokenSystem);
+      if (!figmaVariableName) continue;
 
-      const variable = this.createSimpleVariable(token, tokenSystem, figmaCodeSyntax);
+      const variable = this.createSimpleVariable(token, tokenSystem, { platformId: 'figma', formattedName: figmaVariableName });
       variables.push(variable);
 
       // Create mode value
@@ -410,21 +471,35 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     const modes: FigmaVariableMode[] = [];
 
     // Create "Value" modes for token collections
-    // Use deterministic ID generation: mode-tokenCollection-{collection.id}
+    // Use deterministic ID generation: mode-tokenCollection-{deterministicCollectionId}
     // This ensures the same ID is always generated for the same collection
     for (const collection of tokenSystem.tokenCollections || []) {
-      // Generate deterministic ID for the token collection
+      // Generate deterministic ID for the collection to get the collection ID
       const deterministicCollectionId = this.idManager.generateDeterministicId(collection.id, 'collection');
+      
+      // Generate deterministic ID for the "Value" mode for this token collection
       const deterministicModeId = `mode-tokenCollection-${deterministicCollectionId}`;
       const modeId = this.idManager.getFigmaId(deterministicModeId);
-      const isInitialMode = this.idManager.isInitialMode(modeId, collections);
+      let action = this.idManager.determineAction(deterministicModeId);
       
-      // Check if the final mapped ID is a Figma ID (should be UPDATE) or canonical ID (should be CREATE)
-      const isFigmaId = this.idManager.isFigmaId(modeId);
-      const finalAction = (isInitialMode || isFigmaId) ? 'UPDATE' : 'CREATE';
+      // Check if this mode is used as initialModeId for any collection
+      // If so, force the action to be UPDATE since it already exists in Figma
+      const isInitialMode = collections.some(collection => collection.initialModeId === modeId);
+      if (isInitialMode) {
+        action = 'UPDATE';
+        console.log(`[FigmaTransformer] 🔧 FORCING UPDATE for token collection mode "${collection.name}" because it's used as initialModeId`);
+      }
+      
+      console.log(`[FigmaTransformer] Creating "Value" mode for collection "${collection.name}":`, {
+        deterministicModeId,
+        figmaModeId: modeId,
+        action,
+        collectionId: this.idManager.getFigmaId(deterministicCollectionId),
+        isInitialMode
+      });
       
       modes.push({
-        action: finalAction,
+        action: action,
         id: modeId,
         name: 'Value',
         variableCollectionId: this.idManager.getFigmaId(deterministicCollectionId)
@@ -440,18 +515,28 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       for (const mode of dimension.modes || []) {
         // Generate deterministic ID for the mode
         const deterministicModeId = this.idManager.generateDeterministicId(mode.id, 'mode');
-        const isDefaultMode = deterministicModeId === this.idManager.generateDeterministicId(dimension.defaultMode, 'mode');
-        const isInitialMode = this.idManager.isInitialMode(deterministicModeId, collections);
-        
-        // Get the final mapped ID
         const modeId = this.idManager.getFigmaId(deterministicModeId);
+        let action = this.idManager.determineAction(deterministicModeId);
         
-        // Check if the final mapped ID is a Figma ID (should be UPDATE) or canonical ID (should be CREATE)
-        const isFigmaId = this.idManager.isFigmaId(modeId);
-        const finalAction = (isDefaultMode || isInitialMode || isFigmaId) ? 'UPDATE' : 'CREATE';
+        // Check if this mode is used as initialModeId for any collection
+        // If so, force the action to be UPDATE since it already exists in Figma
+        const isInitialMode = collections.some(collection => collection.initialModeId === modeId);
+        if (isInitialMode) {
+          action = 'UPDATE';
+          console.log(`[FigmaTransformer] 🔧 FORCING UPDATE for mode "${mode.name}" because it's used as initialModeId`);
+        }
+        
+        console.log(`[FigmaTransformer] Creating mode "${mode.name}" for dimension "${dimension.displayName}":`, {
+          deterministicModeId,
+          figmaModeId: modeId,
+          action,
+          collectionId: this.idManager.getFigmaId(deterministicDimensionId),
+          isDefault: mode.id === dimension.defaultMode,
+          isInitialMode
+        });
         
         modes.push({
-          action: finalAction,
+          action: action,
           id: modeId,
           name: mode.name,
           variableCollectionId: this.idManager.getFigmaId(deterministicDimensionId)
@@ -463,24 +548,77 @@ export class FigmaTransformer extends AbstractBaseTransformer<
   }
 
   /**
-   * Get Figma code syntax for a token
+   * Generate Figma variable name using figmaConfiguration.syntaxPatterns
+   * This uses the new approach where syntax patterns come from figmaConfiguration
    */
-  private getFigmaCodeSyntax(token: Token, tokenSystem: TokenSystem): { platformId: string; formattedName: string } | undefined {
-    // Find the Figma platform by displayName
-    const figmaPlatform = tokenSystem.platforms?.find((p: any) => p.displayName === 'Figma');
-    if (!figmaPlatform) {
-      console.warn('[FigmaTransformer] No Figma platform found in token system');
-      return undefined;
+  private generateFigmaVariableName(token: Token, tokenSystem: TokenSystem): string {
+    console.log(`[FigmaTransformer] 🔍 DEEP DEBUG: Generating Figma variable name for token ${token.id} (${token.displayName})`);
+    
+    // Get syntax patterns from figmaConfiguration
+    const syntaxPatterns = tokenSystem.figmaConfiguration?.syntaxPatterns;
+    if (!syntaxPatterns) {
+      console.warn(`[FigmaTransformer] 🔍 DEEP DEBUG: No syntax patterns found in figmaConfiguration for token ${token.id}`);
+      return token.displayName; // Fallback to display name
     }
-
-    // Find the code syntax for the Figma platform
-    const figmaCodeSyntax = token.codeSyntax?.find((cs: any) => cs.platformId === figmaPlatform.id);
-    if (!figmaCodeSyntax) {
-      console.warn(`[FigmaTransformer] No Figma code syntax found for token ${token.id} (platform ID: ${figmaPlatform.id})`);
-      return undefined;
+    
+    console.log(`[FigmaTransformer] 🔍 DEEP DEBUG: Using syntax patterns:`, syntaxPatterns);
+    
+    // Generate the base token name using syntax patterns
+    let baseName = token.displayName;
+    
+    // Apply capitalization
+    switch (syntaxPatterns.capitalization) {
+      case 'uppercase':
+        baseName = baseName.toUpperCase();
+        break;
+      case 'lowercase':
+        baseName = baseName.toLowerCase();
+        break;
+      case 'capitalize':
+        baseName = baseName.split(' ').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' ');
+        break;
+      case 'camel':
+        baseName = baseName.split(' ').map((word, index) => 
+          index === 0 ? word.toLowerCase() : word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join('');
+        break;
+      default:
+        // Keep original case
+        break;
     }
-
-    return figmaCodeSyntax;
+    
+    // Apply delimiter
+    if (syntaxPatterns.delimiter) {
+      baseName = baseName.replace(/\s+/g, syntaxPatterns.delimiter);
+    }
+    
+    // Apply prefix and suffix
+    let formattedName = `${syntaxPatterns.prefix}${baseName}${syntaxPatterns.suffix}`;
+    
+    // Check for duplicate names and make them unique
+    const allTokens = tokenSystem.tokens || [];
+    const tokensWithSameDisplayName = allTokens.filter(t => t.displayName === token.displayName);
+    
+    if (tokensWithSameDisplayName.length > 1) {
+      // Find the index of this token in the list of tokens with the same display name
+      const tokenIndex = tokensWithSameDisplayName.findIndex(t => t.id === token.id);
+      
+      // Add a suffix to make the name unique
+      // For algorithm-generated tokens, add "(Algorithm)" suffix
+      if (token.generatedByAlgorithm) {
+        formattedName = `${formattedName} (Algorithm)`;
+      } else if (tokenIndex > 0) {
+        // For manually created tokens with duplicates, add a number suffix
+        formattedName = `${formattedName} (${tokenIndex + 1})`;
+      }
+      
+      console.log(`[FigmaTransformer] 🔍 DEEP DEBUG: Duplicate display name detected for "${token.displayName}". Making unique: "${formattedName}"`);
+    }
+    
+    console.log(`[FigmaTransformer] ✅ DEEP DEBUG: Generated Figma variable name for token ${token.id}: "${formattedName}"`);
+    return formattedName;
   }
 
   /**

@@ -726,6 +726,9 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
         StorageService.setPlatformExtensionFile(repository.platformId || '', updatedPlatformExtensionData);
         StorageService.setPlatformExtensionFileContent(repository.platformId || '', updatedFileContent);
         
+        // CRITICAL: Update the canonical data (core data's platforms array) with the new figmaPlatformMapping
+        await updateCanonicalPlatformData();
+        
         toast({
           title: 'Platform Settings Updated',
           description: 'Platform extension settings have been saved successfully.',
@@ -805,6 +808,51 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
 
   const handleSelectNewSource = () => {
     setIsSourceSelectionOpen(true);
+  };
+
+  // Update canonical platform data with form changes
+  const updateCanonicalPlatformData = async () => {
+    if (!repository.platformId || repository.type !== 'platform-extension') {
+      console.log('[ExtensionEditDialog] updateCanonicalPlatformData: Not a platform extension or no platformId');
+      return;
+    }
+
+    try {
+      // Get current platforms from DataManager
+      const { DataManager } = await import('../services/dataManager');
+      const dataManager = DataManager.getInstance();
+      const snapshot = dataManager.getCurrentSnapshot();
+      const currentPlatforms = snapshot.platforms;
+      
+      // Find the platform to update
+      const platformIndex = currentPlatforms.findIndex(p => p.id === repository.platformId);
+      
+      if (platformIndex !== -1) {
+        // Update existing platform with form data changes
+        const updatedPlatforms = [...currentPlatforms];
+        updatedPlatforms[platformIndex] = {
+          ...updatedPlatforms[platformIndex],
+          displayName: formData.displayName || updatedPlatforms[platformIndex].displayName,
+          description: formData.description || updatedPlatforms[platformIndex].description,
+          figmaPlatformMapping: formData.figmaPlatformMapping || updatedPlatforms[platformIndex].figmaPlatformMapping
+        };
+        
+        // Update platforms through DataManager
+        dataManager.updateData({ platforms: updatedPlatforms });
+        
+        console.log('[ExtensionEditDialog] Updated canonical platform data:', {
+          platformId: repository.platformId,
+          displayName: formData.displayName,
+          description: formData.description,
+          figmaPlatformMapping: formData.figmaPlatformMapping
+        });
+      } else {
+        console.error('[ExtensionEditDialog] Platform not found for canonical update:', repository.platformId);
+      }
+    } catch (error) {
+      console.error('[ExtensionEditDialog] Failed to update canonical platform data:', error);
+      throw error; // Re-throw to be handled by the calling function
+    }
   };
 
   // Update platform's extensionSource after file creation

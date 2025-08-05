@@ -575,7 +575,8 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
           updatedPlatforms[platformIndex] = {
             ...updatedPlatforms[platformIndex],
             displayName: editData.displayName || updatedPlatforms[platformIndex].displayName,
-            description: editData.description || updatedPlatforms[platformIndex].description
+            description: editData.description || updatedPlatforms[platformIndex].description,
+            figmaPlatformMapping: editData.figmaPlatformMapping || updatedPlatforms[platformIndex].figmaPlatformMapping
           };
           
           // Update platforms through DataManager

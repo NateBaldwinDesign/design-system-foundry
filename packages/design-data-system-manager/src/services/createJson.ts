@@ -58,9 +58,27 @@ export function createSchemaJsonFromLocalStorage() {
       typeof item === 'string' ? { id: item, displayName: item } : item as ResolvedValueType
     );
   } else {
-    // If missing, throw an error or surface a warning
-    console.error('[createSchemaJsonFromLocalStorage] No resolvedValueTypes found in localStorage. Please ensure your system data includes all value types required by your schema.');
-    throw new Error('[createSchemaJsonFromLocalStorage] No resolvedValueTypes found in localStorage. Please ensure your system data includes all value types required by your schema.');
+    // If missing, create a default set of value types
+    console.warn('[createSchemaJsonFromLocalStorage] No resolvedValueTypes found in localStorage. Creating default value types.');
+    resolvedValueTypesArray = [
+      { id: 'color', displayName: 'Color', type: 'COLOR' },
+      { id: 'font_family', displayName: 'Font Family', type: 'FONT_FAMILY' },
+      { id: 'font_weight', displayName: 'Font Weight', type: 'FONT_WEIGHT' },
+      { id: 'font_size', displayName: 'Font Size', type: 'FONT_SIZE' },
+      { id: 'line_height', displayName: 'Line Height', type: 'LINE_HEIGHT' },
+      { id: 'spacing', displayName: 'Spacing', type: 'SPACING' },
+      { id: 'opacity', displayName: 'Opacity' },
+      { id: 'shadow', displayName: 'Shadow' },
+      { id: 'border', displayName: 'Border' },
+      { id: 'radius', displayName: 'Radius', type: 'RADIUS' },
+      { id: 'z_index', displayName: 'Z Index' },
+      { id: 'dimension', displayName: 'Dimension', type: 'DIMENSION' },
+      { id: 'duration', displayName: 'Duration', type: 'DURATION' },
+      { id: 'cubic_bezier', displayName: 'Cubic Bezier', type: 'CUBIC_BEZIER' },
+      { id: 'blur', displayName: 'Blur', type: 'BLUR' },
+      { id: 'spread', displayName: 'Spread', type: 'SPREAD' },
+      { id: 'letter_spacing', displayName: 'Letter Spacing', type: 'LETTER_SPACING' }
+    ];
   }
 
   // Validate that all resolvedValueTypeIds referenced in dimensions and collections exist in resolvedValueTypesArray
@@ -75,10 +93,54 @@ export function createSchemaJsonFromLocalStorage() {
   tokens.forEach((token) => {
     if (token.resolvedValueTypeId) allReferencedTypeIds.add(token.resolvedValueTypeId);
   });
+  
   const missingTypeIds = Array.from(allReferencedTypeIds).filter(id => !resolvedValueTypesArray.some(vt => vt.id === id));
+  
   if (missingTypeIds.length > 0) {
-    console.error(`[createSchemaJsonFromLocalStorage] The following resolvedValueTypeIds are referenced in dimensions, collections, or tokens but missing from resolvedValueTypes: ${missingTypeIds.join(', ')}`);
-    throw new Error(`[createSchemaJsonFromLocalStorage] The following resolvedValueTypeIds are referenced in dimensions, collections, or tokens but missing from resolvedValueTypes: ${missingTypeIds.join(', ')}`);
+    console.warn(`[createSchemaJsonFromLocalStorage] The following resolvedValueTypeIds are referenced but missing from resolvedValueTypes: ${missingTypeIds.join(', ')}. Auto-adding missing value types.`);
+    
+    // Auto-add missing value types with sensible defaults
+    const standardValueTypes: Record<string, { displayName: string; type?: 'COLOR' | 'DIMENSION' | 'SPACING' | 'FONT_FAMILY' | 'FONT_WEIGHT' | 'FONT_SIZE' | 'LINE_HEIGHT' | 'LETTER_SPACING' | 'DURATION' | 'CUBIC_BEZIER' | 'BLUR' | 'SPREAD' | 'RADIUS' }> = {
+      'color': { displayName: 'Color', type: 'COLOR' },
+      'font_family': { displayName: 'Font Family', type: 'FONT_FAMILY' },
+      'font_weight': { displayName: 'Font Weight', type: 'FONT_WEIGHT' },
+      'font_size': { displayName: 'Font Size', type: 'FONT_SIZE' },
+      'line_height': { displayName: 'Line Height', type: 'LINE_HEIGHT' },
+      'spacing': { displayName: 'Spacing', type: 'SPACING' },
+      'opacity': { displayName: 'Opacity' },
+      'shadow': { displayName: 'Shadow' },
+      'border': { displayName: 'Border' },
+      'radius': { displayName: 'Radius', type: 'RADIUS' },
+      'z_index': { displayName: 'Z Index' },
+      'dimension': { displayName: 'Dimension', type: 'DIMENSION' },
+      'duration': { displayName: 'Duration', type: 'DURATION' },
+      'cubic_bezier': { displayName: 'Cubic Bezier', type: 'CUBIC_BEZIER' },
+      'blur': { displayName: 'Blur', type: 'BLUR' },
+      'spread': { displayName: 'Spread', type: 'SPREAD' },
+      'letter_spacing': { displayName: 'Letter Spacing', type: 'LETTER_SPACING' }
+    };
+    
+    // Add missing value types to the array
+    missingTypeIds.forEach(missingId => {
+      const standardType = standardValueTypes[missingId];
+      if (standardType) {
+        const newValueType = {
+          id: missingId,
+          displayName: standardType.displayName,
+          ...(standardType.type && { type: standardType.type })
+        };
+        resolvedValueTypesArray.push(newValueType);
+        console.log(`[createSchemaJsonFromLocalStorage] Auto-added missing value type: ${missingId}`);
+      } else {
+        // For unknown types, create a generic one
+        const newValueType = {
+          id: missingId,
+          displayName: missingId.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+        };
+        resolvedValueTypesArray.push(newValueType);
+        console.log(`[createSchemaJsonFromLocalStorage] Auto-added generic value type: ${missingId}`);
+      }
+    });
   }
 
   // Normalize platforms to always include syntaxPatterns
