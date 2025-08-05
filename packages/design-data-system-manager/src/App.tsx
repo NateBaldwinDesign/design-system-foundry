@@ -39,7 +39,7 @@ import { ChangeLog } from './components/ChangeLog';
 import { useViewState } from './hooks/useViewState';
 import { ViewRenderer } from './components/ViewRenderer';
 import { ChangeTrackingService } from './services/changeTrackingService';
-import { DataManager, type DataSnapshot, type URLConfig } from './services/dataManager';
+import { DataManager, type DataSnapshot } from './services/dataManager';
 import { MultiRepositoryManager } from './services/multiRepositoryManager';
 import { DataSourceManager, type DataSourceContext } from './services/dataSourceManager';
 import { GitHubCacheService } from './services/githubCache';
@@ -50,6 +50,8 @@ import { RefreshManager } from './services/refreshManager';
 import { EditModeManager } from './services/editModeManager';
 import { BranchManager } from './services/branchManager';
 import { URLStateManager } from './services/urlStateManager';
+import { DataLoaderService } from './services/dataLoaderService';
+import { DataMergerService } from './services/dataMergerService';
 import { exampleData, algorithmData, mergeData } from '@token-model/data-model';
 import { isMainBranch } from './utils/BranchValidationUtils';
 
@@ -321,10 +323,9 @@ const App = () => {
         clearEditModeState();
         
         if (repo) {
-          // Load from URL parameters
-          console.log('[App] Loading from URL parameters:', { repo, path, branch });
+          // Load from URL parameters using new DataLoaderService
+          console.log('[App] Loading from URL parameters using DataLoaderService:', { repo, path, branch, platform, theme });
           setIsAppLoading(true); // Start app loading state
-          const urlConfig: URLConfig = { repo, path, branch };
           
           try {
             // Clear all caches before loading from URL to ensure fresh data
@@ -340,12 +341,30 @@ const App = () => {
             const permissionManager = PermissionManager.getInstance();
             permissionManager.clearCache();
             
-            console.log('[App] Attempting to load from URL config...');
-            const snapshot = await dataManager.loadFromURLConfig(urlConfig);
-            console.log('[App] Successfully loaded from URL config:', {
-              tokens: snapshot.tokens.length,
-              collections: snapshot.collections.length,
-              dimensions: snapshot.dimensions.length
+            // Initialize new data management services
+            const dataLoader = DataLoaderService.getInstance();
+            const dataMerger = DataMergerService.getInstance();
+            
+            // Migrate existing data if needed
+            StorageService.migrateExistingData();
+            
+            console.log('[App] Attempting to load from URL using DataLoaderService...');
+            const loadResult = await dataLoader.loadFromURL(urlParams);
+            
+            if (!loadResult.success) {
+              throw new Error(loadResult.error || 'Failed to load data from URL');
+            }
+            
+            // Compute merged data for UI display
+            const mergedData = await dataMerger.computeMergedData();
+            if (!mergedData) {
+              throw new Error('Failed to compute merged data');
+            }
+            
+            console.log('[App] Successfully loaded from URL using DataLoaderService:', {
+              tokens: mergedData.tokens?.length || 0,
+              collections: mergedData.tokenCollections?.length || 0,
+              dimensions: mergedData.dimensions?.length || 0
             });
             
             // Update DataSourceManager with repository information
@@ -422,22 +441,24 @@ const App = () => {
             // Update data source context
             setDataSourceContext(dataSourceManager.getCurrentContext());
             
-            // Manually update React state since callbacks should have been called
-            // but let's ensure the state is updated
-            setCollections(snapshot.collections);
-            setModes(snapshot.modes);
-            setDimensions(snapshot.dimensions);
-            setResolvedValueTypes(snapshot.resolvedValueTypes);
-            setPlatforms(snapshot.platforms);
-            setThemes(snapshot.themes);
-            setTokens(snapshot.tokens);
-            setTaxonomies(snapshot.taxonomies);
-            setComponentProperties(snapshot.componentProperties);
-            setComponentCategories(snapshot.componentCategories);
-            setComponents(snapshot.components);
-            setAlgorithms(snapshot.algorithms);
-            setTaxonomyOrder(snapshot.taxonomyOrder);
-            setDimensionOrder(snapshot.dimensionOrder);
+            // Update React state with merged data
+            setCollections(mergedData.tokenCollections || []);
+            // Extract modes from dimensions
+            const allModes = mergedData.dimensions?.flatMap(d => d.modes || []) || [];
+            setModes(allModes);
+            setDimensions(mergedData.dimensions || []);
+            setResolvedValueTypes(mergedData.resolvedValueTypes || []);
+            setPlatforms(mergedData.platforms || []);
+            setThemes(mergedData.themes || []);
+            setTokens(mergedData.tokens || []);
+            setTaxonomies(mergedData.taxonomies || []);
+            setComponentProperties(mergedData.componentProperties || []);
+            setComponentCategories(mergedData.componentCategories || []);
+            setComponents(mergedData.components || []);
+            // Algorithms are not part of TokenSystem, so we'll set empty array for now
+            setAlgorithms([]);
+            setTaxonomyOrder(mergedData.taxonomyOrder || []);
+            setDimensionOrder(mergedData.dimensionOrder || []);
             
             setLoading(false);
             setIsAppLoading(false); // End app loading state for URL loading

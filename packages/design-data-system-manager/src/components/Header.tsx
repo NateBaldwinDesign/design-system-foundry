@@ -47,6 +47,8 @@ import { GitHubAuthService } from '../services/githubAuth';
 import { GitHubApiService } from '../services/githubApi';
 import { StorageService } from '../services/storage';
 import { ChangeTrackingService } from '../services/changeTrackingService';
+import { DataEditorService } from '../services/dataEditorService';
+import { SourceManagerService } from '../services/sourceManagerService';
 import type { GitHubUser } from '../config/github';
 import { FindDesignSystemDialog } from './FindDesignSystemDialog';
 import { GitHubSaveDialog } from './GitHubSaveDialog';
@@ -183,6 +185,43 @@ export const Header: React.FC<HeaderProps> = ({
     onCancel: () => void;
   } | null>(null);
 
+  // Get change status from new data management services
+  const dataEditor = DataEditorService.getInstance();
+  const sourceManager = SourceManagerService.getInstance();
+  const hasLocalChanges = dataEditor.hasLocalChanges();
+  const localChangeCount = dataEditor.getChangeCount();
+  const changeSummary = dataEditor.getChangeSummary();
+  const currentSourceContext = sourceManager.getCurrentSourceContext();
+  
+  // Get current selections from URL parameters (authoritative source)
+  const getCurrentSelectionsFromURL = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const platformFromURL = urlParams.get('platform');
+    const themeFromURL = urlParams.get('theme');
+    
+    return {
+      currentPlatform: platformFromURL,
+      currentTheme: themeFromURL
+    };
+  };
+
+  const { currentPlatform: currentPlatformFromURL, currentTheme: currentThemeFromURL } = getCurrentSelectionsFromURL();
+
+  // Debug logging for source context and URL selections
+  console.log('[Header] Dropdown Selections:', {
+    // URL-based selections (authoritative)
+    currentPlatformFromURL,
+    currentThemeFromURL,
+    // Source context for comparison
+    sourceContext: {
+      sourceType: currentSourceContext?.sourceType,
+      sourceId: currentSourceContext?.sourceId
+    },
+    // Available options
+    availablePlatforms: sourceManager.getAvailablePlatforms().map(p => ({ id: p.id, displayName: p.displayName })),
+    availableThemes: sourceManager.getAvailableThemes().map(t => ({ id: t.id, displayName: t.displayName }))
+  });
+
   // Handle source switching warning events
   useEffect(() => {
     const handleSourceSwitchWarning = (event: CustomEvent) => {
@@ -228,8 +267,9 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Get the current title and subtitle based on data context
   const getTitleAndSubtitle = () => {
-    const rootData = StorageService.getRootData();
-    const systemName = rootData.systemName || 'Design System';
+    // Use new data management services to get system name from core data
+    const coreData = StorageService.getCoreData();
+    const systemName = coreData?.systemName || 'Design System';
     let title = systemName;
     let subtitle = '';
 
@@ -240,10 +280,10 @@ export const Header: React.FC<HeaderProps> = ({
 
     if (repo) {
       // URL parameters present - check if data was successfully loaded
-      // Check if we have actual data loaded (collections, tokens, etc.)
-      const collections = StorageService.getCollections();
-      const tokens = StorageService.getTokens();
-      const hasDataLoaded = collections && collections.length > 0 && tokens && tokens.length > 0;
+      // Check if we have actual data loaded using new data management services
+      const mergedData = StorageService.getMergedData();
+      const hasDataLoaded = mergedData && mergedData.tokens && mergedData.tokens.length > 0 && 
+                           mergedData.tokenCollections && mergedData.tokenCollections.length > 0;
       
       if (hasDataLoaded) {
         // Data was successfully loaded - show system name from data
@@ -266,14 +306,13 @@ export const Header: React.FC<HeaderProps> = ({
     }
 
     // Check if we have a data source context (platform/theme switching)
-    if (dataSourceContext) {
+    if (currentSourceContext) {
       title = systemName;
       
       // NEW: Enhanced edit mode display
-      if (dataSourceContext.editMode.isActive) {
+      if (currentSourceContext.editMode?.isActive) {
         // Edit mode: show repository URL and edit source
-        const { editMode } = dataSourceContext;
-        const repository = editMode.targetRepository;
+        const repository = currentSourceContext.editMode.targetRepository;
         
         if (repository) {
           title = `${systemName} - ${repository.fullName}@${repository.branch}`;
@@ -284,11 +323,14 @@ export const Header: React.FC<HeaderProps> = ({
         }
       } else {
         // View mode: show current platform/theme selection
-        const platformName = dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none' 
-          ? dataSourceContext.availablePlatforms.find(p => p.id === dataSourceContext.currentPlatform)?.displayName 
+        const availablePlatforms = sourceManager.getAvailablePlatforms();
+        const availableThemes = sourceManager.getAvailableThemes();
+        
+        const platformName = currentSourceContext.sourceType === 'platform' && currentSourceContext.sourceId
+          ? availablePlatforms.find(p => p.id === currentSourceContext.sourceId)?.displayName 
           : null;
-        const themeName = dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none'
-          ? dataSourceContext.availableThemes.find(t => t.id === dataSourceContext.currentTheme)?.displayName
+        const themeName = currentSourceContext.sourceType === 'theme' && currentSourceContext.sourceId
+          ? availableThemes.find(t => t.id === currentSourceContext.sourceId)?.displayName
           : null;
         
         if (platformName && themeName) {
@@ -302,9 +344,7 @@ export const Header: React.FC<HeaderProps> = ({
         }
         
         // NEW: Enhanced two-tier permission system
-        const hasEditAccess = dataSourceContext.permissions.core || 
-          Object.values(dataSourceContext.permissions.platforms).some(Boolean) ||
-          Object.values(dataSourceContext.permissions.themes).some(Boolean);
+        const hasEditAccess = currentSourceContext.editMode?.isActive || false;
         
         if (hasEditAccess) {
           subtitle += ' - Edit Access';
@@ -323,7 +363,8 @@ export const Header: React.FC<HeaderProps> = ({
         title = systemName;
       } else if (selectedRepoInfo.fileType === 'theme-override') {
         // Theme override - use "System: Theme" format
-        const themes = StorageService.getThemes();
+        const coreData = StorageService.getCoreData();
+        const themes = coreData?.themes || [];
         const currentTheme = themes[0];
         const themeName = currentTheme?.displayName || 'Default Theme';
         title = `${systemName}: ${themeName}`;
@@ -332,14 +373,14 @@ export const Header: React.FC<HeaderProps> = ({
       // Add GitHub branch info
       subtitle = `(${selectedRepoInfo.branch})`;
     } else {
-      // No GitHub connection - try to determine from local data
-      const collections = StorageService.getCollections();
-      const themes = StorageService.getThemes();
+      // No GitHub connection - try to determine from local data using new services
+      const mergedData = StorageService.getMergedData();
+      const coreData = StorageService.getCoreData();
       
-      if (collections && collections.length > 0) {
+      if (mergedData && mergedData.tokenCollections && mergedData.tokenCollections.length > 0) {
         title = systemName;
-      } else if (themes && themes.length > 0) {
-        const currentTheme = themes[0];
+      } else if (coreData && coreData.themes && coreData.themes.length > 0) {
+        const currentTheme = coreData.themes[0];
         const themeName = currentTheme?.displayName || 'Default Theme';
         title = `${systemName}: ${themeName}`;
       }
@@ -348,12 +389,11 @@ export const Header: React.FC<HeaderProps> = ({
     return { title, subtitle };
   };
 
-  // NEW: Helper function to determine if user has edit permissions from data source context
+  // NEW: Helper function to determine if user has edit permissions from new data management services
   const hasDataSourceEditPermissions = () => {
-    if (dataSourceContext) {
-      return dataSourceContext.permissions.core || 
-        Object.values(dataSourceContext.permissions.platforms).some(Boolean) ||
-        Object.values(dataSourceContext.permissions.themes).some(Boolean);
+    const sourceContext = sourceManager.getCurrentSourceContext();
+    if (sourceContext?.editMode?.isActive) {
+      return true; // If in edit mode, user has permissions
     }
     return false;
   };
@@ -533,12 +573,12 @@ export const Header: React.FC<HeaderProps> = ({
       params.set('path', selectedRepoInfo.filePath);
       params.set('branch', selectedRepoInfo.branch);
       
-      // Include current platform/theme selection from data source context
-      if (dataSourceContext?.currentPlatform) {
-        params.set('platform', dataSourceContext.currentPlatform);
+      // Include current platform/theme selection from new source context
+      if (currentSourceContext?.sourceType === 'platform' && currentSourceContext.sourceId) {
+        params.set('platform', currentSourceContext.sourceId);
       }
-      if (dataSourceContext?.currentTheme) {
-        params.set('theme', dataSourceContext.currentTheme);
+      if (currentSourceContext?.sourceType === 'theme' && currentSourceContext.sourceId) {
+        params.set('theme', currentSourceContext.sourceId);
       }
       
       return `${baseURL}?${params.toString()}`;
@@ -584,20 +624,38 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Branch-based governance handlers
   const handleEnterEditMode = () => {
-    // Determine the target repository based on data source context
+    // Determine the target repository based on new source context
     let targetRepository: { fullName: string; branch: string; filePath: string; fileType: string } | null = null;
     
-    if (dataSourceContext) {
-      // Use data source context to determine edit target
-      if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
+    if (currentSourceContext) {
+      // Use new source context to determine edit target
+      if (currentSourceContext.sourceType === 'platform' && currentSourceContext.sourceId) {
         // Platform extension editing
-        targetRepository = dataSourceContext.repositories.platforms[dataSourceContext.currentPlatform] || null;
-      } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
+        const sourceRepo = currentSourceContext.sourceRepository;
+        targetRepository = {
+          fullName: sourceRepo.fullName,
+          branch: sourceRepo.branch,
+          filePath: sourceRepo.filePath,
+          fileType: 'platform-extension'
+        };
+      } else if (currentSourceContext.sourceType === 'theme' && currentSourceContext.sourceId) {
         // Theme override editing
-        targetRepository = dataSourceContext.repositories.themes[dataSourceContext.currentTheme] || null;
+        const sourceRepo = currentSourceContext.sourceRepository;
+        targetRepository = {
+          fullName: sourceRepo.fullName,
+          branch: sourceRepo.branch,
+          filePath: sourceRepo.filePath,
+          fileType: 'theme-override'
+        };
       } else {
         // Core data editing
-        targetRepository = dataSourceContext.repositories.core;
+        const coreRepo = currentSourceContext.coreRepository;
+        targetRepository = {
+          fullName: coreRepo.fullName,
+          branch: coreRepo.branch,
+          filePath: coreRepo.filePath,
+          fileType: 'schema'
+        };
       }
     } else {
       // Fallback to selectedRepoInfo for backward compatibility
@@ -653,20 +711,38 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const handleSwitchBranch = () => {
-    // Determine the target repository based on data source context
+    // Determine the target repository based on new source context
     let targetRepository: { fullName: string; branch: string; filePath: string; fileType: string } | null = null;
     
-    if (dataSourceContext) {
-      // Use data source context to determine switch target
-      if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
+    if (currentSourceContext) {
+      // Use new source context to determine switch target
+      if (currentSourceContext.sourceType === 'platform' && currentSourceContext.sourceId) {
         // Platform extension switching
-        targetRepository = dataSourceContext.repositories.platforms[dataSourceContext.currentPlatform] || null;
-      } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
+        const sourceRepo = currentSourceContext.sourceRepository;
+        targetRepository = {
+          fullName: sourceRepo.fullName,
+          branch: sourceRepo.branch,
+          filePath: sourceRepo.filePath,
+          fileType: 'platform-extension'
+        };
+      } else if (currentSourceContext.sourceType === 'theme' && currentSourceContext.sourceId) {
         // Theme override switching
-        targetRepository = dataSourceContext.repositories.themes[dataSourceContext.currentTheme] || null;
+        const sourceRepo = currentSourceContext.sourceRepository;
+        targetRepository = {
+          fullName: sourceRepo.fullName,
+          branch: sourceRepo.branch,
+          filePath: sourceRepo.filePath,
+          fileType: 'theme-override'
+        };
       } else {
         // Core data switching
-        targetRepository = dataSourceContext.repositories.core;
+        const coreRepo = currentSourceContext.coreRepository;
+        targetRepository = {
+          fullName: coreRepo.fullName,
+          branch: coreRepo.branch,
+          filePath: coreRepo.filePath,
+          fileType: 'schema'
+        };
       }
     } else {
       // Fallback to selectedRepoInfo for backward compatibility
@@ -735,6 +811,21 @@ export const Header: React.FC<HeaderProps> = ({
           )}
           <Text fontSize="md" fontWeight="bold">{title}</Text>
           <Text fontSize="xs">{subtitle}</Text>
+          
+          {/* Change Status Indicator */}
+          {hasLocalChanges && (
+            <HStack spacing={1} px={2} py={1} bg="orange.50" borderRadius="md" border="1px solid" borderColor="orange.200">
+              <Badge colorScheme="orange" variant="subtle" fontSize="xs">
+                {localChangeCount} change{localChangeCount !== 1 ? 's' : ''}
+              </Badge>
+              {currentSourceContext && (
+                <Text fontSize="xs" color="orange.700">
+                  {currentSourceContext.sourceType === 'platform' ? 'Platform' : 
+                   currentSourceContext.sourceType === 'theme' ? 'Theme' : 'Core'} data
+                </Text>
+              )}
+            </HStack>
+          )}
         </HStack>
         <HStack spacing={2}>
           {/* NEW: Edit Mode UI Layout */}
@@ -778,7 +869,7 @@ export const Header: React.FC<HeaderProps> = ({
                       onClick={handleOpenModal}
                     />
                   </Tooltip>
-                  {changeCount > 0 && (
+                  {localChangeCount > 0 && (
                     <Badge
                       position="absolute"
                       top="-1"
@@ -793,7 +884,7 @@ export const Header: React.FC<HeaderProps> = ({
                       alignItems="center"
                       justifyContent="center"
                     >
-                      {changeCount}
+                      {localChangeCount}
                     </Badge>
                   )}
                 </Box>
@@ -803,22 +894,20 @@ export const Header: React.FC<HeaderProps> = ({
             // View Mode Layout
             <>
               {/* Platform and Theme Dropdowns */}
-              {dataSourceContext && (
-                <HStack spacing={4}>
-                  <PlatformDropdown
-                    availablePlatforms={dataSourceContext.availablePlatforms}
-                    currentPlatform={dataSourceContext.currentPlatform}
-                    permissions={dataSourceContext.permissions.platforms}
-                    onPlatformChange={onPlatformChange || (() => {})}
-                  />
-                  <ThemeDropdown
-                    availableThemes={dataSourceContext.availableThemes}
-                    currentTheme={dataSourceContext.currentTheme}
-                    permissions={dataSourceContext.permissions.themes}
-                    onThemeChange={onThemeChange || (() => {})}
-                  />
-                </HStack>
-              )}
+              <HStack spacing={4}>
+                <PlatformDropdown
+                  availablePlatforms={sourceManager.getAvailablePlatforms()}
+                  currentPlatform={currentPlatformFromURL}
+                  permissions={sourceManager.getCurrentSourceContext()?.editMode?.isActive ? { [currentSourceContext?.sourceId || '']: true } : {}}
+                  onPlatformChange={onPlatformChange || (() => {})}
+                />
+                <ThemeDropdown
+                  availableThemes={sourceManager.getAvailableThemes()}
+                  currentTheme={currentThemeFromURL}
+                  permissions={sourceManager.getCurrentSourceContext()?.editMode?.isActive ? { [currentSourceContext?.sourceId || '']: true } : {}}
+                  onThemeChange={onThemeChange || (() => {})}
+                />
+              </HStack>
 
               {/* Branch-based Governance Buttons */}
               {githubUser && hasDataSourceEditPermissions() && (

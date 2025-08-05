@@ -38,12 +38,29 @@ export function getPlatformOverrideStats(tokens: Token[], platforms: Platform[])
 }
 
 export async function getPlatformExtensionStats(platforms: Platform[]) {
+  console.log('[DashboardStats] getPlatformExtensionStats called with platforms:', {
+    count: platforms.length,
+    platforms: platforms.map(p => ({ id: p.id, displayName: p.displayName }))
+  });
+  
   try {
     const analyticsService = PlatformExtensionAnalyticsService.getInstance();
+    console.log('[DashboardStats] Calling getCachedPlatformExtensionAnalytics...');
     const analytics = await analyticsService.getCachedPlatformExtensionAnalytics(platforms);
+    console.log('[DashboardStats] getCachedPlatformExtensionAnalytics returned:', {
+      totalPlatforms: analytics.totalPlatforms,
+      platformsWithExtensions: analytics.platformsWithExtensions,
+      platformAnalyticsCount: analytics.platformAnalytics.length,
+      platformAnalytics: analytics.platformAnalytics.map(p => ({
+        platformId: p.platformId,
+        platformName: p.platformName,
+        hasError: p.hasError,
+        errorType: p.errorType
+      }))
+    });
     return analytics;
   } catch (error) {
-    console.error('Failed to get platform extension stats:', error);
+    console.error('[DashboardStats] Failed to get platform extension stats:', error);
     return {
       totalPlatforms: platforms.length,
       platformsWithExtensions: 0,

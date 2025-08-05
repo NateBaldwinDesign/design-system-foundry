@@ -37,7 +37,7 @@ import { SyntaxPatternsEditor, SyntaxPatterns } from '../components/shared/Synta
 import { StorageService } from '../services/storage';
 import { CollectionsView } from './CollectionsView';
 import type { DataSourceContext } from '../services/dataSourceManager';
-import { GitHubApiService } from '../services/githubApi';
+
 import { FigmaConfigurationOverrideService } from '../services/figmaConfigurationOverrideService';
 
 interface FigmaConfigurationsViewProps {
@@ -74,10 +74,11 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
     formatString: ''
   });
 
-  // Get data for CollectionsView
-  const collections = StorageService.getCollections();
-  const tokens = StorageService.getTokens();
-  const resolvedValueTypes = StorageService.getValueTypes();
+  // Get data for CollectionsView using new data management services
+  const mergedData = StorageService.getMergedData();
+  const collections = mergedData?.tokenCollections || [];
+  const tokens = mergedData?.tokens || [];
+  const resolvedValueTypes = mergedData?.resolvedValueTypes || [];
 
     // Load configuration and check change tracking state on mount
   useEffect(() => {
@@ -89,7 +90,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
         FigmaConfigurationOverrideService.initializeSession(dataSourceContext);
       }
       
-      // Get Figma configuration from current data source context
+      // Get Figma configuration using new data management services
       let sourceFileKey = '';
       let sourceSyntaxPatterns: {
         prefix?: string;
@@ -99,15 +100,18 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
         formatString?: string;
       } = {};
       
+      // Get core data for syntax patterns (always from core)
+      const coreData = StorageService.getCoreData();
+      const localEdits = StorageService.getLocalEdits();
+      const sourceContext = StorageService.getSourceContext();
+      
       // Determine the current source type and ID
-      const currentSourceType = dataSourceContext?.editMode.isActive 
-        ? dataSourceContext.editMode.sourceType 
-        : 'core';
-      const currentSourceId = dataSourceContext?.editMode.isActive 
-        ? dataSourceContext.editMode.sourceId 
-        : null;
+      const currentSourceType = sourceContext?.sourceType || 'core';
+      const currentSourceId = sourceContext?.sourceId;
       
       console.log('[FigmaConfigurationsView] Loading config for:', { currentSourceType, currentSourceId, isEditMode: dataSourceContext?.editMode.isActive });
+      console.log('[FigmaConfigurationsView] Core data available:', !!coreData);
+      console.log('[FigmaConfigurationsView] Local edits available:', !!localEdits);
       
       // Check for staged changes first (only in edit mode)
       if (dataSourceContext?.editMode.isActive) {
@@ -135,10 +139,11 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
         console.log('[FigmaConfigurationsView] Current source ID:', currentSourceId);
         
         if (currentSourceType === 'core') {
-          // Core data - use figmaConfiguration from tokenSystem
-          const currentFigmaConfig = tokenSystem.figmaConfiguration;
+          // Core data - use figmaConfiguration from local edits (if available) or core data
+          const sourceData = localEdits || coreData;
+          const currentFigmaConfig = (sourceData as any)?.figmaConfiguration;
           console.log('[FigmaConfigurationsView] === CORE DATA SOURCE ===');
-          console.log('[FigmaConfigurationsView] Source: tokenSystem.figmaConfiguration');
+          console.log('[FigmaConfigurationsView] Source: localEdits.figmaConfiguration or coreData.figmaConfiguration');
           console.log('[FigmaConfigurationsView] Raw figmaConfiguration:', currentFigmaConfig);
           console.log('[FigmaConfigurationsView] figmaConfiguration.fileKey:', currentFigmaConfig?.fileKey);
           console.log('[FigmaConfigurationsView] figmaConfiguration.syntaxPatterns:', currentFigmaConfig?.syntaxPatterns);
@@ -149,100 +154,51 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
             console.log('[FigmaConfigurationsView] Extracted core fileKey:', sourceFileKey);
             console.log('[FigmaConfigurationsView] Extracted core syntaxPatterns:', sourceSyntaxPatterns);
           } else {
-            console.log('[FigmaConfigurationsView] WARNING: No figmaConfiguration found in tokenSystem');
+            console.log('[FigmaConfigurationsView] WARNING: No figmaConfiguration found in source data');
           }
-        } else if (currentSourceType === 'platform-extension' && currentSourceId) {
+        } else if (currentSourceType === 'platform' && currentSourceId) {
           // Platform extension - get figmaFileKey from root level of platform extension data
           console.log('[FigmaConfigurationsView] === PLATFORM EXTENSION SOURCE ===');
           console.log('[FigmaConfigurationsView] Source ID:', currentSourceId);
           
-          try {
-            const platformRepo = dataSourceContext?.repositories.platforms[currentSourceId];
-            console.log('[FigmaConfigurationsView] Platform repo info:', platformRepo);
-            
-            if (platformRepo) {
-              console.log('[FigmaConfigurationsView] Loading from GitHub:', {
-                fullName: platformRepo.fullName,
-                filePath: platformRepo.filePath,
-                branch: platformRepo.branch
-              });
-              
-              const fileContent = await GitHubApiService.getFileContent(
-                platformRepo.fullName,
-                platformRepo.filePath,
-                platformRepo.branch
-              );
-              
-              console.log('[FigmaConfigurationsView] GitHub API response:', fileContent);
-              
-              if (fileContent && fileContent.content) {
-                const platformData = JSON.parse(fileContent.content);
-                console.log('[FigmaConfigurationsView] Parsed platform data:', platformData);
-                console.log('[FigmaConfigurationsView] platformData.figmaFileKey:', platformData.figmaFileKey);
-                console.log('[FigmaConfigurationsView] platformData.syntaxPatterns:', platformData.syntaxPatterns);
-                
-                // Platform extensions have figmaFileKey at root level
-                sourceFileKey = platformData.figmaFileKey || '';
-                sourceSyntaxPatterns = platformData.syntaxPatterns || {};
-                console.log('[FigmaConfigurationsView] Extracted platform fileKey:', sourceFileKey);
-                console.log('[FigmaConfigurationsView] Extracted platform syntaxPatterns:', sourceSyntaxPatterns);
-              } else {
-                console.log('[FigmaConfigurationsView] WARNING: No file content received from GitHub API');
-              }
-            } else {
-              console.log('[FigmaConfigurationsView] WARNING: No platform repo found for ID:', currentSourceId);
-            }
-          } catch (error) {
-            console.error('[FigmaConfigurationsView] ERROR loading platform Figma config:', error);
+          // Get platform data from local edits or storage
+          const platformData = StorageService.getPlatformExtensionData(currentSourceId) || localEdits;
+          console.log('[FigmaConfigurationsView] Platform data:', platformData);
+          
+          if (platformData) {
+            // Platform extensions have figmaFileKey at root level
+            sourceFileKey = (platformData as any).figmaFileKey || '';
+            console.log('[FigmaConfigurationsView] Extracted platform fileKey:', sourceFileKey);
+          } else {
+            console.log('[FigmaConfigurationsView] WARNING: No platform data found for ID:', currentSourceId);
           }
-        } else if (currentSourceType === 'theme-override' && currentSourceId) {
+        } else if (currentSourceType === 'theme' && currentSourceId) {
           // Theme override - get figmaFileKey from root level of theme override data
           console.log('[FigmaConfigurationsView] === THEME OVERRIDE SOURCE ===');
           console.log('[FigmaConfigurationsView] Source ID:', currentSourceId);
           
-          try {
-            const themeRepo = dataSourceContext?.repositories.themes[currentSourceId];
-            console.log('[FigmaConfigurationsView] Theme repo info:', themeRepo);
-            
-            if (themeRepo) {
-              console.log('[FigmaConfigurationsView] Loading from GitHub:', {
-                fullName: themeRepo.fullName,
-                filePath: themeRepo.filePath,
-                branch: themeRepo.branch
-              });
-              
-              const fileContent = await GitHubApiService.getFileContent(
-                themeRepo.fullName,
-                themeRepo.filePath,
-                themeRepo.branch
-              );
-              
-              console.log('[FigmaConfigurationsView] GitHub API response:', fileContent);
-              
-              if (fileContent && fileContent.content) {
-                const themeData = JSON.parse(fileContent.content);
-                console.log('[FigmaConfigurationsView] Parsed theme data:', themeData);
-                console.log('[FigmaConfigurationsView] themeData.figmaFileKey:', themeData.figmaFileKey);
-                
-                // Theme overrides have figmaFileKey at root level
-                sourceFileKey = themeData.figmaFileKey || '';
-                // Theme overrides don't have syntax patterns, use core patterns
-                const currentFigmaConfig = tokenSystem.figmaConfiguration;
-                sourceSyntaxPatterns = currentFigmaConfig?.syntaxPatterns || {};
-                console.log('[FigmaConfigurationsView] Extracted theme fileKey:', sourceFileKey);
-                console.log('[FigmaConfigurationsView] Using core syntaxPatterns for theme:', sourceSyntaxPatterns);
-              } else {
-                console.log('[FigmaConfigurationsView] WARNING: No file content received from GitHub API');
-              }
-            } else {
-              console.log('[FigmaConfigurationsView] WARNING: No theme repo found for ID:', currentSourceId);
-            }
-          } catch (error) {
-            console.error('[FigmaConfigurationsView] ERROR loading theme Figma config:', error);
+          // Get theme data from local edits or storage
+          const themeData = StorageService.getThemeOverrideData(currentSourceId) || localEdits;
+          console.log('[FigmaConfigurationsView] Theme data:', themeData);
+          
+          if (themeData) {
+            // Theme overrides have figmaFileKey at root level
+            sourceFileKey = (themeData as any).figmaFileKey || '';
+            console.log('[FigmaConfigurationsView] Extracted theme fileKey:', sourceFileKey);
+          } else {
+            console.log('[FigmaConfigurationsView] WARNING: No theme data found for ID:', currentSourceId);
           }
         }
       } else {
         console.log('[FigmaConfigurationsView] Using staged changes, skipping source data loading');
+      }
+      
+      // ALWAYS get syntax patterns from core data, regardless of source type
+      if (coreData?.figmaConfiguration?.syntaxPatterns) {
+        sourceSyntaxPatterns = coreData.figmaConfiguration.syntaxPatterns;
+        console.log('[FigmaConfigurationsView] Using core syntax patterns:', sourceSyntaxPatterns);
+      } else {
+        console.log('[FigmaConfigurationsView] WARNING: No syntax patterns found in core data');
       }
       
       console.log('[FigmaConfigurationsView] === FINAL CONFIGURATION ===');
@@ -634,13 +590,12 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
 
   // Helper function to determine if syntax patterns should be shown
   const shouldShowSyntaxPatterns = (): boolean => {
-    // Show syntax patterns only for core data (not for platform or theme sources)
-    if (!dataSourceContext?.editMode.isActive) {
-      return true; // View mode - show syntax patterns (core data)
-    }
+    // Get current source context from new data management services
+    const sourceContext = StorageService.getSourceContext();
+    const currentSourceType = sourceContext?.sourceType || 'core';
     
-    const { sourceType } = dataSourceContext.editMode;
-    return sourceType === 'core'; // Only show for core, hide for platform/theme
+    // Show syntax patterns only for core data (not for platform or theme sources)
+    return currentSourceType === 'core';
   };
 
   // Render change tracking status

@@ -3,6 +3,8 @@ import { StorageService } from './storage';
 import { PermissionManager } from './permissionManager';
 import { ChangeTrackingService } from './changeTrackingService';
 import { OverrideTrackingService } from './overrideTrackingService';
+import { DataEditorService } from './dataEditorService';
+import { SourceManagerService } from './sourceManagerService';
 import type { Platform, Theme } from '@token-model/data-model';
 
 export interface RepositoryInfo {
@@ -113,20 +115,30 @@ export class DataSourceManager {
    */
   async switchToPlatform(platformId: string | null): Promise<void> {
     try {
-      // Only show unsaved changes warning if in edit mode
-      if (this.currentContext.editMode.isActive) {
-        const changeCount = ChangeTrackingService.getChangeCount();
-        if (changeCount > 0) {
-          // Show warning dialog (this will be handled by the UI layer)
-          const shouldProceed = await this.showSourceSwitchWarning(changeCount);
-          if (!shouldProceed) {
-            return; // User cancelled
-          }
-          // Reset to main branch for new source and discard changes
-          await this.resetToMainBranchForSource('platform-extension', platformId);
-          this.exitEditMode();
+      // Use new SourceManagerService for source switching
+      const sourceManager = SourceManagerService.getInstance();
+      const dataEditor = DataEditorService.getInstance();
+      
+      // Check for unsaved changes using new service
+      const hasChanges = dataEditor.hasLocalChanges();
+      
+      if (hasChanges) {
+        const changeCount = dataEditor.getChangeCount();
+        const shouldProceed = await this.showSourceSwitchWarning(changeCount);
+        if (!shouldProceed) {
+          return; // User cancelled
         }
       }
+      
+      // Switch source using SourceManagerService
+      const switchResult = await sourceManager.switchSource('platform', platformId || undefined);
+      
+      if (!switchResult.success) {
+        console.error('[DataSourceManager] Failed to switch platform:', switchResult.error);
+        this.callbacks.onError?.(switchResult.error || 'Failed to switch platform');
+        return;
+      }
+      
       this.currentContext.currentPlatform = platformId;
       // Update edit mode context based on platform selection
       this.updateEditModeContext();
@@ -150,20 +162,30 @@ export class DataSourceManager {
    */
   async switchToTheme(themeId: string | null): Promise<void> {
     try {
-      // Only show unsaved changes warning if in edit mode
-      if (this.currentContext.editMode.isActive) {
-        const changeCount = ChangeTrackingService.getChangeCount();
-        if (changeCount > 0) {
-          // Show warning dialog (this will be handled by the UI layer)
-          const shouldProceed = await this.showSourceSwitchWarning(changeCount);
-          if (!shouldProceed) {
-            return; // User cancelled
-          }
-          // Reset to main branch for new source and discard changes
-          await this.resetToMainBranchForSource('theme-override', themeId);
-          this.exitEditMode();
+      // Use new SourceManagerService for source switching
+      const sourceManager = SourceManagerService.getInstance();
+      const dataEditor = DataEditorService.getInstance();
+      
+      // Check for unsaved changes using new service
+      const hasChanges = dataEditor.hasLocalChanges();
+      
+      if (hasChanges) {
+        const changeCount = dataEditor.getChangeCount();
+        const shouldProceed = await this.showSourceSwitchWarning(changeCount);
+        if (!shouldProceed) {
+          return; // User cancelled
         }
       }
+      
+      // Switch source using SourceManagerService
+      const switchResult = await sourceManager.switchSource('theme', themeId || undefined);
+      
+      if (!switchResult.success) {
+        console.error('[DataSourceManager] Failed to switch theme:', switchResult.error);
+        this.callbacks.onError?.(switchResult.error || 'Failed to switch theme');
+        return;
+      }
+      
       this.currentContext.currentTheme = themeId;
       // Update edit mode context based on theme selection
       this.updateEditModeContext();

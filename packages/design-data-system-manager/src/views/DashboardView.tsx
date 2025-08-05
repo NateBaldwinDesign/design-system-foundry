@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Heading, SimpleGrid, Stat, StatLabel, StatNumber, StatHelpText, Divider, VStack, HStack, Text, Table, Thead, Tbody, Tr, Th, Td, Tag, useColorMode, Spinner, Alert, AlertIcon, Tooltip, Badge, AlertTitle, AlertDescription, Button } from '@chakra-ui/react';
 import { getTokenStats, getPlatformExtensionStats, getThemeStats, getLatestRelease, getRecentActivity } from '../utils/dashboardStats';
 import type { Platform, Theme, ComponentCategory, ComponentProperty, Component } from '@token-model/data-model';
@@ -32,6 +32,38 @@ const DashboardView: React.FC<DashboardViewProps> = ({
   dataSourceContext
 }) => {
   const { colorMode } = useColorMode();
+  
+  // Get platforms from core data (always authoritative for platform analytics)
+  const coreData = StorageService.getCoreData();
+  
+  // Create stable keys for memoization
+  const corePlatformsKey = useMemo(() => {
+    const corePlatforms = coreData?.platforms || [];
+    return corePlatforms.map(p => p.id).sort().join(',');
+  }, [coreData?.platforms]);
+  
+  const propsPlatformsKey = useMemo(() => {
+    return platforms.map(p => p.id).sort().join(',');
+  }, [platforms]);
+  
+  // Memoize platforms to prevent infinite re-renders
+  const platformsForAnalytics = useMemo(() => {
+    const platformsFromCore = coreData?.platforms || [];
+    const result = platformsFromCore.length > 0 ? platformsFromCore : platforms;
+    
+    console.log('[DashboardView] useMemo platformsForAnalytics recalculated:', {
+      platformsFromCoreLength: platformsFromCore.length,
+      propsPlatformsLength: platforms.length,
+      resultLength: result.length,
+      resultPlatforms: result.map(p => ({ id: p.id, displayName: p.displayName })),
+      coreDataExists: !!coreData,
+      coreDataPlatformsExists: !!coreData?.platforms,
+      corePlatformsKey,
+      propsPlatformsKey
+    });
+    
+    return result;
+  }, [corePlatformsKey, propsPlatformsKey, coreData?.platforms?.length, platforms.length]);
   const [platformExtensionStats, setPlatformExtensionStats] = useState<PlatformExtensionAnalyticsSummary | null>(null);
   const [loadingPlatformStats, setLoadingPlatformStats] = useState(false);
   const [platformStatsError, setPlatformStatsError] = useState<string | null>(null);
@@ -93,28 +125,48 @@ const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Load platform extension analytics
   useEffect(() => {
+    console.log('[DashboardView] Platform analytics useEffect triggered:', {
+      platformsForAnalyticsLength: platformsForAnalytics.length,
+      platformsForAnalytics: platformsForAnalytics.map(p => ({ id: p.id, displayName: p.displayName })),
+      coreDataPlatformsLength: coreData?.platforms?.length || 0,
+      propsPlatformsLength: platforms.length
+    });
+    
     const loadPlatformExtensionStats = async () => {
-      if (platforms.length === 0) return;
+      if (platformsForAnalytics.length === 0) {
+        console.log('[DashboardView] No platforms for analytics, skipping load');
+        return;
+      }
       
+      console.log('[DashboardView] Starting platform extension stats load...');
       setLoadingPlatformStats(true);
       setPlatformStatsError(null);
       
       try {
         // Add a small delay to allow for pre-loading to complete
         // This ensures that if DataManager is still pre-loading, we give it time
+        console.log('[DashboardView] Waiting 100ms before loading stats...');
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        const stats = await getPlatformExtensionStats(platforms);
+        console.log('[DashboardView] Calling getPlatformExtensionStats...');
+        const stats = await getPlatformExtensionStats(platformsForAnalytics);
+        console.log('[DashboardView] Platform extension stats loaded successfully:', {
+          totalPlatforms: stats.totalPlatforms,
+          platformsWithExtensions: stats.platformsWithExtensions,
+          platformAnalyticsCount: stats.platformAnalytics.length
+        });
         setPlatformExtensionStats(stats);
       } catch (error) {
+        console.error('[DashboardView] Failed to load platform extension stats:', error);
         setPlatformStatsError(error instanceof Error ? error.message : 'Failed to load platform extension stats');
       } finally {
+        console.log('[DashboardView] Setting loadingPlatformStats to false');
         setLoadingPlatformStats(false);
       }
     };
 
     loadPlatformExtensionStats();
-  }, [platforms]);
+  }, [platformsForAnalytics]);
 
   // Load theme analytics
   useEffect(() => {
@@ -152,7 +204,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         // Add a small delay to allow for pre-loading to complete
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        const systemName = StorageService.getRootData().systemName || 'Design System';
+        const systemName = coreData?.systemName || 'Design System';
         
         const [releaseData, activityData] = await Promise.all([
           getLatestRelease(dataSourceContext, systemName),
@@ -169,7 +221,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({
     };
 
     loadGitHubAnalytics();
-  }, [dataSourceContext]);
+  }, [dataSourceContext, coreData]);
 
   // Get the user's first name from GitHub user data
   const getWelcomeMessage = () => {
@@ -201,40 +253,48 @@ const DashboardView: React.FC<DashboardViewProps> = ({
         <Heading size="xl" mb={8}>{getWelcomeMessage()}</Heading>
         
         {/* Data Source Context Indicator */}
-        {dataSourceContext && (dataSourceContext.currentPlatform || dataSourceContext.currentTheme) && (
-          <Box p={4} borderWidth={1} borderRadius="md" bg="chakra-body-bg" mb={6}>
-            <HStack spacing={4} align="center">
-              <Text fontSize="sm" fontWeight="medium" color="gray.600">
-                Current Data Source:
-              </Text>
-              
-              {dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none' && (
-                <HStack spacing={2}>
-                  <Monitor size={16} />
-                  <Badge colorScheme="blue" variant="subtle">
-                    {dataSourceContext.availablePlatforms.find(p => p.id === dataSourceContext.currentPlatform)?.displayName || dataSourceContext.currentPlatform}
-                  </Badge>
+        {(() => {
+          const urlParams = new URLSearchParams(window.location.search);
+          const platformFromURL = urlParams.get('platform');
+          const themeFromURL = urlParams.get('theme');
+          
+          if (platformFromURL || themeFromURL) {
+            return (
+              <Box p={4} borderWidth={1} borderRadius="md" bg="chakra-body-bg" mb={6}>
+                <HStack spacing={4} align="center">
+                  <Text fontSize="sm" fontWeight="medium" color="gray.600">
+                    Current Data Source:
+                  </Text>
+                  
+                  {platformFromURL && (
+                    <HStack spacing={2}>
+                      <Monitor size={16} />
+                      <Badge colorScheme="blue" variant="subtle">
+                        {platformsForAnalytics.find(p => p.id === platformFromURL)?.displayName || platformFromURL}
+                      </Badge>
+                    </HStack>
+                  )}
+                  
+                  {themeFromURL && (
+                    <HStack spacing={2}>
+                      <Palette size={16} />
+                      <Badge colorScheme="purple" variant="subtle">
+                        {themes.find(t => t.id === themeFromURL)?.displayName || themeFromURL}
+                      </Badge>
+                    </HStack>
+                  )}
+                  
+                  {!platformFromURL && !themeFromURL && (
+                    <Badge colorScheme="gray" variant="subtle">
+                      Core Data
+                    </Badge>
+                  )}
                 </HStack>
-              )}
-              
-              {dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none' && (
-                <HStack spacing={2}>
-                  <Palette size={16} />
-                  <Badge colorScheme="purple" variant="subtle">
-                    {dataSourceContext.availableThemes.find(t => t.id === dataSourceContext.currentTheme)?.displayName || dataSourceContext.currentTheme}
-                  </Badge>
-                </HStack>
-              )}
-              
-              {(!dataSourceContext.currentPlatform || dataSourceContext.currentPlatform === 'none') && 
-               (!dataSourceContext.currentTheme || dataSourceContext.currentTheme === 'none') && (
-                <Badge colorScheme="gray" variant="subtle">
-                  Core Data
-                </Badge>
-              )}
-            </HStack>
-          </Box>
-        )}
+              </Box>
+            );
+          }
+          return null;
+        })()}
         
         {/* Platform Extension Analytics Section */}
         {platformStatsError && (

@@ -15,6 +15,7 @@ import type {
   PlatformExtension,
   ThemeOverrideFile
 } from '@token-model/data-model';
+import type { SourceContext } from '../types/dataManagement';
 import { generateDefaultValueTypes } from '../utils/defaultValueTypes';
 import { Algorithm } from '../types/algorithm';
 
@@ -52,7 +53,12 @@ const STORAGE_KEYS = {
   CORE_DATA: 'token-model:core-data',
   PLATFORM_EXTENSION_DATA: 'token-model:platform-extension-data',
   THEME_OVERRIDE_DATA: 'token-model:theme-override-data',
-  PRESENTATION_DATA: 'token-model:presentation-data'
+  PRESENTATION_DATA: 'token-model:presentation-data',
+  // Enhanced data management storage keys
+  SOURCE_SNAPSHOT: 'token-model:source-snapshot',
+  LOCAL_EDITS: 'token-model:local-edits',
+  MERGED_DATA: 'token-model:merged-data',
+  SOURCE_CONTEXT: 'token-model:source-context'
 } as const;
 
 export class StorageService {
@@ -594,5 +600,118 @@ export class StorageService {
    */
   static clearOverrideHistory(): void {
     localStorage.removeItem('token-model:override-history');
+  }
+
+  // Enhanced data management methods
+
+  static getSourceSnapshot(): TokenSystem | PlatformExtension | ThemeOverrideFile | null {
+    return this.getItem(STORAGE_KEYS.SOURCE_SNAPSHOT, null);
+  }
+
+  static setSourceSnapshot(data: TokenSystem | PlatformExtension | ThemeOverrideFile): void {
+    this.setItem(STORAGE_KEYS.SOURCE_SNAPSHOT, data);
+  }
+
+  static getLocalEdits(): TokenSystem | PlatformExtension | ThemeOverrideFile | null {
+    return this.getItem(STORAGE_KEYS.LOCAL_EDITS, null);
+  }
+
+  static setLocalEdits(data: TokenSystem | PlatformExtension | ThemeOverrideFile): void {
+    this.setItem(STORAGE_KEYS.LOCAL_EDITS, data);
+  }
+
+  static getMergedData(): TokenSystem | null {
+    return this.getItem(STORAGE_KEYS.MERGED_DATA, null);
+  }
+
+  static setMergedData(data: TokenSystem): void {
+    this.setItem(STORAGE_KEYS.MERGED_DATA, data);
+  }
+
+  static getSourceContext(): SourceContext | null {
+    return this.getItem(STORAGE_KEYS.SOURCE_CONTEXT, null);
+  }
+
+  static setSourceContext(context: SourceContext): void {
+    this.setItem(STORAGE_KEYS.SOURCE_CONTEXT, context);
+  }
+
+  // Migration helper methods
+  static migrateExistingData(): void {
+    console.log('[StorageService] Starting data migration...');
+    
+    // Migrate core data if it exists
+    const existingCoreData = this.getCoreData();
+    if (existingCoreData && !this.getSourceSnapshot()) {
+      console.log('[StorageService] Migrating existing core data to source snapshot');
+      this.setSourceSnapshot(existingCoreData);
+      this.setLocalEdits(existingCoreData);
+      this.setMergedData(existingCoreData);
+    }
+
+    // Create default source context if none exists
+    if (!this.getSourceContext()) {
+      const defaultContext: SourceContext = {
+        sourceType: 'core',
+        sourceId: null,
+        coreRepository: {
+          fullName: '',
+          branch: 'main',
+          filePath: 'schema.json',
+          fileType: 'schema'
+        },
+        sourceRepository: {
+          fullName: '',
+          branch: 'main',
+          filePath: 'schema.json',
+          fileType: 'schema'
+        },
+        lastLoadedAt: new Date().toISOString(),
+        hasLocalChanges: false,
+        editMode: {
+          isActive: false,
+          sourceType: 'core',
+          sourceId: null,
+          targetRepository: null
+        }
+      };
+      this.setSourceContext(defaultContext);
+    }
+
+    console.log('[StorageService] Data migration completed');
+  }
+
+  // Validation methods
+  static validateDataStructure(data: unknown): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    
+    if (!data) {
+      errors.push('Data is null or undefined');
+      return { isValid: false, errors };
+    }
+
+    if (typeof data !== 'object') {
+      errors.push('Data must be an object');
+      return { isValid: false, errors };
+    }
+
+    // Basic validation for TokenSystem structure
+    const dataObj = data as Record<string, unknown>;
+    if (dataObj.tokens && !Array.isArray(dataObj.tokens)) {
+      errors.push('tokens must be an array');
+    }
+
+    if (dataObj.dimensions && !Array.isArray(dataObj.dimensions)) {
+      errors.push('dimensions must be an array');
+    }
+
+    if (dataObj.platforms && !Array.isArray(dataObj.platforms)) {
+      errors.push('platforms must be an array');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   }
 } 
