@@ -176,6 +176,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [showBranchSelectionDialog, setShowBranchSelectionDialog] = useState(false);
   const [targetRepositoryForBranch, setTargetRepositoryForBranch] = useState<{ fullName: string; branch: string; filePath: string; fileType: string } | null>(null);
   const [targetBranchForBranch, setTargetBranchForBranch] = useState<string>('main');
+  const [showSwitchBranchDialog, setShowSwitchBranchDialog] = useState(false);
+  const [switchBranchMode, setSwitchBranchMode] = useState<'edit' | 'view'>('view');
   const toast = useToast();
   const [showSourceSwitchWarning, setShowSourceSwitchWarning] = useState(false);
   const [sourceSwitchWarningData, setSourceSwitchWarningData] = useState<{
@@ -653,6 +655,70 @@ export const Header: React.FC<HeaderProps> = ({
     setShowBranchSelectionDialog(false);
   };
 
+  const handleSwitchBranch = () => {
+    // Determine the target repository based on data source context
+    let targetRepository: { fullName: string; branch: string; filePath: string; fileType: string } | null = null;
+    
+    if (dataSourceContext) {
+      // Use data source context to determine switch target
+      if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
+        // Platform extension switching
+        targetRepository = dataSourceContext.repositories.platforms[dataSourceContext.currentPlatform] || null;
+      } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
+        // Theme override switching
+        targetRepository = dataSourceContext.repositories.themes[dataSourceContext.currentTheme] || null;
+      } else {
+        // Core data switching
+        targetRepository = dataSourceContext.repositories.core;
+      }
+    } else {
+      // Fallback to selectedRepoInfo for backward compatibility
+      targetRepository = selectedRepoInfo || null;
+    }
+
+    // Check if we have repository information
+    if (!targetRepository?.fullName) {
+      toast({
+        title: 'No Repository Selected',
+        description: 'Please select a platform or theme, or ensure you have a valid repository connection.',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+
+    // Set up branch selection dialog for view mode switching
+    setTargetRepositoryForBranch(targetRepository);
+    const targetBranch = targetRepository?.branch || 'main';
+    setTargetBranchForBranch(targetBranch);
+    setSwitchBranchMode('view');
+    setShowSwitchBranchDialog(true);
+  };
+
+  const handleSwitchBranchSelected = (branchName: string) => {
+    // Switch to the selected branch in view mode
+    // This should trigger a data refresh to load the new branch data
+    if (onRefreshData) {
+      // Update the URL to reflect the new branch
+      const url = new URL(window.location.href);
+      url.searchParams.set('branch', branchName);
+      window.history.replaceState({}, '', url.toString());
+      
+      // Refresh data to load the new branch
+      onRefreshData();
+      
+      toast({
+        title: 'Branch Switched',
+        description: `Now viewing branch "${branchName}"`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+    setShowSwitchBranchDialog(false);
+  };
+
   return (
     <>
       <Box
@@ -692,7 +758,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={onDiscardChanges || onExitEditMode}
+                  onClick={onExitEditMode}
                 >
                   Cancel
                 </Button>
@@ -815,6 +881,19 @@ export const Header: React.FC<HeaderProps> = ({
                           </Button>
                           {selectedRepoInfo && (
                             <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                justifyContent="flex-start"
+                                borderRadius={0}
+                                leftIcon={<GitBranch size={16} />}
+                                onClick={() => {
+                                  handleSwitchBranch();
+                                  setIsGitHubWorkflowMenuOpen(false);
+                                }}
+                              >
+                                Switch branch
+                              </Button>
                               {hasDataSourceEditPermissions() && (
                                 <>
                                   <Button
@@ -968,11 +1047,56 @@ export const Header: React.FC<HeaderProps> = ({
         }}
       />
 
-      {/* Branch Selection Dialog */}
+      {/* Branch Selection Dialog for Edit Mode */}
       <BranchSelectionDialog
         isOpen={showBranchSelectionDialog}
         onClose={() => setShowBranchSelectionDialog(false)}
         onBranchSelected={handleBranchSelected}
+        currentBranch={targetBranchForBranch}
+        repositoryFullName={targetRepositoryForBranch?.fullName || selectedRepoInfo?.fullName || ''}
+        githubUser={githubUser || null}
+        sourceContext={(() => {
+          if (!dataSourceContext) return undefined;
+          
+          const { currentPlatform, currentTheme, availablePlatforms, availableThemes } = dataSourceContext;
+          
+          // Find platform name if platform is selected
+          const platformName = currentPlatform && currentPlatform !== 'none' 
+            ? availablePlatforms.find(p => p.id === currentPlatform)?.displayName || currentPlatform
+            : undefined;
+          
+          // Find theme name if theme is selected
+          const themeName = currentTheme && currentTheme !== 'none'
+            ? availableThemes.find(t => t.id === currentTheme)?.displayName || currentTheme
+            : undefined;
+          
+          // Determine source type and name
+          let sourceType: 'core' | 'platform-extension' | 'theme-override' = 'core';
+          let sourceName: string | null = 'Core Design System';
+          
+          if (currentPlatform && currentPlatform !== 'none') {
+            sourceType = 'platform-extension';
+            sourceName = platformName || currentPlatform;
+          } else if (currentTheme && currentTheme !== 'none') {
+            sourceType = 'theme-override';
+            sourceName = themeName || currentTheme;
+          }
+          
+          return {
+            sourceType,
+            sourceId: currentPlatform !== 'none' ? currentPlatform : currentTheme !== 'none' ? currentTheme : null,
+            sourceName,
+            platformName,
+            themeName,
+          };
+        })()}
+      />
+
+      {/* Branch Selection Dialog for View Mode Switching */}
+      <BranchSelectionDialog
+        isOpen={showSwitchBranchDialog}
+        onClose={() => setShowSwitchBranchDialog(false)}
+        onBranchSelected={handleSwitchBranchSelected}
         currentBranch={targetBranchForBranch}
         repositoryFullName={targetRepositoryForBranch?.fullName || selectedRepoInfo?.fullName || ''}
         githubUser={githubUser || null}

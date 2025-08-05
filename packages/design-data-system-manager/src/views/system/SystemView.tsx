@@ -18,7 +18,7 @@ interface SystemViewProps {
   canEdit?: boolean;
 }
 
-export const SystemView: React.FC<SystemViewProps> = ({ canEdit = true }) => {
+export const SystemView: React.FC<SystemViewProps> = ({ canEdit = false }) => {
   // Get data directly from storage for each component
   const dimensions = StorageService.getDimensions();
   const taxonomies = StorageService.getTaxonomies();

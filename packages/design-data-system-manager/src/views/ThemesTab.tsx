@@ -42,7 +42,7 @@ interface ThemesTabProps {
   canEdit?: boolean;
 }
 
-export function ThemesTab({ themes, setThemes, canEdit = true }: ThemesTabProps) {
+export function ThemesTab({ themes, setThemes, canEdit = false }: ThemesTabProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);

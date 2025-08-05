@@ -286,6 +286,12 @@
               "enum": ["active", "deprecated"],
               "description": "Lifecycle status of this platform",
               "default": "active"
+            },
+            "figmaPlatformMapping": {
+              "type": "string",
+              "enum": ["WEB", "iOS", "ANDROID"],
+              "description": "Maps this platform to a specific Figma platform for variable export. Only one platform can be mapped to each Figma platform.",
+              "nullable": true
             }
           }
         },

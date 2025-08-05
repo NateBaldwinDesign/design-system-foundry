@@ -29,7 +29,7 @@ interface DimensionsViewProps {
 export function DimensionsView({ 
   dimensions, 
   setDimensions,
-  canEdit = true
+  canEdit = false
 }: DimensionsViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);

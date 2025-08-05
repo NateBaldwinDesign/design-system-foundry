@@ -44,7 +44,7 @@ export function ComponentPropertiesView({
   dimensions, 
   platforms, 
   resolvedValueTypes,
-  canEdit = true
+  canEdit = false
 }: ComponentPropertiesViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);

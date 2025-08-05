@@ -32,7 +32,7 @@ export function ComponentsView({
   setComponents,
   componentCategories = [],
   componentProperties = [],
-  canEdit = true
+  canEdit = false
 }: ComponentsViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);

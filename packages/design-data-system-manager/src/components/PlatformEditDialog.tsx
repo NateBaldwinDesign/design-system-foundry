@@ -9,6 +9,7 @@ import {
   Button,
   FormControl,
   FormLabel,
+  FormHelperText,
   Input,
   Select,
   VStack,
@@ -61,6 +62,7 @@ export interface PlatformEditData {
   // Platform management fields
   displayName?: string;
   description?: string;
+  figmaPlatformMapping?: 'WEB' | 'iOS' | 'ANDROID' | null;
   // Workflow-specific fields
   workflow: 'link-existing' | 'create-file' | 'create-repository';
   newFileName?: string;
@@ -108,6 +110,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
     themeId: repository.themeId || '',
     displayName: '',
     description: '',
+    figmaPlatformMapping: null,
     workflow: 'link-existing',
     newFileName: '',
     newRepositoryName: '',
@@ -496,6 +499,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
       themeId: repository.themeId || '',
       displayName: displayName,
       description: description,
+      figmaPlatformMapping: (platformExtensionData?.figmaPlatformMapping as 'WEB' | 'iOS' | 'ANDROID' | null) || null,
       workflow: 'link-existing',
       newFileName: '',
       newRepositoryName: '',
@@ -525,6 +529,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
     if (platformExtensionData && formData.type === 'platform-extension') {
       setFormData(prev => ({
         ...prev,
+        figmaPlatformMapping: (platformExtensionData.figmaPlatformMapping as 'WEB' | 'iOS' | 'ANDROID' | null) || null,
         syntaxPatterns: {
           prefix: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.prefix as string || '',
           suffix: (platformExtensionData.syntaxPatterns as Record<string, unknown>)?.suffix as string || '',
@@ -603,6 +608,7 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
           version: '1.0.0',
           status: 'active',
           figmaFileKey: `${repository.platformId || 'platform'}-figma-file`,
+          figmaPlatformMapping: formData.figmaPlatformMapping || null,
           syntaxPatterns: formData.syntaxPatterns || {
             prefix: '',
             suffix: '',
@@ -1155,6 +1161,48 @@ export const PlatformEditDialog: React.FC<PlatformEditDialogProps> = ({
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Platform-specific extensions for iOS"
                 />
+              )}
+            </FormControl>
+            
+            <FormControl>
+              <FormLabel>Figma Platform Mapping</FormLabel>
+              {isExternalSource ? (
+                <Box
+                  p={3}
+                  borderWidth={1}
+                  borderRadius="md"
+                  bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
+                  borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
+                >
+                  <Text fontSize="sm" color="gray.500">
+                    {formData.figmaPlatformMapping ? (
+                      <Badge colorScheme="blue" variant="subtle">
+                        {formData.figmaPlatformMapping}
+                      </Badge>
+                    ) : (
+                      'Not mapped'
+                    )}
+                  </Text>
+                </Box>
+              ) : (
+                <>
+                  <Select
+                    value={formData.figmaPlatformMapping || ''}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      figmaPlatformMapping: e.target.value || null
+                    })}
+                    placeholder="No Figma mapping"
+                  >
+                    <option value="WEB">Web (CSS/JavaScript)</option>
+                    <option value="iOS">iOS (Swift/SwiftUI)</option>
+                    <option value="ANDROID">Android (Kotlin/XML)</option>
+                  </Select>
+                  <FormHelperText>
+                    Maps this platform to a specific Figma platform for variable export. 
+                    Only one platform can be mapped to each Figma platform.
+                  </FormHelperText>
+                </>
               )}
             </FormControl>
           </VStack>

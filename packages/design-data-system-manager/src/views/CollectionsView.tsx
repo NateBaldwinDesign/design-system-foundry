@@ -28,7 +28,7 @@ interface CollectionsViewProps {
   canEdit?: boolean;
 }
 
-export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTypes, canEdit = true }: CollectionsViewProps) {
+export function CollectionsView({ collections, onUpdate, tokens, resolvedValueTypes, canEdit = false }: CollectionsViewProps) {
   const { colorMode } = useColorMode();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCollection, setEditingCollection] = useState<TokenCollection | null>(null);

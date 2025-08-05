@@ -48,7 +48,7 @@ export function ValueTypesView({
   platforms, 
   taxonomies, 
   themes,
-  canEdit = true
+  canEdit = false
 }: ValueTypesViewProps) {
   const { colorMode } = useColorMode();
   const [dialogOpen, setDialogOpen] = useState(false);

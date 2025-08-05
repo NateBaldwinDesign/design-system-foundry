@@ -34,6 +34,7 @@ export function TokensView({
   dimensions,
   renderAddTokenButton,
   onEditToken,
+  canEdit = false, // Changed default to false to respect edit mode state
   dataSourceContext
 }: TokensViewProps) {
   // Filter state
@@ -321,6 +322,8 @@ export function TokensView({
     }));
   };
 
+  const algorightmBgColor = colorMode === 'dark' ? 'purple.800' : 'orange.100';
+  const defaultBgColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
 
   return (
     <PageTemplate 
@@ -694,7 +697,7 @@ export function TokensView({
             {filteredTokens.map(token => (
               <Tr key={token.id}>
                 <Td>
-                  <HStack spacing={2} backgroundColor={token.generatedByAlgorithm ? "orange.100" : "gray.100"} borderRadius="md" p={2} width="fit-content">
+                  <HStack spacing={2} backgroundColor={token.generatedByAlgorithm ? algorightmBgColor : defaultBgColor} borderRadius="md" p={2} width="fit-content">
                     {getValueTypeIcon(getTypeFromId(token.resolvedValueTypeId), 20, 'currentColor', token.generatedByAlgorithm, getTypeNameFromId(token.resolvedValueTypeId))}
                   </HStack>
                 </Td>
@@ -773,7 +776,7 @@ export function TokensView({
                 )}
                 <Td>
                   <HStack spacing={2}>
-                    {onEditToken && (
+                    {canEdit && onEditToken && (
                       <IconButton
                         aria-label="Edit token"
                         icon={<Edit size={16} />}

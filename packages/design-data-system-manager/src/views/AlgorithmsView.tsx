@@ -29,7 +29,7 @@ interface AlgorithmsViewProps {
   canEdit?: boolean;
 }
 
-const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms, onUpdate, onUpdateTokens, canEdit = true }) => {
+const AlgorithmsView: React.FC<AlgorithmsViewProps> = ({ algorithms, onUpdate, onUpdateTokens, canEdit = false }) => {
   const { colorMode } = useColorMode();
   const toast = useToast();
   const [isEditorOpen, setIsEditorOpen] = useState(false);

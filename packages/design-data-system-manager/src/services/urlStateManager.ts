@@ -1,295 +1,322 @@
-import type { DataSourceContext } from './dataSourceManager';
+import { StatePersistenceManager, type RepositoryContext } from './statePersistenceManager';
+import { DataSourceManager } from './dataSourceManager';
 
-export interface URLParameters {
-  repo?: string;
-  path?: string;
-  branch?: string;
-  platform?: string;
-  theme?: string;
-}
-
-/**
- * URL State Manager
- * 
- * Manages URL parameters for data source context, including platform and theme selections.
- * Handles URL parameter parsing, validation, and updates.
- */
 export class URLStateManager {
-  private static readonly URL_PARAMS = {
-    REPO: 'repo',
-    PATH: 'path',
-    BRANCH: 'branch',
-    PLATFORM: 'platform',
-    THEME: 'theme'
-  } as const;
+  private static instance: URLStateManager;
+
+  private constructor() {}
+
+  static getInstance(): URLStateManager {
+    if (!URLStateManager.instance) {
+      URLStateManager.instance = new URLStateManager();
+    }
+    return URLStateManager.instance;
+  }
 
   /**
-   * Parse URL parameters from current URL
+   * Update URL with current context
    */
-  static parseURLParameters(): URLParameters {
-    const urlParams = new URLSearchParams(window.location.search);
+  static updateURLWithContext(context: RepositoryContext): void {
+    console.log('[URLStateManager] Updating URL with context:', context);
     
-    return {
-      repo: urlParams.get(this.URL_PARAMS.REPO) || undefined,
-      path: urlParams.get(this.URL_PARAMS.PATH) || undefined,
-      branch: urlParams.get(this.URL_PARAMS.BRANCH) || undefined,
-      platform: urlParams.get(this.URL_PARAMS.PLATFORM) || undefined,
-      theme: urlParams.get(this.URL_PARAMS.THEME) || undefined
-    };
-  }
-
-  /**
-   * Update URL parameters for data source context
-   */
-  static updateURLParameters(dataSourceContext: DataSourceContext): void {
-    const url = new URL(window.location.href);
-    const searchParams = url.searchParams;
-
-    // Update platform parameter
-    if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
-      searchParams.set(this.URL_PARAMS.PLATFORM, dataSourceContext.currentPlatform);
-    } else {
-      searchParams.delete(this.URL_PARAMS.PLATFORM);
-    }
-
-    // Update theme parameter
-    if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
-      searchParams.set(this.URL_PARAMS.THEME, dataSourceContext.currentTheme);
-    } else {
-      searchParams.delete(this.URL_PARAMS.THEME);
-    }
-
-    // Update browser URL without reloading the page
-    window.history.replaceState({}, '', url.toString());
-  }
-
-  /**
-   * Update specific URL parameter
-   */
-  static updateURLParameter(key: keyof URLParameters, value: string | undefined): void {
-    const url = new URL(window.location.href);
-    const searchParams = url.searchParams;
-
-    if (value) {
-      searchParams.set(key, value);
-    } else {
-      searchParams.delete(key);
-    }
-
-    window.history.replaceState({}, '', url.toString());
-  }
-
-  /**
-   * Initialize data source context from URL parameters
-   */
-  static initializeFromURL(): {
-    currentPlatform: string | null;
-    currentTheme: string | null;
-  } {
-    const params = this.parseURLParameters();
-    
-    return {
-      currentPlatform: params.platform || null,
-      currentTheme: params.theme || null
-    };
-  }
-
-  /**
-   * Validate URL parameters
-   */
-  static validateURLParameters(params: URLParameters): {
-    isValid: boolean;
-    errors: string[];
-    warnings: string[];
-  } {
-    const errors: string[] = [];
-    const warnings: string[] = [];
-
-    // Validate repository parameters
-    if (params.repo && !this.isValidRepositoryFormat(params.repo)) {
-      errors.push('Invalid repository format. Expected format: owner/repository');
-    }
-
-    if (params.repo && !params.path) {
-      warnings.push('Repository specified but no file path provided');
-    }
-
-    if (params.path && !params.repo) {
-      warnings.push('File path specified but no repository provided');
-    }
-
-    // Validate platform parameter
-    if (params.platform && params.platform === 'none') {
-      warnings.push('Platform parameter set to "none" - this is redundant');
-    }
-
-    // Validate theme parameter
-    if (params.theme && params.theme === 'none') {
-      warnings.push('Theme parameter set to "none" - this is redundant');
-    }
-
-    // Validate branch parameter
-    if (params.branch && !this.isValidBranchName(params.branch)) {
-      warnings.push('Branch name may contain invalid characters');
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings
-    };
-  }
-
-  /**
-   * Check if repository format is valid
-   */
-  private static isValidRepositoryFormat(repo: string): boolean {
-    // Basic validation: should be in format "owner/repository"
-    const parts = repo.split('/');
-    return parts.length === 2 && parts[0].length > 0 && parts[1].length > 0;
-  }
-
-  /**
-   * Check if branch name is valid
-   */
-  private static isValidBranchName(branch: string): boolean {
-    // Basic validation: should not contain certain characters
-    const invalidChars = /[<>:"\\|?*]/;
-    return !invalidChars.test(branch);
-  }
-
-  /**
-   * Get current URL as shareable link
-   */
-  static getShareableURL(): string {
-    return window.location.href;
-  }
-
-  /**
-   * Create shareable URL with specific parameters
-   */
-  static createShareableURL(params: URLParameters): string {
-    const url = new URL(window.location.origin + window.location.pathname);
-    const searchParams = url.searchParams;
-
-    // Add all parameters
-    Object.entries(params).forEach(([key, value]) => {
-      if (value) {
-        searchParams.set(key, value);
+    try {
+      const url = new URL(window.location.href);
+      
+      // Update repository parameters
+      url.searchParams.set('repo', context.fullName);
+      url.searchParams.set('branch', context.branch);
+      url.searchParams.set('path', context.filePath);
+      
+      // Preserve platform/theme context
+      const dataSourceManager = DataSourceManager.getInstance();
+      const dataSourceContext = dataSourceManager.getCurrentContext();
+      
+      if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
+        url.searchParams.set('platform', dataSourceContext.currentPlatform);
+      } else {
+        url.searchParams.delete('platform');
       }
-    });
-
-    return url.toString();
+      
+      if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
+        url.searchParams.set('theme', dataSourceContext.currentTheme);
+      } else {
+        url.searchParams.delete('theme');
+      }
+      
+      // Update URL without triggering navigation
+      window.history.replaceState({}, '', url.toString());
+      
+      console.log('[URLStateManager] URL updated successfully');
+      
+    } catch (error) {
+      console.error('[URLStateManager] Error updating URL:', error);
+    }
   }
 
   /**
-   * Clear all URL parameters
+   * Load context from URL parameters
    */
-  static clearURLParameters(): void {
-    const url = new URL(window.location.origin + window.location.pathname);
-    window.history.replaceState({}, '', url.toString());
+  static loadContextFromURL(): RepositoryContext | null {
+    console.log('[URLStateManager] Loading context from URL');
+    
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const repo = urlParams.get('repo');
+      const branch = urlParams.get('branch');
+      const path = urlParams.get('path');
+      
+      if (!repo || !branch || !path) {
+        console.log('[URLStateManager] Missing required URL parameters');
+        return null;
+      }
+      
+      const context: RepositoryContext = {
+        fullName: repo,
+        branch,
+        filePath: path,
+        fileType: this.determineFileType(path)
+      };
+      
+      console.log('[URLStateManager] Loaded context from URL:', context);
+      return context;
+      
+    } catch (error) {
+      console.error('[URLStateManager] Error loading context from URL:', error);
+      return null;
+    }
   }
 
   /**
-   * Listen for URL parameter changes
+   * Update URL with edit mode state
+   * Note: Edit mode is not persisted in URL for security reasons
    */
-  static onURLChange(callback: (params: URLParameters) => void): () => void {
+  static updateURLWithEditMode(isEditMode: boolean, editBranch: string | null): void {
+    console.log('[URLStateManager] Updating URL with edit mode:', { isEditMode, editBranch });
+    
+    try {
+      const url = new URL(window.location.href);
+      
+      if (isEditMode && editBranch) {
+        // Only update the branch, don't persist edit mode in URL
+        url.searchParams.set('branch', editBranch);
+      }
+      // Note: We intentionally don't set or delete 'edit' parameter
+      // Edit mode is ephemeral and should not be persisted in URLs
+      
+      // Update URL without triggering navigation
+      window.history.replaceState({}, '', url.toString());
+      
+      console.log('[URLStateManager] URL updated with edit mode (branch only)');
+      
+    } catch (error) {
+      console.error('[URLStateManager] Error updating URL with edit mode:', error);
+    }
+  }
+
+  /**
+   * Sync URL with current state
+   */
+  static syncURLWithCurrentState(): void {
+    console.log('[URLStateManager] Syncing URL with current state');
+    
+    try {
+      const stateManager = StatePersistenceManager.getInstance();
+      const currentRepository = stateManager.getCurrentRepositoryContext();
+      const currentEditMode = stateManager.getCurrentEditMode();
+      
+      if (currentRepository) {
+        this.updateURLWithContext(currentRepository);
+      }
+      
+      if (currentEditMode.isActive) {
+        this.updateURLWithEditMode(true, currentEditMode.branch);
+      }
+      
+      console.log('[URLStateManager] URL synced with current state');
+      
+    } catch (error) {
+      console.error('[URLStateManager] Error syncing URL with current state:', error);
+    }
+  }
+
+  /**
+   * Get current URL parameters
+   */
+  static getCurrentURLParams(): {
+    repo: string | null;
+    branch: string | null;
+    path: string | null;
+    platform: string | null;
+    theme: string | null;
+  } {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      return {
+        repo: urlParams.get('repo'),
+        branch: urlParams.get('branch'),
+        path: urlParams.get('path'),
+        platform: urlParams.get('platform'),
+        theme: urlParams.get('theme')
+      };
+      
+    } catch (error) {
+      console.error('[URLStateManager] Error getting URL parameters:', error);
+      return {
+        repo: null,
+        branch: null,
+        path: null,
+        platform: null,
+        theme: null
+      };
+    }
+  }
+
+  /**
+   * Check if URL has changed from current state
+   */
+  static hasURLChanged(): boolean {
+    try {
+      const urlContext = this.loadContextFromURL();
+      const stateManager = StatePersistenceManager.getInstance();
+      const stateContext = stateManager.getCurrentRepositoryContext();
+      
+      if (!urlContext && !stateContext) {
+        return false; // Both are null, no change
+      }
+      
+      if (!urlContext || !stateContext) {
+        return true; // One is null, other isn't
+      }
+      
+      // Compare contexts
+      return (
+        urlContext.fullName !== stateContext.fullName ||
+        urlContext.branch !== stateContext.branch ||
+        urlContext.filePath !== stateContext.filePath ||
+        urlContext.fileType !== stateContext.fileType
+      );
+      
+    } catch (error) {
+      console.error('[URLStateManager] Error checking if URL changed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Reset URL to main branch
+   */
+  static resetURLToMainBranch(): void {
+    console.log('[URLStateManager] Resetting URL to main branch');
+    
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('branch', 'main');
+      
+      window.history.replaceState({}, '', url.toString());
+      
+      console.log('[URLStateManager] URL reset to main branch');
+      
+    } catch (error) {
+      console.error('[URLStateManager] Error resetting URL to main branch:', error);
+    }
+  }
+
+  /**
+   * Update URL with platform/theme context
+   */
+  static updateURLWithPlatformTheme(platform: string | null, theme: string | null): void {
+    console.log('[URLStateManager] Updating URL with platform/theme:', { platform, theme });
+    
+    try {
+      const url = new URL(window.location.href);
+      
+      if (platform && platform !== 'none') {
+        url.searchParams.set('platform', platform);
+      } else {
+        url.searchParams.delete('platform');
+      }
+      
+      if (theme && theme !== 'none') {
+        url.searchParams.set('theme', theme);
+      } else {
+        url.searchParams.delete('theme');
+      }
+      
+      window.history.replaceState({}, '', url.toString());
+      
+      console.log('[URLStateManager] URL updated with platform/theme');
+      
+    } catch (error) {
+      console.error('[URLStateManager] Error updating URL with platform/theme:', error);
+    }
+  }
+
+  /**
+   * Determine file type from path
+   */
+  private static determineFileType(path: string): 'schema' | 'platform-extension' | 'theme-override' {
+    const lowerPath = path.toLowerCase();
+    
+    if (lowerPath.includes('platform-extension') || lowerPath.includes('platform_extension')) {
+      return 'platform-extension';
+    }
+    
+    if (lowerPath.includes('theme-override') || lowerPath.includes('theme_override')) {
+      return 'theme-override';
+    }
+    
+    // Default to schema
+    return 'schema';
+  }
+
+  /**
+   * Get clean URL
+   */
+  static getCleanURL(): string {
+    try {
+      const url = new URL(window.location.href);
+      return url.toString();
+    } catch (error) {
+      console.error('[URLStateManager] Error getting clean URL:', error);
+      return window.location.href;
+    }
+  }
+
+  /**
+   * Navigate to URL without triggering page reload
+   */
+  static navigateToURL(url: string, replace: boolean = true): void {
+    console.log('[URLStateManager] Navigating to URL:', url);
+    
+    try {
+      if (replace) {
+        window.history.replaceState({}, '', url);
+      } else {
+        window.history.pushState({}, '', url);
+      }
+      
+      console.log('[URLStateManager] Navigation completed');
+      
+    } catch (error) {
+      console.error('[URLStateManager] Error navigating to URL:', error);
+    }
+  }
+
+  /**
+   * Listen for URL changes
+   */
+  static addURLChangeListener(callback: () => void): () => void {
     const handlePopState = () => {
-      const params = this.parseURLParameters();
-      callback(params);
+      console.log('[URLStateManager] URL changed via browser navigation');
+      callback();
     };
-
+    
     window.addEventListener('popstate', handlePopState);
-
+    
     // Return cleanup function
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }
-
-  /**
-   * Get URL parameter value
-   */
-  static getURLParameter(key: keyof URLParameters): string | null {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get(key);
-  }
-
-  /**
-   * Set URL parameter value
-   */
-  static setURLParameter(key: keyof URLParameters, value: string): void {
-    this.updateURLParameter(key, value);
-  }
-
-  /**
-   * Remove URL parameter
-   */
-  static removeURLParameter(key: keyof URLParameters): void {
-    this.updateURLParameter(key, undefined);
-  }
-
-  /**
-   * Check if URL has specific parameter
-   */
-  static hasURLParameter(key: keyof URLParameters): boolean {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.has(key);
-  }
-
-  /**
-   * Get all current URL parameters as object
-   */
-  static getAllURLParameters(): Record<string, string> {
-    const urlParams = new URLSearchParams(window.location.search);
-    const params: Record<string, string> = {};
-    
-    urlParams.forEach((value, key) => {
-      params[key] = value;
-    });
-    
-    return params;
-  }
-
-  /**
-   * Update multiple URL parameters at once
-   */
-  static updateMultipleURLParameters(updates: Partial<URLParameters>): void {
-    const url = new URL(window.location.href);
-    const searchParams = url.searchParams;
-
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value) {
-        searchParams.set(key, value);
-      } else {
-        searchParams.delete(key);
-      }
-    });
-
-    window.history.replaceState({}, '', url.toString());
-  }
-
-  /**
-   * Preserve existing URL parameters while updating specific ones
-   */
-  static preserveAndUpdateURLParameters(
-    updates: Partial<URLParameters>,
-    preserveKeys: (keyof URLParameters)[] = []
-  ): void {
-    const currentParams = this.getAllURLParameters();
-    const preservedParams: Partial<URLParameters> = {};
-
-    // Preserve specified parameters
-    preserveKeys.forEach(key => {
-      if (currentParams[key]) {
-        preservedParams[key] = currentParams[key];
-      }
-    });
-
-    // Merge preserved params with updates
-    const mergedParams = { ...preservedParams, ...updates };
-
-    // Update URL with merged parameters
-    this.updateMultipleURLParameters(mergedParams);
   }
 } 

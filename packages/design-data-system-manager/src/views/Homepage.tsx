@@ -17,6 +17,7 @@ import {
 import { Github, ExternalLink } from 'lucide-react';
 import { FindDesignSystemDialog } from '../components/FindDesignSystemDialog';
 import type { GitHubUser } from '../config/github';
+import { within } from '@storybook/test';
 
 interface HomepageProps {
   isGitHubConnected?: boolean;
@@ -94,7 +95,7 @@ export const Homepage: React.FC<HomepageProps> = ({
         {/* Header */}
         <VStack spacing={4} textAlign="center">
           <Heading size="xl" color={colorMode === 'dark' ? 'white' : 'gray.800'}>
-            Design System Manager
+            Design System Foundry
           </Heading>
           <Text color={colorMode === 'dark' ? 'gray.300' : 'gray.600'}>
             View and manage design tokens from GitHub repositories
@@ -108,7 +109,7 @@ export const Homepage: React.FC<HomepageProps> = ({
             <CardHeader pb={2}>
               <HStack>
                 <Icon as={Github} />
-                <Heading size="md">GitHub Connection</Heading>
+                <Heading size="md">Sign in with GitHub</Heading>
               </HStack>
             </CardHeader>
             <CardBody pt={0}>

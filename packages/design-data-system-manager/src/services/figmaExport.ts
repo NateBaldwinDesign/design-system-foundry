@@ -1,5 +1,4 @@
 import { TokenSystem } from '@token-model/data-model';
-import type { Token } from '@token-model/data-model';
 import { 
   FigmaTransformer, 
   FigmaVariable, 
@@ -47,10 +46,42 @@ export class FigmaExportService {
   }
 
   /**
+   * Get mapped platforms for Figma export
+   */
+  private getMappedPlatforms(tokenSystem: TokenSystem): {
+    mappedPlatforms: Array<{ platformId: string; figmaPlatform: string; displayName: string }>;
+    unmappedPlatforms: string[];
+  } {
+    const mappedPlatforms: Array<{ platformId: string; figmaPlatform: string; displayName: string }> = [];
+    const unmappedPlatforms: string[] = [];
+    
+    for (const platform of tokenSystem.platforms || []) {
+      if (platform.figmaPlatformMapping) {
+        mappedPlatforms.push({
+          platformId: platform.id,
+          figmaPlatform: platform.figmaPlatformMapping,
+          displayName: platform.displayName
+        });
+      } else {
+        unmappedPlatforms.push(platform.displayName);
+      }
+    }
+    
+    return { mappedPlatforms, unmappedPlatforms };
+  }
+
+  /**
    * Export the current design system data to Figma Variables format
    */
   async exportToFigma(tokenSystem: TokenSystem, options: FigmaExportOptions = {}): Promise<FigmaExportResult> {
     console.log('[FigmaExportService] Starting Figma export...');
+    
+    // Log platform mapping information
+    const { mappedPlatforms, unmappedPlatforms } = this.getMappedPlatforms(tokenSystem);
+    console.log('[FigmaExportService] Platform mappings:', mappedPlatforms);
+    if (unmappedPlatforms.length > 0) {
+      console.warn('[FigmaExportService] Unmapped platforms (will be excluded):', unmappedPlatforms);
+    }
     
     try {
       // Convert FigmaExportOptions to FigmaTransformerOptions
@@ -157,7 +188,21 @@ export class FigmaExportService {
             sampleMappings: Object.entries(tempToRealId).slice(0, 5)
           });
         } else {
-          console.log('[FigmaExportService] ❌ FAILED: No tempToRealId mapping found for fileId:', options.fileId);
+          // For files with no existing variables, we can proceed without tempToRealId mapping
+          const hasExistingVariables = existingFigmaData?.meta?.variables && existingFigmaData.meta.variables.length > 0;
+          if (hasExistingVariables) {
+            console.log('[FigmaExportService] ❌ FAILED: No tempToRealId mapping found for fileId:', options.fileId);
+            return {
+              success: false,
+              error: {
+                code: 'MISSING_MAPPING',
+                message: 'tempToRealId mapping is required for files with existing variables',
+                details: { fileId: options.fileId }
+              }
+            };
+          } else {
+            console.log('[FigmaExportService] ℹ️ No tempToRealId mapping found, but file has no existing variables - proceeding with new variable creation');
+          }
         }
       } else {
         console.log('[FigmaExportService] No fileId provided, skipping tempToRealId loading');

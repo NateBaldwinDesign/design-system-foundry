@@ -1,8 +1,9 @@
 import React from 'react';
-import { Box, HStack, Text } from "@chakra-ui/react"
+import { Box, HStack, Text, useColorMode } from "@chakra-ui/react"
 import type { ResolvedValueType } from '@token-model/data-model';
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
 import { TokenSourceBadge, type TokenSource } from './TokenSourceBadge';
+import { b } from 'vitest/dist/chunks/suite.d.FvehnV49.js';
 
 interface TokenTagProps {
     displayName: string;
@@ -35,6 +36,9 @@ const TokenTag: React.FC<TokenTagProps> = ({
         throw new Error(`Unknown value type: ${resolvedValueTypeId}`);
     }
 
+    const { colorMode } = useColorMode();
+    const bgColor = colorMode === 'dark' ? 'gray.800' : 'gray.100';
+
     return (
         <Box
             onClick={onClick}
@@ -43,9 +47,9 @@ const TokenTag: React.FC<TokenTagProps> = ({
             borderRadius={isPill ? 'md' : 'md'}
             py={1}
             px={2}
-            bg={isPill ? 'gray.100' : 'transparent'}
+            bg={isPill ? bgColor : 'transparent'}
             borderWidth={isPill ? '1px' : '0'}
-            borderColor="gray.200"
+            borderColor="chakra-border-color"
         >
             <HStack width="100%" flexGrow={1} justifyContent="space-between">
                 <HStack gap={2} width="100%" justifyContent="flex-start" flexGrow={0}>

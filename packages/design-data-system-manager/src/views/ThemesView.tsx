@@ -18,7 +18,7 @@ interface ThemesViewProps {
 const ThemesView: React.FC<ThemesViewProps> = ({
   themes,
   setThemes,
-  canEdit = true
+  canEdit = false
 }) => {
   return (
     <PageTemplate

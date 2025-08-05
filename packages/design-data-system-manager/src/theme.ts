@@ -10,7 +10,7 @@ console.log('🔍 [Theme] Stored color mode from HTML script:', storedColorMode)
 const validColorMode = storedColorMode === 'light' || storedColorMode === 'dark' || storedColorMode === 'system' ? storedColorMode : undefined;
 
 const config: ThemeConfig = {
-  initialColorMode: validColorMode || 'system',
+  initialColorMode: 'system',
   useSystemColorMode: !validColorMode, // Only use system if no stored preference
 };
 

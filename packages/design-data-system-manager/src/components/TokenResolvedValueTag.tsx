@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, HStack, Text } from "@chakra-ui/react";
+import { Box, HStack, Text, useColorMode } from "@chakra-ui/react";
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
 
 interface TokenResolvedValueTagProps {
@@ -44,6 +44,10 @@ const TokenResolvedValueTag: React.FC<TokenResolvedValueTagProps> = ({
       displayValue = formattedValue;
   }
 
+  const { colorMode } = useColorMode();
+
+  const bgColor = colorMode === 'dark' ? 'gray.800' : 'gray.100';
+
   return (
     <Box
         width="100%"
@@ -51,9 +55,9 @@ const TokenResolvedValueTag: React.FC<TokenResolvedValueTagProps> = ({
         borderRadius='md'
         py={1}
         px={2}
-        bg='gray.100'
+        bg={bgColor}
         borderWidth='1px'
-        borderColor="gray.200"
+        borderColor="chakra-border-color"
     >
       <HStack width="100%" justifyContent="flex-start" gap={2}>
           {resolvedValueType === 'COLOR' && (

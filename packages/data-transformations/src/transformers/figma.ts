@@ -54,8 +54,9 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     const errors: ValidationResult['errors'] = [];
     const warnings: ValidationResult['warnings'] = [];
 
-    // Use the comprehensive validation from utils
-    const validation = validateTokenSystem(input);
+    // Use the comprehensive validation from utils, but skip code syntax validation for Figma export
+    // This allows tokens with invalid platform references to still be exported to Figma
+    const validation = validateTokenSystem(input, { skipCodeSyntaxValidation: true });
     errors.push(...validation.errors);
     warnings.push(...validation.warnings);
 
@@ -497,22 +498,12 @@ export class FigmaTransformer extends AbstractBaseTransformer<
   private buildCodeSyntax(token: Token, tokenSystem: TokenSystem): any {
     const codeSyntax: any = {};
     
-    // Map platform code syntax to Figma's expected format
+    // Map platform code syntax to Figma's expected format using figmaPlatformMapping
     for (const cs of token.codeSyntax || []) {
       const platform = tokenSystem.platforms?.find((p: any) => p.id === cs.platformId);
-      if (platform) {
-        switch (platform.displayName?.toLowerCase()) {
-          case 'css':
-          case 'web':
-            codeSyntax.WEB = cs.formattedName;
-            break;
-          case 'ios':
-            codeSyntax.iOS = cs.formattedName;
-            break;
-          case 'android':
-            codeSyntax.ANDROID = cs.formattedName;
-            break;
-        }
+      if (platform?.figmaPlatformMapping) {
+        // Use the explicit mapping from the platform
+        codeSyntax[platform.figmaPlatformMapping] = cs.formattedName;
       }
     }
     

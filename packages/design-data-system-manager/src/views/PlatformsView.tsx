@@ -50,7 +50,7 @@ interface PlatformsViewProps {
 export const PlatformsView: React.FC<PlatformsViewProps> = ({ 
   platforms = [], 
   setPlatforms,
-  canEdit = true
+  canEdit = false
 }) => {
   const { colorMode } = useColorMode();
   const [isLoading] = useState(false);
@@ -1286,6 +1286,16 @@ export const PlatformsView: React.FC<PlatformsViewProps> = ({
                           <Text fontSize="sm" color="gray.500">ID: {platform.id}</Text>
                           {platform.description && (
                             <Text fontSize="sm" color="gray.500">{platform.description}</Text>
+                          )}
+                          {platform.figmaPlatformMapping ? (
+                            <HStack spacing={1}>
+                              <Text fontSize="sm" color="gray.500">Figma:</Text>
+                              <Badge colorScheme="blue" variant="subtle" fontSize="xs">
+                                {platform.figmaPlatformMapping}
+                              </Badge>
+                            </HStack>
+                          ) : (
+                            <Text fontSize="sm" color="gray.400">Figma: Not mapped</Text>
                           )}
                           {platform.syntaxPatterns && (
                             <Text fontSize="sm" color="gray.500">

@@ -48,7 +48,7 @@ export function TaxonomyView({
   dimensions, 
   platforms, 
   resolvedValueTypes,
-  canEdit = true
+  canEdit = false
 }: TaxonomyViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);

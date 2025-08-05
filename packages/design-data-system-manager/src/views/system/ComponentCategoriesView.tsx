@@ -34,7 +34,7 @@ interface ComponentCategoriesViewProps {
 export function ComponentCategoriesView({ 
   componentCategories, 
   setComponentCategories,
-  canEdit = true
+  canEdit = false
 }: ComponentCategoriesViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);

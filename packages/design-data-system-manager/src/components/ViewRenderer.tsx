@@ -19,7 +19,6 @@ import type { ExtendedToken } from './TokenEditorDialog';
 import type { Algorithm } from '../types/algorithm';
 import type { Schema } from '../hooks/useSchema';
 import type { GitHubUser } from '../config/github';
-import { useAuth } from '../hooks/useAuth';
 
 // Import all view components
 import DashboardView from '../views/DashboardView';
@@ -141,7 +140,9 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   onSaveToken,
   onDeleteToken,
 }) => {
-  const auth = useAuth({ githubUser, isViewOnlyMode, hasEditPermissions: canEdit, dataSourceContext });
+  // Views should show edit capabilities when user has permissions AND is in edit mode
+  // canEdit prop already combines hasEditPermissions && isEditMode from App.tsx
+  const effectiveCanEdit = canEdit;
 
   const renderView = () => {
     switch (currentView) {
@@ -166,16 +167,16 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
               modes={modes}
               dimensions={dimensions}
               taxonomies={taxonomies}
-              canEdit={auth.canEdit}
+              canEdit={effectiveCanEdit}
               dataSourceContext={dataSourceContext}
               renderAddTokenButton={
-                auth.canEdit ? (
+                effectiveCanEdit ? (
                   <Button colorScheme="blue" size="sm" onClick={onAddToken} leftIcon={<Plus />}>
                     Add Token
                   </Button>
                 ) : null
               }
-              onEditToken={auth.canEdit ? onEditToken : undefined}
+              onEditToken={effectiveCanEdit ? onEditToken : undefined}
             />
             {isEditorOpen && selectedToken && (
               <TokenEditorDialog
@@ -201,10 +202,10 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         );
 
       case 'system-variables':
-        return <SystemVariablesView dimensions={dimensions} canEdit={auth.canEdit} />;
+        return <SystemVariablesView dimensions={dimensions} canEdit={effectiveCanEdit} />;
       
       case 'algorithms':
-        return <AlgorithmsView algorithms={algorithms} onUpdate={onUpdateAlgorithms} onUpdateTokens={onUpdateTokens} canEdit={auth.canEdit} />;
+        return <AlgorithmsView algorithms={algorithms} onUpdate={onUpdateAlgorithms} onUpdateTokens={onUpdateTokens} canEdit={effectiveCanEdit} />;
       
       case 'analysis':
         return <TokenAnalysis tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} resolvedValueTypes={resolvedValueTypes} />;
@@ -214,27 +215,27 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
           <DimensionsView 
             dimensions={dimensions} 
             setDimensions={onUpdateDimensions}
-            canEdit={auth.canEdit}
+            canEdit={effectiveCanEdit}
           />
         );
       
       case 'classification':
-        return <TaxonomyView taxonomies={taxonomies} setTaxonomies={onUpdateTaxonomies} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} resolvedValueTypes={resolvedValueTypes} canEdit={auth.canEdit} />;
+        return <TaxonomyView taxonomies={taxonomies} setTaxonomies={onUpdateTaxonomies} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} resolvedValueTypes={resolvedValueTypes} canEdit={effectiveCanEdit} />;
       
       case 'value-types':
-        return <ValueTypesView valueTypes={resolvedValueTypes} onUpdate={onUpdateResolvedValueTypes} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} themes={themes} canEdit={auth.canEdit} />;
+        return <ValueTypesView valueTypes={resolvedValueTypes} onUpdate={onUpdateResolvedValueTypes} tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} themes={themes} canEdit={effectiveCanEdit} />;
       
       case 'collections':
-        return <CollectionsView collections={collections} onUpdate={onUpdateCollections} tokens={tokens} resolvedValueTypes={resolvedValueTypes} canEdit={auth.canEdit} />;
+        return <CollectionsView collections={collections} onUpdate={onUpdateCollections} tokens={tokens} resolvedValueTypes={resolvedValueTypes} canEdit={effectiveCanEdit} />;
       
       case 'themes':
-        return <ThemesView themes={themes} setThemes={onUpdateThemes} canEdit={auth.canEdit} />;
+        return <ThemesView themes={themes} setThemes={onUpdateThemes} canEdit={effectiveCanEdit} />;
       
       case 'platforms':
-        return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} canEdit={auth.canEdit} />;
+        return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} canEdit={effectiveCanEdit} />;
       
       case 'figma-settings':
-        return <FigmaConfigurationsView tokenSystem={createSchemaJsonFromLocalStorage()} canEdit={auth.canEdit} dataSourceContext={dataSourceContext} />;
+        return <FigmaConfigurationsView tokenSystem={createSchemaJsonFromLocalStorage()} canEdit={effectiveCanEdit} dataSourceContext={dataSourceContext} />;
       
       case 'validation':
         return <ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />;
@@ -243,7 +244,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <SchemasView />;
       
       case 'system':
-        return <SystemView canEdit={auth.canEdit} />;
+        return <SystemView canEdit={effectiveCanEdit} />;
       
       case 'components':
         return (
@@ -252,7 +253,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
             setComponents={onUpdateComponents}
             componentCategories={componentCategories}
             componentProperties={componentProperties}
-            canEdit={auth.canEdit}
+            canEdit={effectiveCanEdit}
           />
         );
       

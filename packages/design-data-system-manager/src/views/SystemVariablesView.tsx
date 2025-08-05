@@ -10,7 +10,7 @@ interface SystemVariablesViewProps {
   canEdit?: boolean;
 }
 
-export function SystemVariablesView({ dimensions, canEdit = true }: SystemVariablesViewProps) {
+export function SystemVariablesView({ dimensions, canEdit = false }: SystemVariablesViewProps) {
   const { colorMode } = useColorMode();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVariable, setEditingVariable] = useState<SystemVariable | null>(null);

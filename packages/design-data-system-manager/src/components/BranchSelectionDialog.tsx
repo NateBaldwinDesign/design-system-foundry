@@ -16,7 +16,7 @@ import {
   useToast,
   Spinner,
 } from '@chakra-ui/react';
-import { GitHubApiService } from '../services/githubApi';
+import { BranchManager } from '../services/branchManager';
 import { BranchCreationDialog } from './BranchCreationDialog';
 import type { GitHubUser } from '../config/github';
 
@@ -73,10 +73,11 @@ export const BranchSelectionDialog: React.FC<BranchSelectionDialogProps> = ({
 
     setIsLoadingBranches(true);
     try {
-      const branchList = await GitHubApiService.getBranches(repositoryFullName);
-      // Extract branch names and filter out the current branch, then sort alphabetically
+      // Use the new BranchManager for enhanced branch loading
+      const branchList = await BranchManager.loadBranchesForRepository(repositoryFullName, false);
+      
+      // Filter out the current branch, then sort alphabetically
       const filteredBranches = branchList
-        .map(branch => branch.name)
         .filter(branchName => branchName !== currentBranch)
         .sort();
       setBranches(filteredBranches);

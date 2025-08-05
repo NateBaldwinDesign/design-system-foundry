@@ -52,7 +52,7 @@ interface FigmaConfigurationsViewProps {
 
 export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = ({ 
   tokenSystem,
-  canEdit = true,
+  canEdit = false,
   dataSourceContext
 }) => {
   const { colorMode } = useColorMode();
