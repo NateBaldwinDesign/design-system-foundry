@@ -123,7 +123,9 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   hasChanges = false, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   changeCount = 0,
   currentData,
   baselineData,
@@ -155,9 +157,12 @@ export const Header: React.FC<HeaderProps> = ({
   onEnterEditMode,
   onExitEditMode,
   // NEW: Edit context props
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   editContext,
   onSaveChanges,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onDiscardChanges,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   pendingOverrides = [],
 }) => {
   const { colorMode } = useColorMode();
@@ -169,13 +174,13 @@ export const Header: React.FC<HeaderProps> = ({
   const [showFindDesignSystem, setShowFindDesignSystem] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveDialogMode, setSaveDialogMode] = useState<'direct' | 'pullRequest'>('direct');
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isGitHubWorkflowMenuOpen, setIsGitHubWorkflowMenuOpen] = useState(false);
   const [isGitHubConnecting, setIsGitHubConnecting] = useState(false);
   const [showBranchSelectionDialog, setShowBranchSelectionDialog] = useState(false);
   const [targetRepositoryForBranch, setTargetRepositoryForBranch] = useState<{ fullName: string; branch: string; filePath: string; fileType: string } | null>(null);
   const [targetBranchForBranch, setTargetBranchForBranch] = useState<string>('main');
   const [showSwitchBranchDialog, setShowSwitchBranchDialog] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [switchBranchMode, setSwitchBranchMode] = useState<'edit' | 'view'>('view');
   const toast = useToast();
   const [showSourceSwitchWarning, setShowSourceSwitchWarning] = useState(false);
@@ -190,6 +195,7 @@ export const Header: React.FC<HeaderProps> = ({
   const sourceManager = SourceManagerService.getInstance();
   const hasLocalChanges = dataEditor.hasLocalChanges();
   const localChangeCount = dataEditor.getChangeCount();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const changeSummary = dataEditor.getChangeSummary();
   const currentSourceContext = sourceManager.getCurrentSourceContext();
   
@@ -220,6 +226,16 @@ export const Header: React.FC<HeaderProps> = ({
     // Available options
     availablePlatforms: sourceManager.getAvailablePlatforms().map(p => ({ id: p.id, displayName: p.displayName })),
     availableThemes: sourceManager.getAvailableThemes().map(t => ({ id: t.id, displayName: t.displayName }))
+  });
+
+  // Debug logging for edit mode state
+  console.log('[Header] Edit Mode State:', {
+    isEditMode,
+    currentSourceContextEditMode: currentSourceContext?.editMode?.isActive,
+    hasLocalChanges,
+    localChangeCount,
+    hasEditPermissions,
+    currentBranch
   });
 
   // Handle source switching warning events
@@ -391,14 +407,31 @@ export const Header: React.FC<HeaderProps> = ({
 
   // NEW: Helper function to determine if user has edit permissions from new data management services
   const hasDataSourceEditPermissions = () => {
-    const sourceContext = sourceManager.getCurrentSourceContext();
-    if (sourceContext?.editMode?.isActive) {
-      return true; // If in edit mode, user has permissions
+    // Check if user is authenticated
+    if (!githubUser) {
+      return false;
     }
-    return false;
+    
+    // Check if we have a valid source context with repository information
+    const sourceContext = sourceManager.getCurrentSourceContext();
+    if (!sourceContext) {
+      return false;
+    }
+    
+    // If already in edit mode, user has permissions
+    if (sourceContext.editMode?.isActive) {
+      return true;
+    }
+    
+    // Check if we have repository information for the current source
+    const hasRepositoryInfo = sourceContext.coreRepository?.fullName || 
+                             sourceContext.sourceRepository?.fullName;
+    
+    return !!hasRepositoryInfo;
   };
 
   // NEW: Helper function to determine if user is view-only
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const isViewOnlyUser = () => {
     return !hasDataSourceEditPermissions();
   };
@@ -436,6 +469,7 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleGitHubDisconnect = () => {
     // Clear URL parameters when disconnecting from GitHub
     const url = new URL(window.location.href);
@@ -450,7 +484,6 @@ export const Header: React.FC<HeaderProps> = ({
     // Clear local UI state
     setShowFindDesignSystem(false);
     setShowSaveDialog(false);
-    setIsUserMenuOpen(false);
     setIsGitHubConnecting(false);
   };
 
@@ -676,7 +709,7 @@ export const Header: React.FC<HeaderProps> = ({
 
     // Check if we're on a main branch
     if (isMainBranch(currentBranch)) {
-      // Main branch - open branch selection dialog
+      // Main branch - open branch selection dialog to create new branch
       setTargetRepositoryForBranch(targetRepository);
       // Use the branch from the target repository, or fallback to 'main'
       const targetBranch = targetRepository?.branch || 'main';
@@ -688,24 +721,56 @@ export const Header: React.FC<HeaderProps> = ({
       setTargetBranchForBranch(targetBranch);
       setShowBranchSelectionDialog(true);
     } else {
-      // Non-main branch - call the app-level handler
+      // Non-main branch - directly enter edit mode
+      console.log('[Header] Entering edit mode on non-main branch:', {
+        currentBranch,
+        targetRepository: targetRepository?.fullName
+      });
+      
       if (onEnterEditMode) {
         onEnterEditMode();
+      } else {
+        console.warn('[Header] onEnterEditMode handler not provided');
+        toast({
+          title: 'Edit Mode Not Available',
+          description: 'Edit mode handler is not configured.',
+          status: 'warning',
+          duration: 3000,
+          isClosable: true,
+        });
       }
     }
   };
 
-  const handleBranchSelected = (branchName: string) => {
+  const handleBranchSelected = (branchName: string, editMode?: boolean) => {
     // When selecting an existing branch, we need to:
     // 1. Switch to that branch (similar to branch creation)
-    // 2. Enter edit mode
+    // 2. Enter edit mode if editMode is true
+    
+    console.log('[Header] Branch selected:', {
+      branchName,
+      editMode,
+      hasOnBranchCreated: !!onBranchCreated,
+      hasOnEnterEditMode: !!onEnterEditMode
+    });
     
     if (onBranchCreated) {
       // Use onBranchCreated which handles branch switching and entering edit mode
       onBranchCreated(branchName);
-    } else if (onEnterEditMode) {
-      // Fallback to just entering edit mode if onBranchCreated is not available
+    } else if (editMode && onEnterEditMode) {
+      // If edit mode is requested and we have the handler, enter edit mode
+      console.log('[Header] Entering edit mode after branch selection');
       onEnterEditMode();
+    } else if (editMode && !onEnterEditMode) {
+      // Edit mode requested but no handler available
+      console.warn('[Header] Edit mode requested but onEnterEditMode handler not provided');
+      toast({
+        title: 'Edit Mode Not Available',
+        description: 'Edit mode handler is not configured.',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
     }
     setShowBranchSelectionDialog(false);
   };
@@ -811,25 +876,10 @@ export const Header: React.FC<HeaderProps> = ({
           )}
           <Text fontSize="md" fontWeight="bold">{title}</Text>
           <Text fontSize="xs">{subtitle}</Text>
-          
-          {/* Change Status Indicator */}
-          {hasLocalChanges && (
-            <HStack spacing={1} px={2} py={1} bg="orange.50" borderRadius="md" border="1px solid" borderColor="orange.200">
-              <Badge colorScheme="orange" variant="subtle" fontSize="xs">
-                {localChangeCount} change{localChangeCount !== 1 ? 's' : ''}
-              </Badge>
-              {currentSourceContext && (
-                <Text fontSize="xs" color="orange.700">
-                  {currentSourceContext.sourceType === 'platform' ? 'Platform' : 
-                   currentSourceContext.sourceType === 'theme' ? 'Theme' : 'Core'} data
-                </Text>
-              )}
-            </HStack>
-          )}
         </HStack>
         <HStack spacing={2}>
           {/* NEW: Edit Mode UI Layout */}
-          {dataSourceContext && dataSourceContext.editMode.isActive ? (
+          {isEditMode ? (
             // Edit Mode Layout
             <>
               {/* Edit Mode Buttons */}
@@ -1135,6 +1185,7 @@ export const Header: React.FC<HeaderProps> = ({
         currentBranch={targetBranchForBranch}
         repositoryFullName={targetRepositoryForBranch?.fullName || selectedRepoInfo?.fullName || ''}
         githubUser={githubUser || null}
+        editMode={true}
         sourceContext={(() => {
           if (!dataSourceContext) return undefined;
           
@@ -1180,6 +1231,7 @@ export const Header: React.FC<HeaderProps> = ({
         currentBranch={targetBranchForBranch}
         repositoryFullName={targetRepositoryForBranch?.fullName || selectedRepoInfo?.fullName || ''}
         githubUser={githubUser || null}
+        editMode={false}
         sourceContext={(() => {
           if (!dataSourceContext) return undefined;
           

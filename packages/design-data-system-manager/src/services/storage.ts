@@ -617,7 +617,11 @@ export class StorageService {
   }
 
   static setLocalEdits(data: TokenSystem | PlatformExtension | ThemeOverrideFile): void {
+    console.log('[StorageService] setLocalEdits called with data type:', typeof data);
     this.setItem(STORAGE_KEYS.LOCAL_EDITS, data);
+    // Dispatch event to notify components that local edits have changed
+    console.log('[StorageService] Dispatching token-model:local-edits-changed event');
+    window.dispatchEvent(new CustomEvent('token-model:local-edits-changed'));
   }
 
   static getMergedData(): TokenSystem | null {
@@ -634,6 +638,83 @@ export class StorageService {
 
   static setSourceContext(context: SourceContext): void {
     this.setItem(STORAGE_KEYS.SOURCE_CONTEXT, context);
+  }
+
+  // NEW: Methods for saving specific data types to local edits
+  static updateLocalEditsDimensions(dimensions: Dimension[]): void {
+    console.log('[StorageService] updateLocalEditsDimensions called with:', dimensions.length, 'dimensions');
+    const localEdits = this.getLocalEdits();
+    console.log('[StorageService] Current localEdits:', localEdits ? 'exists' : 'null');
+    
+    if (localEdits && 'dimensions' in localEdits) {
+      const updatedEdits = { ...localEdits, dimensions };
+      console.log('[StorageService] Updating local edits with new dimensions');
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    } else {
+      console.warn('[StorageService] Cannot update dimensions - localEdits missing or wrong type');
+    }
+  }
+
+  static updateLocalEditsValueTypes(valueTypes: ResolvedValueType[]): void {
+    const localEdits = this.getLocalEdits();
+    if (localEdits && 'resolvedValueTypes' in localEdits) {
+      const updatedEdits = { ...localEdits, resolvedValueTypes: valueTypes };
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    }
+  }
+
+  static updateLocalEditsTaxonomies(taxonomies: Taxonomy[]): void {
+    const localEdits = this.getLocalEdits();
+    if (localEdits && 'taxonomies' in localEdits) {
+      const updatedEdits = { ...localEdits, taxonomies };
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    }
+  }
+
+  static updateLocalEditsComponentCategories(componentCategories: ComponentCategory[]): void {
+    const localEdits = this.getLocalEdits();
+    if (localEdits && 'componentCategories' in localEdits) {
+      const updatedEdits = { ...localEdits, componentCategories };
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    }
+  }
+
+  static updateLocalEditsComponentProperties(componentProperties: ComponentProperty[]): void {
+    const localEdits = this.getLocalEdits();
+    if (localEdits && 'componentProperties' in localEdits) {
+      const updatedEdits = { ...localEdits, componentProperties };
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    }
+  }
+
+  static updateLocalEditsComponents(components: Component[]): void {
+    const localEdits = this.getLocalEdits();
+    if (localEdits && 'components' in localEdits) {
+      const updatedEdits = { ...localEdits, components };
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    }
+  }
+
+  static updateLocalEditsTokens(tokens: Token[]): void {
+    console.log('[StorageService] updateLocalEditsTokens called with:', tokens.length, 'tokens');
+    const localEdits = this.getLocalEdits();
+    console.log('[StorageService] Current localEdits:', localEdits ? 'exists' : 'null');
+    
+    if (localEdits && 'tokens' in localEdits) {
+      const updatedEdits = { ...localEdits, tokens };
+      console.log('[StorageService] Updating local edits with new tokens');
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    } else {
+      console.warn('[StorageService] Cannot update tokens - localEdits missing or wrong type');
+    }
+  }
+
+  static updateLocalEditsCollections(collections: TokenCollection[]): void {
+    const localEdits = this.getLocalEdits();
+    if (localEdits && 'tokenCollections' in localEdits) {
+      const updatedEdits = { ...localEdits, tokenCollections: collections };
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    }
   }
 
   // Migration helper methods

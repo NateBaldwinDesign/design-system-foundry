@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   VStack,
@@ -18,15 +18,10 @@ import {
   Edit,
   FileCode,
   Palette,
-  Layers,
   Tag,
-  Database,
   Settings,
-  FunctionSquareIcon,
   SquareFunctionIcon,
-  Folders,
   Settings2,
-  FigmaIcon,
   SquareStack,
   Boxes,
   FoldersIcon,
@@ -37,10 +32,12 @@ import {
 import TokenIcon from '../icons/TokenIcon';
 import { Figma } from 'lucide-react';
 import { OverrideTrackingService } from '../services/overrideTrackingService';
+import { StorageService } from '../services/storage';
 
 interface ChangeLogProps {
+  // Legacy props - no longer used as ChangeLog now uses new data management system
   previousData?: Record<string, unknown> | null | undefined;
-  currentData: Record<string, unknown> | null | undefined;
+  currentData?: Record<string, unknown> | null | undefined;
 }
 
 interface ChangeEntry {
@@ -1829,21 +1826,66 @@ const detectChanges = (previousData: Record<string, unknown> | null | undefined,
   return changes;
 };
 
-export const ChangeLog: React.FC<ChangeLogProps> = ({ previousData, currentData }) => {
+export const ChangeLog: React.FC<ChangeLogProps> = (props) => {
+  // Legacy props are ignored - ChangeLog now uses new data management system
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { previousData, currentData } = props;
   const { colorMode } = useColorMode();
+  const [changes, setChanges] = useState<ChangeEntry[]>([]);
+  
+  useEffect(() => {
+    const updateChanges = () => {
+      console.log('[ChangeLog] Updating changes...');
+      
+      const sourceSnapshot = StorageService.getSourceSnapshot();
+      const localEdits = StorageService.getLocalEdits();
+      
+      console.log('[ChangeLog] Data sources:', {
+        hasSourceSnapshot: !!sourceSnapshot,
+        hasLocalEdits: !!localEdits,
+        sourceSnapshotType: sourceSnapshot ? typeof sourceSnapshot : 'null',
+        localEditsType: localEdits ? typeof localEdits : 'null'
+      });
+      
+      if (!sourceSnapshot || !localEdits) {
+        console.log('[ChangeLog] Missing data, clearing changes');
+        setChanges([]);
+        return;
+      }
+      
+      // Convert to the format expected by detectChanges
+      const previousData = sourceSnapshot as Record<string, unknown>;
+      const currentData = localEdits as Record<string, unknown>;
+      
+      console.log('[ChangeLog] Calling detectChanges with:', {
+        previousDataKeys: Object.keys(previousData),
+        currentDataKeys: Object.keys(currentData)
+      });
+      
+      const detectedChanges = detectChanges(previousData, currentData);
+      console.log('[ChangeLog] Detected changes:', detectedChanges.length);
+      
+      setChanges(detectedChanges);
+    };
+    
+    // Initial load
+    updateChanges();
+    
+    // Listen for changes to local edits
+    const handleLocalEditsChanged = () => {
+      console.log('[ChangeLog] Received local-edits-changed event');
+      updateChanges();
+    };
+    
+    // Custom event for local edits changes (this is the important one)
+    window.addEventListener('token-model:local-edits-changed', handleLocalEditsChanged);
+    
+    return () => {
+      window.removeEventListener('token-model:local-edits-changed', handleLocalEditsChanged);
+    };
+  }, []);
   
   // Handle null/undefined data
-  if (!previousData || !currentData) {
-    return (
-      <Box p={4} textAlign="center">
-        <Text color="gray.500">No data available for comparison</Text>
-      </Box>
-    );
-  }
-  
-  // Use the previousData prop directly instead of managing internal baseline
-  const changes = detectChanges(previousData, currentData);
-
   if (changes.length === 0) {
     return (
       <Box p={4} textAlign="center">

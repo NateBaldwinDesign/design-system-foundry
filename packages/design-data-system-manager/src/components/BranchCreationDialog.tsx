@@ -23,10 +23,12 @@ import type { GitHubUser } from '../config/github';
 interface BranchCreationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onBranchCreated: (branchName: string) => void;
+  onBranchCreated: (branchName: string, editMode?: boolean) => void;
   currentBranch: string;
   repositoryFullName: string;
   githubUser: GitHubUser | null;
+  // NEW: Edit mode parameter to indicate if this is for editing
+  editMode?: boolean;
   // NEW: Source context information
   sourceContext?: {
     sourceType: 'core' | 'platform-extension' | 'theme-override';
@@ -44,6 +46,7 @@ export const BranchCreationDialog: React.FC<BranchCreationDialogProps> = ({
   currentBranch,
   repositoryFullName,
   githubUser,
+  editMode = false,
   sourceContext,
 }) => {
   console.log('[BranchCreationDialog] Props:', {
@@ -132,7 +135,8 @@ export const BranchCreationDialog: React.FC<BranchCreationDialogProps> = ({
         isClosable: true,
       });
 
-      onBranchCreated(branchName);
+      // Pass the edit mode intent along with the branch name
+      onBranchCreated(branchName, editMode);
       onClose();
     } catch (error) {
       console.error('Failed to create branch:', error);

@@ -104,11 +104,26 @@ export class DataEditorService {
       collection: { added: 0, modified: 0, deleted: 0 },
       dimension: { added: 0, modified: 0, deleted: 0 },
       platform: { added: 0, modified: 0, deleted: 0 },
-      theme: { added: 0, modified: 0, deleted: 0 }
+      theme: { added: 0, modified: 0, deleted: 0 },
+      resolvedValueType: { added: 0, modified: 0, deleted: 0 },
+      taxonomy: { added: 0, modified: 0, deleted: 0 },
+      algorithm: { added: 0, modified: 0, deleted: 0 },
+      componentProperty: { added: 0, modified: 0, deleted: 0 },
+      componentCategory: { added: 0, modified: 0, deleted: 0 },
+      component: { added: 0, modified: 0, deleted: 0 },
+      repository: { added: 0, modified: 0, deleted: 0 },
+      platformExtension: { added: 0, modified: 0, deleted: 0 },
+      platformExtensionFile: { added: 0, modified: 0, deleted: 0 },
+      figmaConfiguration: { added: 0, modified: 0, deleted: 0 }
     };
 
     changes.forEach(change => {
-      summary[change.entityType][change.type]++;
+      // Ensure the entity type exists in the summary before accessing it
+      if (summary[change.entityType]) {
+        summary[change.entityType][change.type]++;
+      } else {
+        console.warn(`[DataEditorService] Unknown entity type in change: ${change.entityType}`);
+      }
     });
 
     return summary;
@@ -406,6 +421,172 @@ export class DataEditorService {
       'theme',
       'id'
     ));
+
+    // Compare resolved value types
+    changes.push(...this.compareArrays(
+      snapshot.resolvedValueTypes || [],
+      localEdits.resolvedValueTypes || [],
+      'resolvedValueType',
+      'id'
+    ));
+
+    // Compare taxonomies
+    changes.push(...this.compareArrays(
+      snapshot.taxonomies || [],
+      localEdits.taxonomies || [],
+      'taxonomy',
+      'id'
+    ));
+
+    // Compare algorithms
+    changes.push(...this.compareArrays(
+      snapshot.algorithms || [],
+      localEdits.algorithms || [],
+      'algorithm',
+      'id'
+    ));
+
+    // Compare component properties
+    changes.push(...this.compareArrays(
+      snapshot.componentProperties || [],
+      localEdits.componentProperties || [],
+      'componentProperty',
+      'id'
+    ));
+
+    // Compare component categories
+    changes.push(...this.compareArrays(
+      snapshot.componentCategories || [],
+      localEdits.componentCategories || [],
+      'componentCategory',
+      'id'
+    ));
+
+    // Compare components
+    changes.push(...this.compareArrays(
+      snapshot.components || [],
+      localEdits.components || [],
+      'component',
+      'id'
+    ));
+
+    // Compare linked repositories
+    changes.push(...this.compareArrays(
+      snapshot.linkedRepositories || [],
+      localEdits.linkedRepositories || [],
+      'repository',
+      'id'
+    ));
+
+    // Compare platform extensions (object structure)
+    const oldPlatformExtensions = snapshot.platformExtensions || {};
+    const newPlatformExtensions = localEdits.platformExtensions || {};
+    const oldPlatformExtensionIds = Object.keys(oldPlatformExtensions);
+    const newPlatformExtensionIds = Object.keys(newPlatformExtensions);
+    
+    // Check for added platform extensions
+    for (const platformId of newPlatformExtensionIds) {
+      if (!oldPlatformExtensionIds.includes(platformId)) {
+        changes.push({
+          type: 'added',
+          path: ['platformExtensions', platformId],
+          oldValue: undefined,
+          newValue: newPlatformExtensions[platformId],
+          entityType: 'platformExtension',
+          entityId: platformId
+        });
+      }
+    }
+
+    // Check for removed platform extensions
+    for (const platformId of oldPlatformExtensionIds) {
+      if (!newPlatformExtensionIds.includes(platformId)) {
+        changes.push({
+          type: 'deleted',
+          path: ['platformExtensions', platformId],
+          oldValue: oldPlatformExtensions[platformId],
+          newValue: undefined,
+          entityType: 'platformExtension',
+          entityId: platformId
+        });
+      }
+    }
+
+    // Compare platform extension files (object structure)
+    const oldPlatformExtensionFiles = snapshot.platformExtensionFiles || {};
+    const newPlatformExtensionFiles = localEdits.platformExtensionFiles || {};
+    const oldPlatformExtensionFileIds = Object.keys(oldPlatformExtensionFiles);
+    const newPlatformExtensionFileIds = Object.keys(newPlatformExtensionFiles);
+    
+    // Check for added platform extension files
+    for (const platformId of newPlatformExtensionFileIds) {
+      if (!oldPlatformExtensionFileIds.includes(platformId)) {
+        changes.push({
+          type: 'added',
+          path: ['platformExtensionFiles', platformId],
+          oldValue: undefined,
+          newValue: newPlatformExtensionFiles[platformId],
+          entityType: 'platformExtensionFile',
+          entityId: platformId
+        });
+      }
+    }
+
+    // Check for removed platform extension files
+    for (const platformId of oldPlatformExtensionFileIds) {
+      if (!newPlatformExtensionFileIds.includes(platformId)) {
+        changes.push({
+          type: 'deleted',
+          path: ['platformExtensionFiles', platformId],
+          oldValue: oldPlatformExtensionFiles[platformId],
+          newValue: undefined,
+          entityType: 'platformExtensionFile',
+          entityId: platformId
+        });
+      }
+    }
+
+    // Compare taxonomy order
+    const oldTaxonomyOrder = snapshot.taxonomyOrder || [];
+    const newTaxonomyOrder = localEdits.taxonomyOrder || [];
+    if (JSON.stringify(oldTaxonomyOrder) !== JSON.stringify(newTaxonomyOrder)) {
+      changes.push({
+        type: 'modified',
+        path: ['taxonomyOrder'],
+        oldValue: oldTaxonomyOrder,
+        newValue: newTaxonomyOrder,
+        entityType: 'taxonomy',
+        entityId: 'taxonomyOrder'
+      });
+    }
+
+    // Compare dimension order
+    const oldDimensionOrder = snapshot.dimensionOrder || [];
+    const newDimensionOrder = localEdits.dimensionOrder || [];
+    if (JSON.stringify(oldDimensionOrder) !== JSON.stringify(newDimensionOrder)) {
+      changes.push({
+        type: 'modified',
+        path: ['dimensionOrder'],
+        oldValue: oldDimensionOrder,
+        newValue: newDimensionOrder,
+        entityType: 'dimension',
+        entityId: 'dimensionOrder'
+      });
+    }
+
+    // Compare figma configuration
+    const oldFigmaConfig = snapshot.figmaConfiguration || {};
+    const newFigmaConfig = localEdits.figmaConfiguration || {};
+    if (JSON.stringify(oldFigmaConfig) !== JSON.stringify(newFigmaConfig)) {
+      changes.push({
+        type: 'modified',
+        path: ['figmaConfiguration'],
+        oldValue: oldFigmaConfig,
+        newValue: newFigmaConfig,
+        entityType: 'figmaConfiguration',
+        entityId: 'figmaConfiguration'
+      });
+    }
 
     return changes;
   }

@@ -1054,7 +1054,10 @@ const App = () => {
       }
       
       console.log('[App] Updated tokens:', updatedTokens);
-      StorageService.setTokens(updatedTokens);
+      
+      // Save to local edits instead of old storage
+      StorageService.updateLocalEditsTokens(updatedTokens);
+      
       // Update change log data
       updateChangeLogData();
       // Dispatch event to notify change detection
@@ -1077,7 +1080,10 @@ const App = () => {
     const tokenToDelete = tokens.find(t => t.id === tokenId);
     setTokens(prevTokens => {
       const updatedTokens = prevTokens.filter(t => t.id !== tokenId);
-      StorageService.setTokens(updatedTokens);
+      
+      // Save to local edits instead of old storage
+      StorageService.updateLocalEditsTokens(updatedTokens);
+      
       // Update change log data
       updateChangeLogData();
       // Dispatch event to notify change detection
@@ -1099,7 +1105,10 @@ const App = () => {
   // Centralized update handlers for all data types
   const handleUpdateTokens = (updatedTokens: ExtendedToken[]) => {
     setTokens(updatedTokens);
-    StorageService.setTokens(updatedTokens);
+    
+    // Save to local edits instead of old storage
+    StorageService.updateLocalEditsTokens(updatedTokens);
+    
     // Update change log data
     updateChangeLogData();
     // Dispatch event to notify change detection
@@ -1108,7 +1117,10 @@ const App = () => {
 
   const handleUpdateCollections = (updatedCollections: TokenCollection[]) => {
     setCollections(updatedCollections);
-    StorageService.setCollections(updatedCollections);
+    
+    // Save to local edits instead of old storage
+    StorageService.updateLocalEditsCollections(updatedCollections);
+    
     // Update change log data
     updateChangeLogData();
     // Dispatch event to notify change detection
@@ -1117,7 +1129,10 @@ const App = () => {
 
   const handleUpdateDimensions = (updatedDimensions: Dimension[]) => {
     setDimensions(updatedDimensions);
-    StorageService.setDimensions(updatedDimensions);
+    
+    // Save to local edits instead of old storage
+    StorageService.updateLocalEditsDimensions(updatedDimensions);
+    
     // Update change log data
     updateChangeLogData();
     // Dispatch event to notify change detection
@@ -1126,7 +1141,10 @@ const App = () => {
 
   const handleUpdateResolvedValueTypes = (updatedResolvedValueTypes: ResolvedValueType[]) => {
     setResolvedValueTypes(updatedResolvedValueTypes);
-    StorageService.setValueTypes(updatedResolvedValueTypes);
+    
+    // Save to local edits instead of old storage
+    StorageService.updateLocalEditsValueTypes(updatedResolvedValueTypes);
+    
     // Update change log data
     updateChangeLogData();
     // Dispatch event to notify change detection

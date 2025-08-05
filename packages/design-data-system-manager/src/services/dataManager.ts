@@ -1015,14 +1015,14 @@ export class DataManager {
   /**
    * Update edit data with validation and override creation
    */
-  updateEditData(
+  async updateEditData(
     updates: Partial<DataSnapshot>, 
     sourceType: 'core' | 'platform-extension' | 'theme-override', 
     sourceId?: string
-  ): ValidationResult {
+  ): Promise<ValidationResult> {
     try {
       // Import OverrideManager dynamically to avoid circular dependencies
-      const { OverrideManager } = require('./overrideManager');
+      const { OverrideManager } = await import('./overrideManager');
       const overrideManager = OverrideManager.getInstance();
 
       // Validate the updates against the appropriate schema
@@ -1158,45 +1158,49 @@ export class DataManager {
     const enhancedMerger = EnhancedDataMerger.getInstance();
     
     // Get current data source context from DataSourceManager
-    const { DataSourceManager } = require('./dataSourceManager');
-    const dataSourceManager = DataSourceManager.getInstance();
-    const context = dataSourceManager.getCurrentContext();
-    
-    // Get pending overrides
-    const pendingOverrides = this.getPendingOverrides();
-    
-    // Merge data with overrides
-    const mergedSnapshot = enhancedMerger.mergeWithOverrides(
-      this.state.storageData.core,
-      this.state.storageData.platformExtensions,
-      this.state.storageData.themeOverrides,
-      pendingOverrides
-    );
-    
-    // Convert MergedDataSnapshot to DataSnapshot format
-    this.state.presentationData = {
-      collections: mergedSnapshot.collections,
-      modes: mergedSnapshot.modes,
-      dimensions: mergedSnapshot.dimensions,
-      resolvedValueTypes: mergedSnapshot.resolvedValueTypes,
-      platforms: mergedSnapshot.platforms,
-      themes: mergedSnapshot.themes,
-      tokens: mergedSnapshot.tokens,
-      taxonomies: mergedSnapshot.taxonomies,
-      componentProperties: mergedSnapshot.componentProperties,
-      componentCategories: mergedSnapshot.componentCategories,
-      components: mergedSnapshot.components,
-      algorithms: [], // TODO: Add algorithms support
-      taxonomyOrder: mergedSnapshot.taxonomyOrder,
-      dimensionOrder: mergedSnapshot.dimensionOrder,
-      algorithmFile: mergedSnapshot.algorithmFile,
-      linkedRepositories: [], // TODO: Add linked repositories support
-      platformExtensions: this.state.storageData.platformExtensions,
-      themeOverrides: this.state.storageData.themeOverrides,
-      figmaConfiguration: mergedSnapshot.figmaConfiguration
-    };
-    
-    // Trigger callbacks
-    this.callbacks.onDataChanged?.(this.state.presentationData);
+    import('./dataSourceManager').then(({ DataSourceManager }) => {
+      const dataSourceManager = DataSourceManager.getInstance();
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const context = dataSourceManager.getCurrentContext();
+      
+      // Get pending overrides
+      const pendingOverrides = this.getPendingOverrides();
+      
+      // Merge data with overrides
+      const mergedSnapshot = enhancedMerger.mergeWithOverrides(
+        this.state.storageData.core,
+        this.state.storageData.platformExtensions,
+        this.state.storageData.themeOverrides,
+        pendingOverrides
+      );
+      
+      // Convert MergedDataSnapshot to DataSnapshot format
+      this.state.presentationData = {
+        collections: mergedSnapshot.collections,
+        modes: mergedSnapshot.modes,
+        dimensions: mergedSnapshot.dimensions,
+        resolvedValueTypes: mergedSnapshot.resolvedValueTypes,
+        platforms: mergedSnapshot.platforms,
+        themes: mergedSnapshot.themes,
+        tokens: mergedSnapshot.tokens,
+        taxonomies: mergedSnapshot.taxonomies,
+        componentProperties: mergedSnapshot.componentProperties,
+        componentCategories: mergedSnapshot.componentCategories,
+        components: mergedSnapshot.components,
+        algorithms: [], // TODO: Add algorithms support
+        taxonomyOrder: mergedSnapshot.taxonomyOrder,
+        dimensionOrder: mergedSnapshot.dimensionOrder,
+        algorithmFile: mergedSnapshot.algorithmFile,
+        linkedRepositories: [], // TODO: Add linked repositories support
+        platformExtensions: this.state.storageData.platformExtensions,
+        themeOverrides: this.state.storageData.themeOverrides,
+        figmaConfiguration: mergedSnapshot.figmaConfiguration
+      };
+      
+      // Trigger callbacks
+      this.callbacks.onDataChanged?.(this.state.presentationData);
+    }).catch(error => {
+      console.error('Failed to update presentation data:', error);
+    });
   }
 } 

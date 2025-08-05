@@ -29,7 +29,7 @@ export interface Change {
   path: string[];
   oldValue?: any;
   newValue?: any;
-  entityType: 'token' | 'collection' | 'dimension' | 'platform' | 'theme';
+  entityType: 'token' | 'collection' | 'dimension' | 'platform' | 'theme' | 'resolvedValueType' | 'taxonomy' | 'algorithm' | 'componentProperty' | 'componentCategory' | 'component' | 'repository' | 'platformExtension' | 'platformExtensionFile' | 'figmaConfiguration';
   entityId: string;
 }
 

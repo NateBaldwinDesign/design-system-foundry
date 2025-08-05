@@ -59,10 +59,10 @@ export function ComponentsView({
   const [propertyEditIndex, setPropertyEditIndex] = useState<number | null>(null);
   const toast = useToast();
 
-  // Save components to localStorage whenever they change
+  // Save components to local edits whenever they change
   useEffect(() => {
     if (setComponents) {
-      StorageService.setComponents(components);
+      StorageService.updateLocalEditsComponents(components);
     }
   }, [components, setComponents]);
 
@@ -212,8 +212,8 @@ export function ComponentsView({
     // Update local state immediately for immediate UI feedback
     setLocalComponents(newComponents);
     
-    // Update localStorage immediately
-    StorageService.setComponents(newComponents);
+    // Update local edits immediately
+    StorageService.updateLocalEditsComponents(newComponents);
     
     // Call setComponents directly to ensure it's updated
     if (setComponents) {
@@ -238,8 +238,8 @@ export function ComponentsView({
     const updated = localComponents.filter((_: Component, i: number) => i !== index);
     setLocalComponents(updated);
     
-    // Update localStorage immediately
-    StorageService.setComponents(updated);
+    // Update local edits immediately
+    StorageService.updateLocalEditsComponents(updated);
     
     if (setComponents) {
       setComponents(updated);

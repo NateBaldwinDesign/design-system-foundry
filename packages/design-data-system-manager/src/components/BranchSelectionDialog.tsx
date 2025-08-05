@@ -23,10 +23,12 @@ import type { GitHubUser } from '../config/github';
 interface BranchSelectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onBranchSelected: (branchName: string) => void;
+  onBranchSelected: (branchName: string, editMode?: boolean) => void;
   currentBranch: string;
   repositoryFullName: string;
   githubUser: GitHubUser | null;
+  // NEW: Edit mode parameter to indicate if this is for editing
+  editMode?: boolean;
   // Source context information
   sourceContext?: {
     sourceType: 'core' | 'platform-extension' | 'theme-override';
@@ -44,6 +46,7 @@ export const BranchSelectionDialog: React.FC<BranchSelectionDialogProps> = ({
   currentBranch,
   repositoryFullName,
   githubUser,
+  editMode = false,
   sourceContext,
 }) => {
   const [branches, setBranches] = useState<string[]>([]);
@@ -117,7 +120,7 @@ export const BranchSelectionDialog: React.FC<BranchSelectionDialogProps> = ({
 
     setIsLoading(true);
     try {
-      onBranchSelected(selectedBranch);
+      onBranchSelected(selectedBranch, editMode);
       onClose();
     } catch (error) {
       console.error('Failed to select branch:', error);
@@ -133,9 +136,9 @@ export const BranchSelectionDialog: React.FC<BranchSelectionDialogProps> = ({
     }
   };
 
-  const handleBranchCreated = (branchName: string) => {
+  const handleBranchCreated = (branchName: string, editMode?: boolean) => {
     setShowCreateDialog(false);
-    onBranchSelected(branchName);
+    onBranchSelected(branchName, editMode);
     onClose();
   };
 
@@ -153,6 +156,7 @@ export const BranchSelectionDialog: React.FC<BranchSelectionDialogProps> = ({
         currentBranch={currentBranch}
         repositoryFullName={repositoryFullName}
         githubUser={githubUser}
+        editMode={editMode}
         sourceContext={sourceContext}
       />
     );
