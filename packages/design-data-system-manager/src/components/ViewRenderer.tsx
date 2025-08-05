@@ -236,7 +236,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} canEdit={effectiveCanEdit} />;
       
       case 'figma-settings':
-        return <FigmaConfigurationsView tokenSystem={createSchemaJsonFromLocalStorage()} canEdit={effectiveCanEdit} dataSourceContext={dataSourceContext} />;
+        return <FigmaConfigurationsView tokenSystem={createSchemaJsonFromLocalStorage()} canEdit={effectiveCanEdit} hasEditPermissions={hasEditPermissions} dataSourceContext={dataSourceContext} />;
       
       case 'validation':
         return <ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />;

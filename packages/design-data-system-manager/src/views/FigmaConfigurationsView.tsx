@@ -46,6 +46,7 @@ import { FigmaConfigurationOverrideService } from '../services/figmaConfiguratio
 interface FigmaConfigurationsViewProps {
   tokenSystem: TokenSystem;
   canEdit?: boolean;
+  hasEditPermissions?: boolean;
   // NEW: Data source context for source-specific Figma configuration
   dataSourceContext?: DataSourceContext;
 }
@@ -53,6 +54,7 @@ interface FigmaConfigurationsViewProps {
 export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = ({ 
   tokenSystem,
   canEdit = false,
+  hasEditPermissions = false,
   dataSourceContext
 }) => {
   const { colorMode } = useColorMode();
@@ -571,6 +573,11 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
 
   // Handle syntax pattern changes
   const handleSyntaxPatternsChange = (newPatterns: SyntaxPatterns) => {
+    // Only allow changes when in edit mode
+    if (!dataSourceContext?.editMode.isActive) {
+      return;
+    }
+    
     setSyntaxPatterns(newPatterns);
     
     // Convert 'none' back to 'camel' for schema compatibility
@@ -579,67 +586,52 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       capitalization: newPatterns.capitalization === 'none' ? 'camel' as const : newPatterns.capitalization
     };
     
-    if (dataSourceContext?.editMode.isActive) {
-      // In edit mode, stage changes for the current source
-      const { sourceType, sourceId } = dataSourceContext.editMode;
-      
-      if (sourceType === 'core') {
-        // Core data - update via StorageService
-        const updatedFigmaConfig = {
-          fileKey: fileKey,
-          syntaxPatterns: schemaPatterns
-        };
-        StorageService.setFigmaConfiguration(updatedFigmaConfig);
-        window.dispatchEvent(new CustomEvent('token-model:data-change'));
-      } else if (sourceType === 'platform-extension' && sourceId) {
-        // Platform extension - stage changes for later commit
-        FigmaConfigurationOverrideService.stageConfigurationChange(fileKey, schemaPatterns);
-      } else if (sourceType === 'theme-override' && sourceId) {
-        // Theme overrides don't have syntax patterns, but we can log this
-        console.log('[FigmaConfigurationsView] Theme overrides do not support syntax pattern changes');
-      }
-    } else {
-      // In view mode, update core data
+    // In edit mode, stage changes for the current source
+    const { sourceType, sourceId } = dataSourceContext.editMode;
+    
+    if (sourceType === 'core') {
+      // Core data - update via StorageService
       const updatedFigmaConfig = {
         fileKey: fileKey,
         syntaxPatterns: schemaPatterns
       };
       StorageService.setFigmaConfiguration(updatedFigmaConfig);
       window.dispatchEvent(new CustomEvent('token-model:data-change'));
+    } else if (sourceType === 'platform-extension' && sourceId) {
+      // Platform extension - stage changes for later commit
+      FigmaConfigurationOverrideService.stageConfigurationChange(fileKey, schemaPatterns);
+    } else if (sourceType === 'theme-override' && sourceId) {
+      // Theme overrides don't have syntax patterns, but we can log this
+      console.log('[FigmaConfigurationsView] Theme overrides do not support syntax pattern changes');
     }
   };
 
   // Handle file key changes
   const handleFileKeyChange = (newFileKey: string) => {
+    // Only allow changes when in edit mode
+    if (!dataSourceContext?.editMode.isActive) {
+      return;
+    }
+    
     setFileKey(newFileKey);
     
-    if (dataSourceContext?.editMode.isActive) {
-      // In edit mode, stage changes for the current source
-      const { sourceType, sourceId } = dataSourceContext.editMode;
-      
-      if (sourceType === 'core') {
-        // Core data - update via StorageService
-        const updatedFigmaConfig = {
-          fileKey: newFileKey,
-          syntaxPatterns: tokenSystem.figmaConfiguration?.syntaxPatterns
-        };
-        StorageService.setFigmaConfiguration(updatedFigmaConfig);
-        window.dispatchEvent(new CustomEvent('token-model:data-change'));
-      } else if (sourceType === 'platform-extension' && sourceId) {
-        // Platform extension - stage changes for later commit
-        FigmaConfigurationOverrideService.stageConfigurationChange(newFileKey, tokenSystem.figmaConfiguration?.syntaxPatterns);
-      } else if (sourceType === 'theme-override' && sourceId) {
-        // Theme override - stage changes for later commit
-        FigmaConfigurationOverrideService.stageConfigurationChange(newFileKey);
-      }
-    } else {
-      // In view mode, update core data
+    // In edit mode, stage changes for the current source
+    const { sourceType, sourceId } = dataSourceContext.editMode;
+    
+    if (sourceType === 'core') {
+      // Core data - update via StorageService
       const updatedFigmaConfig = {
         fileKey: newFileKey,
         syntaxPatterns: tokenSystem.figmaConfiguration?.syntaxPatterns
       };
       StorageService.setFigmaConfiguration(updatedFigmaConfig);
       window.dispatchEvent(new CustomEvent('token-model:data-change'));
+    } else if (sourceType === 'platform-extension' && sourceId) {
+      // Platform extension - stage changes for later commit
+      FigmaConfigurationOverrideService.stageConfigurationChange(newFileKey, tokenSystem.figmaConfiguration?.syntaxPatterns);
+    } else if (sourceType === 'theme-override' && sourceId) {
+      // Theme override - stage changes for later commit
+      FigmaConfigurationOverrideService.stageConfigurationChange(newFileKey);
     }
   };
 
@@ -692,11 +684,8 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
   const renderPublishingTab = () => (
     <VStack spacing={6} align="stretch">
       {/* Figma Configuration Card */}
-      <Card>
-        <CardHeader pb={0}>
+      <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
           <Heading size="md" mb={0}>Figma Credentials</Heading>
-        </CardHeader>
-        <CardBody>
           <VStack spacing={6} align="stretch">
             {/* Change Tracking Alert */}
             {renderChangeTrackingStatus()}
@@ -735,6 +724,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
                     onChange={(e) => handleFileKeyChange(e.target.value)}
                     placeholder="yTy5ytxeFPRiGou5Poed8a"
                     fontFamily="mono"
+                    isReadOnly={!dataSourceContext?.editMode.isActive}
                   />
                 </FormControl>
               </VStack>
@@ -751,6 +741,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
                     syntaxPatterns={syntaxPatterns}
                     onSyntaxPatternsChange={handleSyntaxPatternsChange}
                     showTitle={false}
+                    isReadOnly={!dataSourceContext?.editMode.isActive}
                   />
                 </Box>
 
@@ -842,8 +833,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
               </Box>
             )}
           </VStack>
-        </CardBody>
-      </Card>
+      </Box>
 
       {/* Pre-Publish Dialog */}
       {exportResult?.data && (
@@ -868,12 +858,12 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       {/* Tabs */}
       <Tabs>
         <TabList>
-          {canEdit && <Tab>Publishing</Tab>}
+          {hasEditPermissions && <Tab>Publishing</Tab>}
           <Tab>Variable Collections</Tab>
         </TabList>
 
         <TabPanels mt={4}>
-          {canEdit && (
+          {hasEditPermissions && (
             <TabPanel>
               {renderPublishingTab()}
             </TabPanel>
