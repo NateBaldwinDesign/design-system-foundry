@@ -169,6 +169,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
               taxonomies={taxonomies}
               canEdit={effectiveCanEdit}
               dataSourceContext={dataSourceContext}
+              dimensionOrder={dimensionOrder}
               renderAddTokenButton={
                 effectiveCanEdit ? (
                   <Button colorScheme="blue" size="sm" onClick={onAddToken} leftIcon={<Plus />}>

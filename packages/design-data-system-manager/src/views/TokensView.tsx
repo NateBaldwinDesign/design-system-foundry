@@ -23,6 +23,8 @@ interface TokensViewProps {
   canEdit?: boolean;
   // NEW: Data source context for edit mode filtering
   dataSourceContext?: DataSourceContext;
+  // NEW: Dimension order for mode label combinations
+  dimensionOrder?: string[];
 }
 
 export function TokensView({ 
@@ -35,7 +37,8 @@ export function TokensView({
   renderAddTokenButton,
   onEditToken,
   canEdit = false, // Changed default to false to respect edit mode state
-  dataSourceContext
+  dataSourceContext,
+  dimensionOrder = []
 }: TokensViewProps) {
   // Filter state
   const [activeTab, setActiveTab] = useState<string>('PRIMITIVE');
@@ -180,26 +183,112 @@ export function TokensView({
         return true;
       }
 
-      // Check if this modeValue matches any of the selected dimension modes
-      return modeValue.modeIds.some(modeId => {
-        // Find which dimension this mode belongs to
+      // Group modeIds by dimension
+      const modeIdsByDimension = new Map<string, string[]>();
+      modeValue.modeIds.forEach(modeId => {
         const dimension = dimensions.find(dim => 
           dim.modes.some(mode => mode.id === modeId)
         );
         
-        if (!dimension) return false;
-        
-        // Check if this dimension has a filter set
-        const selectedModeId = dimensionModeFilters[dimension.id];
-        if (!selectedModeId) return true; // No filter for this dimension, show all
-        
-        // Only show if this mode matches the selected mode for this dimension
-        return modeId === selectedModeId;
+        if (dimension) {
+          if (!modeIdsByDimension.has(dimension.id)) {
+            modeIdsByDimension.set(dimension.id, []);
+          }
+          modeIdsByDimension.get(dimension.id)!.push(modeId);
+        }
       });
+
+      // Check if this modeValue matches the dimension selections
+      // Only check dimensions that this value actually has modes for
+      for (const [dimensionId, selectedModeId] of Object.entries(dimensionModeFilters)) {
+        const modeIdsForDimension = modeIdsByDimension.get(dimensionId);
+        
+        // If this value doesn't have modes for this dimension, skip it
+        // (the value is not affected by this dimension's selection)
+        if (!modeIdsForDimension) {
+          continue;
+        }
+        
+        if (selectedModeId === '') {
+          // "All modes" selected for this dimension - any mode is acceptable
+          continue;
+        }
+        
+        // Specific mode selected - check if this value has that mode
+        if (!modeIdsForDimension.includes(selectedModeId)) {
+          return false;
+        }
+      }
+      
+      return true;
     });
 
     // If no values match the filters, show '-'
     if (filteredModeValues.length === 0) return '-';
+
+    // Helper function to get mode info for a modeId
+    const getModeInfo = (modeId: string) => {
+      const dimension = dimensions.find(dim => 
+        dim.modes.some(mode => mode.id === modeId)
+      );
+      
+      if (dimension) {
+        const mode = dimension.modes.find(m => m.id === modeId);
+        if (mode) {
+          return { dimension, mode };
+        }
+      }
+      return null;
+    };
+
+    // Helper function to create combined mode labels
+    const createCombinedModeLabels = (modeIds: string[]) => {
+      if (modeIds.length === 0) return null;
+
+      // Get all mode info
+      const modeInfos = modeIds.map(modeId => getModeInfo(modeId)).filter(Boolean);
+      if (modeInfos.length === 0) return null;
+
+      // Check which dimensions have "All modes" selected
+      const dimensionsWithAllModes = new Set<string>();
+      Object.entries(dimensionModeFilters).forEach(([dimensionId, selectedModeId]) => {
+        if (selectedModeId === '') { // Empty string means "All modes"
+          dimensionsWithAllModes.add(dimensionId);
+        }
+      });
+
+      // If no dimensions have "All modes" selected, don't show labels
+      if (dimensionsWithAllModes.size === 0) return null;
+
+      // Filter mode infos to only include modes from dimensions with "All modes" selected
+      const relevantModeInfos = modeInfos.filter(info => 
+        dimensionsWithAllModes.has(info!.dimension.id)
+      );
+
+      if (relevantModeInfos.length === 0) return null;
+
+      // Sort dimensions by dimensionOrder
+      const sortedModeInfos = relevantModeInfos.sort((a, b) => {
+        const aIndex = dimensionOrder.indexOf(a!.dimension.id);
+        const bIndex = dimensionOrder.indexOf(b!.dimension.id);
+        
+        // If both are in dimensionOrder, sort by their position
+        if (aIndex !== -1 && bIndex !== -1) {
+          return aIndex - bIndex;
+        }
+        
+        // If only one is in dimensionOrder, prioritize it
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        
+        // If neither is in dimensionOrder, sort alphabetically by dimension name
+        return a!.dimension.displayName.localeCompare(b!.dimension.displayName);
+      });
+
+      // Create combined label
+      const modeNames = sortedModeInfos.map(info => info!.mode.name);
+      return modeNames.join(' + ');
+    };
 
     return filteredModeValues.map((modeValue) => {
       const value = modeValue.value;
@@ -283,9 +372,21 @@ export function TokensView({
         displayValue = String(value);
       }
 
+      // Create combined mode label
+      const combinedLabel = createCombinedModeLabels(modeValue.modeIds);
+
       return (
         <Box key={modeValue.modeIds.join(',')}>
-          {displayValue}
+          {combinedLabel ? (
+            <HStack spacing={2} align="center">
+              <Text fontSize="sm" fontWeight="medium" color="gray.600" minW="fit-content">
+                {combinedLabel}:
+              </Text>
+              {displayValue}
+            </HStack>
+          ) : (
+            displayValue
+          )}
         </Box>
       );
     });
