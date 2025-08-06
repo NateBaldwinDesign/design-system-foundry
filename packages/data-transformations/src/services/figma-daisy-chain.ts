@@ -844,14 +844,11 @@ export class FigmaDaisyChainService {
   }
 
   /**
-   * Build code syntax for a token
-   * Note: This method now returns an empty object since codeSyntax has been removed from the schema
-   * Code syntax generation is now handled by the CodeSyntaxGenerator service in the main transformer
+   * Build code syntax for a token using pre-generated data
    */
   private buildCodeSyntax(token: Token, tokenSystem: TokenSystem): any {
-    // Return empty object since codeSyntax is no longer part of the schema
-    // The main transformer will handle code syntax generation using CodeSyntaxGenerator
-    return {};
+    // Use pre-generated code syntax from the preprocessor
+    return (token as Token & { codeSyntax?: Record<string, string> }).codeSyntax || {};
   }
 
   /**

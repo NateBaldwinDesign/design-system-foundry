@@ -6,6 +6,8 @@ This plan outlines the implementation of a pre-processing approach for Figma cod
 
 **Key Principle**: Code syntax is **dynamically generated** and **not stored** in the schema, following the code syntax removal plan to eliminate denormalized data.
 
+**Important**: This plan leverages the existing source management infrastructure (`StorageService`, `DataSourceManager`, `DataMergerService`) rather than introducing redundant functionality.
+
 ## Architectural Principle: Pure Transformer Function
 
 The `FigmaTransformer` should be a **pure function** that transforms data without side effects or external dependencies. All data preparation should happen in the `design-data-system-manager` package before calling the transformer.
@@ -17,7 +19,7 @@ Token Data (no codeSyntax)
     ↓
 FigmaExportService (design-data-system-manager)
     ↓
-Pre-process: Load syntax patterns, generate code syntax dynamically
+Pre-process: Use existing data management services to get merged data and generate code syntax
     ↓
 Enhanced Token Data (with dynamically generated codeSyntax)
     ↓
@@ -47,14 +49,11 @@ Figma API Format
 #### 1.1 Create FigmaPreprocessor Service
 **File**: `packages/design-data-system-manager/src/services/figmaPreprocessor.ts`
 
-**Purpose**: Handle all data preparation before sending to the transformer, including loading syntax patterns, generating code syntax dynamically, and preparing context.
+**Purpose**: Handle all data preparation before sending to the transformer, including loading syntax patterns, generating code syntax dynamically, and preparing context. **This service leverages existing data management infrastructure.**
 
 **Implementation**:
 ```typescript
 export interface FigmaPreprocessorOptions {
-  // Source context for filtering platforms
-  sourceContext: DataSourceContext;
-  
   // Whether to include platform code syntax
   includePlatformCodeSyntax: boolean;
   
@@ -85,28 +84,34 @@ export class FigmaPreprocessor {
   private platformSyntaxPatternService = PlatformSyntaxPatternService.getInstance();
   private dataSourceManager = DataSourceManager.getInstance();
   
-  async preprocessForFigma(tokenSystem: TokenSystem, options: FigmaPreprocessorOptions): Promise<FigmaPreprocessorResult> {
+  async preprocessForFigma(options: FigmaPreprocessorOptions = {}): Promise<FigmaPreprocessorResult> {
     console.log('[FigmaPreprocessor] Starting preprocessing for Figma export...');
     
-    // 1. Load all required syntax patterns
+    // 1. Use existing data management services to get current merged data
+    const mergedData = StorageService.getMergedData();
+    if (!mergedData) {
+      throw new Error('No merged data available for Figma export');
+    }
+    
+    // 2. Get current source context from existing DataSourceManager
+    const sourceContext = this.dataSourceManager.getCurrentContext();
+    
+    // 3. Load all required syntax patterns using existing service
     await this.platformSyntaxPatternService.collectAndStoreSyntaxPatterns();
     
-    // 2. Get current source context
-    const sourceContext = options.sourceContext || this.dataSourceManager.getCurrentContext();
+    // 4. Determine target platforms based on current source context and Figma mapping
+    const targetPlatforms = this.determineTargetPlatforms(mergedData.platforms || [], sourceContext, options);
     
-    // 3. Determine target platforms based on context and Figma mapping
-    const targetPlatforms = this.determineTargetPlatforms(tokenSystem.platforms || [], sourceContext, options);
+    // 5. Generate code syntax dynamically for target platforms
+    const enhancedTokenSystem = await this.generateCodeSyntax(mergedData, targetPlatforms, options);
     
-    // 4. Generate code syntax dynamically for target platforms
-    const enhancedTokenSystem = await this.generateCodeSyntax(tokenSystem, targetPlatforms, options);
-    
-    // 5. Validate the enhanced data
+    // 6. Validate the enhanced data
     const validation = this.validatePreprocessedData(enhancedTokenSystem, targetPlatforms);
     
-    // 6. Prepare context for transformer
+    // 7. Prepare context for transformer
     const context = {
       targetPlatforms,
-      figmaSyntaxPatterns: this.getFigmaSyntaxPatterns(tokenSystem),
+      figmaSyntaxPatterns: this.getFigmaSyntaxPatterns(mergedData),
       sourceContext
     };
     
@@ -120,7 +125,7 @@ export class FigmaPreprocessor {
   private determineTargetPlatforms(platforms: Platform[], sourceContext: DataSourceContext, options: FigmaPreprocessorOptions): Platform[] {
     let targetPlatforms = platforms;
     
-    // Filter by source context
+    // Filter by current source context (using existing source management logic)
     if (sourceContext.currentPlatform && sourceContext.currentPlatform !== 'none') {
       targetPlatforms = targetPlatforms.filter(p => p.id === sourceContext.currentPlatform);
       console.log('[FigmaPreprocessor] Filtered to current platform:', sourceContext.currentPlatform);
@@ -142,7 +147,7 @@ export class FigmaPreprocessor {
   private async generateCodeSyntax(tokenSystem: TokenSystem, targetPlatforms: Platform[], options: FigmaPreprocessorOptions): Promise<TokenSystem> {
     console.log('[FigmaPreprocessor] Generating code syntax for', targetPlatforms.length, 'platforms');
     
-    // Get syntax patterns for all target platforms
+    // Get syntax patterns for all target platforms using existing service
     const syntaxPatterns = this.platformSyntaxPatternService.getAllSyntaxPatterns();
     
     // Generate code syntax for each token dynamically
@@ -295,7 +300,7 @@ export class FigmaPreprocessor {
 #### 1.2 Update Figma Export Service
 **File**: `packages/design-data-system-manager/src/services/figmaExport.ts`
 
-**Changes**: Use the new preprocessor to prepare data before sending to transformer.
+**Changes**: Use the new preprocessor to prepare data before sending to transformer. **Leverage existing data management services.**
 
 **Implementation**:
 ```typescript
@@ -312,16 +317,25 @@ export class FigmaExportService {
     console.log('[FigmaExportService] Starting Figma export...');
     
     try {
-      // 1. Get the appropriate token system data based on current data source context
-      const tokenSystem = this.getTokenSystemForExport();
+      // 1. Use existing data management services to get current merged data
+      // No need to manually determine source context - use existing infrastructure
+      const mergedData = StorageService.getMergedData();
+      if (!mergedData) {
+        return {
+          success: false,
+          error: {
+            code: 'NO_DATA_AVAILABLE',
+            message: 'No merged data available for export'
+          }
+        };
+      }
       
-      // 2. Pre-process the data for Figma export
+      // 2. Pre-process the data for Figma export using existing source context
       const preprocessorOptions: FigmaPreprocessorOptions = {
-        sourceContext: DataSourceManager.getInstance().getCurrentContext(),
         includePlatformCodeSyntax: true
       };
       
-      const preprocessorResult = await this.preprocessor.preprocessForFigma(tokenSystem, preprocessorOptions);
+      const preprocessorResult = await this.preprocessor.preprocessForFigma(preprocessorOptions);
       
       // 3. Check validation results
       if (!preprocessorResult.validation.isValid) {
@@ -520,7 +534,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
 #### 3.1 Update Token Editor Dialog
 **File**: `packages/design-data-system-manager/src/components/TokenEditorDialog.tsx`
 
-**Changes**: Use the preprocessor for real-time code syntax generation in the UI.
+**Changes**: Use the preprocessor for real-time code syntax generation in the UI. **Leverage existing data management services.**
 
 **Implementation**:
 ```typescript
@@ -531,16 +545,17 @@ export function TokenEditorDialog({ token, tokens, platforms, ... }: TokenEditor
   // Generate code syntax when token or platforms change
   useEffect(() => {
     const generateCodeSyntax = async () => {
+      // Use existing data management services to get current merged data
+      const mergedData = StorageService.getMergedData();
+      if (!mergedData) return;
+      
+      // Create a token system with just the current token for preview
       const tokenSystem = {
-        tokens: [token],
-        platforms,
-        taxonomies,
-        taxonomyOrder,
-        figmaConfiguration: StorageService.getCoreData()?.figmaConfiguration
+        ...mergedData,
+        tokens: [token] // Only the current token for preview
       };
       
-      const result = await preprocessor.preprocessForFigma(tokenSystem, {
-        sourceContext: dataSourceContext,
+      const result = await preprocessor.preprocessForFigma({
         includePlatformCodeSyntax: true
       });
       
@@ -550,7 +565,7 @@ export function TokenEditorDialog({ token, tokens, platforms, ... }: TokenEditor
     };
     
     generateCodeSyntax();
-  }, [token, platforms, taxonomies, taxonomyOrder, dataSourceContext]);
+  }, [token, platforms, mergedData]);
   
   // Use generatedCodeSyntax in the UI
   return (
@@ -578,27 +593,33 @@ export function TokenEditorDialog({ token, tokens, platforms, ... }: TokenEditor
 - **Transformer**: Handles pure data transformation
 - **Export Service**: Handles API communication and orchestration
 
-### 3. **Better Error Handling**
+### 3. **Leverages Existing Infrastructure**
+- **StorageService**: Uses existing merged data management
+- **DataSourceManager**: Uses existing source context management
+- **PlatformSyntaxPatternService**: Uses existing syntax pattern management
+- **No Redundant Services**: Avoids duplicating existing functionality
+
+### 4. **Better Error Handling**
 - Preprocessing errors are caught before transformation
 - Clear error messages about missing data
 - Graceful fallbacks when syntax patterns are unavailable
 
-### 4. **Improved Performance**
+### 5. **Improved Performance**
 - Syntax patterns are loaded once during preprocessing
 - No redundant loading during transformation
 - Better caching opportunities
 
-### 5. **Easier Testing**
+### 6. **Easier Testing**
 - Transformer can be tested with mock data
 - Preprocessor can be tested independently
 - No need to mock external API calls in transformer tests
 
-### 6. **Better Maintainability**
+### 7. **Better Maintainability**
 - Clear data flow from UI to API
 - Single responsibility for each component
 - Easier to debug and modify
 
-### 7. **Schema Compliance**
+### 8. **Schema Compliance**
 - No `codeSyntax` stored in schema (follows removal plan)
 - Dynamic generation eliminates denormalized data
 - Maintains single source of truth principle
@@ -608,6 +629,7 @@ export function TokenEditorDialog({ token, tokens, platforms, ... }: TokenEditor
 ### 1. DRY (Don't Repeat Yourself)
 - **Single Preprocessor**: One place for all code syntax generation logic
 - **Reuse Platform Syntax Pattern Service**: Leverage existing functionality
+- **Use Existing Data Management**: Leverage StorageService, DataSourceManager, DataMergerService
 - **Common Validation Logic**: Share validation between UI and transformer
 
 ### 2. Separation of Concerns
@@ -620,6 +642,7 @@ export function TokenEditorDialog({ token, tokens, platforms, ... }: TokenEditor
 - **Schema-driven**: All data structures follow the schema (without codeSyntax)
 - **Platform Extensions**: Single source for platform-specific syntax patterns
 - **Core Data**: Single source for taxonomy and platform definitions
+- **Existing Infrastructure**: Use existing data management services
 
 ### 4. Error Handling and Fallbacks
 - **Graceful Degradation**: Fall back to display name when syntax patterns are missing
@@ -639,7 +662,7 @@ export function TokenEditorDialog({ token, tokens, platforms, ... }: TokenEditor
 ## Migration Strategy
 
 ### 1. **Phase 1**: Implement preprocessor (Week 1)
-- Create `FigmaPreprocessor` service
+- Create `FigmaPreprocessor` service that leverages existing infrastructure
 - Update `FigmaExportService` to use preprocessor
 - Test with existing data
 
@@ -682,6 +705,7 @@ export function TokenEditorDialog({ token, tokens, platforms, ... }: TokenEditor
 - ✅ Comprehensive test coverage
 - ✅ Clear documentation and comments
 - ✅ Dynamic generation eliminates denormalized data
+- ✅ Leverages existing data management infrastructure
 
 ## Risk Mitigation
 
@@ -710,5 +734,13 @@ This pre-processing approach provides a much cleaner architectural solution that
 - ✅ Maintains single source of truth
 - ✅ Improves performance and flexibility
 - ✅ Follows schema-driven development principles
+- ✅ Leverages existing data management infrastructure
+
+**Key Alignment with Source Management Enhancement Plan**:
+- ✅ Uses existing StorageService for merged data
+- ✅ Uses existing DataSourceManager for source context
+- ✅ Uses existing DataMergerService for data merging
+- ✅ No redundant data management functionality
+- ✅ Maintains existing data flow patterns
 
 All implementation must adhere to the project rules and preserve existing functionality and design. 

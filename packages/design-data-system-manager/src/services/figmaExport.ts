@@ -11,6 +11,7 @@ import { FigmaMappingService } from './figmaMappingService';
 import { StorageService } from './storage';
 import { DataSourceManager } from './dataSourceManager';
 import { EnhancedDataMerger } from './enhancedDataMerger';
+import { FigmaPreprocessor, FigmaPreprocessorOptions } from './figmaPreprocessor';
 
 export interface FigmaExportOptions {
   fileId?: string;
@@ -43,9 +44,11 @@ export interface FigmaExportResult {
 
 export class FigmaExportService {
   private transformer: FigmaTransformer;
+  private preprocessor: FigmaPreprocessor;
 
   constructor() {
     this.transformer = new FigmaTransformer();
+    this.preprocessor = new FigmaPreprocessor();
   }
 
   /**
@@ -249,260 +252,55 @@ export class FigmaExportService {
     console.log('[FigmaExportService] Starting Figma export...');
     
     try {
-      // Get the appropriate token system data based on current data source context
-      const tokenSystem = this.getTokenSystemForExport();
-      
-      // Clean legacy platformOverrides data before processing
-      const cleanedTokenSystem = this.cleanLegacyPlatformOverrides(tokenSystem);
-      
-      // Log platform mapping information
-      const { mappedPlatforms, unmappedPlatforms } = this.getMappedPlatforms(cleanedTokenSystem);
-      console.log('[FigmaExportService] Platform mappings:', mappedPlatforms);
-      if (unmappedPlatforms.length > 0) {
-        console.warn('[FigmaExportService] Unmapped platforms (will be excluded):', unmappedPlatforms);
-      }
-      
-      // Get Figma syntax patterns from core data
-      const syntaxPatterns = await this.getFigmaSyntaxPatternsFromCore();
-      console.log('[FigmaExportService] Figma syntax patterns:', syntaxPatterns);
-
-            // Generate Figma variable names using core syntax patterns
-      const tokenSystemWithGeneratedNames = this.generateFigmaVariableNames(cleanedTokenSystem, syntaxPatterns);
-      console.log('[FigmaExportService] Token system with generated Figma variable names:', tokenSystemWithGeneratedNames);
-
-      // Convert FigmaExportOptions to FigmaTransformerOptions
-      const transformerOptions = {
-        updateExisting: true
-      } as Partial<FigmaTransformerOptions>;
-      if (options.fileId) transformerOptions.fileKey = options.fileId;
-      if (options.accessToken) transformerOptions.accessToken = options.accessToken;
-      
-      // Step 1: Load existing Figma data if we have fileId and accessToken
-      let existingFigmaData: any = undefined;
-      if (options.fileId && options.accessToken) {
-        try {
-          console.log('[FigmaExportService] Loading existing Figma data...');
-          console.log('[FigmaExportService] API URL:', `https://api.figma.com/v1/files/${options.fileId}/variables/local`);
-          console.log('[FigmaExportService] Access token provided:', !!options.accessToken);
-          
-          const response = await fetch(`https://api.figma.com/v1/files/${options.fileId}/variables/local`, {
-            headers: {
-              'X-Figma-Token': options.accessToken
-            }
-          });
-          
-          console.log('[FigmaExportService] API Response status:', response.status, response.statusText);
-          
-          if (response.ok) {
-            existingFigmaData = await response.json();
-            console.log('[FigmaExportService] Raw API response:', existingFigmaData);
-            console.log('[FigmaExportService] API response keys:', Object.keys(existingFigmaData));
-            
-            // Extract the actual data from the nested meta structure
-            const extractedData = {
-              variables: existingFigmaData.meta?.variables || {},
-              variableCollections: existingFigmaData.meta?.variableCollections || {},
-              variableModes: {} // Will be populated from collections
-            };
-            
-            // Extract mode IDs from collections (modes are nested in each collection)
-            Object.entries(extractedData.variableCollections).forEach(([collectionId, collection]: [string, any]) => {
-              if (collection.modes && Array.isArray(collection.modes)) {
-                collection.modes.forEach((mode: any) => {
-                  if (mode.modeId) {
-                    extractedData.variableModes[mode.modeId] = {
-                      id: mode.modeId,
-                      name: mode.name,
-                      variableCollectionId: collectionId
-                    };
-                  }
-                });
-              }
-            });
-            
-            console.log('[FigmaExportService] Extracted Figma data:', {
-              variablesCount: Object.keys(extractedData.variables).length,
-              collectionsCount: Object.keys(extractedData.variableCollections).length,
-              modesCount: Object.keys(extractedData.variableModes).length,
-              hasVariables: !!extractedData.variables,
-              hasCollections: !!extractedData.variableCollections,
-              hasModes: !!extractedData.variableModes
-            });
-            
-            // Log sample data to see the structure
-            if (extractedData.variables) {
-              const sampleVariables = Object.entries(extractedData.variables).slice(0, 3);
-              console.log('[FigmaExportService] Sample variables:', sampleVariables);
-            }
-            if (extractedData.variableCollections) {
-              const sampleCollections = Object.entries(extractedData.variableCollections).slice(0, 3);
-              console.log('[FigmaExportService] Sample collections:', sampleCollections);
-            }
-            if (extractedData.variableModes) {
-              const sampleModes = Object.entries(extractedData.variableModes).slice(0, 3);
-              console.log('[FigmaExportService] Sample modes:', sampleModes);
-            }
-            
-            // Use the extracted data instead of the raw response
-            existingFigmaData = extractedData;
-          } else {
-            const errorText = await response.text();
-            console.warn('[FigmaExportService] Failed to load existing Figma data:', response.status, response.statusText);
-            console.warn('[FigmaExportService] Error response body:', errorText);
+      // 1. Use existing data management services to get current merged data
+      // No need to manually determine source context - use existing infrastructure
+      const mergedData = StorageService.getMergedData();
+      if (!mergedData) {
+        return {
+          success: false,
+          error: {
+            code: 'NO_DATA_AVAILABLE',
+            message: 'No merged data available for export'
           }
-        } catch (error) {
-          console.warn('[FigmaExportService] Error loading existing Figma data:', error);
-        }
-      } else {
-        console.log('[FigmaExportService] Skipping existing data load - missing fileId or accessToken:', {
-          hasFileId: !!options.fileId,
-          hasAccessToken: !!options.accessToken
-        });
+        };
       }
       
-      // Step 2: Get existing tempToRealId mapping if available
-      let tempToRealId: Record<string, string> | undefined = undefined;
-      if (options.fileId) {
-        console.log('[FigmaExportService] Attempting to load tempToRealId mapping for fileId:', options.fileId);
-        const mappingOptions = await FigmaMappingService.getTransformerOptions(options.fileId);
-        console.log('[FigmaExportService] Raw mapping options from FigmaMappingService:', mappingOptions);
-        
-        if (mappingOptions.tempToRealId) {
-          tempToRealId = mappingOptions.tempToRealId;
-          console.log('[FigmaExportService] ✅ SUCCESS: Loaded tempToRealId mapping:', {
-            mappingCount: Object.keys(tempToRealId).length,
-            sampleMappings: Object.entries(tempToRealId).slice(0, 5)
-          });
-        } else {
-          // For files with no existing variables, we can proceed without tempToRealId mapping
-          const hasExistingVariables = existingFigmaData?.meta?.variables && existingFigmaData.meta.variables.length > 0;
-          if (hasExistingVariables) {
-            console.log('[FigmaExportService] ❌ FAILED: No tempToRealId mapping found for fileId:', options.fileId);
-            return {
-              success: false,
-              error: {
-                code: 'MISSING_MAPPING',
-                message: 'tempToRealId mapping is required for files with existing variables',
-                details: { fileId: options.fileId }
-              }
-            };
-          } else {
-            console.log('[FigmaExportService] ℹ️ No tempToRealId mapping found, but file has no existing variables - proceeding with new variable creation');
+      // 2. Pre-process the data for Figma export using existing source context
+      const preprocessorOptions: FigmaPreprocessorOptions = {
+        includePlatformCodeSyntax: true
+      };
+      
+      const preprocessorResult = await this.preprocessor.preprocessForFigma(preprocessorOptions);
+      
+      // 3. Check validation results
+      if (!preprocessorResult.validation.isValid) {
+        console.error('[FigmaExportService] Preprocessing validation failed:', preprocessorResult.validation.errors);
+        return {
+          success: false,
+          error: {
+            code: 'PREPROCESSING_FAILED',
+            message: 'Data preprocessing failed',
+            details: preprocessorResult.validation.errors
           }
-        }
-      } else {
-        console.log('[FigmaExportService] No fileId provided, skipping tempToRealId loading');
+        };
       }
       
-      // Step 3: Set up complete transformer options
-      transformerOptions.existingFigmaData = existingFigmaData;
-      transformerOptions.tempToRealId = tempToRealId;
-      
-      // Type assertion to satisfy the transformer
-      const finalTransformerOptions = transformerOptions as FigmaTransformerOptions;
-      
-      console.log('[FigmaExportService] Complete transformer options:', {
-        fileKey: finalTransformerOptions.fileKey,
-        hasExistingData: !!finalTransformerOptions.existingFigmaData,
-        hasTempToRealId: !!finalTransformerOptions.tempToRealId,
-        tempToRealIdCount: finalTransformerOptions.tempToRealId ? Object.keys(finalTransformerOptions.tempToRealId).length : 0
-      });
-
-      // Validate the token system first
-      console.log('[FigmaExportService] Starting validation...');
-      const validation = await this.transformer.validate(tokenSystemWithGeneratedNames, finalTransformerOptions);
-      console.log('[FigmaExportService] Validation result:', {
-        isValid: validation.isValid,
-        errorsCount: validation.errors?.length || 0,
-        warningsCount: validation.warnings?.length || 0,
-        errors: validation.errors,
-        warnings: validation.warnings
-      });
-      
-      // DEBUG: Always proceed with transformation to see the output, even if validation fails
-      console.log('[FigmaExportService] 🔍 DEBUG MODE: Proceeding with transformation despite validation errors to show transformed data');
-      
-      if (!validation.isValid) {
-        console.error('[FigmaExportService] Validation failed with errors:', validation.errors);
-        // Don't return early - continue to transformation for debugging
-      }
-
-      // Transform the data to Figma format
-      console.log('[FigmaExportService] Starting transformation...');
-      const result = await this.transformer.transform(tokenSystemWithGeneratedNames, finalTransformerOptions);
-      console.log('[FigmaExportService] Transformation result:', {
-        success: result.success,
-        hasData: !!result.data,
-        variablesCount: result.data?.variables?.length || 0,
-        collectionsCount: result.data?.collections?.length || 0,
-        variableModeValuesCount: result.data?.variableModeValues?.length || 0,
-        error: result.error
-      });
-      
-      // DEBUG: Log the complete transformed data structure
-      console.log('[FigmaExportService] 🔍 DEBUG: Complete transformed data structure:', {
-        variables: result.data?.variables?.slice(0, 3), // First 3 variables
-        collections: result.data?.collections,
-        variableModes: result.data?.variableModes,
-        variableModeValues: result.data?.variableModeValues?.slice(0, 5), // First 5 mode values
-        stats: result.data?.stats
-      });
-      
-      // DEBUG: Log validation errors in detail
-      if (!validation.isValid && validation.errors) {
-        console.log('[FigmaExportService] 🔍 DEBUG: Detailed validation errors:');
-        validation.errors.forEach((error, index) => {
-          console.log(`[FigmaExportService] Error ${index + 1}:`, {
-            message: error.message,
-            path: error.path,
-            code: error.code,
-            details: error
-          });
-        });
+      if (preprocessorResult.validation.warnings.length > 0) {
+        console.warn('[FigmaExportService] Preprocessing warnings:', preprocessorResult.validation.warnings);
       }
       
-      // Debug: Log sample variable mode values
-      if (result.data?.variableModeValues && result.data.variableModeValues.length > 0) {
-        console.log('[FigmaExportService] Sample variable mode values (TRANSFORMED OUTPUT):');
-        result.data.variableModeValues.slice(0, 5).forEach((vmv, index) => {
-          console.log(`[FigmaExportService] Mode value ${index + 1}:`, {
-            variableId: vmv.variableId,
-            modeId: vmv.modeId,
-            value: vmv.value,
-            valueType: typeof vmv.value,
-            isObject: typeof vmv.value === 'object' && vmv.value !== null,
-            isAlias: typeof vmv.value === 'object' && vmv.value !== null && 'type' in vmv.value && vmv.value.type === 'VARIABLE_ALIAS',
-            // Add detailed value inspection for debugging
-            valueDetails: typeof vmv.value === 'object' && vmv.value !== null ? {
-              keys: Object.keys(vmv.value),
-              hasR: 'r' in vmv.value,
-              hasG: 'g' in vmv.value,
-              hasB: 'b' in vmv.value,
-              hasA: 'a' in vmv.value,
-              isRGB: 'r' in vmv.value && 'g' in vmv.value && 'b' in vmv.value
-            } : null
-          });
-        });
-      }
+      // 4. Set up transformer options
+      const transformerOptions = this.buildTransformerOptions(options);
+      
+      // 5. Transform the pre-processed data
+      console.log('[FigmaExportService] Starting transformation with pre-processed data...');
+      const result = await this.transformer.transform(preprocessorResult.enhancedTokenSystem, transformerOptions);
       
       if (!result.success) {
         console.error('[FigmaExportService] Transformation failed:', result.error);
         return {
           success: false,
           error: result.error
-        };
-      }
-
-      // If validation failed but transformation succeeded, return validation error
-      if (!validation.isValid) {
-        console.log('[FigmaExportService] 🔍 DEBUG: Transformation succeeded but validation failed - returning validation error');
-        return {
-          success: false,
-          error: {
-            code: 'VALIDATION_FAILED',
-            message: 'Token system validation failed',
-            details: validation.errors
-          }
         };
       }
 
@@ -522,6 +320,17 @@ export class FigmaExportService {
         }
       };
     }
+  }
+  
+  private buildTransformerOptions(options: FigmaExportOptions): FigmaTransformerOptions {
+    const transformerOptions: Partial<FigmaTransformerOptions> = {
+      updateExisting: true
+    };
+    
+    if (options.fileId) transformerOptions.fileKey = options.fileId;
+    if (options.accessToken) transformerOptions.accessToken = options.accessToken;
+    
+    return transformerOptions as FigmaTransformerOptions;
   }
 
   /**

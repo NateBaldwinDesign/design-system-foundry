@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Text,
@@ -9,9 +9,7 @@ import {
   Alert,
   AlertIcon
 } from '@chakra-ui/react';
-import { CodeSyntaxGenerator } from '@token-model/data-transformations';
-import { PlatformSyntaxPatternService } from '../services/platformSyntaxPatternService';
-import { DataSourceManager } from '../services/dataSourceManager';
+import { FigmaPreprocessor } from '../services/figmaPreprocessor';
 import { StorageService } from '../services/storage';
 import type { Token, Platform, Taxonomy } from '@token-model/data-model';
 
@@ -131,110 +129,72 @@ export function PlatformNamePreview({
   dataSourceContext 
 }: PlatformNamePreviewProps) {
   const { colorMode } = useColorMode();
-  const platformSyntaxPatternService = PlatformSyntaxPatternService.getInstance();
-  const dataSourceManager = DataSourceManager.getInstance();
-
-  // Get syntax patterns based on current context
-  const [syntaxPatterns, setSyntaxPatterns] = useState<Record<string, any>>({});
-  const [isLoadingPatterns, setIsLoadingPatterns] = useState(true);
+  const [generatedNames, setGeneratedNames] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    console.log('[PlatformNamePreview] useEffect triggered - getting syntax patterns');
-    const loadPatterns = async () => {
+    const generateNames = async () => {
       try {
-        setIsLoadingPatterns(true);
-        const patterns = await platformSyntaxPatternService.getSyntaxPatternsForCurrentContext();
-        console.log('[PlatformNamePreview] Retrieved syntax patterns:', {
-          patterns,
-          patternsKeys: Object.keys(patterns),
-          patternsCount: Object.keys(patterns).length
+        setIsLoading(true);
+        setError(null);
+
+        // Use existing data management services to get current merged data
+        const mergedData = StorageService.getMergedData();
+        if (!mergedData) {
+          setError('No merged data available');
+          return;
+        }
+
+        // Create a token system with just the current token for preview
+        const tokenSystem = {
+          ...mergedData,
+          tokens: [token] // Only the current token for preview
+        };
+
+        // Use the preprocessor to generate code syntax
+        const preprocessor = new FigmaPreprocessor();
+        const result = await preprocessor.preprocessForFigma({
+          includePlatformCodeSyntax: true
         });
-        setSyntaxPatterns(patterns);
-      } catch (error) {
-        console.error('[PlatformNamePreview] Error loading syntax patterns:', error);
-        setSyntaxPatterns({});
+
+        const enhancedToken = result.enhancedTokenSystem.tokens?.[0] as Token & { codeSyntax?: Record<string, string> };
+        if (enhancedToken?.codeSyntax) {
+          setGeneratedNames(enhancedToken.codeSyntax);
+        }
+      } catch (err) {
+        console.error('[PlatformNamePreview] Error generating platform names:', err);
+        setError(err instanceof Error ? err.message : 'Failed to generate platform names');
       } finally {
-        setIsLoadingPatterns(false);
+        setIsLoading(false);
       }
     };
-    
-    loadPatterns();
-  }, [platformSyntaxPatternService]);
 
-  // Generate platform names using our custom function
-  const platformNames = useMemo(() => {
-    if (!token || !platforms.length || !taxonomies.length || Object.keys(syntaxPatterns).length === 0) {
-      console.log('[PlatformNamePreview] Missing required data for name generation:', {
-        hasToken: !!token,
-        platformsCount: platforms.length,
-        taxonomiesCount: taxonomies.length,
-        syntaxPatternsCount: Object.keys(syntaxPatterns).length
-      });
-      return {};
-    }
+    generateNames();
+  }, [token, platforms]);
 
-    try {
-      // Get taxonomyOrder from core data
-      const coreData = StorageService.getCoreData();
-      const taxonomyOrder = coreData?.taxonomyOrder || [];
-      
-      console.log('[PlatformNamePreview] Core data for name generation:', {
-        taxonomyOrder,
-        hasTaxonomyOrder: !!coreData?.taxonomyOrder,
-        coreDataKeys: coreData ? Object.keys(coreData) : 'no core data'
-      });
-
-      const generatedNames: Record<string, string> = {};
-      
-      // Generate names for each platform that has syntax patterns
-      Object.keys(syntaxPatterns).forEach(platformId => {
-        try {
-          const platformName = generatePlatformName(token, platformId, syntaxPatterns, taxonomies, taxonomyOrder);
-          if (platformName) {
-            generatedNames[platformId] = platformName;
-            console.log(`[PlatformNamePreview] Generated name for ${platformId}:`, platformName);
-          } else {
-            console.log(`[PlatformNamePreview] No name generated for ${platformId}`);
-          }
-        } catch (error) {
-          console.warn(`[PlatformNamePreview] Error generating name for platform ${platformId}:`, error);
-        }
-      });
-
-      console.log('[PlatformNamePreview] Final generated names:', generatedNames);
-      return generatedNames;
-    } catch (error) {
-      console.error('[PlatformNamePreview] Error generating platform names:', error);
-      return {};
-    }
-  }, [token, platforms, taxonomies, syntaxPatterns]);
-
-  // Get current source context
-  const currentContext = dataSourceManager.getCurrentContext();
-  const isCoreMode = !currentContext.currentPlatform || currentContext.currentPlatform === 'none';
-
-  if (isLoadingPatterns) {
+  if (isLoading) {
     return (
       <Box flex={1} minW={0}>
         <Text fontSize="sm" fontWeight="medium" mb={1}>Platform Names</Text>
         <Alert status="info" borderRadius="md">
           <AlertIcon />
           <Text fontSize="sm">
-            Loading platform syntax patterns...
+            Generating platform names...
           </Text>
         </Alert>
       </Box>
     );
   }
 
-  if (Object.keys(syntaxPatterns).length === 0) {
+  if (error) {
     return (
       <Box flex={1} minW={0}>
         <Text fontSize="sm" fontWeight="medium" mb={1}>Platform Names</Text>
-        <Alert status="info" borderRadius="md">
+        <Alert status="error" borderRadius="md">
           <AlertIcon />
           <Text fontSize="sm">
-            No platform syntax patterns found. Platform names will be generated when syntax patterns are configured.
+            {error}
           </Text>
         </Alert>
       </Box>
@@ -244,10 +204,10 @@ export function PlatformNamePreview({
   return (
     <Box flex={1} minW={0}>
       <Text fontSize="sm" fontWeight="medium" mb={1}>
-        Platform Names {isCoreMode ? '(All Platforms)' : '(Current Platform)'}
+        Platform Names
       </Text>
       <VStack spacing={2} align="stretch">
-        {Object.entries(platformNames).map(([platformId, generatedName]) => {
+        {Object.entries(generatedNames).map(([platformId, generatedName]) => {
           const platform = platforms.find(p => p.id === platformId);
           const platformDisplayName = platform?.displayName || platformId;
           
@@ -277,7 +237,7 @@ export function PlatformNamePreview({
           );
         })}
         
-        {Object.keys(platformNames).length === 0 && (
+        {Object.keys(generatedNames).length === 0 && (
           <Alert status="warning" borderRadius="md">
             <AlertIcon />
             <VStack align="start" spacing={1}>
@@ -288,18 +248,12 @@ export function PlatformNamePreview({
                 Check that the token has valid taxonomy assignments and that taxonomy order is configured in the core data.
               </Text>
               <Text fontSize="xs" color="gray.500">
-                Debug info: Token has {token.taxonomies?.length || 0} taxonomies, {Object.keys(syntaxPatterns).length} platforms with patterns
+                Debug info: Token has {token.taxonomies?.length || 0} taxonomies
               </Text>
             </VStack>
           </Alert>
         )}
       </VStack>
-      
-      {isCoreMode && (
-        <Text fontSize="xs" color="gray.500" mt={2}>
-          Showing all available platforms. Switch to a specific platform to see only that platform's naming.
-        </Text>
-      )}
     </Box>
   );
 } 
