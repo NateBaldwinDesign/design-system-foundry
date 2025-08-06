@@ -2,6 +2,7 @@ import { DataLoaderService } from './dataLoaderService';
 import { DataEditorService } from './dataEditorService';
 import { DataMergerService } from './dataMergerService';
 import { StorageService } from './storage';
+import { DataSourceManager } from './dataSourceManager';
 import type { 
   DataSourceType, 
   SourceContext, 
@@ -82,23 +83,18 @@ export class SourceManagerService {
       const previousSource = StorageService.getSourceContext();
 
       // 3. Load new source snapshot
+      console.log(`[SourceManagerService] About to call loadSourceSnapshot for ${sourceType}${sourceId ? ` (${sourceId})` : ''}`);
       const newSnapshot = await this.loadSourceSnapshot(sourceType, sourceId);
+      console.log(`[SourceManagerService] loadSourceSnapshot returned: ${newSnapshot}`);
       if (!newSnapshot) {
+        console.error(`[SourceManagerService] loadSourceSnapshot failed for ${sourceType}${sourceId ? ` (${sourceId})` : ''}`);
         return {
           success: false,
           error: `Failed to load source snapshot for ${sourceType}${sourceId ? ` (${sourceId})` : ''}`
         };
       }
 
-      // 4. Reset local edits to match snapshot
-      const dataEditorService = DataEditorService.getInstance();
-      dataEditorService.resetLocalEdits();
-
-      // 5. Recompute merged data
-      const dataMerger = DataMergerService.getInstance();
-      await dataMerger.computeMergedData();
-
-      // 6. Update source context
+      // 4. Update source context FIRST
       const newSource = await this.updateSourceContext(sourceType, sourceId);
       if (!newSource) {
         return {
@@ -106,6 +102,14 @@ export class SourceManagerService {
           error: 'Failed to update source context'
         };
       }
+
+      // 5. Reset local edits to match snapshot
+      const dataEditorService = DataEditorService.getInstance();
+      dataEditorService.resetLocalEdits();
+
+      // 6. Recompute merged data (now with correct source context)
+      const dataMerger = DataMergerService.getInstance();
+      await dataMerger.computeMergedData();
 
       console.log('[SourceManagerService] Source switch completed successfully');
       return {
@@ -131,6 +135,8 @@ export class SourceManagerService {
     sourceType: DataSourceType, 
     sourceId?: string
   ): Promise<boolean> {
+    console.log(`[SourceManagerService] loadSourceSnapshot called with sourceType: ${sourceType}, sourceId: ${sourceId}`);
+    
     const coreData = StorageService.getCoreData();
     if (!coreData) {
       console.error('[SourceManagerService] No core data available for loading source snapshot');
@@ -145,9 +151,76 @@ export class SourceManagerService {
       }
 
       if (sourceType === 'platform' && sourceId) {
-        // Load platform extension data
-        const platformData = StorageService.getPlatformExtensionData(sourceId);
+        // First try to load platform extension data from storage
+        let platformData = StorageService.getPlatformExtensionData(sourceId);
+        
+        if (!platformData) {
+          // If not in storage, try to load it dynamically from GitHub
+          console.log(`[SourceManagerService] Platform data not in storage, loading from GitHub for ID: ${sourceId}`);
+          
+          try {
+            const dataSourceManager = DataSourceManager.getInstance();
+            const context = dataSourceManager.getCurrentContext();
+            console.log(`[SourceManagerService] Available platform repositories:`, context.repositories.platforms);
+            console.log(`[SourceManagerService] Looking for platform ID: ${sourceId}`);
+            const platformRepo = context.repositories.platforms[sourceId];
+            
+            if (platformRepo) {
+              console.log(`[SourceManagerService] Loading platform extension from ${platformRepo.fullName}/${platformRepo.filePath}`);
+              
+              const { GitHubApiService } = await import('./githubApi');
+              const fileContent = await GitHubApiService.getFileContent(
+                platformRepo.fullName,
+                platformRepo.filePath,
+                platformRepo.branch
+              );
+              
+              if (fileContent && fileContent.content) {
+                platformData = JSON.parse(fileContent.content);
+                console.log('[SourceManagerService] Platform extension data loaded from GitHub:', platformData);
+                
+                // Store the loaded data for future use
+                StorageService.setPlatformExtensionData(sourceId, platformData);
+              }
+            } else {
+              // Fallback: Try to load using PlatformExtensionDataService
+              console.log(`[SourceManagerService] No repository info found, trying PlatformExtensionDataService for ${sourceId}`);
+              
+              // Get platform info from core data
+              const coreData = StorageService.getCoreData();
+              const platform = coreData?.platforms?.find(p => p.id === sourceId);
+              
+              if (platform?.extensionSource) {
+                console.log(`[SourceManagerService] Found platform extension source:`, platform.extensionSource);
+                
+                const { PlatformExtensionDataService } = await import('./platformExtensionDataService');
+                const result = await PlatformExtensionDataService.getPlatformExtensionData(
+                  platform.extensionSource.repositoryUri,
+                  platform.extensionSource.filePath,
+                  'main', // Default branch
+                  sourceId
+                );
+                
+                if (result.data && !result.error) {
+                  platformData = result.data;
+                  console.log('[SourceManagerService] Platform extension data loaded via PlatformExtensionDataService:', platformData);
+                  
+                  // Store the loaded data for future use
+                  StorageService.setPlatformExtensionData(sourceId, platformData);
+                } else {
+                  console.error(`[SourceManagerService] PlatformExtensionDataService failed for ${sourceId}:`, result.error);
+                }
+              } else {
+                console.error(`[SourceManagerService] No extension source found for platform ${sourceId}`);
+              }
+            }
+          } catch (error) {
+            console.error(`[SourceManagerService] Failed to load platform extension from GitHub for ${sourceId}:`, error);
+          }
+        }
+        
         if (platformData) {
+          console.log(`[SourceManagerService] Platform data loaded successfully, setting source snapshot`);
           StorageService.setSourceSnapshot(platformData);
           return true;
         } else {
@@ -157,8 +230,41 @@ export class SourceManagerService {
       }
 
       if (sourceType === 'theme' && sourceId) {
-        // Load theme override data
-        const themeData = StorageService.getThemeOverrideData(sourceId);
+        // First try to load theme override data from storage
+        let themeData = StorageService.getThemeOverrideData(sourceId);
+        
+        if (!themeData) {
+          // If not in storage, try to load it dynamically from GitHub
+          console.log(`[SourceManagerService] Theme data not in storage, loading from GitHub for ID: ${sourceId}`);
+          
+          try {
+            const dataSourceManager = DataSourceManager.getInstance();
+            const context = dataSourceManager.getCurrentContext();
+            const themeRepo = context.repositories.themes[sourceId];
+            
+            if (themeRepo) {
+              console.log(`[SourceManagerService] Loading theme override from ${themeRepo.fullName}/${themeRepo.filePath}`);
+              
+              const { GitHubApiService } = await import('./githubApi');
+              const fileContent = await GitHubApiService.getFileContent(
+                themeRepo.fullName,
+                themeRepo.filePath,
+                themeRepo.branch
+              );
+              
+              if (fileContent && fileContent.content) {
+                themeData = JSON.parse(fileContent.content);
+                console.log('[SourceManagerService] Theme override data loaded from GitHub:', themeData);
+                
+                // Store the loaded data for future use
+                StorageService.setThemeOverrideData(sourceId, themeData);
+              }
+            }
+          } catch (error) {
+            console.error(`[SourceManagerService] Failed to load theme override from GitHub for ${sourceId}:`, error);
+          }
+        }
+        
         if (themeData) {
           StorageService.setSourceSnapshot(themeData);
           return true;

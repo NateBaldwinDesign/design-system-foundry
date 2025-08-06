@@ -19,8 +19,17 @@ export class DataMergerService {
    * Compute merged data for UI display
    */
   async computeMergedData(): Promise<TokenSystem | null> {
+    console.log('[DataMergerService] computeMergedData called');
+    
     const coreData = StorageService.getCoreData();
     const sourceContext = StorageService.getSourceContext();
+    
+    console.log('[DataMergerService] Source context:', {
+      hasSourceContext: !!sourceContext,
+      sourceType: sourceContext?.sourceType,
+      sourceId: sourceContext?.sourceId,
+      sourceContextKeys: sourceContext ? Object.keys(sourceContext) : []
+    });
     
     if (!coreData) {
       console.warn('[DataMergerService] No core data available for merging');
@@ -69,42 +78,74 @@ export class DataMergerService {
    * Merge core data with platform extension
    */
   private async mergePlatformData(coreData: TokenSystem, platformId: string | null): Promise<TokenSystem> {
+    console.log(`[DataMergerService] mergePlatformData called with platformId: ${platformId}`);
+    console.log(`[DataMergerService] Core data tokens count: ${coreData.tokens?.length || 0}`);
+    
     if (!platformId) {
       console.warn('[DataMergerService] No platform ID provided for merging');
       return coreData;
     }
 
     const platformData = StorageService.getPlatformExtensionData(platformId);
+    console.log(`[DataMergerService] Retrieved platform data:`, {
+      hasData: !!platformData,
+      dataType: typeof platformData,
+      dataKeys: platformData ? Object.keys(platformData) : []
+    });
+    
     if (!platformData) {
       console.warn(`[DataMergerService] No platform data found for ID: ${platformId}`);
       return coreData;
     }
 
     console.log(`[DataMergerService] Merging platform data for: ${platformId}`);
+    console.log(`[DataMergerService] Platform data structure:`, {
+      hasTokenOverrides: !!platformData.tokenOverrides,
+      tokenOverridesCount: platformData.tokenOverrides?.length || 0,
+      hasAlgorithmVariableOverrides: !!platformData.algorithmVariableOverrides,
+      algorithmVariableOverridesCount: platformData.algorithmVariableOverrides?.length || 0,
+      hasOmittedModes: !!platformData.omittedModes,
+      omittedModesCount: platformData.omittedModes?.length || 0,
+      hasOmittedDimensions: !!platformData.omittedDimensions,
+      omittedDimensionsCount: platformData.omittedDimensions?.length || 0,
+      platformDataKeys: Object.keys(platformData)
+    });
 
     // Create a deep copy of core data
     const mergedData: TokenSystem = JSON.parse(JSON.stringify(coreData));
 
     // Apply platform token overrides
     if (platformData.tokenOverrides) {
+      console.log(`[DataMergerService] Processing ${platformData.tokenOverrides.length} token overrides`);
+      let overriddenCount = 0;
+      let newCount = 0;
+      
       for (const override of platformData.tokenOverrides) {
         const existingTokenIndex = mergedData.tokens?.findIndex(t => t.id === override.id);
         
         if (existingTokenIndex !== undefined && existingTokenIndex >= 0) {
           // Update existing token
+          console.log(`[DataMergerService] Overriding existing token: ${override.id}`);
           mergedData.tokens![existingTokenIndex] = {
             ...mergedData.tokens![existingTokenIndex],
             ...override
           };
+          overriddenCount++;
         } else {
           // Add new token
+          console.log(`[DataMergerService] Adding new token: ${override.id}`);
           if (mergedData.tokens) {
             mergedData.tokens.push(override as any);
           } else {
             mergedData.tokens = [override as any];
           }
+          newCount++;
         }
       }
+      
+      console.log(`[DataMergerService] Token override summary: ${overriddenCount} overridden, ${newCount} new`);
+    } else {
+      console.log(`[DataMergerService] No token overrides found in platform data`);
     }
 
     // Apply platform algorithm variable overrides

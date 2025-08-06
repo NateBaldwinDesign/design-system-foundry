@@ -143,8 +143,11 @@ export class DataSourceManager {
         }
       }
       
+      // Determine source type based on platformId
+      const sourceType = platformId ? 'platform' : 'core';
+      
       // Switch source using SourceManagerService
-      const switchResult = await sourceManager.switchSource('platform', platformId || undefined);
+      const switchResult = await sourceManager.switchSource(sourceType, platformId || undefined);
       
       if (!switchResult.success) {
         console.error('[DataSourceManager] Failed to switch platform:', switchResult.error);
@@ -190,8 +193,11 @@ export class DataSourceManager {
         }
       }
       
+      // Determine source type based on themeId
+      const sourceType = themeId ? 'theme' : 'core';
+      
       // Switch source using SourceManagerService
-      const switchResult = await sourceManager.switchSource('theme', themeId || undefined);
+      const switchResult = await sourceManager.switchSource(sourceType, themeId || undefined);
       
       if (!switchResult.success) {
         console.error('[DataSourceManager] Failed to switch theme:', switchResult.error);
@@ -232,34 +238,86 @@ export class DataSourceManager {
 
       // Extract repository information from platforms
       this.currentContext.repositories.platforms = {};
-      platforms.forEach(platform => {
-        if (platform.extensionSource && platform.extensionSource.repositoryUri !== 'local') {
-          this.currentContext.repositories.platforms[platform.id] = {
-            fullName: platform.extensionSource.repositoryUri,
-            branch: 'main', // Default branch
-            filePath: platform.extensionSource.filePath,
-            fileType: 'platform-extension'
-          };
+      console.log('[DataSourceManager] Processing platforms:', platforms);
+      
+      // Filter out example/placeholder platforms
+      const validPlatforms = platforms.filter(platform => {
+        console.log(`[DataSourceManager] Processing platform ${platform.id} (${platform.displayName}):`, {
+          hasExtensionSource: !!platform.extensionSource,
+          repositoryUri: platform.extensionSource?.repositoryUri,
+          isLocal: platform.extensionSource?.repositoryUri === 'local'
+        });
+        
+        if (!platform.extensionSource || platform.extensionSource.repositoryUri === 'local') {
+          console.log(`[DataSourceManager] Platform ${platform.id} has NO extensionSource or is local`);
+          return false;
         }
+        
+        const { repositoryUri } = platform.extensionSource;
+        
+        // More targeted filtering - only filter out known example patterns
+        const isExampleRepo = repositoryUri === 'NateBaldwinDesign/design-system-foundry' || 
+                             repositoryUri.startsWith('company/design-system-') ||
+                             repositoryUri.includes('/example/') ||
+                             repositoryUri.includes('/placeholder/');
+        
+        if (isExampleRepo) {
+          console.log(`[DataSourceManager] Skipping example platform ${platform.id} (${platform.displayName}) - repository: ${repositoryUri}`);
+          return false;
+        }
+        
+        console.log(`[DataSourceManager] Platform ${platform.id} has valid extensionSource:`, platform.extensionSource);
+        return true;
       });
+      
+      validPlatforms.forEach(platform => {
+        this.currentContext.repositories.platforms[platform.id] = {
+          fullName: platform.extensionSource!.repositoryUri,
+          branch: 'main', // Default branch
+          filePath: platform.extensionSource!.filePath,
+          fileType: 'platform-extension'
+        };
+      });
+      
+      console.log('[DataSourceManager] Final platform repositories:', this.currentContext.repositories.platforms);
 
       // Extract repository information from themes
       this.currentContext.repositories.themes = {};
       console.log('[DataSourceManager] Processing themes:', themes);
-      themes.forEach(theme => {
-        console.log(`[DataSourceManager] Processing theme ${theme.id}:`, theme);
-        if (theme.overrideSource) {
-          console.log(`[DataSourceManager] Theme ${theme.id} has overrideSource:`, theme.overrideSource);
-          this.currentContext.repositories.themes[theme.id] = {
-            fullName: theme.overrideSource.repositoryUri,
-            branch: 'main', // Default branch
-            filePath: theme.overrideSource.filePath,
-            fileType: 'theme-override'
-          };
-        } else {
+      
+      // Filter out example/placeholder themes
+      const validThemes = themes.filter(theme => {
+        if (!theme.overrideSource) {
           console.log(`[DataSourceManager] Theme ${theme.id} has NO overrideSource`);
+          return false;
         }
+        
+        const { repositoryUri } = theme.overrideSource;
+        
+        // More targeted filtering - only filter out known example patterns
+        const isExampleRepo = repositoryUri === 'NateBaldwinDesign/design-system-foundry' || 
+                             repositoryUri.startsWith('company/design-system-') ||
+                             repositoryUri.includes('/example/') ||
+                             repositoryUri.includes('/placeholder/');
+        
+        if (isExampleRepo) {
+          console.log(`[DataSourceManager] Skipping example theme ${theme.id} (${theme.displayName}) - repository: ${repositoryUri}`);
+          return false;
+        }
+        
+        console.log(`[DataSourceManager] Theme ${theme.id} has valid overrideSource:`, theme.overrideSource);
+        return true;
       });
+      
+      validThemes.forEach(theme => {
+        this.currentContext.repositories.themes[theme.id] = {
+          fullName: theme.overrideSource!.repositoryUri,
+          branch: 'main', // Default branch
+          filePath: theme.overrideSource!.filePath,
+          fileType: 'theme-override'
+        };
+      });
+      
       console.log('[DataSourceManager] Final theme repositories:', this.currentContext.repositories.themes);
 
       // Validate current selections

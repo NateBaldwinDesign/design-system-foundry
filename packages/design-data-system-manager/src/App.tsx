@@ -312,6 +312,80 @@ const App = () => {
         
         // Initialize DataSourceManager
         const dataSourceManager = DataSourceManager.getInstance();
+        
+        // Set up DataSourceManager callbacks to update UI state when data source changes
+        dataSourceManager.setCallbacks({
+          onDataSourceChanged: async (context: DataSourceContext) => {
+            console.log('[App] Data source changed, updating UI state:', context);
+            setDataSourceContext(context);
+            
+            // Update UI state with merged data from storage
+            const mergedData = StorageService.getMergedData();
+            if (mergedData) {
+              console.log('[App] Updating UI state with merged data:', {
+                tokens: mergedData.tokens?.length || 0,
+                collections: mergedData.tokenCollections?.length || 0
+              });
+              
+              setTokens(mergedData.tokens || []);
+              setCollections(mergedData.tokenCollections || []);
+              setModes(StorageService.getModes()); // Modes don't change in merging
+              setDimensions(mergedData.dimensions || []);
+              setResolvedValueTypes(mergedData.resolvedValueTypes || []);
+              setPlatforms(mergedData.platforms || []);
+              setThemes(mergedData.themes || []);
+              setTaxonomies(mergedData.taxonomies || []);
+              setComponentProperties(mergedData.componentProperties || []);
+              setComponentCategories(mergedData.componentCategories || []);
+              setComponents(mergedData.components || []);
+              // Algorithms are stored separately, not in TokenSystem
+              setAlgorithms([]);
+              setTaxonomyOrder(mergedData.taxonomyOrder || []);
+              setDimensionOrder(mergedData.dimensionOrder || []);
+              
+              // Update change tracking baseline
+              const newBaselineData = {
+                collections: mergedData.tokenCollections || [],
+                modes: StorageService.getModes(),
+                dimensions: mergedData.dimensions || [],
+                resolvedValueTypes: mergedData.resolvedValueTypes || [],
+                platforms: mergedData.platforms || [],
+                themes: mergedData.themes || [],
+                tokens: mergedData.tokens || [],
+                taxonomies: mergedData.taxonomies || [],
+                componentProperties: mergedData.componentProperties || [],
+                componentCategories: mergedData.componentCategories || [],
+                components: mergedData.components || [],
+                algorithms: [], // Algorithms are stored separately, not in TokenSystem
+                taxonomyOrder: mergedData.taxonomyOrder || [],
+              };
+
+              ChangeTrackingService.setBaselineData(newBaselineData);
+              setChangeLogData({
+                currentData: newBaselineData,
+                baselineData: newBaselineData
+              });
+
+              // Dispatch event to notify change detection
+              window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
+            }
+          },
+          onPermissionsChanged: (permissions) => {
+            console.log('[App] Permissions changed:', permissions);
+            // Handle permission changes if needed
+          },
+          onError: (error) => {
+            console.error('[App] DataSourceManager error:', error);
+            toast({
+              title: 'Data Source Error',
+              description: error,
+              status: 'error',
+              duration: 5000,
+              isClosable: true,
+            });
+          }
+        });
+        
         dataSourceManager.initializeFromURL();
         
         setDataSourceContext(dataSourceManager.getCurrentContext());
@@ -407,9 +481,6 @@ const App = () => {
             // Save repository info to localStorage so other services can access it
             localStorage.setItem('github_selected_repo', JSON.stringify(repoInfo));
             
-            // Update available sources after data is loaded
-            dataSourceManager.updateAvailableSources();
-            
             // Initialize platform/theme selection from URL parameters
             if (platform) {
               dataSourceManager.initializeFromURL();
@@ -470,6 +541,9 @@ const App = () => {
             setAlgorithms([]);
             setTaxonomyOrder(mergedData.taxonomyOrder || []);
             setDimensionOrder(mergedData.dimensionOrder || []);
+            
+            // Update available sources after React state is updated with new data
+            dataSourceManager.updateAvailableSources();
             
             setLoading(false);
             setIsAppLoading(false); // End app loading state for URL loading
@@ -1488,8 +1562,8 @@ const App = () => {
       }
       window.history.replaceState({}, '', url.toString());
       
-      // Merge data for the new context
-      await mergeDataForCurrentContext(newContext);
+      // SourceManagerService already handled the merge, just update UI state
+      // No need to call mergeDataForCurrentContext since DataMergerService already computed merged data
     } catch (error) {
       toast({
         title: 'Error switching platform',
@@ -1520,8 +1594,8 @@ const App = () => {
       }
       window.history.replaceState({}, '', url.toString());
       
-      // Merge data for the new context
-      await mergeDataForCurrentContext(newContext);
+      // SourceManagerService already handled the merge, just update UI state
+      // No need to call mergeDataForCurrentContext since DataMergerService already computed merged data
     } catch (error) {
       toast({
         title: 'Error switching theme',
