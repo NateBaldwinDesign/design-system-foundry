@@ -274,7 +274,7 @@ const compareArrays = (oldArray: unknown[], newArray: unknown[], idField: string
   return changes;
 };
 
-const detectChanges = (previousData: Record<string, unknown> | null | undefined, currentData: Record<string, unknown> | null | undefined): ChangeEntry[] => {
+export const detectChanges = (previousData: Record<string, unknown> | null | undefined, currentData: Record<string, unknown> | null | undefined): ChangeEntry[] => {
   const changes: ChangeEntry[] = [];
 
   // Handle null/undefined data

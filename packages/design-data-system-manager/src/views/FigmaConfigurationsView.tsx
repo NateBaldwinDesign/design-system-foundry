@@ -39,6 +39,7 @@ import { CollectionsView } from './CollectionsView';
 import type { DataSourceContext } from '../services/dataSourceManager';
 
 import { FigmaConfigurationOverrideService } from '../services/figmaConfigurationOverrideService';
+import { detectChanges } from '../components/ChangeLog';
 
 interface FigmaConfigurationsViewProps {
   tokenSystem: TokenSystem;
@@ -226,10 +227,48 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
         setAccessToken(config.accessToken || '');
       }
       
-      // Check change tracking state
+      // Check change tracking state using new data management system
       try {
-        const state = await ChangeTrackingService.getChangeTrackingState();
-        setChangeTrackingState(state);
+        const sourceSnapshot = StorageService.getSourceSnapshot();
+        const localEdits = StorageService.getLocalEdits();
+        
+        console.log('[FigmaConfigurationsView] Checking change tracking with new system:', {
+          hasSourceSnapshot: !!sourceSnapshot,
+          hasLocalEdits: !!localEdits,
+          sourceSnapshotType: sourceSnapshot ? typeof sourceSnapshot : 'null',
+          localEditsType: localEdits ? typeof localEdits : 'null'
+        });
+        
+        if (!sourceSnapshot || !localEdits) {
+          console.log('[FigmaConfigurationsView] Missing data for change tracking, allowing export');
+          setChangeTrackingState({
+            hasLocalChanges: false,
+            hasGitHubDivergence: false,
+            canExport: true,
+            changeCount: 0
+          });
+        } else {
+          // Compare source snapshot vs local edits using the same logic as ChangeLog
+          const changes = detectChanges(sourceSnapshot as Record<string, unknown>, localEdits as Record<string, unknown>);
+          const hasLocalChanges = changes.length > 0;
+          
+          console.log('[FigmaConfigurationsView] Change detection results:', {
+            totalChanges: changes.length,
+            hasLocalChanges,
+            changes: changes.map((c: any) => `${c.type} ${c.entityType}: ${c.entityName}`)
+          });
+          
+          // For now, we'll skip GitHub divergence check to simplify
+          // TODO: Implement GitHub divergence check using new system
+          const hasGitHubDivergence = false;
+          
+          setChangeTrackingState({
+            hasLocalChanges,
+            hasGitHubDivergence,
+            canExport: !hasLocalChanges, // Block export if there are local changes
+            changeCount: changes.length
+          });
+        }
       } catch (error) {
         console.error('[FigmaConfigurationsView] Error checking change tracking:', error);
         // Default to allowing export if we can't check
