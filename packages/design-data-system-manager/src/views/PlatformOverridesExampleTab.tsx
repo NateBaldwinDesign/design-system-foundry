@@ -127,12 +127,6 @@ export const PlatformOverridesExampleTab: React.FC = () => {
             }
           }
         ],
-        codeSyntax: [
-          {
-            platformId: "platform-ios",
-            formattedName: "iOSButtonPrimary"
-          }
-        ],
         valuesByMode: [
           {
             modeIds: ["mode-light"],

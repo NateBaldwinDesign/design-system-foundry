@@ -98,11 +98,11 @@ describe('FigmaTransformer', () => {
     });
 
     it('should handle tokens without Figma code syntax', async () => {
-      // Clone example data and remove Figma code syntax from all tokens
+      // Clone example data - codeSyntax has been removed from schema
       const testData: TokenSystem = JSON.parse(JSON.stringify(exampleMinimalData));
-      testData.tokens.forEach((token: any) => {
-        token.codeSyntax = token.codeSyntax.filter((cs: any) => cs.platformId !== 'platform-000000');
-      });
+      
+      // Note: codeSyntax is no longer part of the schema, so this test is now about
+      // handling tokens that don't have platform extensions for Figma
 
       const result = await transformer.transform(testData, {
         fileKey: 'test-file-key',
@@ -120,9 +120,8 @@ describe('FigmaTransformer', () => {
       expect(result.data).toBeDefined();
       
       if (result.data) {
-        // Should not create variables for tokens without Figma code syntax
-        expect(result.data.variables.length).toBe(0);
-        expect(result.data.stats.created).toBe(0);
+        // Should still create variables since codeSyntax is now generated on-demand
+        expect(result.data.variables.length).toBeGreaterThan(0);
       }
     });
 
@@ -147,12 +146,7 @@ describe('FigmaTransformer', () => {
         generatedByAlgorithm: false,
         taxonomies: [],
         propertyTypes: [],
-        codeSyntax: [
-          {
-            platformId: 'platform-000000',
-            formattedName: 'alias-color'
-          }
-        ],
+        // Note: codeSyntax has been removed from schema - it's now generated on-demand
         valuesByMode: [
           {
             modeIds: [],

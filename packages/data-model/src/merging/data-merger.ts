@@ -206,7 +206,6 @@ function mergeTokenProperties(existingToken: Token, override: any): Token {
     algorithmId: override.algorithmId ?? existingToken.algorithmId,
     taxonomies: override.taxonomies ?? existingToken.taxonomies,
     propertyTypes: override.propertyTypes ?? existingToken.propertyTypes,
-    codeSyntax: override.codeSyntax ?? existingToken.codeSyntax,
     valuesByMode: override.valuesByMode ?? existingToken.valuesByMode
   };
 }

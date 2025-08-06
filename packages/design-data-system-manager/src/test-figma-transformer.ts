@@ -117,29 +117,25 @@ async function testFigmaTransformer() {
   console.log('🔍 Analyzing tokens for Figma compatibility...');
   const tokens = exampleData.tokens || [];
   let tokensWithValues = 0;
-  let tokensWithCodeSyntax = 0;
   
   tokens.forEach((token, index) => {
     const hasValues = token.valuesByMode && token.valuesByMode.length > 0;
-    const hasCodeSyntax = token.codeSyntax && token.codeSyntax.length > 0;
     
     if (hasValues) tokensWithValues++;
-    if (hasCodeSyntax) tokensWithCodeSyntax++;
     
     if (index < 3) { // Log first 3 tokens for debugging
       console.log(`Token ${index + 1}: "${token.displayName}"`);
       console.log(`  - Has values: ${hasValues}`);
-      console.log(`  - Has code syntax: ${hasCodeSyntax}`);
       console.log(`  - Value type: ${token.resolvedValueTypeId}`);
       console.log(`  - Values by mode: ${token.valuesByMode?.length || 0}`);
-      console.log(`  - Code syntax entries: ${token.codeSyntax?.length || 0}`);
+      // Note: codeSyntax has been removed from the schema
     }
   });
   
   console.log(`\n📊 Token Analysis:`);
   console.log(`- Total tokens: ${tokens.length}`);
   console.log(`- Tokens with values: ${tokensWithValues}`);
-  console.log(`- Tokens with code syntax: ${tokensWithCodeSyntax}`);
+  // Note: codeSyntax has been removed from the schema
 
   // Test 4: Check Figma configuration
   console.log('\n\n📋 Test 4: Figma Configuration Check');

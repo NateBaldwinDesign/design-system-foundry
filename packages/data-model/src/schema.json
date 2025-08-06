@@ -470,24 +470,6 @@
                 "$ref": "#/definitions/PropertyType"
               }
             },
-            "codeSyntax": {
-              "type": "array",
-              "description": "Platform-specific naming conventions for this token.",
-              "items": {
-                "type": "object",
-                "required": ["platformId", "formattedName"],
-                "properties": {
-                  "platformId": {
-                    "type": "string",
-                    "description": "ID of the platform this code syntax applies to (must match a platform in the platforms array)"
-                  },
-                  "formattedName": {
-                    "type": "string",
-                    "description": "The formatted code syntax for this platform."
-                  }
-                }
-              }
-            },
             "valuesByMode": {
               "type": "array",
               "description": "Values for this token in different mode combinations",

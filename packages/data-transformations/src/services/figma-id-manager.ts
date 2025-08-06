@@ -1,5 +1,6 @@
 import type { FigmaTransformerOptions, FigmaFileVariablesResponse } from '../types/figma';
 import type { TokenSystem } from '@token-model/data-model';
+import { CodeSyntaxGenerator } from './codeSyntaxGenerator';
 
 /**
  * Manages Figma ID mappings and determines CREATE/UPDATE actions
@@ -12,6 +13,7 @@ export class FigmaIdManager {
   private existingCollectionNames: Map<string, string> = new Map(); // name -> id mapping
   private initialModeIds: Map<string, string> = new Map(); // collectionId -> initialModeId mapping
   private tokenSystem: TokenSystem | undefined;
+  private codeSyntaxGenerator: CodeSyntaxGenerator | undefined;
 
   /**
    * Initialize the ID manager with existing Figma data and tempToRealId mapping
@@ -44,6 +46,17 @@ export class FigmaIdManager {
     
     // Store token system for mapping purposes
     this.tokenSystem = tokenSystem;
+    
+    // Initialize CodeSyntaxGenerator if token system is provided
+    if (tokenSystem) {
+      this.codeSyntaxGenerator = new CodeSyntaxGenerator({
+        tokens: tokenSystem.tokens || [],
+        platforms: tokenSystem.platforms || [],
+        taxonomies: tokenSystem.taxonomies || [],
+        taxonomyOrder: tokenSystem.taxonomyOrder || [],
+        platformExtensions: new Map() // TODO: Load platform extensions
+      });
+    }
     
     // Step 1: Extract existing Figma IDs from local variables
     this.extractExistingFigmaIds(existingFigmaData);
@@ -344,18 +357,26 @@ export class FigmaIdManager {
   }
 
   /**
-   * Find Figma code syntax for a token
+   * Find Figma code syntax for a token using the new CodeSyntaxGenerator
    */
   private findFigmaCodeSyntax(token: any): { platformId: string; formattedName: string } | undefined {
-    if (!this.tokenSystem) return undefined;
+    if (!this.tokenSystem || !this.codeSyntaxGenerator) return undefined;
     
     // Find the Figma platform by displayName
     const figmaPlatform = this.tokenSystem.platforms?.find((p: any) => p.displayName === 'Figma');
     if (!figmaPlatform) return undefined;
 
-    // Find the code syntax for the Figma platform
-    const figmaCodeSyntax = token.codeSyntax?.find((cs: any) => cs.platformId === figmaPlatform.id);
-    return figmaCodeSyntax;
+    try {
+      // Generate the formatted name using the CodeSyntaxGenerator
+      const formattedName = this.codeSyntaxGenerator.generateTokenCodeSyntaxForPlatform(token, figmaPlatform.id);
+      return {
+        platformId: figmaPlatform.id,
+        formattedName
+      };
+    } catch (error) {
+      console.warn(`[FigmaIdManager] Error generating code syntax for token ${token.id}:`, error);
+      return undefined;
+    }
   }
 
   /**

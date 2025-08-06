@@ -200,31 +200,8 @@ export function validateReferentialIntegrity(tokenSystem: TokenSystem, options?:
       });
     });
 
-    // Validate platformIds in codeSyntax (can be skipped for Figma export)
-    if (!options?.skipCodeSyntaxValidation) {
-      token.codeSyntax?.forEach((syntax, syntaxIndex) => {
-        if (!platformIds.has(syntax.platformId)) {
-          errors.push(createValidationError(
-            `tokens[${index}].codeSyntax[${syntaxIndex}].platformId`,
-            `Referenced platform '${syntax.platformId}' does not exist`,
-            'INVALID_PLATFORM_REFERENCE',
-            { tokenId: token.id, referencedPlatformId: syntax.platformId }
-          ));
-        }
-      });
-    } else {
-      // Add warning instead of error when skipping code syntax validation
-      token.codeSyntax?.forEach((syntax, syntaxIndex) => {
-        if (!platformIds.has(syntax.platformId)) {
-          warnings.push(createValidationWarning(
-            `tokens[${index}].codeSyntax[${syntaxIndex}].platformId`,
-            `Referenced platform '${syntax.platformId}' does not exist (skipped for Figma export)`,
-            'SKIPPED_PLATFORM_REFERENCE',
-            { tokenId: token.id, referencedPlatformId: syntax.platformId }
-          ));
-        }
-      });
-    }
+    // Note: codeSyntax validation has been removed as codeSyntax is no longer part of the schema
+    // Code syntax generation is now handled by the CodeSyntaxGenerator service
 
     // Validate taxonomy references
     token.taxonomies?.forEach((taxonomyRef, taxIndex) => {

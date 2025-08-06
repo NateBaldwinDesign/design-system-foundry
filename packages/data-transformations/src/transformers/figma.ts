@@ -1,4 +1,4 @@
-import type { TokenSystem, Token } from '@token-model/data-model';
+import type { TokenSystem, Token, Platform, Taxonomy, PlatformExtension } from '@token-model/data-model';
 import type { 
   FigmaTransformerOptions, 
   FigmaTransformationResult,
@@ -13,6 +13,7 @@ import { validateTokenSystem } from '../utils/validation';
 import { FigmaIdManager } from '../services/figma-id-manager';
 import { FigmaValueConverter } from '../services/figma-value-converter';
 import { FigmaDaisyChainService } from '../services/figma-daisy-chain';
+import { CodeSyntaxGenerator } from '../services/codeSyntaxGenerator';
 import { mapPropertyTypesToFigmaScopes } from '../utils/helpers';
 
 /**
@@ -39,6 +40,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
   private idManager: FigmaIdManager;
   private valueConverter: FigmaValueConverter;
   private daisyChainService: FigmaDaisyChainService;
+  private codeSyntaxGenerator!: CodeSyntaxGenerator;
 
   constructor() {
     super();
@@ -107,9 +109,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
         displayName: t.displayName,
         resolvedValueTypeId: t.resolvedValueTypeId,
         hasValuesByMode: !!t.valuesByMode,
-        valuesByModeLength: t.valuesByMode?.length || 0,
-        hasCodeSyntax: !!t.codeSyntax,
-        codeSyntaxLength: t.codeSyntax?.length || 0
+        valuesByModeLength: t.valuesByMode?.length || 0
       })));
     } else {
       console.warn('[FigmaTransformer] 🔍 DEEP DEBUG: NO TOKENS FOUND IN INPUT!');
@@ -166,6 +166,17 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       tempToRealIdMappingCount: Object.keys(this.idManager.getTempToRealIdMapping()).length,
       tempToRealIdMappingSample: Object.entries(this.idManager.getTempToRealIdMapping()).slice(0, 5)
     });
+
+    // Initialize Code Syntax Generator
+    console.log('[FigmaTransformer] 🔍 INITIALIZING CODE SYNTAX GENERATOR...');
+    this.codeSyntaxGenerator = new CodeSyntaxGenerator({
+      tokens: input.tokens || [],
+      platforms: input.platforms || [],
+      taxonomies: input.taxonomies || [],
+      taxonomyOrder: input.taxonomyOrder || [],
+      platformExtensions: this.loadPlatformExtensions(input.platforms || [])
+    });
+    console.log('[FigmaTransformer] ✅ CODE SYNTAX GENERATOR INITIALIZED');
 
     const collections: FigmaVariableCollection[] = [];
     const allVariables: FigmaVariable[] = [];
@@ -631,17 +642,41 @@ export class FigmaTransformer extends AbstractBaseTransformer<
   }
 
   /**
-   * Build code syntax for a token
+   * Load platform extensions for code syntax generation
+   */
+  private loadPlatformExtensions(platforms: Platform[]): Map<string, PlatformExtension> {
+    const extensions = new Map<string, PlatformExtension>();
+    
+    for (const platform of platforms) {
+      if (platform.extensionSource) {
+        // For now, we'll use the platform's own syntax patterns
+        // In a full implementation, this would load from the extension source
+        if (platform.syntaxPatterns) {
+          extensions.set(platform.id, {
+            syntaxPatterns: platform.syntaxPatterns
+          } as PlatformExtension);
+        }
+      }
+    }
+    
+    return extensions;
+  }
+
+  /**
+   * Build code syntax for a token using the new CodeSyntaxGenerator
    */
   private buildCodeSyntax(token: Token, tokenSystem: TokenSystem): any {
     const codeSyntax: any = {};
     
-    // Map platform code syntax to Figma's expected format using figmaPlatformMapping
-    for (const cs of token.codeSyntax || []) {
-      const platform = tokenSystem.platforms?.find((p: any) => p.id === cs.platformId);
-      if (platform?.figmaPlatformMapping) {
-        // Use the explicit mapping from the platform
-        codeSyntax[platform.figmaPlatformMapping] = cs.formattedName;
+    // Generate code syntax for all platforms that have figmaPlatformMapping
+    for (const platform of tokenSystem.platforms || []) {
+      if (platform.figmaPlatformMapping) {
+        try {
+          const formattedName = this.codeSyntaxGenerator.generateTokenCodeSyntaxForPlatform(token, platform.id);
+          codeSyntax[platform.figmaPlatformMapping] = formattedName;
+        } catch (error) {
+          console.warn(`[FigmaTransformer] Failed to generate code syntax for platform ${platform.id}:`, error);
+        }
       }
     }
     

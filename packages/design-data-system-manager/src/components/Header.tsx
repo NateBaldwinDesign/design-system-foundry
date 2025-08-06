@@ -193,7 +193,6 @@ export const Header: React.FC<HeaderProps> = ({
   // Get change status from new data management services
   const dataEditor = DataEditorService.getInstance();
   const sourceManager = SourceManagerService.getInstance();
-  const hasLocalChanges = dataEditor.hasLocalChanges();
   const localChangeCount = dataEditor.getChangeCount();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const changeSummary = dataEditor.getChangeSummary();
@@ -213,30 +212,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const { currentPlatform: currentPlatformFromURL, currentTheme: currentThemeFromURL } = getCurrentSelectionsFromURL();
 
-  // Debug logging for source context and URL selections
-  console.log('[Header] Dropdown Selections:', {
-    // URL-based selections (authoritative)
-    currentPlatformFromURL,
-    currentThemeFromURL,
-    // Source context for comparison
-    sourceContext: {
-      sourceType: currentSourceContext?.sourceType,
-      sourceId: currentSourceContext?.sourceId
-    },
-    // Available options
-    availablePlatforms: sourceManager.getAvailablePlatforms().map(p => ({ id: p.id, displayName: p.displayName })),
-    availableThemes: sourceManager.getAvailableThemes().map(t => ({ id: t.id, displayName: t.displayName }))
-  });
 
-  // Debug logging for edit mode state
-  console.log('[Header] Edit Mode State:', {
-    isEditMode,
-    currentSourceContextEditMode: currentSourceContext?.editMode?.isActive,
-    hasLocalChanges,
-    localChangeCount,
-    hasEditPermissions,
-    currentBranch
-  });
 
   // Handle source switching warning events
   useEffect(() => {
@@ -713,20 +689,10 @@ export const Header: React.FC<HeaderProps> = ({
       setTargetRepositoryForBranch(targetRepository);
       // Use the branch from the target repository, or fallback to 'main'
       const targetBranch = targetRepository?.branch || 'main';
-      console.log('[Header] Setting target branch for branch selection:', {
-        targetRepository: targetRepository?.fullName,
-        targetBranch,
-        currentBranch
-      });
       setTargetBranchForBranch(targetBranch);
       setShowBranchSelectionDialog(true);
     } else {
       // Non-main branch - directly enter edit mode
-      console.log('[Header] Entering edit mode on non-main branch:', {
-        currentBranch,
-        targetRepository: targetRepository?.fullName
-      });
-      
       if (onEnterEditMode) {
         onEnterEditMode();
       } else {
@@ -747,19 +713,11 @@ export const Header: React.FC<HeaderProps> = ({
     // 1. Switch to that branch (similar to branch creation)
     // 2. Enter edit mode if editMode is true
     
-    console.log('[Header] Branch selected:', {
-      branchName,
-      editMode,
-      hasOnBranchCreated: !!onBranchCreated,
-      hasOnEnterEditMode: !!onEnterEditMode
-    });
-    
     if (onBranchCreated) {
       // Use onBranchCreated which handles branch switching and entering edit mode
       onBranchCreated(branchName);
     } else if (editMode && onEnterEditMode) {
       // If edit mode is requested and we have the handler, enter edit mode
-      console.log('[Header] Entering edit mode after branch selection');
       onEnterEditMode();
     } else if (editMode && !onEnterEditMode) {
       // Edit mode requested but no handler available
@@ -1036,50 +994,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 Refresh (pull) data
                               </Button>
                               
-                              {/* Edit operations - Only available for users with edit permissions */}
-                              {hasDataSourceEditPermissions() && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    justifyContent="flex-start"
-                                    borderRadius={0}
-                                    leftIcon={<GitCommitVertical size={16} />}
-                                    onClick={() => {
-                                      handleSaveToGitHub();
-                                      setIsGitHubWorkflowMenuOpen(false);
-                                    }}
-                                  >
-                                    Save (commit)
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    justifyContent="flex-start"
-                                    borderRadius={0}
-                                    leftIcon={<GitPullRequestArrow size={16} />}
-                                    onClick={() => {
-                                      handleCreatePullRequest();
-                                      setIsGitHubWorkflowMenuOpen(false);
-                                    }}
-                                  >
-                                    Create Pull Request
-                                  </Button>
-                                </>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                justifyContent="flex-start"
-                                borderRadius={0}
-                                leftIcon={<Share2 size={16} />}
-                                onClick={() => {
-                                  handleShare();
-                                  setIsGitHubWorkflowMenuOpen(false);
-                                }}
-                              >
-                                Copy Repository URL
-                              </Button>
+
                             </>
                           )}
                         </VStack>

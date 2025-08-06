@@ -21,12 +21,7 @@ import {
   HStack,
   Flex,
   useColorMode,
-  Table,
-  Thead,
-  Tr,
-  Th,
-  Tbody,
-  Td,
+
   Alert,
   AlertIcon,
   AlertDialog,
@@ -49,13 +44,14 @@ import { PropertyTypePicker } from './PropertyTypePicker';
 import { Token, Mode, Dimension, Platform, TokenStatus, TokenTaxonomyRef, ResolvedValueType, TokenValue, TokenCollection, Taxonomy } from '@token-model/data-model';
 import type { PropertyType } from '@token-model/data-model/src/schema';
 import { createUniqueId } from '../utils/id';
-import { CodeSyntaxService, ensureCodeSyntaxArrayFormat } from '../services/codeSyntax';
+// Note: CodeSyntaxService has been removed as codeSyntax is no longer part of the schema
 import { getDefaultValueForType, getValueTypeFromId } from '../utils/valueTypeUtils';
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
 import type { Schema as SchemaType } from '../hooks/useSchema';
 import type { DataSourceContext } from '../services/dataSourceManager';
 import { OverrideCreationService } from '../services/overrideCreationService';
 import { OverrideTrackingService } from '../services/overrideTrackingService';
+import { PlatformNamePreview } from './PlatformNamePreview';
 
 // ExtendedToken type to include platformOverrides
 export interface ValueByMode {
@@ -443,36 +439,19 @@ export function TokenEditorDialog({
       setTaxonomyEdits(Array.isArray(token.taxonomies) ? token.taxonomies : []);
       setActiveDimensionIds(dimensions.filter(d => d.required).map(d => d.id));
 
-      // Generate code syntax on dialog open
-      const codeSyntaxSchema = { 
-        platforms, 
-        taxonomies, 
-        namingRules: schema?.namingRules || { taxonomyOrder: [] }
-      };
-      const updatedToken = {
-        ...newToken,
-        taxonomies: Array.isArray(token.taxonomies) ? token.taxonomies : [],
-        codeSyntax: CodeSyntaxService.generateAllCodeSyntaxes(
-          {
-            ...newToken,
-            taxonomies: Array.isArray(token.taxonomies) ? token.taxonomies : [],
-            valuesByMode: newToken.valuesByMode
-          },
-          codeSyntaxSchema
-        )
-      };
+      // Note: codeSyntax has been removed from the schema - it's now generated on-demand
       
-      // For new tokens, preserve the unique ID when updating with code syntax
+      // For new tokens, preserve the unique ID
       if (isNew) {
         setEditedToken(prev => ({
-          ...updatedToken,
+          ...newToken,
           id: prev.id // Preserve the unique ID
         }));
       } else {
-        setEditedToken(updatedToken);
+        setEditedToken(newToken);
       }
     }
-  }, [token, open, dimensions, platforms, taxonomies, schema?.namingRules, isNew]);
+  }, [token, open, dimensions, platforms, taxonomies, isNew]);
 
   // Initialize active dimensions from current valuesByMode
   useEffect(() => {
@@ -893,12 +872,7 @@ export function TokenEditorDialog({
       editedToken.tokenTier = 'PRIMITIVE';
     }
 
-    // Compose schema for codeSyntax generation
-    const codeSyntaxSchema = { 
-      platforms, 
-      taxonomies, 
-      namingRules: schema?.namingRules || { taxonomyOrder: [] } 
-    };
+    // Note: codeSyntax generation is now handled by the CodeSyntaxGenerator service
     
     // Create the final token object, omitting tokenCollectionId if it's not set
     const finalToken = editedToken.tokenCollectionId 
@@ -913,29 +887,10 @@ export function TokenEditorDialog({
     const updatedToken = {
       ...finalToken,
       valuesByMode: filteredValuesByMode,
-      taxonomies: taxonomyEdits,
-      codeSyntax: CodeSyntaxService.generateAllCodeSyntaxes(
-        finalToken,
-        codeSyntaxSchema
-      )
+      taxonomies: taxonomyEdits
     };
 
-    // Debug validation variables after code syntax generation
-    const codeSyntaxArray = ensureCodeSyntaxArrayFormat(updatedToken.codeSyntax);
-    const hasTaxonomyError = codeSyntaxArray.some(name => name === undefined);
-    
-    console.log('[TokenEditorDialog] Validation debug after code syntax generation:', {
-      codeSyntaxArray,
-      hasTaxonomyError,
-      displayName: updatedToken.displayName,
-      resolvedValueTypeId: updatedToken.resolvedValueTypeId
-    });
-
-    // Check for validation errors after code syntax generation
-    if (hasTaxonomyError) {
-      console.log('[TokenEditorDialog] Required field validation failed');
-      return;
-    }
+    // Note: codeSyntax has been removed from the schema - it's now generated on-demand
 
     console.log('[TokenEditorDialog] Calling onSave with token:', updatedToken);
     
@@ -971,27 +926,13 @@ export function TokenEditorDialog({
 
   function handleTaxonomyChange(newTaxonomies: TokenTaxonomyRef[]) {
     setTaxonomyEdits(newTaxonomies);
-    const codeSyntaxSchema = { 
-      platforms, 
-      taxonomies, 
-      namingRules: schema?.namingRules || { taxonomyOrder: [] } 
-    };
     setEditedToken((prev: ExtendedToken) => ({
       ...prev,
-      taxonomies: newTaxonomies,
-      codeSyntax: CodeSyntaxService.generateAllCodeSyntaxes(
-        {
-          ...prev,
-          taxonomies: newTaxonomies
-        },
-        codeSyntaxSchema
-      )
+      taxonomies: newTaxonomies
     }));
   }
 
-  // Validation: required fields and taxonomy error
-  const codeSyntaxArray = ensureCodeSyntaxArrayFormat(editedToken.codeSyntax);
-  const hasTaxonomyError = codeSyntaxArray.some(name => name === undefined);
+  // Note: codeSyntax validation has been removed as codeSyntax is no longer part of the schema
 
   // Check for duplicate taxonomy assignments
   function taxonomySet(arr: TokenTaxonomyRef[]) {
@@ -1174,7 +1115,7 @@ export function TokenEditorDialog({
                           });
                         }}
                       >
-                        <option value="">Select a collection</option>
+                        <option value="">Auto-select</option>
                         {getCompatibleCollections().map(collection => (
                           <option key={collection.id} value={collection.id}>
                             {collection.name}
@@ -1191,9 +1132,7 @@ export function TokenEditorDialog({
                           </VStack>
                         </Alert>
                       )}
-                      <Text fontSize="sm" color="gray.500" mt={1}>
-                        If empty, a compatible collection will be automatically assigned.
-                      </Text>
+
                     </FormControl>
                     <FormControl>
                       <FormLabel>Release status</FormLabel>
@@ -1208,7 +1147,7 @@ export function TokenEditorDialog({
                       </Select>
                     </FormControl>
                     <FormControl>
-                      <FormLabel>Visibility & customization</FormLabel>
+                      <FormLabel>Editability</FormLabel>
                       <HStack spacing={6} align="stretch" flex={1}>
                         <Checkbox
                           isChecked={editedToken.private}
@@ -1280,39 +1219,13 @@ export function TokenEditorDialog({
                         </FormControl>
                       </Box>
                       
-                      {/* Generated names by platform (right column) */}
-                      <Box flex={1} minW={0}>
-                        {hasTaxonomyError && (
-                          <Alert status="error" mb={2}>
-                            <AlertIcon />
-                            You must apply taxonomies to this token before a platform name can be generated.
-                          </Alert>
-                        )}
-                        <Text fontSize="sm" fontWeight="medium" mb={1}>Generated names per platform</Text>
-                        <Table size="sm" variant="simple">
-                          <Thead>
-                            <Tr>
-                              <Th>Platform</Th>
-                              <Th>Name</Th>
-                            </Tr>
-                          </Thead>
-                          <Tbody>
-                            {platforms.map(platform => {
-                              const syntaxEntry = codeSyntaxArray.find(cs => cs.platformId === platform.id);
-                              return (
-                                <Tr key={platform.id}>
-                                  <Td>{platform.displayName}</Td>
-                                  <Td>
-                                    <Text fontFamily="mono" fontSize="sm">
-                                      {syntaxEntry?.formattedName || '—'}
-                                    </Text>
-                                  </Td>
-                                </Tr>
-                              );
-                            })}
-                          </Tbody>
-                        </Table>
-                      </Box>
+                      {/* Platform name preview using the new service */}
+                      <PlatformNamePreview
+                        token={editedToken}
+                        platforms={platforms}
+                        taxonomies={taxonomies}
+                        dataSourceContext={dataSourceContext}
+                      />
                     </Flex>
                   </VStack>
                 </Box>

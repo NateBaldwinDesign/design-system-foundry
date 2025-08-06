@@ -198,7 +198,7 @@ export const CoreDataPropertiesTab: React.FC = () => {
           <b>tokens</b> (required): Design tokens with values that can vary by mode.<br />
           Each token references its collection and value type by ID (<Code colorScheme="purple">tokenCollectionId</Code>, <Code colorScheme="purple">resolvedValueTypeId</Code>).<br />
           <b>valuesByMode</b>: Each entry must use <Code colorScheme="purple">modeIds</Code> (array of string IDs). Value type is determined by the token&apos;s <Code colorScheme="purple">resolvedValueTypeId</Code>.<br />
-          <b>codeSyntax</b>: Platform-specific naming conventions for this token.<br />
+
           <b>Technical note:</b> Never use UPPER_CASE enums for value types; always reference by string ID. Platform-specific overrides are now handled through platform extension files rather than inline <Code colorScheme="purple">platformOverrides</Code>.
         </Text>
         <JsonSyntaxHighlighter code={JSON.stringify({
@@ -215,16 +215,6 @@ export const CoreDataPropertiesTab: React.FC = () => {
               themeable: true,
               generatedByAlgorithm: false,
               propertyTypes: ["color", "background-color"],
-              codeSyntax: [
-                {
-                  platformId: "platform-web",
-                  formattedName: "--color-blue-500"
-                },
-                {
-                  platformId: "platform-ios",
-                  formattedName: "ColorBlue500"
-                }
-              ],
               valuesByMode: [
                 {
                   modeIds: ["mode-light"],

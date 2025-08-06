@@ -5,6 +5,7 @@ import { ChangeTrackingService } from './changeTrackingService';
 import { OverrideTrackingService } from './overrideTrackingService';
 import { DataEditorService } from './dataEditorService';
 import { SourceManagerService } from './sourceManagerService';
+import { PlatformSyntaxPatternService } from './platformSyntaxPatternService';
 import type { Platform, Theme } from '@token-model/data-model';
 
 export interface RepositoryInfo {
@@ -45,6 +46,17 @@ export interface DataSourceContext {
     mergeSources: Array<'core' | 'platform-extension' | 'theme-override'>;
     displayData: 'merged' | 'core-only' | 'platform-only' | 'theme-only';
   };
+  
+  // NEW: Platform syntax patterns for code generation
+  platformSyntaxPatterns: {
+    [platformId: string]: {
+      prefix?: string;
+      suffix?: string;
+      delimiter?: '' | '_' | '-' | '.' | '/';
+      capitalization?: 'none' | 'camel' | 'uppercase' | 'lowercase' | 'capitalize';
+      formatString?: string;
+    };
+  };
 }
 
 export interface DataSourceCallbacks {
@@ -82,7 +94,8 @@ export class DataSourceManager {
       isMerged: false,
       mergeSources: ['core'],
       displayData: 'core-only'
-    }
+    },
+    platformSyntaxPatterns: {}
   };
 
   private constructor() {
@@ -251,6 +264,12 @@ export class DataSourceManager {
 
       // Validate current selections
       this.validateCurrentSelections();
+      
+      // Collect syntax patterns from all platforms
+      console.log('[DataSourceManager] Calling collectAndStoreSyntaxPatterns in updateAvailableSources');
+      PlatformSyntaxPatternService.getInstance().collectAndStoreSyntaxPatterns().catch((error: unknown) => {
+        console.error('[DataSourceManager] Error collecting syntax patterns:', error);
+      });
       
     } catch (error) {
       this.callbacks.onError?.(error instanceof Error ? error.message : 'Failed to update available sources');
@@ -543,7 +562,8 @@ export class DataSourceManager {
         isMerged: false,
         mergeSources: ['core'],
         displayData: 'core-only'
-      }
+      },
+      platformSyntaxPatterns: {}
     };
 
     localStorage.removeItem('token-model:data-source-context');
@@ -656,6 +676,26 @@ export class DataSourceManager {
    */
   getCurrentViewMode(): DataSourceContext['viewMode'] {
     return { ...this.currentContext.viewMode };
+  }
+
+  /**
+   * Update platform syntax patterns in the current context
+   */
+  updatePlatformSyntaxPatterns(patterns: DataSourceContext['platformSyntaxPatterns']): void {
+    console.log('[DataSourceManager] Updating platform syntax patterns:', {
+      patterns,
+      patternsKeys: Object.keys(patterns || {}),
+      patternsCount: Object.keys(patterns || {}).length
+    });
+    
+    this.currentContext.platformSyntaxPatterns = patterns;
+    
+    // Trigger callback if provided
+    if (this.callbacks.onDataSourceChanged) {
+      this.callbacks.onDataSourceChanged(this.currentContext);
+    }
+    
+    console.log('[DataSourceManager] Platform syntax patterns updated successfully');
   }
 
   /**

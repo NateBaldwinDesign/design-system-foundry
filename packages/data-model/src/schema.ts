@@ -226,10 +226,6 @@ export const Token = z.object({
   algorithmId: z.string().regex(/^[a-zA-Z0-9-_]+$/).optional(),
   taxonomies: z.array(TokenTaxonomyRef),
   propertyTypes: z.array(PropertyType),
-  codeSyntax: z.array(z.object({
-    platformId: z.string(),
-    formattedName: z.string()
-  })),
   valuesByMode: z.array(
     z.object({
       modeIds: z.array(z.string()),
@@ -367,7 +363,6 @@ export const PlatformExtension = z.object({
     algorithmId: z.string().optional(),
     taxonomies: z.array(z.any()).optional(),
     propertyTypes: z.array(z.any()).optional(),
-    codeSyntax: z.array(z.any()).optional(),
     valuesByMode: z.array(z.object({
       modeIds: z.array(z.string()),
       value: z.union([

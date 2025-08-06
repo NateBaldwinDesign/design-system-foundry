@@ -235,24 +235,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-000000",
-          "formattedName": "Black"
-        },
-        {
-          "platformId": "platform-111111",
-          "formattedName": "--spblack"
-        },
-        {
-          "platformId": "platform-222222",
-          "formattedName": "SpBlack"
-        },
-        {
-          "platformId": "platform-333333",
-          "formattedName": "SPBLACK"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -318,24 +300,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-000000",
-          "formattedName": "Blue/500"
-        },
-        {
-          "platformId": "platform-111111",
-          "formattedName": "--spblue-500"
-        },
-        {
-          "platformId": "platform-222222",
-          "formattedName": "SpBlue_500"
-        },
-        {
-          "platformId": "platform-333333",
-          "formattedName": "SPBLUE_500"
         }
       ],
       "valuesByMode": [
@@ -405,24 +369,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-000000",
-          "formattedName": "Text/Accent"
-        },
-        {
-          "platformId": "platform-111111",
-          "formattedName": "--sptext-accent"
-        },
-        {
-          "platformId": "platform-222222",
-          "formattedName": "SpText_Accent"
-        },
-        {
-          "platformId": "platform-333333",
-          "formattedName": "SPTEXT_ACCENT"
         }
       ],
       "valuesByMode": [
@@ -550,24 +496,6 @@
           "termId": "termId-2030ee73-668f-4c75-8f4d-43404fcbf7c1"
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-000000",
-          "formattedName": "Font family/Primary"
-        },
-        {
-          "platformId": "platform-111111",
-          "formattedName": "--spfont family-primary"
-        },
-        {
-          "platformId": "platform-222222",
-          "formattedName": "SpFont family_Primary"
-        },
-        {
-          "platformId": "platform-333333",
-          "formattedName": "SPFONT FAMILY_PRIMARY"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [
@@ -627,24 +555,6 @@
           "termId": "termId-2030ee73-668f-4c75-8f4d-43404fcbf7c1"
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-000000",
-          "formattedName": "Line height/Primary"
-        },
-        {
-          "platformId": "platform-111111",
-          "formattedName": "--spline height-primary"
-        },
-        {
-          "platformId": "platform-222222",
-          "formattedName": "SpLine height_Primary"
-        },
-        {
-          "platformId": "platform-333333",
-          "formattedName": "SPLINE HEIGHT_PRIMARY"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -673,24 +583,6 @@
         {
           "taxonomyId": "taxonomyId-2222-2222-2222",
           "termId": "termId-2030ee73-668f-4c75-8f4d-43404fcbf7c1"
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-000000",
-          "formattedName": "Font weight/Primary"
-        },
-        {
-          "platformId": "platform-111111",
-          "formattedName": "--spfont weight-primary"
-        },
-        {
-          "platformId": "platform-222222",
-          "formattedName": "SpFont weight_Primary"
-        },
-        {
-          "platformId": "platform-333333",
-          "formattedName": "SPFONT WEIGHT_PRIMARY"
         }
       ],
       "valuesByMode": [
@@ -723,24 +615,6 @@
           "termId": "termId-852b2d86-b7bd-462f-9f77-90cd227dd537"
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-000000",
-          "formattedName": "Spacing/100"
-        },
-        {
-          "platformId": "platform-111111",
-          "formattedName": "--spspacing-100"
-        },
-        {
-          "platformId": "platform-222222",
-          "formattedName": "SpSpacing_100"
-        },
-        {
-          "platformId": "platform-333333",
-          "formattedName": "SPSPACING_100"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -769,24 +643,6 @@
         {
           "taxonomyId": "taxonomyId-3333-3333-3333",
           "termId": "termId-852b2d86-b7bd-462f-9f77-90cd227dd537"
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-000000",
-          "formattedName": "Radius/100"
-        },
-        {
-          "platformId": "platform-111111",
-          "formattedName": "--spradius-100"
-        },
-        {
-          "platformId": "platform-222222",
-          "formattedName": "SpRadius_100"
-        },
-        {
-          "platformId": "platform-333333",
-          "formattedName": "SPRADIUS_100"
         }
       ],
       "valuesByMode": [
@@ -819,24 +675,6 @@
           "termId": "termId-971de9e1-718a-4938-b6eb-a239fd1c92ea"
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-000000",
-          "formattedName": "Spacing/200"
-        },
-        {
-          "platformId": "platform-111111",
-          "formattedName": "--spspacing-200"
-        },
-        {
-          "platformId": "platform-222222",
-          "formattedName": "SpSpacing_200"
-        },
-        {
-          "platformId": "platform-333333",
-          "formattedName": "SPSPACING_200"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -865,24 +703,6 @@
         {
           "taxonomyId": "taxonomyId-2222-2222-2222",
           "termId": "termId-e053c2dc-3511-4165-9dbd-8320e4e7a6e5"
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-000000",
-          "formattedName": "Font family/Secondary"
-        },
-        {
-          "platformId": "platform-111111",
-          "formattedName": "--spfont family-secondary"
-        },
-        {
-          "platformId": "platform-222222",
-          "formattedName": "SpFont family_Secondary"
-        },
-        {
-          "platformId": "platform-333333",
-          "formattedName": "SPFONT FAMILY_SECONDARY"
         }
       ],
       "valuesByMode": [
@@ -915,24 +735,6 @@
           "termId": "termId-971de9e1-718a-4938-b6eb-a239fd1c92ea"
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-000000",
-          "formattedName": "Line height/200"
-        },
-        {
-          "platformId": "platform-111111",
-          "formattedName": "--spline height-200"
-        },
-        {
-          "platformId": "platform-222222",
-          "formattedName": "SpLine height_200"
-        },
-        {
-          "platformId": "platform-333333",
-          "formattedName": "SPLINE HEIGHT_200"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -961,24 +763,6 @@
         {
           "taxonomyId": "taxonomyId-3333-3333-3333",
           "termId": "termId-971de9e1-718a-4938-b6eb-a239fd1c92ea"
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-000000",
-          "formattedName": "Font weight/200"
-        },
-        {
-          "platformId": "platform-111111",
-          "formattedName": "--spfont weight-200"
-        },
-        {
-          "platformId": "platform-222222",
-          "formattedName": "SpFont weight_200"
-        },
-        {
-          "platformId": "platform-333333",
-          "formattedName": "SPFONT WEIGHT_200"
         }
       ],
       "valuesByMode": [
@@ -1013,7 +797,6 @@
         }
       ],
       "propertyTypes": [],
-      "codeSyntax": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1045,7 +828,6 @@
         }
       ],
       "propertyTypes": [],
-      "codeSyntax": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1077,7 +859,6 @@
         }
       ],
       "propertyTypes": [],
-      "codeSyntax": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1109,7 +890,6 @@
         }
       ],
       "propertyTypes": [],
-      "codeSyntax": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1141,7 +921,6 @@
         }
       ],
       "propertyTypes": [],
-      "codeSyntax": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1173,7 +952,6 @@
         }
       ],
       "propertyTypes": [],
-      "codeSyntax": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1205,7 +983,6 @@
         }
       ],
       "propertyTypes": [],
-      "codeSyntax": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1237,7 +1014,6 @@
         }
       ],
       "propertyTypes": [],
-      "codeSyntax": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1269,7 +1045,6 @@
         }
       ],
       "propertyTypes": [],
-      "codeSyntax": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1301,7 +1076,6 @@
         }
       ],
       "propertyTypes": [],
-      "codeSyntax": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1333,7 +1107,6 @@
         }
       ],
       "propertyTypes": [],
-      "codeSyntax": [],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -2521,9 +2294,21 @@
     "taxonomyId-3333-3333-3333"
   ],
   "componentCategories": [
-    { "id": "input", "displayName": "Input", "description": "Input components such as text fields, checkboxes, etc." },
-    { "id": "navigation", "displayName": "Navigation", "description": "Navigation components such as menus, tabs, etc." },
-    { "id": "feedback", "displayName": "Feedback", "description": "Feedback components such as alerts, snackbars, etc." }
+    {
+      "id": "input",
+      "displayName": "Input",
+      "description": "Input components such as text fields, checkboxes, etc."
+    },
+    {
+      "id": "navigation",
+      "displayName": "Navigation",
+      "description": "Navigation components such as menus, tabs, etc."
+    },
+    {
+      "id": "feedback",
+      "displayName": "Feedback",
+      "description": "Feedback components such as alerts, snackbars, etc."
+    }
   ],
   "components": [
     {
@@ -2540,7 +2325,10 @@
         {
           "componentPropertyId": "component-property-1111-1111-1111",
           "description": "Priority changes the strength of visual appearance for the button",
-          "supportedOptionIds": ["component-option-aaaa-aaaa-aaaa", "component-option-bbbb-bbbb-bbbb"],
+          "supportedOptionIds": [
+            "component-option-aaaa-aaaa-aaaa",
+            "component-option-bbbb-bbbb-bbbb"
+          ],
           "default": "component-option-bbbb-bbbb-bbbb"
         }
       ]

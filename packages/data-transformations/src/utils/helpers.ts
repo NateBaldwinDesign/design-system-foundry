@@ -23,17 +23,13 @@ export function sanitizeVariableName(name: string): string {
 
 /**
  * Convert a token name to a variable name
+ * Note: This function now uses displayName only since codeSyntax has been removed
  */
 export function tokenToVariableName(token: Token, platformId?: string): string {
   let name = token.displayName || token.id;
   
-  // If platform-specific code syntax exists, use it
-  if (platformId && token.codeSyntax) {
-    const syntax = token.codeSyntax.find(s => s.platformId === platformId);
-    if (syntax) {
-      name = syntax.formattedName;
-    }
-  }
+  // Note: codeSyntax generation is now handled by CodeSyntaxGenerator service
+  // This function maintains backward compatibility by using displayName
   
   return sanitizeVariableName(name);
 }

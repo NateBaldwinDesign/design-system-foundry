@@ -845,20 +845,13 @@ export class FigmaDaisyChainService {
 
   /**
    * Build code syntax for a token
+   * Note: This method now returns an empty object since codeSyntax has been removed from the schema
+   * Code syntax generation is now handled by the CodeSyntaxGenerator service in the main transformer
    */
   private buildCodeSyntax(token: Token, tokenSystem: TokenSystem): any {
-    const codeSyntax: any = {};
-    
-    // Map platform code syntax to Figma's expected format using figmaPlatformMapping
-    for (const cs of token.codeSyntax || []) {
-      const platform = tokenSystem.platforms?.find((p: any) => p.id === cs.platformId);
-      if (platform?.figmaPlatformMapping) {
-        // Use the explicit mapping from the platform
-        codeSyntax[platform.figmaPlatformMapping] = cs.formattedName;
-      }
-    }
-    
-    return codeSyntax;
+    // Return empty object since codeSyntax is no longer part of the schema
+    // The main transformer will handle code syntax generation using CodeSyntaxGenerator
+    return {};
   }
 
   /**

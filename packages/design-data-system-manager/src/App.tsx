@@ -52,6 +52,7 @@ import { BranchManager } from './services/branchManager';
 import { URLStateManager } from './services/urlStateManager';
 import { DataLoaderService } from './services/dataLoaderService';
 import { DataMergerService } from './services/dataMergerService';
+import { PlatformSyntaxPatternService } from './services/platformSyntaxPatternService';
 import { exampleData, algorithmData, mergeData } from '@token-model/data-model';
 import { isMainBranch } from './utils/BranchValidationUtils';
 
@@ -264,6 +265,16 @@ const App = () => {
             setAlgorithms(snapshot.algorithms);
             setTaxonomyOrder(snapshot.taxonomyOrder);
             setDimensionOrder(snapshot.dimensionOrder);
+            
+            // Collect platform syntax patterns after data is loaded
+            console.log('[App] Calling collectAndStoreSyntaxPatterns after data loaded');
+            PlatformSyntaxPatternService.getInstance().collectAndStoreSyntaxPatterns()
+              .then(() => {
+                console.log('[App] ✅ Successfully collected syntax patterns at app load');
+              })
+              .catch(error => {
+                console.error('[App] ❌ Error collecting syntax patterns at app load:', error);
+              });
             
             // Update change log data - use the baseline that was set by DataManager
             updateChangeLogData();
@@ -1022,7 +1033,7 @@ const App = () => {
       tokenTier: 'PRIMITIVE',
       generatedByAlgorithm: false,
       taxonomies: [],
-      codeSyntax: [],
+
       valuesByMode: []
     });
     setIsEditorOpen(true);

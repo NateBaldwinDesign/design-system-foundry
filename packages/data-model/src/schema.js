@@ -183,10 +183,6 @@ export const Token = z.object({
     algorithmId: z.string().regex(/^[a-zA-Z0-9-_]+$/).optional(),
     taxonomies: z.array(TokenTaxonomyRef),
     propertyTypes: z.array(z.string()),
-    codeSyntax: z.array(z.object({
-        platformId: z.string(),
-        formattedName: z.string()
-    })),
     valuesByMode: z.array(z.object({
         modeIds: z.array(z.string()),
         value: TokenValue,

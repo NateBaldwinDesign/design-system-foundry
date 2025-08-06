@@ -48,10 +48,7 @@ export interface Schema {
       termId: string;
     }>;
     propertyTypes: PropertyType[];
-    codeSyntax: Array<{
-      platformId: string;
-      formattedName: string;
-    }>;
+    // Note: codeSyntax has been removed from the schema
     valuesByMode: Array<{
       modeIds: string[];
       value: TokenValue;

@@ -80,7 +80,7 @@ export class OverrideManager {
           algorithmId: coreToken.algorithmId,
           taxonomies: coreToken.taxonomies,
           propertyTypes: coreToken.propertyTypes,
-          codeSyntax: coreToken.codeSyntax,
+          // Note: codeSyntax has been removed from the schema
           valuesByMode: (newValue.valuesByMode as typeof coreToken.valuesByMode) || coreToken.valuesByMode,
           omit: false
         }
@@ -118,7 +118,7 @@ export class OverrideManager {
       tokenOverrides: [
         {
           tokenId: tokenId,
-          valuesByMode: (newValue.valuesByMode as unknown[]) || []
+          valuesByMode: (newValue.valuesByMode as { value: { value?: unknown } | { tokenId: string }; modeIds: string[] }[]) || []
         }
       ]
     };

@@ -4,6 +4,9 @@ export * from './types';
 // Export all transformers
 export * from './transformers';
 
+// Export all services
+export * from './services';
+
 // Export all utilities
 export * from './utils';
 

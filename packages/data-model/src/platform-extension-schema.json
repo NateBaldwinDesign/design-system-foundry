@@ -97,7 +97,6 @@
           "algorithmId": { "type": "string" },
           "taxonomies": { "type": "array", "items": { "type": "object" } },
           "propertyTypes": { "type": "array", "items": { "type": "object" } },
-          "codeSyntax": { "type": "array", "items": { "type": "object" } },
           "valuesByMode": {
             "type": "array",
             "items": {

@@ -231,25 +231,11 @@ export class FigmaExportService {
         return cleanedValueByMode;
       });
       
-      // Clean codeSyntax - remove entries that reference non-existent platforms
-      const originalCodeSyntax = token.codeSyntax || [];
-      const cleanedCodeSyntax = originalCodeSyntax.filter(syntax => {
-        const platformId = (syntax as any).platformId;
-        if (platformId && !validPlatformIds.has(platformId)) {
-          console.log(`[FigmaExportService] Removed codeSyntax for non-existent platform ${platformId} from token ${token.id}`);
-          return false;
-        }
-        return true;
-      });
-      
-      if (originalCodeSyntax.length !== cleanedCodeSyntax.length) {
-        console.log(`[FigmaExportService] Cleaned codeSyntax for token ${token.id}: ${originalCodeSyntax.length} -> ${cleanedCodeSyntax.length} entries`);
-      }
+      // Note: codeSyntax has been removed from the schema - it's now generated on-demand
       
       return {
         ...token,
-        valuesByMode: cleanedValuesByMode,
-        codeSyntax: cleanedCodeSyntax
+        valuesByMode: cleanedValuesByMode
       };
     }) || [];
     

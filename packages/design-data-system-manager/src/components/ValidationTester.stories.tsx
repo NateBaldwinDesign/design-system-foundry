@@ -16,10 +16,6 @@ const mockTokens: Token[] = [
     themeable: true,
     taxonomies: [],
     propertyTypes: ['brand', 'primary'],
-    codeSyntax: [
-      { platformId: 'css', formattedName: '--color-primary' },
-      { platformId: 'scss', formattedName: '$color-primary' }
-    ],
     valuesByMode: [
       {
         modeIds: ['light'],
@@ -39,10 +35,6 @@ const mockTokens: Token[] = [
     themeable: false,
     taxonomies: [],
     propertyTypes: ['spacing', 'base'],
-    codeSyntax: [
-      { platformId: 'css', formattedName: '--spacing-unit' },
-      { platformId: 'scss', formattedName: '$spacing-unit' }
-    ],
     valuesByMode: [
       {
         modeIds: ['default'],
