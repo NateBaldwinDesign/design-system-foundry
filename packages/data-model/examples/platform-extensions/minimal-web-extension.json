@@ -1,0 +1,25 @@
+{
+    "systemId": "core-design-system",
+    "platformId": "platform-111111",
+    "version": "1.0.0",
+    "figmaFileKey": "web-platform-extension",
+    "packageUri": "https://github.com/designsystem/ios-components",
+    "documentationUri": "https://designsystem.com/ios",
+    "syntaxPatterns": {
+      "prefix": "--",
+      "suffix": "",
+      "delimiter": "-",
+      "capitalization": "lowercase",
+      "formatString": ""
+    },
+    "valueFormatters": {
+      "color": "rgb",
+      "dimension": "px",
+      "numberPrecision": 1
+    },
+    "componentImplementations": [
+    ],
+    "tokenOverrides": [],
+    "omittedModes": [],
+    "omittedDimensions": []
+  } 
