@@ -1855,6 +1855,7 @@ const App = () => {
             <Homepage
               isGitHubConnected={isGitHubConnected}
               githubUser={githubUser}
+              selectedRepoInfo={selectedRepoInfo}
               onGitHubConnect={handleGitHubConnect}
               onGitHubDisconnect={handleGitHubDisconnect}
             />

@@ -451,10 +451,10 @@ export const Header: React.FC<HeaderProps> = ({
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleGitHubDisconnect = () => {
-    // Clear URL parameters when disconnecting from GitHub
-    const url = new URL(window.location.href);
-    url.search = '';
-    window.history.replaceState({}, '', url.toString());
+    // // Clear URL parameters when disconnecting from GitHub
+    // const url = new URL(window.location.href);
+    // url.search = '';
+    // window.history.replaceState({}, '', url.toString());
     
     // Use the app-level handler
     if (onGitHubDisconnect) {
