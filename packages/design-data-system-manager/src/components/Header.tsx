@@ -29,6 +29,8 @@ import {
   AlertDialogHeader,
   AlertDialogBody,
   AlertDialogFooter,
+  Divider,
+  Avatar,
 } from '@chakra-ui/react';
 import {
   History,
@@ -41,6 +43,7 @@ import {
   GitPullRequestArrow,
   Share2,
   Database,
+  UserRound,
 } from 'lucide-react';
 import { ChangeLog } from './ChangeLog';
 import { GitHubAuthService } from '../services/githubAuth';
@@ -173,6 +176,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [showFindDesignSystem, setShowFindDesignSystem] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [saveDialogMode, setSaveDialogMode] = useState<'direct' | 'pullRequest'>('direct');
   const [isGitHubWorkflowMenuOpen, setIsGitHubWorkflowMenuOpen] = useState(false);
   const [isGitHubConnecting, setIsGitHubConnecting] = useState(false);
@@ -461,6 +465,7 @@ export const Header: React.FC<HeaderProps> = ({
     setShowFindDesignSystem(false);
     setShowSaveDialog(false);
     setIsGitHubConnecting(false);
+    setIsUserMenuOpen(false)
   };
 
 
@@ -1046,6 +1051,79 @@ export const Header: React.FC<HeaderProps> = ({
                 </HStack>
               )}
             </>
+          )}
+
+          {/* User Menu - Moved to the end */}
+          {githubUser && (
+            <Popover 
+              placement="bottom-end" 
+              isOpen={isUserMenuOpen} 
+              onClose={() => setIsUserMenuOpen(false)}
+            >
+              <PopoverTrigger>
+                <IconButton
+                  aria-label="User Menu"
+                  icon={<UserRound size={16} />}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setIsUserMenuOpen(true)}
+                />
+              </PopoverTrigger>
+              <PopoverContent p={0} w="auto" minW="200px">
+                <PopoverArrow />
+                <PopoverBody p={2}>
+                  <VStack spacing={0} align="stretch">
+                    <HStack p={2} mb={2} w="full" justifyContent="space-between" alignItems="center">
+                      <VStack spacing={0} align="flex-start">
+                        <Avatar size="lg" src={githubUser.avatar_url} mb={2}/>
+                        <Text fontSize="sm" fontWeight="bold">{githubUser.login}</Text>
+                        <Text fontSize="xs" color="gray.500">{githubUser.email}</Text>
+                      </VStack>
+                    </HStack>
+                    <Divider mb={2} />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      justifyContent="flex-start"
+                      borderRadius={0}
+                      onClick={() => {
+                        window.open(`https://github.com/${githubUser.login}`, '_blank');
+                        setIsUserMenuOpen(false);
+                      }}
+                    >
+                      View Profile
+                    </Button>
+                    {selectedRepoInfo && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        justifyContent="flex-start"
+                        borderRadius={0}
+                        onClick={() => {
+                          window.open(`https://github.com/${selectedRepoInfo.fullName}/pulls?q=author:${githubUser.login}`, '_blank');
+                          setIsUserMenuOpen(false);
+                        }}
+                      >
+                        My Pull Requests
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      justifyContent="flex-start"
+                      borderRadius={0}
+                      colorScheme="red"
+                      onClick={() => {
+                        handleGitHubDisconnect();
+                        setIsUserMenuOpen(false);
+                      }}
+                    >
+                      Sign out
+                    </Button>
+                  </VStack>
+                </PopoverBody>
+              </PopoverContent>
+            </Popover>
           )}
         </HStack>
       </Box>
