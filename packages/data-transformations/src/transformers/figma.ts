@@ -591,39 +591,28 @@ export class FigmaTransformer extends AbstractBaseTransformer<
   }
 
   /**
-   * Get Figma code syntax from pre-generated code syntax
-   * This extracts the appropriate Figma platform mapping from the pre-generated code syntax
+   * Get Figma variable name and code syntax from pre-generated data
+   * Figma variable names are determined exclusively by core figmaConfiguration.syntaxPatterns
+   * Platform code syntax is used for the codeSyntax property
    */
   private getFigmaCodeSyntax(token: Token, codeSyntax: Record<string, string>, tokenSystem: TokenSystem): { platformId: string; formattedName: string } | null {
-    // Look for platforms with Figma mapping (WEB, iOS, ANDROID)
-    const figmaPlatforms = ['WEB', 'iOS', 'ANDROID'];
+    // Get Figma variable name from pre-generated data (uses core figmaConfiguration.syntaxPatterns)
+    const figmaVariableName = (token as Token & { figmaVariableName?: string }).figmaVariableName;
     
-    for (const figmaPlatform of figmaPlatforms) {
-      if (codeSyntax[figmaPlatform]) {
-        // Find the corresponding platform ID
-        const platform = tokenSystem.platforms?.find(p => p.figmaPlatformMapping === figmaPlatform);
-        if (platform) {
-          console.log(`[FigmaTransformer] Using ${figmaPlatform} code syntax for token ${token.id}: "${codeSyntax[figmaPlatform]}"`);
-          return {
-            platformId: platform.id,
-            formattedName: codeSyntax[figmaPlatform]
-          };
-        }
-      }
-    }
-
-    // Fallback: if no specific Figma platform mapping found, use the first available code syntax
-    const firstCodeSyntax = Object.entries(codeSyntax)[0];
-    if (firstCodeSyntax) {
-      console.log(`[FigmaTransformer] Using fallback code syntax for token ${token.id}: "${firstCodeSyntax[1]}"`);
+    if (figmaVariableName) {
+      console.log(`[FigmaTransformer] Using pre-generated Figma variable name for token ${token.id}: "${figmaVariableName}"`);
       return {
-        platformId: 'figma', // Generic fallback
-        formattedName: firstCodeSyntax[1]
+        platformId: 'figma', // Figma variable names are determined by core data, not platform
+        formattedName: figmaVariableName
       };
     }
-
-    console.warn(`[FigmaTransformer] No code syntax found for token ${token.id}`);
-    return null;
+    
+    // Fallback: if no pre-generated Figma variable name, use display name
+    console.warn(`[FigmaTransformer] No pre-generated Figma variable name found for token ${token.id}, using display name`);
+    return {
+      platformId: 'figma',
+      formattedName: token.displayName
+    };
   }
 
   /**

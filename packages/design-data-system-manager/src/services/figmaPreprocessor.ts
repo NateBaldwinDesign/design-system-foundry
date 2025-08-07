@@ -100,19 +100,27 @@ export class FigmaPreprocessor {
     // Get syntax patterns for all target platforms using existing service
     const syntaxPatterns = this.platformSyntaxPatternService.getAllSyntaxPatterns();
     
+    // Get Figma syntax patterns from core data for variable naming
+    const figmaSyntaxPatterns = this.getFigmaSyntaxPatterns(tokenSystem);
+    console.log('[FigmaPreprocessor] Using Figma syntax patterns for variable naming:', figmaSyntaxPatterns);
+    
     // Generate code syntax for each token dynamically
     const enhancedTokens = tokenSystem.tokens?.map(token => {
       const codeSyntax: Record<string, string> = {};
       
+      // Generate Figma variable name using core figmaConfiguration.syntaxPatterns
+      const figmaVariableName = this.generateFigmaVariableName(token, figmaSyntaxPatterns, tokenSystem);
+      
+      // Generate platform code syntax using platform syntax patterns
       for (const platform of targetPlatforms) {
         const platformPatterns = syntaxPatterns[platform.id];
         if (platformPatterns && platform.figmaPlatformMapping) {
           try {
             const formattedName = this.generateFormattedName(token, platformPatterns, tokenSystem);
             codeSyntax[platform.figmaPlatformMapping] = formattedName;
-            console.log(`[FigmaPreprocessor] Generated "${formattedName}" for token ${token.id} on platform ${platform.id}`);
+            console.log(`[FigmaPreprocessor] Generated platform code syntax "${formattedName}" for token ${token.id} on platform ${platform.id}`);
           } catch (error) {
-            console.warn(`[FigmaPreprocessor] Failed to generate name for token ${token.id} on platform ${platform.id}:`, error);
+            console.warn(`[FigmaPreprocessor] Failed to generate platform code syntax for token ${token.id} on platform ${platform.id}:`, error);
             // Fallback to display name
             codeSyntax[platform.figmaPlatformMapping] = token.displayName;
           }
@@ -121,6 +129,8 @@ export class FigmaPreprocessor {
       
       return {
         ...token,
+        // Store Figma variable name separately from platform code syntax
+        figmaVariableName: figmaVariableName,
         codeSyntax: Object.keys(codeSyntax).length > 0 ? codeSyntax : undefined
       };
     }) || [];
@@ -131,6 +141,52 @@ export class FigmaPreprocessor {
     };
   }
   
+  /**
+   * Generate Figma variable name using core figmaConfiguration.syntaxPatterns
+   * This ensures Figma variable names are determined exclusively by core data
+   */
+  private generateFigmaVariableName(token: Token, figmaSyntaxPatterns: SyntaxPatterns, tokenSystem: TokenSystem): string {
+    console.log(`[FigmaPreprocessor] Generating Figma variable name for token ${token.id} using core syntax patterns`);
+    
+    // Extract taxonomy terms in order
+    const orderedTerms = this.extractOrderedTerms(token, tokenSystem);
+    
+    if (orderedTerms.length === 0) {
+      return token.displayName; // Fallback to display name
+    }
+    
+    // Apply Figma syntax patterns (from core data)
+    let result = orderedTerms.join(figmaSyntaxPatterns.delimiter || '/');
+    
+    // Apply capitalization
+    switch (figmaSyntaxPatterns.capitalization) {
+      case 'camel':
+        result = result.replace(/(?:^|[-_\s]+)([a-z])/g, (_, letter) => letter.toUpperCase());
+        break;
+      case 'uppercase':
+        result = result.toUpperCase();
+        break;
+      case 'lowercase':
+        result = result.toLowerCase();
+        break;
+      case 'capitalize':
+        result = result.split(' ').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' ');
+        break;
+    }
+    
+    // Apply prefix and suffix
+    result = `${figmaSyntaxPatterns.prefix || ''}${result}${figmaSyntaxPatterns.suffix || ''}`;
+    
+    console.log(`[FigmaPreprocessor] Generated Figma variable name "${result}" for token ${token.id}`);
+    return result;
+  }
+  
+  /**
+   * Generate platform code syntax using platform syntax patterns
+   * This is separate from Figma variable naming
+   */
   private generateFormattedName(token: Token, syntaxPatterns: SyntaxPatterns, tokenSystem: TokenSystem): string {
     // Extract taxonomy terms in order
     const orderedTerms = this.extractOrderedTerms(token, tokenSystem);
@@ -139,7 +195,7 @@ export class FigmaPreprocessor {
       return token.displayName; // Fallback to display name
     }
     
-    // Apply syntax patterns
+    // Apply platform syntax patterns
     let result = orderedTerms.join(syntaxPatterns.delimiter || '_');
     
     // Apply capitalization
