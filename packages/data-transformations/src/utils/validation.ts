@@ -129,7 +129,7 @@ export function validateTokenSystemBasic(tokenSystem: TokenSystem): ValidationRe
 /**
  * Validate that all referenced IDs exist in their respective arrays
  */
-export function validateReferentialIntegrity(tokenSystem: TokenSystem): ValidationResult {
+export function validateReferentialIntegrity(tokenSystem: TokenSystem, options?: { skipCodeSyntaxValidation?: boolean }): ValidationResult {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
 
@@ -200,17 +200,8 @@ export function validateReferentialIntegrity(tokenSystem: TokenSystem): Validati
       });
     });
 
-    // Validate platformIds in codeSyntax
-    token.codeSyntax?.forEach((syntax, syntaxIndex) => {
-      if (!platformIds.has(syntax.platformId)) {
-        errors.push(createValidationError(
-          `tokens[${index}].codeSyntax[${syntaxIndex}].platformId`,
-          `Referenced platform '${syntax.platformId}' does not exist`,
-          'INVALID_PLATFORM_REFERENCE',
-          { tokenId: token.id, referencedPlatformId: syntax.platformId }
-        ));
-      }
-    });
+    // Note: codeSyntax validation has been removed as codeSyntax is no longer part of the schema
+    // Code syntax generation is now handled by the CodeSyntaxGenerator service
 
     // Validate taxonomy references
     token.taxonomies?.forEach((taxonomyRef, taxIndex) => {
@@ -261,9 +252,9 @@ export function validateRequiredFields(tokenSystem: TokenSystem): ValidationResu
 /**
  * Comprehensive validation of a token system
  */
-export function validateTokenSystem(tokenSystem: TokenSystem): ValidationResult {
+export function validateTokenSystem(tokenSystem: TokenSystem, options?: { skipCodeSyntaxValidation?: boolean }): ValidationResult {
   const basicValidation = validateTokenSystemBasic(tokenSystem);
-  const integrityValidation = validateReferentialIntegrity(tokenSystem);
+  const integrityValidation = validateReferentialIntegrity(tokenSystem, options);
   const fieldsValidation = validateRequiredFields(tokenSystem);
 
   const allErrors = [

@@ -286,6 +286,12 @@
               "enum": ["active", "deprecated"],
               "description": "Lifecycle status of this platform",
               "default": "active"
+            },
+            "figmaPlatformMapping": {
+              "type": "string",
+              "enum": ["WEB", "iOS", "ANDROID"],
+              "description": "Maps this platform to a specific Figma platform for variable export. Only one platform can be mapped to each Figma platform.",
+              "nullable": true
             }
           }
         },
@@ -464,24 +470,6 @@
                 "$ref": "#/definitions/PropertyType"
               }
             },
-            "codeSyntax": {
-              "type": "array",
-              "description": "Platform-specific naming conventions for this token.",
-              "items": {
-                "type": "object",
-                "required": ["platformId", "formattedName"],
-                "properties": {
-                  "platformId": {
-                    "type": "string",
-                    "description": "ID of the platform this code syntax applies to (must match a platform in the platforms array)"
-                  },
-                  "formattedName": {
-                    "type": "string",
-                    "description": "The formatted code syntax for this platform."
-                  }
-                }
-              }
-            },
             "valuesByMode": {
               "type": "array",
               "description": "Values for this token in different mode combinations",
@@ -618,10 +606,10 @@
       "themes": {
         "type": "array",
         "description": "Themes that can override token values across the entire dataset",
-        "minItems": 1,
+        "minItems": 0,
         "items": {
           "type": "object",
-          "required": ["id", "displayName", "isDefault"],
+          "required": ["id", "displayName"],
           "properties": {
             "id": {
               "type": "string",
@@ -636,13 +624,26 @@
               "type": "string",
               "description": "Detailed description of the theme"
             },
-            "isDefault": {
-              "type": "boolean",
-              "description": "Whether this is the default theme. Exactly one theme must be marked as default."
+            "overrideSource": {
+              "type": "object",
+              "description": "Reference to external theme override file containing theme-specific configuration and overrides.",
+              "properties": {
+                "repositoryUri": {
+                  "type": "string",
+                  "description": "GitHub repository URI (e.g., 'owner/repo')"
+                },
+                "filePath": {
+                  "type": "string",
+                  "description": "Path to the theme override file within the repository"
+                }
+              },
+              "required": ["repositoryUri", "filePath"]
             },
-            "overrideFileUri": {
+            "status": {
               "type": "string",
-              "description": "URI pointing to the theme override file for this theme"
+              "enum": ["active", "deprecated"],
+              "description": "Lifecycle status of this theme",
+              "default": "active"
             }
           }
         }

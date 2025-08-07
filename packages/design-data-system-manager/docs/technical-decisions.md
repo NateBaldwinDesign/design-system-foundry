@@ -573,6 +573,109 @@ const callbacks = {
 
 This solution provides a **stable, maintainable, and scalable** approach to data management that prevents similar issues in the future while making the codebase easier to understand and extend.
 
+# Revised Sign-In Workflow and Access State Management
+
+## Context
+The application needed to support different access states for users based on their authentication status and repository permissions. The previous implementation only distinguished between "logged in" and "logged out" states, but didn't account for users who are authenticated but lack write access to specific repositories.
+
+## Decision
+Implement a three-state access system with sophisticated permission checking and URL parameter handling:
+
+### Access States
+1. **Logged Out**: Not authenticated, view-only access
+2. **Logged In + View Only**: Authenticated but no write access to current repository
+3. **Logged In + Read/Write**: Authenticated with write access to current repository
+
+### Sign-In Workflow
+- **URL Parameter Detection**: Check for `repo`, `path`, and `branch` parameters on sign-in
+- **Permission Checking**: Use GitHub API `/user/repos?affiliation=owner,collaborator` to determine write access
+- **State Management**: Track `hasEditPermissions` alongside existing `githubUser` and `isViewOnlyMode` states
+- **Conditional UI**: Hide specific GitHub menu actions based on permissions
+
+## Implementation Details
+
+### Permission Checking
+```typescript
+// GitHubApiService.hasWriteAccessToRepository()
+static async hasWriteAccessToRepository(repoFullName: string): Promise<boolean> {
+  const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/user/repos?affiliation=owner,collaborator&per_page=100`);
+  const repos = await response.json();
+  return repos.some((repo: GitHubRepo) => repo.full_name === repoFullName);
+}
+```
+
+### State Management
+```typescript
+// App.tsx state
+const [hasEditPermissions, setHasEditPermissions] = useState(false);
+
+// useAuth hook
+const canEdit = useMemo(() => {
+  return isAuthenticated && !isViewOnlyMode && hasEditPermissions;
+}, [isAuthenticated, isViewOnlyMode, hasEditPermissions]);
+```
+
+### Event-Driven Communication
+```typescript
+// GitHubCallback dispatches permission events
+window.dispatchEvent(new CustomEvent('github:permissions-checked', {
+  detail: { hasWriteAccess, repoInfo }
+}));
+
+// App.tsx listens for permission events
+const handlePermissionsChecked = (event: CustomEvent) => {
+  const { hasWriteAccess, repoInfo } = event.detail;
+  setHasEditPermissions(hasWriteAccess);
+  setSelectedRepoInfo(repoInfo);
+};
+```
+
+### Conditional GitHub Menu Actions
+```typescript
+// Header.tsx conditionally renders actions
+{hasEditPermissions && (
+  <>
+    <Button>Refresh (pull) data</Button>
+    <Button>Save (commit)</Button>
+    <Button>Create Pull Request</Button>
+  </>
+)}
+<Button>Copy Repository URL</Button> {/* Always visible */}
+```
+
+## Benefits
+
+### User Experience
+- **Clear Access Indication**: Users understand their current permissions
+- **Seamless Transitions**: Smooth flow between different access states
+- **Appropriate Functionality**: UI adapts to user's actual capabilities
+- **URL Persistence**: Parameters maintained throughout authentication flow
+
+### Security
+- **Permission-Based Access**: Write access verified via GitHub API
+- **Defensive Defaults**: Failures default to view-only access
+- **Clear Boundaries**: Distinct separation between read and write capabilities
+
+### Maintainability
+- **Centralized Logic**: Permission checking in single service
+- **Event-Driven Architecture**: Loose coupling between components
+- **Type Safety**: Proper TypeScript interfaces for all states
+- **Consistent Patterns**: Reusable permission checking logic
+
+## Migration Strategy
+- **Backward Compatibility**: All existing functionality preserved
+- **Gradual Enhancement**: New states added without breaking changes
+- **Clear Documentation**: Comprehensive documentation of new workflow
+- **Testing Coverage**: Permission scenarios thoroughly tested
+
+## Future Considerations
+- **Permission Caching**: Cache results for better performance
+- **Granular Permissions**: Support for read/write/admin distinctions
+- **Organization Support**: Handle organization-level permissions
+- **Conflict Resolution**: Enhanced handling of concurrent edits
+
+This implementation provides a robust, user-friendly authentication and access control system that adapts to different user scenarios while maintaining security and usability.
+
 # ChangeLog Baseline Reset Implementation
 
 ## Context

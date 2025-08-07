@@ -25,7 +25,6 @@ interface TokenSystem {
   themes?: Array<{
     id: string;
     displayName: string;
-    isDefault: boolean;
   }>;
   taxonomyOrder?: string[];
   componentProperties?: Array<{
@@ -303,15 +302,10 @@ export class ValidationService {
           }
         }
 
-        // Validate themes if present
+        // Validate themes if present (themes are optional, no default requirement)
         if (tokenSystem.themes) {
-          const defaultThemes = tokenSystem.themes.filter(theme => theme.isDefault);
-          if (defaultThemes.length !== 1) {
-            return {
-              isValid: false,
-              errors: ['Exactly one theme must be marked as default']
-            };
-          }
+          // Themes are optional and don't require a default theme
+          // No validation needed for themes
         }
 
         // Validate taxonomyOrder if present

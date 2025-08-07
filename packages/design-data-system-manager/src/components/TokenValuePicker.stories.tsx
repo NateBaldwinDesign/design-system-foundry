@@ -118,7 +118,6 @@ const tokens: Token[] = [
     themeable: true,
     tokenCollectionId: 'colors',
     propertyTypes: [],
-    codeSyntax: [],
     tokenTier: 'PRIMITIVE',
     generatedByAlgorithm: false
   },
@@ -139,7 +138,6 @@ const tokens: Token[] = [
     themeable: true,
     tokenCollectionId: 'colors',
     propertyTypes: [],
-    codeSyntax: [],
     tokenTier: 'PRIMITIVE',
     generatedByAlgorithm: false
   }

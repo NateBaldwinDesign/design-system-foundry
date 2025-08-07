@@ -10,8 +10,12 @@ import type {
   FigmaConfiguration,
   ComponentProperty,
   ComponentCategory,
-  Component
+  Component,
+  TokenSystem,
+  PlatformExtension,
+  ThemeOverrideFile
 } from '@token-model/data-model';
+import type { SourceContext } from '../types/dataManagement';
 import { generateDefaultValueTypes } from '../utils/defaultValueTypes';
 import { Algorithm } from '../types/algorithm';
 
@@ -44,17 +48,30 @@ const STORAGE_KEYS = {
   FIGMA_CONFIGURATION: 'token-model:figma-configuration',
   COMPONENT_PROPERTIES: 'token-model:component-properties',
   COMPONENT_CATEGORIES: 'token-model:component-categories',
-  COMPONENTS: 'token-model:components'
+  COMPONENTS: 'token-model:components',
+  // Schema-specific storage keys (Phase 4.3)
+  CORE_DATA: 'token-model:core-data',
+  PLATFORM_EXTENSION_DATA: 'token-model:platform-extension-data',
+  THEME_OVERRIDE_DATA: 'token-model:theme-override-data',
+  PRESENTATION_DATA: 'token-model:presentation-data',
+  // Enhanced data management storage keys
+  SOURCE_SNAPSHOT: 'token-model:source-snapshot',
+  LOCAL_EDITS: 'token-model:local-edits',
+  MERGED_DATA: 'token-model:merged-data',
+  SOURCE_CONTEXT: 'token-model:source-context'
 } as const;
 
 export class StorageService {
+  private static valueTypesCache: ValueType[] | null = null;
+
   private static getItem<T>(key: string, defaultValue: T): T {
+    try {
     const item = localStorage.getItem(key);
-    if (!item) {
-      localStorage.setItem(key, JSON.stringify(defaultValue));
+      return item ? JSON.parse(item) : defaultValue;
+    } catch (error) {
+      console.error(`[StorageService] Error parsing item for key ${key}:`, error);
       return defaultValue;
     }
-    return JSON.parse(item);
   }
 
   private static setItem<T>(key: string, value: T): void {
@@ -86,14 +103,24 @@ export class StorageService {
   }
 
   static getValueTypes(): ValueType[] {
+    // Use cache if available
+    if (this.valueTypesCache !== null) {
+      return this.valueTypesCache;
+    }
+    
     const valueTypes = this.getItem(STORAGE_KEYS.VALUE_TYPES, DEFAULT_VALUE_TYPES);
     console.debug('[StorageService] Retrieved value types:', valueTypes);
+    
+    // Cache the result
+    this.valueTypesCache = valueTypes;
     return valueTypes;
   }
 
   static setValueTypes(valueTypes: ValueType[]): void {
     console.debug('[StorageService] Setting value types:', valueTypes);
     localStorage.setItem(STORAGE_KEYS.VALUE_TYPES, JSON.stringify(valueTypes));
+    // Clear cache when setting new values
+    this.valueTypesCache = null;
   }
 
   static getDimensions(): Dimension[] {
@@ -331,6 +358,441 @@ export class StorageService {
   }
 
   static clearAll(): void {
-    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
+    // Preserve GitHub authentication data
+    const githubToken = localStorage.getItem('github_token_encrypted');
+    const githubUser = localStorage.getItem('github_user');
+    const githubRepo = localStorage.getItem('github_repo');
+    
+    // Clear all localStorage
+    localStorage.clear();
+    
+    // Restore GitHub authentication data
+    if (githubToken) {
+      localStorage.setItem('github_token_encrypted', githubToken);
+    }
+    if (githubUser) {
+      localStorage.setItem('github_user', githubUser);
+    }
+    if (githubRepo) {
+      localStorage.setItem('github_repo', githubRepo);
+    }
+    
+    // Clear caches
+    this.valueTypesCache = null;
+  }
+
+  /**
+   * Clear only schema-related data, preserving GitHub authentication
+   */
+  static clearSchemaData(): void {
+    // Clear all schema-related keys, preserving GitHub authentication
+    Object.values(STORAGE_KEYS).forEach(key => {
+      localStorage.removeItem(key);
+    });
+    
+    // Clear caches
+    this.valueTypesCache = null;
+  }
+
+  // ============================================================================
+  // Schema-Specific Storage Methods (Phase 4.3)
+  // ============================================================================
+
+  /**
+   * Core data storage (TokenSystem schema)
+   */
+  static getCoreData(): TokenSystem | null {
+    return this.getItem(STORAGE_KEYS.CORE_DATA, null);
+  }
+
+  static setCoreData(data: TokenSystem): void {
+    this.setItem(STORAGE_KEYS.CORE_DATA, data);
+  }
+
+  /**
+   * Platform extension storage (PlatformExtension schema)
+   */
+  static getPlatformExtensionData(platformId: string): PlatformExtension | null {
+    const key = this.getStorageKey('platform-extension', platformId);
+    return this.getItem(key, null);
+  }
+
+  static setPlatformExtensionData(platformId: string, data: PlatformExtension): void {
+    const key = this.getStorageKey('platform-extension', platformId);
+    this.setItem(key, data);
+  }
+
+  static getAllPlatformExtensionData(): Record<string, PlatformExtension> {
+    const allData: Record<string, PlatformExtension> = {};
+    const platformExtensions = this.getPlatformExtensions();
+    
+    Object.keys(platformExtensions).forEach(platformId => {
+      const data = this.getPlatformExtensionData(platformId);
+      if (data) {
+        allData[platformId] = data;
+      }
+    });
+    
+    return allData;
+  }
+
+  /**
+   * Theme override storage (ThemeOverrideFile schema)
+   */
+  static getThemeOverrideData(themeId: string): ThemeOverrideFile | null {
+    const key = this.getStorageKey('theme-override', themeId);
+    return this.getItem(key, null);
+  }
+
+  static setThemeOverrideData(themeId: string, data: ThemeOverrideFile): void {
+    const key = this.getStorageKey('theme-override', themeId);
+    this.setItem(key, data);
+  }
+
+  static getAllThemeOverrideData(): Record<string, ThemeOverrideFile> {
+    const allData: Record<string, ThemeOverrideFile> = {};
+    const themes = this.getThemes();
+    
+    themes.forEach(theme => {
+      const data = this.getThemeOverrideData(theme.id);
+      if (data) {
+        allData[theme.id] = data;
+      }
+    });
+    
+    return allData;
+  }
+
+  /**
+   * Presentation data storage (merged for UI)
+   */
+  static getPresentationData(): Record<string, unknown> | null {
+    return this.getItem(STORAGE_KEYS.PRESENTATION_DATA, null);
+  }
+
+  static setPresentationData(data: Record<string, unknown>): void {
+    this.setItem(STORAGE_KEYS.PRESENTATION_DATA, data);
+  }
+
+  /**
+   * Clear schema-specific storage
+   */
+  static clearSchemaStorage(): void {
+    // Clear core data
+    localStorage.removeItem(STORAGE_KEYS.CORE_DATA);
+    
+    // Clear platform extension data
+    const platformExtensions = this.getPlatformExtensions();
+    Object.keys(platformExtensions).forEach(platformId => {
+      const key = this.getStorageKey('platform-extension', platformId);
+      localStorage.removeItem(key);
+    });
+    
+    // Clear theme override data
+    const themes = this.getThemes();
+    themes.forEach(theme => {
+      const key = this.getStorageKey('theme-override', theme.id);
+      localStorage.removeItem(key);
+    });
+    
+    // Clear presentation data
+    localStorage.removeItem(STORAGE_KEYS.PRESENTATION_DATA);
+  }
+
+  /**
+   * Get storage key for schema-specific data
+   */
+  private static getStorageKey(type: 'core' | 'platform-extension' | 'theme-override', id?: string): string {
+    switch (type) {
+      case 'core':
+        return STORAGE_KEYS.CORE_DATA;
+      case 'platform-extension':
+        return `${STORAGE_KEYS.PLATFORM_EXTENSION_DATA}:${id}`;
+      case 'theme-override':
+        return `${STORAGE_KEYS.THEME_OVERRIDE_DATA}:${id}`;
+      default:
+        throw new Error(`Unknown storage type: ${type}`);
+    }
+  }
+
+  // NEW: Override-specific storage methods
+  /**
+   * Get pending overrides for specific source
+   */
+  static getPendingOverrides(sourceType: string, sourceId: string): Array<{tokenId: string; override: Record<string, unknown>}> {
+    const key = `token-model:pending-overrides:${sourceType}:${sourceId}`;
+    return this.getItem(key, []);
+  }
+
+  /**
+   * Set pending overrides for specific source
+   */
+  static setPendingOverrides(sourceType: string, sourceId: string, overrides: Array<{tokenId: string; override: Record<string, unknown>}>): void {
+    const key = `token-model:pending-overrides:${sourceType}:${sourceId}`;
+    this.setItem(key, overrides);
+  }
+
+  /**
+   * Clear pending overrides for specific source
+   */
+  static clearPendingOverrides(sourceType: string, sourceId: string): void {
+    const key = `token-model:pending-overrides:${sourceType}:${sourceId}`;
+    localStorage.removeItem(key);
+  }
+
+  /**
+   * Get edit context
+   */
+  static getEditContext(): {sourceType: string; sourceId?: string; isEditMode: boolean} {
+    return this.getItem('token-model:edit-context', {
+      sourceType: 'core',
+      sourceId: undefined,
+      isEditMode: false
+    });
+  }
+
+  /**
+   * Set edit context
+   */
+  static setEditContext(context: {sourceType: string; sourceId?: string; isEditMode: boolean}): void {
+    this.setItem('token-model:edit-context', context);
+  }
+
+  /**
+   * Get override history
+   */
+  static getOverrideHistory(): Array<{
+    timestamp: string;
+    tokenId: string;
+    sourceType: string;
+    sourceId: string;
+    action: 'created' | 'modified' | 'deleted';
+  }> {
+    return this.getItem('token-model:override-history', []);
+  }
+
+  /**
+   * Add override history entry
+   */
+  static addOverrideHistoryEntry(entry: {
+    tokenId: string;
+    sourceType: string;
+    sourceId: string;
+    action: 'created' | 'modified' | 'deleted';
+  }): void {
+    const history = this.getOverrideHistory();
+    const newEntry = {
+      ...entry,
+      timestamp: new Date().toISOString()
+    };
+    history.push(newEntry);
+    
+    // Keep only last 100 entries
+    if (history.length > 100) {
+      history.splice(0, history.length - 100);
+    }
+    
+    this.setItem('token-model:override-history', history);
+  }
+
+  /**
+   * Clear override history
+   */
+  static clearOverrideHistory(): void {
+    localStorage.removeItem('token-model:override-history');
+  }
+
+  // Enhanced data management methods
+
+  static getSourceSnapshot(): TokenSystem | PlatformExtension | ThemeOverrideFile | null {
+    return this.getItem(STORAGE_KEYS.SOURCE_SNAPSHOT, null);
+  }
+
+  static setSourceSnapshot(data: TokenSystem | PlatformExtension | ThemeOverrideFile): void {
+    this.setItem(STORAGE_KEYS.SOURCE_SNAPSHOT, data);
+  }
+
+  static getLocalEdits(): TokenSystem | PlatformExtension | ThemeOverrideFile | null {
+    return this.getItem(STORAGE_KEYS.LOCAL_EDITS, null);
+  }
+
+  static setLocalEdits(data: TokenSystem | PlatformExtension | ThemeOverrideFile): void {
+    console.log('[StorageService] setLocalEdits called with data type:', typeof data);
+    this.setItem(STORAGE_KEYS.LOCAL_EDITS, data);
+    // Dispatch event to notify components that local edits have changed
+    console.log('[StorageService] Dispatching token-model:local-edits-changed event');
+    window.dispatchEvent(new CustomEvent('token-model:local-edits-changed'));
+  }
+
+  static getMergedData(): TokenSystem | null {
+    return this.getItem(STORAGE_KEYS.MERGED_DATA, null);
+  }
+
+  static setMergedData(data: TokenSystem): void {
+    this.setItem(STORAGE_KEYS.MERGED_DATA, data);
+  }
+
+  static getSourceContext(): SourceContext | null {
+    return this.getItem(STORAGE_KEYS.SOURCE_CONTEXT, null);
+  }
+
+  static setSourceContext(context: SourceContext): void {
+    this.setItem(STORAGE_KEYS.SOURCE_CONTEXT, context);
+  }
+
+  // NEW: Methods for saving specific data types to local edits
+  static updateLocalEditsDimensions(dimensions: Dimension[]): void {
+    console.log('[StorageService] updateLocalEditsDimensions called with:', dimensions.length, 'dimensions');
+    const localEdits = this.getLocalEdits();
+    console.log('[StorageService] Current localEdits:', localEdits ? 'exists' : 'null');
+    
+    if (localEdits && 'dimensions' in localEdits) {
+      const updatedEdits = { ...localEdits, dimensions };
+      console.log('[StorageService] Updating local edits with new dimensions');
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    } else {
+      console.warn('[StorageService] Cannot update dimensions - localEdits missing or wrong type');
+    }
+  }
+
+  static updateLocalEditsValueTypes(valueTypes: ResolvedValueType[]): void {
+    const localEdits = this.getLocalEdits();
+    if (localEdits && 'resolvedValueTypes' in localEdits) {
+      const updatedEdits = { ...localEdits, resolvedValueTypes: valueTypes };
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    }
+  }
+
+  static updateLocalEditsTaxonomies(taxonomies: Taxonomy[]): void {
+    const localEdits = this.getLocalEdits();
+    if (localEdits && 'taxonomies' in localEdits) {
+      const updatedEdits = { ...localEdits, taxonomies };
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    }
+  }
+
+  static updateLocalEditsComponentCategories(componentCategories: ComponentCategory[]): void {
+    const localEdits = this.getLocalEdits();
+    if (localEdits && 'componentCategories' in localEdits) {
+      const updatedEdits = { ...localEdits, componentCategories };
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    }
+  }
+
+  static updateLocalEditsComponentProperties(componentProperties: ComponentProperty[]): void {
+    const localEdits = this.getLocalEdits();
+    if (localEdits && 'componentProperties' in localEdits) {
+      const updatedEdits = { ...localEdits, componentProperties };
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    }
+  }
+
+  static updateLocalEditsComponents(components: Component[]): void {
+    const localEdits = this.getLocalEdits();
+    if (localEdits && 'components' in localEdits) {
+      const updatedEdits = { ...localEdits, components };
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    }
+  }
+
+  static updateLocalEditsTokens(tokens: Token[]): void {
+    console.log('[StorageService] updateLocalEditsTokens called with:', tokens.length, 'tokens');
+    const localEdits = this.getLocalEdits();
+    console.log('[StorageService] Current localEdits:', localEdits ? 'exists' : 'null');
+    
+    if (localEdits && 'tokens' in localEdits) {
+      const updatedEdits = { ...localEdits, tokens };
+      console.log('[StorageService] Updating local edits with new tokens');
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    } else {
+      console.warn('[StorageService] Cannot update tokens - localEdits missing or wrong type');
+    }
+  }
+
+  static updateLocalEditsCollections(collections: TokenCollection[]): void {
+    const localEdits = this.getLocalEdits();
+    if (localEdits && 'tokenCollections' in localEdits) {
+      const updatedEdits = { ...localEdits, tokenCollections: collections };
+      this.setLocalEdits(updatedEdits as TokenSystem | PlatformExtension | ThemeOverrideFile);
+    }
+  }
+
+  // Migration helper methods
+  static migrateExistingData(): void {
+    console.log('[StorageService] Starting data migration...');
+    
+    // Migrate core data if it exists
+    const existingCoreData = this.getCoreData();
+    if (existingCoreData && !this.getSourceSnapshot()) {
+      console.log('[StorageService] Migrating existing core data to source snapshot');
+      this.setSourceSnapshot(existingCoreData);
+      this.setLocalEdits(existingCoreData);
+      this.setMergedData(existingCoreData);
+    }
+
+    // Create default source context if none exists
+    if (!this.getSourceContext()) {
+      const defaultContext: SourceContext = {
+        sourceType: 'core',
+        sourceId: null,
+        coreRepository: {
+          fullName: '',
+          branch: 'main',
+          filePath: 'schema.json',
+          fileType: 'schema'
+        },
+        sourceRepository: {
+          fullName: '',
+          branch: 'main',
+          filePath: 'schema.json',
+          fileType: 'schema'
+        },
+        lastLoadedAt: new Date().toISOString(),
+        hasLocalChanges: false,
+        editMode: {
+          isActive: false,
+          sourceType: 'core',
+          sourceId: null,
+          targetRepository: null
+        }
+      };
+      this.setSourceContext(defaultContext);
+    }
+
+    console.log('[StorageService] Data migration completed');
+  }
+
+  // Validation methods
+  static validateDataStructure(data: unknown): { isValid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    
+    if (!data) {
+      errors.push('Data is null or undefined');
+      return { isValid: false, errors };
+    }
+
+    if (typeof data !== 'object') {
+      errors.push('Data must be an object');
+      return { isValid: false, errors };
+    }
+
+    // Basic validation for TokenSystem structure
+    const dataObj = data as Record<string, unknown>;
+    if (dataObj.tokens && !Array.isArray(dataObj.tokens)) {
+      errors.push('tokens must be an array');
+    }
+
+    if (dataObj.dimensions && !Array.isArray(dataObj.dimensions)) {
+      errors.push('dimensions must be an array');
+    }
+
+    if (dataObj.platforms && !Array.isArray(dataObj.platforms)) {
+      errors.push('platforms must be an array');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
   }
 } 

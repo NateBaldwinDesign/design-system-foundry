@@ -1,5 +1,4 @@
 import { TokenSystem } from '@token-model/data-model';
-import type { Token } from '@token-model/data-model';
 import { 
   FigmaTransformer, 
   FigmaVariable, 
@@ -9,6 +8,10 @@ import {
   FigmaTransformerOptions
 } from '@token-model/data-transformations';
 import { FigmaMappingService } from './figmaMappingService';
+import { StorageService } from './storage';
+import { DataSourceManager } from './dataSourceManager';
+import { EnhancedDataMerger } from './enhancedDataMerger';
+import { FigmaPreprocessor, FigmaPreprocessorOptions } from './figmaPreprocessor';
 
 export interface FigmaExportOptions {
   fileId?: string;
@@ -41,200 +44,257 @@ export interface FigmaExportResult {
 
 export class FigmaExportService {
   private transformer: FigmaTransformer;
+  private preprocessor: FigmaPreprocessor;
 
   constructor() {
     this.transformer = new FigmaTransformer();
+    this.preprocessor = new FigmaPreprocessor();
   }
 
   /**
-   * Export the current design system data to Figma Variables format
+   * Get the appropriate token system data based on current data source context
+   * For platform extensions and theme overrides, use merged data instead of core data only
    */
-  async exportToFigma(tokenSystem: TokenSystem, options: FigmaExportOptions = {}): Promise<FigmaExportResult> {
+  private getTokenSystemForExport(): TokenSystem {
+    const dataSourceManager = DataSourceManager.getInstance();
+    const context = dataSourceManager.getCurrentContext();
+    
+    // Check if we're viewing a platform extension or theme override
+    const isPlatformExtension = context.currentPlatform && context.currentPlatform !== 'none';
+    const isThemeOverride = context.currentTheme && context.currentTheme !== 'none';
+    
+    if (isPlatformExtension || isThemeOverride) {
+      console.log('[FigmaExportService] Using merged data for Figma export (platform extension or theme override detected)');
+      
+      // Get merged data using EnhancedDataMerger
+      const enhancedMerger = EnhancedDataMerger.getInstance();
+      const coreData = StorageService.getCoreData();
+      const platformExtensions = StorageService.getAllPlatformExtensionData();
+      const themeOverrides = StorageService.getAllThemeOverrideData();
+      
+      if (coreData) {
+        const mergedData = enhancedMerger.mergeData(context, coreData, platformExtensions, themeOverrides);
+        
+        // Convert MergedDataSnapshot back to TokenSystem format
+        const tokenSystem: TokenSystem = {
+          ...coreData,
+          tokens: mergedData.tokens,
+          platforms: mergedData.platforms,
+          // Keep other properties from core data
+          tokenCollections: coreData.tokenCollections,
+          dimensions: coreData.dimensions,
+          resolvedValueTypes: coreData.resolvedValueTypes,
+          themes: coreData.themes,
+          taxonomies: coreData.taxonomies,
+          figmaConfiguration: coreData.figmaConfiguration,
+          // Add any other required properties
+        };
+        
+        console.log('[FigmaExportService] Merged data stats:', {
+          tokensCount: tokenSystem.tokens?.length || 0,
+          platformsCount: tokenSystem.platforms?.length || 0,
+          currentPlatform: context.currentPlatform,
+          currentTheme: context.currentTheme
+        });
+        
+        return tokenSystem;
+      }
+    }
+    
+    // Default: use core data from localStorage
+    console.log('[FigmaExportService] Using core data for Figma export');
+    const coreData = StorageService.getCoreData();
+    if (!coreData) {
+      throw new Error('No core data available for Figma export');
+    }
+    return coreData;
+  }
+
+  /**
+   * Get Figma syntax patterns from core data
+   * This ensures all Figma transformations use the same syntax patterns regardless of data source
+   */
+  private async getFigmaSyntaxPatternsFromCore(): Promise<{
+    prefix: string;
+    suffix: string;
+    delimiter: string;
+    capitalization: string;
+    formatString: string;
+  }> {
+    console.log('[FigmaExportService] Getting Figma syntax patterns from core data...');
+    
+    try {
+      // Get core data from storage
+      const coreData = StorageService.getCoreData();
+      
+      if (coreData?.figmaConfiguration?.syntaxPatterns) {
+        console.log('[FigmaExportService] Found Figma syntax patterns in core data:', coreData.figmaConfiguration.syntaxPatterns);
+        return {
+          prefix: coreData.figmaConfiguration.syntaxPatterns.prefix || '',
+          suffix: coreData.figmaConfiguration.syntaxPatterns.suffix || '',
+          delimiter: coreData.figmaConfiguration.syntaxPatterns.delimiter || '/',
+          capitalization: coreData.figmaConfiguration.syntaxPatterns.capitalization || 'capitalize',
+          formatString: coreData.figmaConfiguration.syntaxPatterns.formatString || ''
+        };
+      }
+      
+      // If no syntax patterns found in core data, use defaults
+      console.log('[FigmaExportService] No Figma syntax patterns found in core data, using defaults');
+      return {
+        prefix: '',
+        suffix: '',
+        delimiter: '/',
+        capitalization: 'capitalize',
+        formatString: ''
+      };
+    } catch (error) {
+      console.warn('[FigmaExportService] Error getting Figma syntax patterns from core data:', error);
+      // Return defaults on error
+      return {
+        prefix: '',
+        suffix: '',
+        delimiter: '/',
+        capitalization: 'capitalize',
+        formatString: ''
+      };
+    }
+  }
+
+  /**
+   * Generate Figma variable names using core syntax patterns
+   * This replaces the old platform-based approach for variable naming
+   */
+  private generateFigmaVariableNames(
+    tokenSystem: TokenSystem,
+    syntaxPatterns: {
+      prefix: string;
+      suffix: string;
+      delimiter: string;
+      capitalization: string;
+      formatString: string;
+    }
+  ): TokenSystem {
+    console.log('[FigmaExportService] Generating Figma variable names using syntax patterns:', syntaxPatterns);
+    
+    // Add the syntax patterns to the token system's figmaConfiguration
+    const updatedTokenSystem = {
+      ...tokenSystem,
+      figmaConfiguration: {
+        ...tokenSystem.figmaConfiguration,
+        syntaxPatterns: syntaxPatterns
+      }
+    };
+    
+    return updatedTokenSystem;
+  }
+
+  /**
+   * Get mapped platforms for Figma export
+   */
+  private getMappedPlatforms(tokenSystem: TokenSystem): {
+    mappedPlatforms: Array<{ platformId: string; figmaPlatform: string; displayName: string }>;
+    unmappedPlatforms: string[];
+  } {
+    const mappedPlatforms: Array<{ platformId: string; figmaPlatform: string; displayName: string }> = [];
+    const unmappedPlatforms: string[] = [];
+    
+    for (const platform of tokenSystem.platforms || []) {
+      if (platform.figmaPlatformMapping) {
+        mappedPlatforms.push({
+          platformId: platform.id,
+          figmaPlatform: platform.figmaPlatformMapping,
+          displayName: platform.displayName
+        });
+      } else {
+        unmappedPlatforms.push(platform.displayName);
+      }
+    }
+    
+    return { mappedPlatforms, unmappedPlatforms };
+  }
+
+  /**
+   * Clean legacy platform data from token system
+   * This removes deprecated platformOverrides and codeSyntax that reference non-existent platforms
+   */
+  private cleanLegacyPlatformOverrides(tokenSystem: TokenSystem): TokenSystem {
+    console.log('[FigmaExportService] Cleaning legacy platform data...');
+    
+    // Get valid platform IDs from the token system
+    const validPlatformIds = new Set(tokenSystem.platforms?.map(p => p.id) || []);
+    console.log('[FigmaExportService] Valid platform IDs:', Array.from(validPlatformIds));
+    
+    const cleanedTokens = tokenSystem.tokens?.map(token => {
+      // Clean valuesByMode - remove platformOverrides
+      const cleanedValuesByMode = token.valuesByMode?.map(valueByMode => {
+        const { platformOverrides, ...cleanedValueByMode } = valueByMode as any;
+        if (platformOverrides) {
+          console.log(`[FigmaExportService] Removed platformOverrides from token ${token.id}`);
+        }
+        return cleanedValueByMode;
+      });
+      
+      // Note: codeSyntax has been removed from the schema - it's now generated on-demand
+      
+      return {
+        ...token,
+        valuesByMode: cleanedValuesByMode
+      };
+    }) || [];
+    
+    return {
+      ...tokenSystem,
+      tokens: cleanedTokens
+    };
+  }
+
+  async exportToFigma(options: FigmaExportOptions = {}): Promise<FigmaExportResult> {
     console.log('[FigmaExportService] Starting Figma export...');
     
     try {
-      // Convert FigmaExportOptions to FigmaTransformerOptions
-      const transformerOptions = {
-        updateExisting: true
-      } as Partial<FigmaTransformerOptions>;
-      if (options.fileId) transformerOptions.fileKey = options.fileId;
-      if (options.accessToken) transformerOptions.accessToken = options.accessToken;
-      
-      // Step 1: Load existing Figma data if we have fileId and accessToken
-      let existingFigmaData: any = undefined;
-      if (options.fileId && options.accessToken) {
-        try {
-          console.log('[FigmaExportService] Loading existing Figma data...');
-          console.log('[FigmaExportService] API URL:', `https://api.figma.com/v1/files/${options.fileId}/variables/local`);
-          console.log('[FigmaExportService] Access token provided:', !!options.accessToken);
-          
-          const response = await fetch(`https://api.figma.com/v1/files/${options.fileId}/variables/local`, {
-            headers: {
-              'X-Figma-Token': options.accessToken
-            }
-          });
-          
-          console.log('[FigmaExportService] API Response status:', response.status, response.statusText);
-          
-          if (response.ok) {
-            existingFigmaData = await response.json();
-            console.log('[FigmaExportService] Raw API response:', existingFigmaData);
-            console.log('[FigmaExportService] API response keys:', Object.keys(existingFigmaData));
-            
-            // Extract the actual data from the nested meta structure
-            const extractedData = {
-              variables: existingFigmaData.meta?.variables || {},
-              variableCollections: existingFigmaData.meta?.variableCollections || {},
-              variableModes: {} // Will be populated from collections
-            };
-            
-            // Extract mode IDs from collections (modes are nested in each collection)
-            Object.entries(extractedData.variableCollections).forEach(([collectionId, collection]: [string, any]) => {
-              if (collection.modes && Array.isArray(collection.modes)) {
-                collection.modes.forEach((mode: any) => {
-                  if (mode.modeId) {
-                    extractedData.variableModes[mode.modeId] = {
-                      id: mode.modeId,
-                      name: mode.name,
-                      variableCollectionId: collectionId
-                    };
-                  }
-                });
-              }
-            });
-            
-            console.log('[FigmaExportService] Extracted Figma data:', {
-              variablesCount: Object.keys(extractedData.variables).length,
-              collectionsCount: Object.keys(extractedData.variableCollections).length,
-              modesCount: Object.keys(extractedData.variableModes).length,
-              hasVariables: !!extractedData.variables,
-              hasCollections: !!extractedData.variableCollections,
-              hasModes: !!extractedData.variableModes
-            });
-            
-            // Log sample data to see the structure
-            if (extractedData.variables) {
-              const sampleVariables = Object.entries(extractedData.variables).slice(0, 3);
-              console.log('[FigmaExportService] Sample variables:', sampleVariables);
-            }
-            if (extractedData.variableCollections) {
-              const sampleCollections = Object.entries(extractedData.variableCollections).slice(0, 3);
-              console.log('[FigmaExportService] Sample collections:', sampleCollections);
-            }
-            if (extractedData.variableModes) {
-              const sampleModes = Object.entries(extractedData.variableModes).slice(0, 3);
-              console.log('[FigmaExportService] Sample modes:', sampleModes);
-            }
-            
-            // Use the extracted data instead of the raw response
-            existingFigmaData = extractedData;
-          } else {
-            const errorText = await response.text();
-            console.warn('[FigmaExportService] Failed to load existing Figma data:', response.status, response.statusText);
-            console.warn('[FigmaExportService] Error response body:', errorText);
-          }
-        } catch (error) {
-          console.warn('[FigmaExportService] Error loading existing Figma data:', error);
-        }
-      } else {
-        console.log('[FigmaExportService] Skipping existing data load - missing fileId or accessToken:', {
-          hasFileId: !!options.fileId,
-          hasAccessToken: !!options.accessToken
-        });
-      }
-      
-      // Step 2: Get existing tempToRealId mapping if available
-      let tempToRealId: Record<string, string> | undefined = undefined;
-      if (options.fileId) {
-        console.log('[FigmaExportService] Attempting to load tempToRealId mapping for fileId:', options.fileId);
-        const mappingOptions = await FigmaMappingService.getTransformerOptions(options.fileId);
-        console.log('[FigmaExportService] Raw mapping options from FigmaMappingService:', mappingOptions);
-        
-        if (mappingOptions.tempToRealId) {
-          tempToRealId = mappingOptions.tempToRealId;
-          console.log('[FigmaExportService] ✅ SUCCESS: Loaded tempToRealId mapping:', {
-            mappingCount: Object.keys(tempToRealId).length,
-            sampleMappings: Object.entries(tempToRealId).slice(0, 5)
-          });
-        } else {
-          console.log('[FigmaExportService] ❌ FAILED: No tempToRealId mapping found for fileId:', options.fileId);
-        }
-      } else {
-        console.log('[FigmaExportService] No fileId provided, skipping tempToRealId loading');
-      }
-      
-      // Step 3: Set up complete transformer options
-      transformerOptions.existingFigmaData = existingFigmaData;
-      transformerOptions.tempToRealId = tempToRealId;
-      
-      // Type assertion to satisfy the transformer
-      const finalTransformerOptions = transformerOptions as FigmaTransformerOptions;
-      
-      console.log('[FigmaExportService] Complete transformer options:', {
-        fileKey: finalTransformerOptions.fileKey,
-        hasExistingData: !!finalTransformerOptions.existingFigmaData,
-        hasTempToRealId: !!finalTransformerOptions.tempToRealId,
-        tempToRealIdCount: finalTransformerOptions.tempToRealId ? Object.keys(finalTransformerOptions.tempToRealId).length : 0
-      });
-
-      // Validate the token system first
-      console.log('[FigmaExportService] Starting validation...');
-      const validation = await this.transformer.validate(tokenSystem, finalTransformerOptions);
-      console.log('[FigmaExportService] Validation result:', {
-        isValid: validation.isValid,
-        errorsCount: validation.errors?.length || 0,
-        warningsCount: validation.warnings?.length || 0,
-        errors: validation.errors,
-        warnings: validation.warnings
-      });
-      
-      if (!validation.isValid) {
-        console.error('[FigmaExportService] Validation failed with errors:', validation.errors);
+      // 1. Use existing data management services to get current merged data
+      // No need to manually determine source context - use existing infrastructure
+      const mergedData = StorageService.getMergedData();
+      if (!mergedData) {
         return {
           success: false,
           error: {
-            code: 'VALIDATION_FAILED',
-            message: 'Token system validation failed',
-            details: validation.errors
+            code: 'NO_DATA_AVAILABLE',
+            message: 'No merged data available for export'
           }
         };
       }
-
-      // Transform the data to Figma format
-      console.log('[FigmaExportService] Starting transformation...');
-      const result = await this.transformer.transform(tokenSystem, finalTransformerOptions);
-      console.log('[FigmaExportService] Transformation result:', {
-        success: result.success,
-        hasData: !!result.data,
-        variablesCount: result.data?.variables?.length || 0,
-        collectionsCount: result.data?.collections?.length || 0,
-        variableModeValuesCount: result.data?.variableModeValues?.length || 0,
-        error: result.error
-      });
       
-      // Debug: Log sample variable mode values
-      if (result.data?.variableModeValues && result.data.variableModeValues.length > 0) {
-        console.log('[FigmaExportService] Sample variable mode values (TRANSFORMED OUTPUT):');
-        result.data.variableModeValues.slice(0, 5).forEach((vmv, index) => {
-          console.log(`[FigmaExportService] Mode value ${index + 1}:`, {
-            variableId: vmv.variableId,
-            modeId: vmv.modeId,
-            value: vmv.value,
-            valueType: typeof vmv.value,
-            isObject: typeof vmv.value === 'object' && vmv.value !== null,
-            isAlias: typeof vmv.value === 'object' && vmv.value !== null && 'type' in vmv.value && vmv.value.type === 'VARIABLE_ALIAS',
-            // Add detailed value inspection for debugging
-            valueDetails: typeof vmv.value === 'object' && vmv.value !== null ? {
-              keys: Object.keys(vmv.value),
-              hasR: 'r' in vmv.value,
-              hasG: 'g' in vmv.value,
-              hasB: 'b' in vmv.value,
-              hasA: 'a' in vmv.value,
-              isRGB: 'r' in vmv.value && 'g' in vmv.value && 'b' in vmv.value
-            } : null
-          });
-        });
+      // 2. Pre-process the data for Figma export using existing source context
+      const preprocessorOptions: FigmaPreprocessorOptions = {
+        includePlatformCodeSyntax: true
+      };
+      
+      const preprocessorResult = await this.preprocessor.preprocessForFigma(preprocessorOptions);
+      
+      // 3. Check validation results
+      if (!preprocessorResult.validation.isValid) {
+        console.error('[FigmaExportService] Preprocessing validation failed:', preprocessorResult.validation.errors);
+        return {
+          success: false,
+          error: {
+            code: 'PREPROCESSING_FAILED',
+            message: 'Data preprocessing failed',
+            details: preprocessorResult.validation.errors
+          }
+        };
       }
+      
+      if (preprocessorResult.validation.warnings.length > 0) {
+        console.warn('[FigmaExportService] Preprocessing warnings:', preprocessorResult.validation.warnings);
+      }
+      
+      // 4. Set up transformer options
+      const transformerOptions = this.buildTransformerOptions(options);
+      
+      // 5. Transform the pre-processed data
+      console.log('[FigmaExportService] Starting transformation with pre-processed data...');
+      const result = await this.transformer.transform(preprocessorResult.enhancedTokenSystem, transformerOptions);
       
       if (!result.success) {
         console.error('[FigmaExportService] Transformation failed:', result.error);
@@ -261,12 +321,23 @@ export class FigmaExportService {
       };
     }
   }
+  
+  private buildTransformerOptions(options: FigmaExportOptions): FigmaTransformerOptions {
+    const transformerOptions: Partial<FigmaTransformerOptions> = {
+      updateExisting: true
+    };
+    
+    if (options.fileId) transformerOptions.fileKey = options.fileId;
+    if (options.accessToken) transformerOptions.accessToken = options.accessToken;
+    
+    return transformerOptions as FigmaTransformerOptions;
+  }
 
   /**
    * Get export preview without actually exporting
    */
-  async getExportPreview(tokenSystem: TokenSystem, options: FigmaExportOptions = {}): Promise<FigmaExportResult> {
-    return this.exportToFigma(tokenSystem, options);
+  async getExportPreview(options: FigmaExportOptions = {}): Promise<FigmaExportResult> {
+    return this.exportToFigma(options);
   }
 
   /**
@@ -305,7 +376,7 @@ export class FigmaExportService {
   /**
    * Publish the current design system data to Figma Variables API
    */
-  async publishToFigma(tokenSystem: TokenSystem, options: FigmaExportOptions = {}): Promise<FigmaExportResult> {
+  async publishToFigma(options: FigmaExportOptions = {}): Promise<FigmaExportResult> {
     if (!options.accessToken || !options.fileId) {
       return {
         success: false,
@@ -320,7 +391,7 @@ export class FigmaExportService {
     
     try {
       // First, transform the data using the existing export logic
-      const exportResult = await this.exportToFigma(tokenSystem, options);
+      const exportResult = await this.exportToFigma(options);
       
       if (!exportResult.success || !exportResult.data) {
         return exportResult;
@@ -330,33 +401,11 @@ export class FigmaExportService {
       console.log('[FigmaExportService] POSTing data to Figma API...');
       
       // Log the complete POST payload for debugging
-      console.log('[FigmaExportService] POST PAYLOAD DATA:');
-      console.log('[FigmaExportService] Collections:', exportResult.data.collections.map(c => ({
-        id: c.id,
-        name: c.name,
-        action: c.action,
-        initialModeId: c.initialModeId
-      })));
-      console.log('[FigmaExportService] Variables:', exportResult.data.variables.map(v => ({
-        id: v.id,
-        name: v.name,
-        action: v.action,
-        variableCollectionId: v.variableCollectionId,
-        resolvedType: v.resolvedType
-      })));
-      console.log('[FigmaExportService] Variable Modes:', exportResult.data.variableModes.map(m => ({
-        id: m.id,
-        name: m.name,
-        action: m.action,
-        variableCollectionId: m.variableCollectionId
-      })));
-      console.log('[FigmaExportService] Variable Mode Values:', exportResult.data.variableModeValues.map(vmv => ({
-        variableId: vmv.variableId,
-        modeId: vmv.modeId,
-        value: vmv.value,
-        valueType: typeof vmv.value,
-        isAlias: typeof vmv.value === 'object' && vmv.value !== null && 'type' in vmv.value && vmv.value.type === 'VARIABLE_ALIAS'
-      })));
+      console.log('[FigmaExportService] 🔍 COMPLETE POST PAYLOAD DATA:');
+      console.log('[FigmaExportService] Full Collections Array:', JSON.stringify(exportResult.data.collections, null, 2));
+      console.log('[FigmaExportService] Full Variables Array:', JSON.stringify(exportResult.data.variables, null, 2));
+      console.log('[FigmaExportService] Full Variable Modes Array:', JSON.stringify(exportResult.data.variableModes, null, 2));
+      console.log('[FigmaExportService] Full Variable Mode Values Array:', JSON.stringify(exportResult.data.variableModeValues, null, 2));
       
       // Log summary statistics
       console.log('[FigmaExportService] POST PAYLOAD SUMMARY:');
@@ -376,6 +425,16 @@ export class FigmaExportService {
         update: exportResult.data.variableModes.filter(m => m.action === 'UPDATE').length
       });
       console.log('[FigmaExportService] - Variable Mode Values:', exportResult.data.variableModeValues.length);
+      
+      // Log the exact JSON being sent to Figma API
+      const postPayload = {
+        variables: exportResult.data.variables,
+        variableCollections: exportResult.data.collections,
+        variableModes: exportResult.data.variableModes,
+        variableModeValues: exportResult.data.variableModeValues
+      };
+      console.log('[FigmaExportService] 🔍 EXACT JSON BEING SENT TO FIGMA API:');
+      console.log(JSON.stringify(postPayload, null, 2));
       
       const response = await fetch(`https://api.figma.com/v1/files/${options.fileId}/variables`, {
         method: 'POST',

@@ -59,6 +59,7 @@ export class GitHubCacheService {
   private static readonly ORGANIZATIONS_KEY = 'organizations';
   private static readonly REPOSITORIES_KEY = 'repositories';
   private static readonly BRANCHES_PREFIX = 'branches_';
+  private static readonly CACHE_STATE_KEY = 'cache_state';
 
   /**
    * Get cached organizations
@@ -188,6 +189,52 @@ export class GitHubCacheService {
     // Clear branches for this repository
     const branchesKey = `${this.CACHE_PREFIX}${this.BRANCHES_PREFIX}${repoFullName.replace('/', '_')}`;
     localStorage.removeItem(branchesKey);
+  }
+
+  /**
+   * Clear cache for a specific repository (enhanced version)
+   */
+  static clearRepositoryCache(repoFullName: string): void {
+    try {
+      // Clear branches for this repository
+      this.clearBranchesForRepository(repoFullName);
+      
+      // Clear any other repository-specific cache
+      const keys = Object.keys(localStorage);
+      const repoCacheKeys = keys.filter(key => 
+        key.startsWith(this.CACHE_PREFIX) && 
+        key.includes(repoFullName.replace('/', '_'))
+      );
+      
+      repoCacheKeys.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      console.log(`[GitHubCacheService] Cleared cache for repository: ${repoFullName}`);
+    } catch (error) {
+      console.error('[GitHubCacheService] Error clearing repository cache:', error);
+    }
+  }
+
+  /**
+   * Clear branches for a specific repository
+   */
+  static clearBranchesForRepository(repoFullName: string): void {
+    try {
+      const branchKey = this.BRANCHES_PREFIX + repoFullName.replace('/', '_');
+      localStorage.removeItem(this.CACHE_PREFIX + branchKey);
+      console.log(`[GitHubCacheService] Cleared branches for repository: ${repoFullName}`);
+    } catch (error) {
+      console.error('[GitHubCacheService] Error clearing branches for repository:', error);
+    }
+  }
+
+  /**
+   * Preserve branches for a specific repository (don't clear them)
+   */
+  static preserveBranchesForRepository(repoFullName: string): void {
+    // This is a no-op method for now, but can be used to mark branches as preserved
+    console.log(`[GitHubCacheService] Preserving branches for repository: ${repoFullName}`);
   }
 
   /**
@@ -455,5 +502,68 @@ export class GitHubCacheService {
     console.log('Force clearing all GitHub cache...');
     this.clearAll();
     console.log('GitHub cache cleared successfully');
+  }
+
+  /**
+   * Get cache state for tracking
+   */
+  static getCacheState(): {
+    lastRefreshTimestamp: number;
+    repositoryBranches: Record<string, string[]>;
+    permissions: Record<string, boolean>;
+  } {
+    try {
+      const cached = localStorage.getItem(`${this.CACHE_PREFIX}${this.CACHE_STATE_KEY}`);
+      if (!cached) {
+        return {
+          lastRefreshTimestamp: 0,
+          repositoryBranches: {},
+          permissions: {}
+        };
+      }
+      return JSON.parse(cached);
+    } catch (error) {
+      console.error('[GitHubCacheService] Error getting cache state:', error);
+      return {
+        lastRefreshTimestamp: 0,
+        repositoryBranches: {},
+        permissions: {}
+      };
+    }
+  }
+
+  /**
+   * Set cache state for tracking
+   */
+  static setCacheState(state: {
+    lastRefreshTimestamp: number;
+    repositoryBranches: Record<string, string[]>;
+    permissions: Record<string, boolean>;
+  }): void {
+    try {
+      localStorage.setItem(`${this.CACHE_PREFIX}${this.CACHE_STATE_KEY}`, JSON.stringify(state));
+    } catch (error) {
+      console.error('[GitHubCacheService] Error setting cache state:', error);
+    }
+  }
+
+  /**
+   * Get branches with TTL for a repository
+   */
+  static getBranchesWithTTL(repoFullName: string): GitHubBranch[] | null {
+    return this.getBranches(repoFullName);
+  }
+
+  /**
+   * Set branches with TTL for a repository
+   */
+  static setBranchesWithTTL(repoFullName: string, branches: GitHubBranch[]): void {
+    this.setBranches(repoFullName, branches);
+    
+    // Update cache state
+    const cacheState = this.getCacheState();
+    cacheState.repositoryBranches[repoFullName] = branches.map(b => b.name);
+    cacheState.lastRefreshTimestamp = Date.now();
+    this.setCacheState(cacheState);
   }
 } 

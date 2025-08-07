@@ -28,11 +28,13 @@ import { StorageService } from '../../services/storage';
 interface ComponentCategoriesViewProps {
   componentCategories: ComponentCategory[];
   setComponentCategories: (categories: ComponentCategory[]) => void;
+  canEdit?: boolean;
 }
 
 export function ComponentCategoriesView({ 
   componentCategories, 
-  setComponentCategories 
+  setComponentCategories,
+  canEdit = false
 }: ComponentCategoriesViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
@@ -153,9 +155,11 @@ export function ComponentCategoriesView({
       <Text fontSize="2xl" fontWeight="bold" mb={2}>Component Categories</Text>
       <Text fontSize="sm" color="gray.600" mb={6}>Component categories help organize components into logical groups for better management and discovery.</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
-          Add Component Category
-        </Button>
+        {canEdit && (
+          <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+            Add Component Category
+          </Button>
+        )}
         <VStack align="stretch" spacing={2}>
           {localComponentCategories.map((category, i) => (
             <Box
@@ -172,10 +176,12 @@ export function ComponentCategoriesView({
                   <Text fontSize="sm" color="gray.600">{category.description}</Text>
                   <Text fontSize="sm" color="gray.600">ID: {category.id}</Text>
                 </Box>
-                <HStack>
-                  <IconButton aria-label="Edit component category" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
-                  <IconButton aria-label="Delete component category" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
-                </HStack>
+                {canEdit && (
+                  <HStack>
+                    <IconButton aria-label="Edit component category" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
+                    <IconButton aria-label="Delete component category" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
+                  </HStack>
+                )}
               </HStack>
             </Box>
           ))}

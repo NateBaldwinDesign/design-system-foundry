@@ -209,21 +209,45 @@ export class FigmaMappingService {
   /**
    * Check if GitHub integration is available
    */
-  static isGitHubIntegrationAvailable(): boolean {
-    // Check if we have a selected repository
-    const selectedRepo = localStorage.getItem('github_selected_repo');
-    return selectedRepo !== null;
+  static async isGitHubIntegrationAvailable(): Promise<boolean> {
+    // Check if we have a selected repository using the newer GitHubApiService
+    try {
+      const { GitHubApiService } = await import('./githubApi');
+      return GitHubApiService.hasSelectedRepository();
+    } catch (error) {
+      console.error('[FigmaMappingService] Failed to check GitHub integration availability:', error);
+      // Fallback to old method
+      const selectedRepo = localStorage.getItem('github_selected_repo');
+      return selectedRepo !== null;
+    }
   }
 
   /**
    * Get current repository info from localStorage
    */
-  static getCurrentRepositoryInfo(): RepositoryInfo | null {
+  static async getCurrentRepositoryInfo(): Promise<RepositoryInfo | null> {
     try {
-      const selectedRepo = localStorage.getItem('github_selected_repo');
-      if (!selectedRepo) return null;
+      // Use the newer GitHubApiService method first
+      const { GitHubApiService } = await import('./githubApi');
+      const selectedRepo = GitHubApiService.getSelectedRepositoryInfo();
       
-      const repoData = JSON.parse(selectedRepo);
+      if (selectedRepo) {
+        // Convert the newer format to our RepositoryInfo format
+        const [owner, repo] = selectedRepo.fullName.split('/');
+        return {
+          owner,
+          repo,
+          type: selectedRepo.fileType === 'theme-override' ? 'theme-override' : 'core',
+          systemId: 'design-system', // Default system ID
+          themeId: selectedRepo.fileType === 'theme-override' ? 'default-theme' : undefined
+        };
+      }
+      
+      // Fallback to old method
+      const selectedRepoStr = localStorage.getItem('github_selected_repo');
+      if (!selectedRepoStr) return null;
+      
+      const repoData = JSON.parse(selectedRepoStr);
       return {
         owner: repoData.owner || repoData.fullName?.split('/')[0],
         repo: repoData.repo || repoData.fullName?.split('/')[1],
@@ -551,17 +575,36 @@ export class FigmaMappingService {
     this.saveMapping(fileKey, mappingData);
     
     // Save to GitHub if available
-    const repoInfo = this.getCurrentRepositoryInfo();
-    if (repoInfo && this.isGitHubIntegrationAvailable()) {
+    const repoInfo = await this.getCurrentRepositoryInfo();
+    const isGitHubAvailable = await this.isGitHubIntegrationAvailable();
+    
+    console.log(`[FigmaMappingService] Auto-commit check for file ${fileKey}:`, {
+      hasRepoInfo: !!repoInfo,
+      isGitHubAvailable,
+      repoInfo: repoInfo ? {
+        owner: repoInfo.owner,
+        repo: repoInfo.repo,
+        type: repoInfo.type
+      } : null
+    });
+    
+    if (repoInfo && isGitHubAvailable) {
       try {
+        console.log(`[FigmaMappingService] Attempting to auto-commit mapping to GitHub for file ${fileKey}...`);
         await this.saveMappingToGitHub(fileKey, mappingData, repoInfo);
-        console.log(`[FigmaMappingService] Successfully saved mapping to both localStorage and GitHub for file ${fileKey}`);
+        console.log(`[FigmaMappingService] ✅ Successfully auto-committed mapping to both localStorage and GitHub for file ${fileKey}`);
       } catch (error) {
-        console.error(`[FigmaMappingService] Failed to save mapping to GitHub for file ${fileKey}:`, error);
+        console.error(`[FigmaMappingService] ❌ Failed to auto-commit mapping to GitHub for file ${fileKey}:`, error);
         // Continue with localStorage only if GitHub save fails
       }
     } else {
-      console.log(`[FigmaMappingService] GitHub integration not available, saved mapping to localStorage only for file ${fileKey}`);
+      console.log(`[FigmaMappingService] ⚠️ GitHub integration not available for auto-commit, saved mapping to localStorage only for file ${fileKey}`);
+      if (!repoInfo) {
+        console.log(`[FigmaMappingService] Reason: No repository info available`);
+      }
+      if (!isGitHubAvailable) {
+        console.log(`[FigmaMappingService] Reason: GitHub integration not available`);
+      }
     }
     
     console.log(`[FigmaMappingService] Updated mapping for file ${fileKey}:`, mappingData);

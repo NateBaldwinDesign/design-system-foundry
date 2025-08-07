@@ -13,22 +13,64 @@ import { ComponentPropertiesView } from './ComponentPropertiesView';
 import { ComponentCategoriesView } from './ComponentCategoriesView';
 import { PageTemplate } from '../../components/PageTemplate';
 import { StorageService } from '../../services/storage';
+import type { TokenSystem, PlatformExtension, ThemeOverrideFile } from '@token-model/data-model';
 
 interface SystemViewProps {
-  // Add any props that might be needed for system functionality
+  canEdit?: boolean;
 }
 
-export const SystemView: React.FC<SystemViewProps> = () => {
-  // Get data directly from storage for each component
-  const dimensions = StorageService.getDimensions();
-  const taxonomies = StorageService.getTaxonomies();
-  const resolvedValueTypes = StorageService.getValueTypes();
-  const tokens = StorageService.getTokens();
-  const collections = StorageService.getCollections();
-  const platforms = StorageService.getPlatforms();
-  const themes = StorageService.getThemes();
-  const componentProperties = StorageService.getComponentProperties();
-  const componentCategories = StorageService.getComponentCategories();
+export const SystemView: React.FC<SystemViewProps> = ({ canEdit = false }) => {
+  // Get data from the new data management system
+  const localEdits = StorageService.getLocalEdits();
+  const mergedData = StorageService.getMergedData();
+  
+  // Use merged data for display, fallback to local edits if merged data is not available
+  const displayData = mergedData || localEdits;
+  
+  // Helper function to safely extract data from different types
+  const extractData = (data: TokenSystem | PlatformExtension | ThemeOverrideFile | null) => {
+    if (!data) return {};
+    
+    // Check if it's a TokenSystem (has dimensions, tokens, etc.)
+    if ('dimensions' in data) {
+      return {
+        dimensions: data.dimensions || [],
+        taxonomies: data.taxonomies || [],
+        resolvedValueTypes: data.resolvedValueTypes || [],
+        tokens: data.tokens || [],
+        collections: data.tokenCollections || [],
+        platforms: data.platforms || [],
+        themes: data.themes || [],
+        componentProperties: data.componentProperties || [],
+        componentCategories: data.componentCategories || []
+      };
+    }
+    
+    // For other types, return empty arrays
+    return {
+      dimensions: [],
+      taxonomies: [],
+      resolvedValueTypes: [],
+      tokens: [],
+      collections: [],
+      platforms: [],
+      themes: [],
+      componentProperties: [],
+      componentCategories: []
+    };
+  };
+  
+  const {
+    dimensions,
+    taxonomies,
+    resolvedValueTypes,
+    tokens,
+    collections,
+    platforms,
+    themes,
+    componentProperties,
+    componentCategories
+  } = extractData(displayData);
 
   return (
     <PageTemplate 
@@ -47,51 +89,56 @@ export const SystemView: React.FC<SystemViewProps> = () => {
           <TabPanel>
             <DimensionsView
               dimensions={dimensions}
-              setDimensions={(dims) => StorageService.setDimensions(dims)}
+              setDimensions={(dims) => StorageService.updateLocalEditsDimensions(dims)}
+              canEdit={canEdit}
             />
           </TabPanel>
           
           <TabPanel>
             <TaxonomyView
               taxonomies={taxonomies}
-              setTaxonomies={(tax) => StorageService.setTaxonomies(tax)}
+              setTaxonomies={(tax) => StorageService.updateLocalEditsTaxonomies(tax)}
               tokens={tokens}
               collections={collections}
               dimensions={dimensions}
               platforms={platforms}
               resolvedValueTypes={resolvedValueTypes}
+              canEdit={canEdit}
             />
           </TabPanel>
           
           <TabPanel>
             <ValueTypesView
               valueTypes={resolvedValueTypes}
-              onUpdate={(types) => StorageService.setValueTypes(types)}
+              onUpdate={(types) => StorageService.updateLocalEditsValueTypes(types)}
               tokens={tokens}
               collections={collections}
               dimensions={dimensions}
               platforms={platforms}
               taxonomies={taxonomies}
               themes={themes}
+              canEdit={canEdit}
             />
           </TabPanel>
 
           <TabPanel>
             <ComponentCategoriesView
               componentCategories={componentCategories}
-              setComponentCategories={(categories) => StorageService.setComponentCategories(categories)}
+              setComponentCategories={(categories) => StorageService.updateLocalEditsComponentCategories(categories)}
+              canEdit={canEdit}
             />
           </TabPanel>
 
           <TabPanel>
             <ComponentPropertiesView
               componentProperties={componentProperties}
-              setComponentProperties={(props) => StorageService.setComponentProperties(props)}
+              setComponentProperties={(props) => StorageService.updateLocalEditsComponentProperties(props)}
               tokens={tokens}
               collections={collections}
               dimensions={dimensions}
               platforms={platforms}
               resolvedValueTypes={resolvedValueTypes}
+              canEdit={canEdit}
             />
           </TabPanel>
         </TabPanels>

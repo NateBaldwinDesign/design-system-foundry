@@ -1,6 +1,5 @@
 import { PlatformExtensionDataService } from './platformExtensionDataService';
 import type { Platform } from '@token-model/data-model';
-import { GitHubAuthService } from './githubAuth';
 
 export interface PlatformExtensionAnalyticsSummary {
   totalPlatforms: number;
@@ -18,7 +17,7 @@ export interface PlatformExtensionAnalyticsSummary {
     omittedModesCount: number;
     omittedDimensionsCount: number;
     hasError?: boolean;
-    errorType?: 'file-not-found' | 'repository-not-found' | 'validation-error';
+    errorType?: 'file-not-found' | 'repository-not-found' | 'validation-error' | 'private-repository';
     errorMessage?: string;
   }>;
 }
@@ -36,7 +35,15 @@ export class PlatformExtensionAnalyticsService {
   }
 
   async getCachedPlatformExtensionAnalytics(platforms: Platform[]): Promise<PlatformExtensionAnalyticsSummary> {
-    const cacheKey = `platform-analytics-${platforms.length}`;
+    // Create a more specific cache key that includes platform IDs and extension sources
+    const platformSignature = platforms.map(p => {
+      const extensionSource = p.extensionSource 
+        ? `${p.extensionSource.repositoryUri}:${p.extensionSource.filePath}`
+        : 'no-extension';
+      return `${p.id}:${extensionSource}`;
+    }).join('|');
+    
+    const cacheKey = `platform-analytics-${platforms.length}-${platformSignature}`;
     
     // Check cache first
     const cached = this.cache.get(cacheKey);
@@ -76,26 +83,7 @@ export class PlatformExtensionAnalyticsService {
       }
 
       try {
-        // Check if user is authenticated with GitHub before attempting to fetch data
-        const isAuthenticated = GitHubAuthService.isAuthenticated();
-        
-        if (!isAuthenticated) {
-          // User is not authenticated - skip GitHub API calls and show authentication required
-          platformAnalytics.push({
-            platformId: platform.id,
-            platformName: platform.displayName,
-            tokenOverridesCount: 0,
-            algorithmVariableOverridesCount: 0,
-            omittedModesCount: 0,
-            omittedDimensionsCount: 0,
-            hasError: true,
-            errorType: 'repository-not-found',
-            errorMessage: 'GitHub authentication required to access platform extension data'
-          });
-          continue;
-        }
-
-        // Try to load platform extension data
+        // Try to load platform extension data (works for both public and private repos)
         const result = await PlatformExtensionDataService.getPlatformExtensionData(
           platform.extensionSource.repositoryUri,
           platform.extensionSource.filePath,
@@ -103,8 +91,8 @@ export class PlatformExtensionAnalyticsService {
           platform.id
         );
 
-        if (result.data && result.source === 'github') {
-          // Successfully fetched from GitHub
+        if (result.data && (result.source === 'github' || result.source === 'cache')) {
+          // Successfully fetched from GitHub or cache (cache is valid if it was pre-loaded)
           platformsWithExtensions++;
           
           const tokenOverridesCount = result.data.tokenOverrides?.length || 0;
@@ -127,34 +115,72 @@ export class PlatformExtensionAnalyticsService {
             omittedDimensionsCount,
             hasError: false
           });
-        } else if (result.data && (result.source === 'cache' || result.source === 'localStorage')) {
-          // Data available but from fallback source - treat as error for UI purposes
+        } else if (result.data && result.source === 'localStorage') {
+          // Data available from localStorage but not from GitHub - this might be stale data
+          // Check if this is a local file vs external repository
           const isLocalFile = platform.extensionSource.repositoryUri === 'local';
-          const errorType = isLocalFile ? 'file-not-found' : 'repository-not-found';
-          const errorMessage = isLocalFile 
-            ? `File not found: ${platform.extensionSource.filePath}`
-            : `Repository not found: ${platform.extensionSource.repositoryUri}`;
+          
+          if (isLocalFile) {
+            // For local files, localStorage data is acceptable
+            platformsWithExtensions++;
+            
+            const tokenOverridesCount = result.data.tokenOverrides?.length || 0;
+            const algorithmVariableOverridesCount = result.data.algorithmVariableOverrides?.length || 0;
+            const omittedModesCount = result.data.omittedModes?.length || 0;
+            const omittedDimensionsCount = result.data.omittedDimensions?.length || 0;
 
-          platformAnalytics.push({
-            platformId: platform.id,
-            platformName: platform.displayName,
-            version: result.data.version,
-            tokenOverridesCount: result.data.tokenOverrides?.length || 0,
-            algorithmVariableOverridesCount: result.data.algorithmVariableOverrides?.length || 0,
-            omittedModesCount: result.data.omittedModes?.length || 0,
-            omittedDimensionsCount: result.data.omittedDimensions?.length || 0,
-            hasError: true,
-            errorType,
-            errorMessage
-          });
-          // Don't count this in totals since it's treated as an error
+            totalTokenOverrides += tokenOverridesCount;
+            totalAlgorithmOverrides += algorithmVariableOverridesCount;
+            totalOmittedModes += omittedModesCount;
+            totalOmittedDimensions += omittedDimensionsCount;
+
+            platformAnalytics.push({
+              platformId: platform.id,
+              platformName: platform.displayName,
+              version: result.data.version,
+              tokenOverridesCount,
+              algorithmVariableOverridesCount,
+              omittedModesCount,
+              omittedDimensionsCount,
+              hasError: false
+            });
+          } else {
+            // For external repositories, localStorage data indicates the repository/file is not accessible
+            const errorType = 'repository-not-found';
+            const errorMessage = `Repository not found: ${platform.extensionSource.repositoryUri}`;
+
+            platformAnalytics.push({
+              platformId: platform.id,
+              platformName: platform.displayName,
+              version: result.data.version,
+              tokenOverridesCount: result.data.tokenOverrides?.length || 0,
+              algorithmVariableOverridesCount: result.data.algorithmVariableOverrides?.length || 0,
+              omittedModesCount: result.data.omittedModes?.length || 0,
+              omittedDimensionsCount: result.data.omittedDimensions?.length || 0,
+              hasError: true,
+              errorType,
+              errorMessage
+            });
+            // Don't count this in totals since it's treated as an error
+          }
         } else {
           // Data not found - determine if it's a file or repository issue
           const isLocalFile = platform.extensionSource.repositoryUri === 'local';
-          const errorType = isLocalFile ? 'file-not-found' : 'repository-not-found';
-          const errorMessage = isLocalFile 
-            ? `File not found: ${platform.extensionSource.filePath}`
-            : `Repository not found: ${platform.extensionSource.repositoryUri}`;
+          const isPrivateRepoPattern = platform.extensionSource.repositoryUri.match(/^company\/design-system-/);
+          
+          let errorType: 'file-not-found' | 'repository-not-found' | 'validation-error' | 'private-repository';
+          let errorMessage: string;
+          
+          if (isPrivateRepoPattern) {
+            errorType = 'private-repository';
+            errorMessage = 'Private repository - sign in to access';
+          } else if (isLocalFile) {
+            errorType = 'file-not-found';
+            errorMessage = `File not found: ${platform.extensionSource.filePath}`;
+          } else {
+            errorType = 'repository-not-found';
+            errorMessage = `Repository not found: ${platform.extensionSource.repositoryUri}`;
+          }
 
           platformAnalytics.push({
             platformId: platform.id,
@@ -210,5 +236,20 @@ export class PlatformExtensionAnalyticsService {
 
   clearCache(): void {
     this.cache.clear();
+  }
+
+  /**
+   * Clear cache for specific platforms
+   */
+  clearCacheForPlatforms(platformIds: string[]): void {
+    const keysToDelete: string[] = [];
+    for (const [key] of this.cache) {
+      if (platformIds.some(platformId => key.includes(platformId))) {
+        keysToDelete.push(key);
+      }
+    }
+    
+    keysToDelete.forEach(key => this.cache.delete(key));
+    console.log(`[PlatformExtensionAnalyticsService] Cleared cache for platforms:`, platformIds);
   }
 } 

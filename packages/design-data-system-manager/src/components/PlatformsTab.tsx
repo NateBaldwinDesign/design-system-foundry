@@ -16,7 +16,7 @@ import {
 } from '@chakra-ui/react';
 import { LuPencil, LuTrash2 } from 'react-icons/lu';
 import { StorageService } from '../services/storage';
-import { CodeSyntaxService } from '../services/codeSyntax';
+
 import type { Platform, Taxonomy } from '@token-model/data-model';
 import { PlatformEditorDialog } from './PlatformEditorDialog';
 
@@ -74,20 +74,8 @@ export function PlatformsView() {
   };
 
   const applyNamingRulesToAllTokens = (updatedPlatforms: Platform[]) => {
-    const tokens = StorageService.getTokens();
-    const taxonomies = StorageService.getTaxonomies();
-    const schema = {
-      platforms: updatedPlatforms,
-      taxonomies: taxonomies
-    };
-    const updatedTokens = tokens.map(token => {
-      const updatedCodeSyntax = CodeSyntaxService.generateAllCodeSyntaxes(token, schema);
-      return {
-        ...token,
-        codeSyntax: updatedCodeSyntax
-      };
-    });
-    StorageService.setTokens(updatedTokens);
+    // Note: codeSyntax is no longer part of the schema - it's generated on-demand
+    // No need to update tokens when platforms change
   };
 
   return (

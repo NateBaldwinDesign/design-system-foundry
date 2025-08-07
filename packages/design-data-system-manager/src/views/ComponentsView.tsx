@@ -24,13 +24,15 @@ interface ComponentsViewProps {
   setComponents?: (components: Component[]) => void;
   componentCategories?: ComponentCategory[];
   componentProperties?: ComponentProperty[];
+  canEdit?: boolean;
 }
 
 export function ComponentsView({ 
   components = [], 
   setComponents,
   componentCategories = [],
-  componentProperties = []
+  componentProperties = [],
+  canEdit = false
 }: ComponentsViewProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
@@ -57,10 +59,10 @@ export function ComponentsView({
   const [propertyEditIndex, setPropertyEditIndex] = useState<number | null>(null);
   const toast = useToast();
 
-  // Save components to localStorage whenever they change
+  // Save components to local edits whenever they change
   useEffect(() => {
     if (setComponents) {
-      StorageService.setComponents(components);
+      StorageService.updateLocalEditsComponents(components);
     }
   }, [components, setComponents]);
 
@@ -210,8 +212,8 @@ export function ComponentsView({
     // Update local state immediately for immediate UI feedback
     setLocalComponents(newComponents);
     
-    // Update localStorage immediately
-    StorageService.setComponents(newComponents);
+    // Update local edits immediately
+    StorageService.updateLocalEditsComponents(newComponents);
     
     // Call setComponents directly to ensure it's updated
     if (setComponents) {
@@ -236,8 +238,8 @@ export function ComponentsView({
     const updated = localComponents.filter((_: Component, i: number) => i !== index);
     setLocalComponents(updated);
     
-    // Update localStorage immediately
-    StorageService.setComponents(updated);
+    // Update local edits immediately
+    StorageService.updateLocalEditsComponents(updated);
     
     if (setComponents) {
       setComponents(updated);
@@ -324,9 +326,11 @@ export function ComponentsView({
       description="Components are reusable UI elements with defined properties and behaviors. Each component belongs to a category and can have multiple properties with component-specific configurations."
     >
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
-          Add Component
-        </Button>
+        {canEdit && (
+          <Button size="sm" leftIcon={<LuPlus />} onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+            Add Component
+          </Button>
+        )}
         <VStack align="stretch" spacing={2}>
           {localComponents.map((component: Component, i: number) => (
             <Box
@@ -353,10 +357,12 @@ export function ComponentsView({
                     </Text>
                   )}
                 </Box>
-                <HStack>
-                  <IconButton aria-label="Edit component" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
-                  <IconButton aria-label="Delete component" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
-                </HStack>
+                {canEdit && (
+                  <HStack>
+                    <IconButton aria-label="Edit component" icon={<LuPencil />} size="sm" onClick={() => handleOpen(i)} />
+                    <IconButton aria-label="Delete component" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(i)} />
+                  </HStack>
+                )}
               </HStack>
             </Box>
           ))}

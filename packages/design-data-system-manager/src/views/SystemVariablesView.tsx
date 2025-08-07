@@ -1,28 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Text,
-  Button,
-  IconButton,
-  VStack,
-  HStack,
-  useToast,
-  useColorMode,
-  Center,
-  Icon,
-  Badge
-} from '@chakra-ui/react';
-import { LuTrash2, LuPencil, LuPlus, LuSettings } from 'react-icons/lu';
+import { Box, Text, HStack, VStack, IconButton, Badge, Button, useColorMode, useToast } from '@chakra-ui/react';
+import { LuPlus, LuPencil, LuTrash2 } from 'react-icons/lu';
+import type { Dimension } from '@token-model/data-model';
 import { SystemVariableEditorDialog } from '../components/SystemVariableEditorDialog';
 import { SystemVariableService, SystemVariable } from '../services/systemVariableService';
-import { CardTitle } from '../components/CardTitle';
-import type { Dimension } from '@token-model/data-model';
 
 interface SystemVariablesViewProps {
   dimensions: Dimension[];
+  canEdit?: boolean;
 }
 
-export function SystemVariablesView({ dimensions }: SystemVariablesViewProps) {
+export function SystemVariablesView({ dimensions, canEdit = false }: SystemVariablesViewProps) {
   const { colorMode } = useColorMode();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingVariable, setEditingVariable] = useState<SystemVariable | null>(null);
@@ -115,62 +103,43 @@ export function SystemVariablesView({ dimensions }: SystemVariablesViewProps) {
 
   return (
     <Box>
-      <Text fontSize="2xl" fontWeight="bold" mb={4}>System Variables</Text>
+      <Text fontSize="2xl" fontWeight="bold" mb={2}>System Variables</Text>
+      <Text fontSize="sm" color="gray.600" mb={6}>System variables define global values that can be referenced by algorithms and tokens throughout the design system.</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4} leftIcon={<LuPlus />}>
-          Create New System Variable
-        </Button>
-        
+        {canEdit && (
+          <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4} leftIcon={<LuPlus />}>
+            Add System Variable
+          </Button>
+        )}
         {systemVariables.length === 0 ? (
-          <Center p={8}>
-            <VStack spacing={4}>
-              <Icon as={LuSettings} boxSize={12} color="gray.400" />
-              <VStack spacing={2}>
-                <Text fontSize="lg" fontWeight="medium">
-                  No system variables found
-                </Text>
-                <Text color="gray.500" textAlign="center">
-                  Get started by adding your first system variable
-                </Text>
-              </VStack>
-              <Box mt={2}>
-                <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" leftIcon={<LuPlus />}>
-                  Create New System Variable
-                </Button>
-              </Box>
-            </VStack>
-          </Center>
+          <Box textAlign="center" py={8}>
+            <Text color="gray.500">
+              {canEdit 
+                ? "No system variables found. Click 'Add System Variable' to create your first variable."
+                : "No system variables found in this repository."
+              }
+            </Text>
+          </Box>
         ) : (
-          <VStack align="stretch" spacing={2}>
+          <VStack align="stretch" spacing={3}>
             {systemVariables.map((variable) => (
-              <Box 
-                key={variable.id} 
-                p={3} 
-                borderWidth={1} 
-                borderRadius="md" 
+              <Box
+                key={variable.id}
+                p={3}
+                borderWidth={1}
+                borderRadius="md"
                 bg={colorMode === 'dark' ? 'gray.800' : 'gray.50'}
                 borderColor={colorMode === 'dark' ? 'gray.600' : 'gray.200'}
               >
                 <HStack justify="space-between" align="center">
-                  <Box flex={1}>
-                    <HStack spacing={2} mb={1}>
-                    <CardTitle title={variable.name} cardType="system-variable" />
-                      <Badge colorScheme="blue" size="sm">{variable.type}</Badge>
-                      {variable.modeBased && (
-                        <Badge colorScheme="green" size="sm">Mode-Based</Badge>
-                      )}
-                    </HStack>
-                    
-                    {variable.description && (
-                      <Text fontSize="sm" color="gray.600" mb={1}>
-                        {variable.description}
-                      </Text>
-                    )}
-                    
-                    {variable.defaultValue && !variable.modeBased && (
-                      <Text fontSize="sm" color="gray.500">
-                        Default: {variable.defaultValue}
-                      </Text>
+                  <Box>
+                    <Text fontSize="lg" fontWeight="medium">{variable.name}</Text>
+                    <Text fontSize="sm" color="gray.600">{variable.description}</Text>
+                    <Text fontSize="sm" color="gray.600">
+                      Value: {variable.defaultValue} | Type: {variable.type}
+                    </Text>
+                    {variable.modeBased && (
+                      <Text fontSize="sm" color="gray.600">Mode-based variable</Text>
                     )}
                     
                     {/* Display mode-specific values */}
@@ -188,21 +157,23 @@ export function SystemVariablesView({ dimensions }: SystemVariablesViewProps) {
                     )}
                   </Box>
                   
-                  <HStack>
-                    <IconButton 
-                      aria-label="Edit system variable" 
-                      icon={<LuPencil />} 
-                      size="sm" 
-                      onClick={() => handleOpenEdit(variable)} 
-                    />
-                    <IconButton 
-                      aria-label="Delete system variable" 
-                      icon={<LuTrash2 />} 
-                      size="sm" 
-                      colorScheme="red" 
-                      onClick={() => handleDeleteVariable(variable.id)} 
-                    />
-                  </HStack>
+                  {canEdit && (
+                    <HStack>
+                      <IconButton 
+                        aria-label="Edit system variable" 
+                        icon={<LuPencil />} 
+                        size="sm" 
+                        onClick={() => handleOpenEdit(variable)} 
+                      />
+                      <IconButton 
+                        aria-label="Delete system variable" 
+                        icon={<LuTrash2 />} 
+                        size="sm" 
+                        colorScheme="red" 
+                        onClick={() => handleDeleteVariable(variable.id)} 
+                      />
+                    </HStack>
+                  )}
                 </HStack>
               </Box>
             ))}
@@ -210,14 +181,16 @@ export function SystemVariablesView({ dimensions }: SystemVariablesViewProps) {
         )}
       </Box>
       
-      <SystemVariableEditorDialog
-        open={dialogOpen}
-        onClose={handleDialogClose}
-        onSave={handleDialogSave}
-        variable={editingVariable}
-        isNew={isNew}
-        dimensions={dimensions}
-      />
+      {canEdit && (
+        <SystemVariableEditorDialog
+          open={dialogOpen}
+          onClose={handleDialogClose}
+          onSave={handleDialogSave}
+          variable={editingVariable}
+          isNew={isNew}
+          dimensions={dimensions}
+        />
+      )}
     </Box>
   );
 } 

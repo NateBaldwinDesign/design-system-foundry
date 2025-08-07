@@ -36,6 +36,7 @@ interface ValueTypesViewProps {
   platforms: Platform[];
   taxonomies: Taxonomy[];
   themes: Theme[];
+  canEdit?: boolean;
 }
 
 export function ValueTypesView({ 
@@ -46,7 +47,8 @@ export function ValueTypesView({
   dimensions, 
   platforms, 
   taxonomies, 
-  themes 
+  themes,
+  canEdit = false
 }: ValueTypesViewProps) {
   const { colorMode } = useColorMode();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -195,9 +197,11 @@ export function ValueTypesView({
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Value Types</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4} leftIcon={<LuPlus />}>
-          Create New Value Type
-        </Button>
+        {canEdit && (
+          <Button size="sm" onClick={handleOpenCreate} colorScheme="blue" mb={4} leftIcon={<LuPlus />}>
+            Create New Value Type
+          </Button>
+        )}
         <VStack align="stretch" spacing={2}>
           {valueTypes.map((valueType) => (
             <Box 
@@ -213,10 +217,12 @@ export function ValueTypesView({
                   <CardTitle title={valueType.displayName} cardType={valueType.type || 'Custom'} />
                   <Text fontSize="sm" color="gray.600">Type: {valueType.type || 'Custom'}</Text>
                 </Box>
-                <HStack>
-                  <IconButton aria-label="Edit value type" icon={<LuPencil />} size="sm" onClick={() => handleOpenEdit(valueType)} />
-                  <IconButton aria-label="Delete value type" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(valueType)} />
-                </HStack>
+                {canEdit && (
+                  <HStack>
+                    <IconButton aria-label="Edit value type" icon={<LuPencil />} size="sm" onClick={() => handleOpenEdit(valueType)} />
+                    <IconButton aria-label="Delete value type" icon={<LuTrash2 />} size="sm" colorScheme="red" onClick={() => handleDelete(valueType)} />
+                  </HStack>
+                )}
               </HStack>
             </Box>
           ))}

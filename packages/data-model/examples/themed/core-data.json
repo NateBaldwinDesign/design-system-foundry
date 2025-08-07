@@ -144,24 +144,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Blue/50"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--blue-50"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Blue50"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "BLUE_50"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -210,24 +192,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Blue/100"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--blue-100"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Blue100"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "BLUE_100"
         }
       ],
       "valuesByMode": [
@@ -280,24 +244,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Blue/200"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--blue-200"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Blue200"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "BLUE_200"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -346,24 +292,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Blue/300"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--blue-300"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Blue300"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "BLUE_300"
         }
       ],
       "valuesByMode": [
@@ -416,24 +344,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Blue/400"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--blue-400"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Blue400"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "BLUE_400"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -482,24 +392,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Blue/500"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--blue-500"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Blue500"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "BLUE_500"
         }
       ],
       "valuesByMode": [
@@ -552,24 +444,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Red/50"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--red-50"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Red50"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "RED_50"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -618,24 +492,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Red/100"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--red-100"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Red100"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "RED_100"
         }
       ],
       "valuesByMode": [
@@ -688,24 +544,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Red/200"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--red-200"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Red200"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "RED_200"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -754,24 +592,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Red/300"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--red-300"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Red300"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "RED_300"
         }
       ],
       "valuesByMode": [
@@ -824,24 +644,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Red/400"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--red-400"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Red400"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "RED_400"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -890,24 +692,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Red/500"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--red-500"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Red500"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "RED_500"
         }
       ],
       "valuesByMode": [
@@ -960,24 +744,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Green/50"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--green-50"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Green50"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GREEN_50"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1026,24 +792,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Green/100"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--green-100"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Green100"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GREEN_100"
         }
       ],
       "valuesByMode": [
@@ -1096,24 +844,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Green/200"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--green-200"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Green200"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GREEN_200"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1162,24 +892,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Green/300"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--green-300"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Green300"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GREEN_300"
         }
       ],
       "valuesByMode": [
@@ -1232,24 +944,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Green/400"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--green-400"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Green400"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GREEN_400"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1298,24 +992,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Green/500"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--green-500"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Green500"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GREEN_500"
         }
       ],
       "valuesByMode": [
@@ -1368,24 +1044,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Gray/50"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--gray-50"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Gray50"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GRAY_50"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1434,24 +1092,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Gray/100"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--gray-100"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Gray100"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GRAY_100"
         }
       ],
       "valuesByMode": [
@@ -1504,24 +1144,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Gray/200"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--gray-200"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Gray200"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GRAY_200"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1570,24 +1192,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Gray/300"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--gray-300"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Gray300"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GRAY_300"
         }
       ],
       "valuesByMode": [
@@ -1640,24 +1244,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Gray/400"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--gray-400"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Gray400"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GRAY_400"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1706,24 +1292,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Gray/500"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--gray-500"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Gray500"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GRAY_500"
         }
       ],
       "valuesByMode": [
@@ -1776,24 +1344,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Gray/500"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--gray-500"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Gray500"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "GRAY_500"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1833,24 +1383,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Spacing/8"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--spacing-8"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Spacing8"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "SPACING_8"
         }
       ],
       "valuesByMode": [
@@ -1894,24 +1426,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Spacing/16"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--spacing-16"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Spacing16"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "SPACING_16"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -1951,24 +1465,6 @@
             "radius"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Spacing/24"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--spacing-24"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Spacing24"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "SPACING_24"
         }
       ],
       "valuesByMode": [
@@ -2012,24 +1508,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Spacing/32"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--spacing-32"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Spacing32"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "SPACING_32"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -2071,24 +1549,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Spacing/40"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "--spacing-40"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Spacing40"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "SPACING_40"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -2118,24 +1578,6 @@
             "font-family"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Inter"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "inter"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Inter"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "INTER"
         }
       ],
       "valuesByMode": [
@@ -2169,24 +1611,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "Roboto"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "roboto"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "Roboto"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "ROBOTO"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -2218,24 +1642,6 @@
           "inheritance": false
         }
       ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "SF Pro"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "sf-pro"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "SFPro"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "SF_PRO"
-        }
-      ],
       "valuesByMode": [
         {
           "modeIds": [],
@@ -2265,24 +1671,6 @@
             "font-family"
           ],
           "inheritance": false
-        }
-      ],
-      "codeSyntax": [
-        {
-          "platformId": "platform-figma",
-          "formattedName": "SF Pro"
-        },
-        {
-          "platformId": "platform-web",
-          "formattedName": "sf-pro"
-        },
-        {
-          "platformId": "platform-ios",
-          "formattedName": "SFPro"
-        },
-        {
-          "platformId": "platform-android",
-          "formattedName": "SF_PRO"
         }
       ],
       "valuesByMode": [
@@ -2453,9 +1841,21 @@
     }
   ],
   "componentCategories": [
-    { "id": "input", "displayName": "Input", "description": "Input components such as text fields, checkboxes, etc." },
-    { "id": "navigation", "displayName": "Navigation", "description": "Navigation components such as menus, tabs, etc." },
-    { "id": "feedback", "displayName": "Feedback", "description": "Feedback components such as alerts, snackbars, etc." }
+    {
+      "id": "input",
+      "displayName": "Input",
+      "description": "Input components such as text fields, checkboxes, etc."
+    },
+    {
+      "id": "navigation",
+      "displayName": "Navigation",
+      "description": "Navigation components such as menus, tabs, etc."
+    },
+    {
+      "id": "feedback",
+      "displayName": "Feedback",
+      "description": "Feedback components such as alerts, snackbars, etc."
+    }
   ],
   "components": [
     {
@@ -2472,7 +1872,10 @@
         {
           "componentPropertyId": "component-property-1111-1111-1111",
           "description": "Priority changes the strength of visual appearance for the button",
-          "supportedOptionIds": ["component-option-aaaa-aaaa-aaaa", "component-option-bbbb-bbbb-bbbb"],
+          "supportedOptionIds": [
+            "component-option-aaaa-aaaa-aaaa",
+            "component-option-bbbb-bbbb-bbbb"
+          ],
           "default": "component-option-bbbb-bbbb-bbbb"
         }
       ]
@@ -2482,37 +1885,46 @@
     {
       "id": "theme-default",
       "displayName": "Default Theme",
+      "description": "The default theme for the design system",
       "platforms": [
         "platform-figma",
         "platform-web",
         "platform-ios",
         "platform-android"
       ],
-      "isDefault": true
+      "status": "active"
     },
     {
       "id": "theme-brand-a",
       "displayName": "Brand A",
+      "description": "Brand A theme with custom color palette",
       "platforms": [
         "platform-figma",
         "platform-web",
         "platform-ios",
         "platform-android"
       ],
-      "isDefault": false,
-      "overrideFileUri": "themed/brand-a-overrides.json"
+      "status": "active",
+      "overrideSource": {
+        "repositoryUri": "design-system/brand-a-theme",
+        "filePath": "theme-brand-a.json"
+      }
     },
     {
       "id": "theme-brand-b",
       "displayName": "Brand B",
+      "description": "Brand B theme with alternative styling",
       "platforms": [
         "platform-figma",
         "platform-web",
         "platform-ios",
         "platform-android"
       ],
-      "isDefault": false,
-      "overrideFileUri": "themed/brand-b-overrides.json"
+      "status": "active",
+      "overrideSource": {
+        "repositoryUri": "design-system/brand-b-theme",
+        "filePath": "theme-brand-b.json"
+      }
     }
   ],
   "taxonomyOrder": [

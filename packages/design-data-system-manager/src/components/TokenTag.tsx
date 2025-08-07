@@ -1,7 +1,9 @@
 import React from 'react';
-import { Box, HStack, Text } from "@chakra-ui/react"
+import { Box, HStack, Text, useColorMode } from "@chakra-ui/react"
 import type { ResolvedValueType } from '@token-model/data-model';
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
+import { TokenSourceBadge, type TokenSource } from './TokenSourceBadge';
+import { b } from 'vitest/dist/chunks/suite.d.FvehnV49.js';
 
 interface TokenTagProps {
     displayName: string;
@@ -10,6 +12,10 @@ interface TokenTagProps {
     value: string | number;
     isPill?: boolean;
     onClick?: () => void;
+    source?: TokenSource;
+    platformName?: string;
+    themeName?: string;
+    showSourceBadge?: boolean;
 }
 
 const TokenTag: React.FC<TokenTagProps> = ({
@@ -18,13 +24,20 @@ const TokenTag: React.FC<TokenTagProps> = ({
     resolvedValueTypes,
     value,
     isPill = false,
-    onClick
+    onClick,
+    source,
+    platformName,
+    themeName,
+    showSourceBadge = false
 }) => {
     const iconSize = 14;
     const valueType = resolvedValueTypes.find(vt => vt.id === resolvedValueTypeId);
     if (!valueType) {
         throw new Error(`Unknown value type: ${resolvedValueTypeId}`);
     }
+
+    const { colorMode } = useColorMode();
+    const bgColor = colorMode === 'dark' ? 'gray.800' : 'gray.100';
 
     return (
         <Box
@@ -34,9 +47,9 @@ const TokenTag: React.FC<TokenTagProps> = ({
             borderRadius={isPill ? 'md' : 'md'}
             py={1}
             px={2}
-            bg={isPill ? 'gray.100' : 'transparent'}
+            bg={isPill ? bgColor : 'transparent'}
             borderWidth={isPill ? '1px' : '0'}
-            borderColor="gray.200"
+            borderColor="chakra-border-color"
         >
             <HStack width="100%" flexGrow={1} justifyContent="space-between">
                 <HStack gap={2} width="100%" justifyContent="flex-start" flexGrow={0}>
@@ -49,6 +62,15 @@ const TokenTag: React.FC<TokenTagProps> = ({
                         </div>
                     )}
                     <Text className="kode-mono">{displayName}</Text>
+                    {showSourceBadge && source && (
+                        <TokenSourceBadge
+                            source={source}
+                            platformName={platformName}
+                            themeName={themeName}
+                            size="sm"
+                            showIcon={false}
+                        />
+                    )}
                 </HStack>
                 <Text color="gray.500" fontSize="xs" pl={2}>{String(value)}</Text>
             </HStack>

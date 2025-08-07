@@ -226,10 +226,6 @@ export const Token = z.object({
   algorithmId: z.string().regex(/^[a-zA-Z0-9-_]+$/).optional(),
   taxonomies: z.array(TokenTaxonomyRef),
   propertyTypes: z.array(PropertyType),
-  codeSyntax: z.array(z.object({
-    platformId: z.string(),
-    formattedName: z.string()
-  })),
   valuesByMode: z.array(
     z.object({
       modeIds: z.array(z.string()),
@@ -282,7 +278,9 @@ export const Platform = z.object({
   extensionSource: z.object({
     repositoryUri: z.string(),
     filePath: z.string()
-  }).optional()
+  }).optional(),
+  status: z.enum(['active', 'deprecated']).default('active').optional(),
+  figmaPlatformMapping: z.enum(['WEB', 'iOS', 'ANDROID']).nullable().optional()
 }).refine((data) => {
   // Platforms can have either syntaxPatterns/valueFormatters OR extensionSource, but not both
   if (data.extensionSource) {
@@ -365,7 +363,6 @@ export const PlatformExtension = z.object({
     algorithmId: z.string().optional(),
     taxonomies: z.array(z.any()).optional(),
     propertyTypes: z.array(z.any()).optional(),
-    codeSyntax: z.array(z.any()).optional(),
     valuesByMode: z.array(z.object({
       modeIds: z.array(z.string()),
       value: z.union([
@@ -378,7 +375,9 @@ export const PlatformExtension = z.object({
   })).optional(),
   omittedModes: z.array(z.string()).optional(),
   omittedDimensions: z.array(z.string()).optional(),
-  componentImplementations: z.array(ComponentImplementation).optional()
+  componentImplementations: z.array(ComponentImplementation).optional(),
+  status: z.enum(['active', 'deprecated']).default('active').optional(),
+  figmaPlatformMapping: z.enum(['WEB', 'iOS', 'ANDROID']).nullable().optional()
 });
 
 // Theme schema
@@ -386,7 +385,11 @@ export const Theme = z.object({
   id: z.string().regex(/^[a-zA-Z0-9-_]+$/),
   displayName: z.string(),
   description: z.string().optional(),
-  isDefault: z.boolean()
+  overrideSource: z.object({
+    repositoryUri: z.string(),
+    filePath: z.string()
+  }).optional(),
+  status: z.enum(['active', 'deprecated']).optional()
 });
 
 // ThemeOverride schema

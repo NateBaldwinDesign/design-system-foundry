@@ -18,26 +18,31 @@ import {
   ModalFooter,
   ModalCloseButton,
   Tag,
-  useColorMode
+  useColorMode,
+  Select,
+  FormHelperText
 } from '@chakra-ui/react';
 import { LuPlus, LuTrash2, LuPencil } from 'react-icons/lu';
-import { StorageService } from '../services/storage';
-import { ValidationService } from '../services/validation';
-import type { Token, TokenCollection, Dimension, Platform, Taxonomy } from '@token-model/data-model';
 
 interface Theme {
   id: string;
   displayName: string;
   description?: string;
   isDefault?: boolean;
+  overrideSource?: {
+    repositoryUri: string;
+    filePath: string;
+  };
+  status?: 'active' | 'deprecated';
 }
 
 interface ThemesTabProps {
   themes: Theme[];
   setThemes: (themes: Theme[]) => void;
+  canEdit?: boolean;
 }
 
-export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
+export function ThemesTab({ themes, setThemes, canEdit = false }: ThemesTabProps) {
   const { colorMode } = useColorMode();
   const [open, setOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -45,15 +50,10 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
     id: '',
     displayName: '',
     description: '',
-    isDefault: false
+    isDefault: false,
+    status: 'active'
   });
   const toast = useToast();
-  // Assume tokens, collections, dimensions, platforms, and taxonomies are available via props or context (for this edit, use empty arrays as placeholders)
-  const tokens: Token[] = [];
-  const collections: TokenCollection[] = [];
-  const dimensions: Dimension[] = [];
-  const platforms: Platform[] = [];
-  const taxonomies: Taxonomy[] = [];
 
   const handleOpen = (index: number | null = null) => {
     setEditingIndex(index);
@@ -64,7 +64,8 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
         id: '',
         displayName: '',
         description: '',
-        isDefault: false
+        isDefault: false,
+        status: 'active'
       });
     }
     setOpen(true);
@@ -80,27 +81,6 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
   };
 
   const validateAndSetThemes = (updatedThemes: Theme[]) => {
-    const data = {
-      tokenCollections: collections,
-      dimensions,
-      tokens,
-      platforms,
-      taxonomies,
-      themes: updatedThemes,
-      version: '1.0.0',
-      versionHistory: []
-    };
-    const result = ValidationService.validateData(data);
-    if (!result.isValid) {
-      toast({
-        title: 'Schema Validation Failed',
-        description: 'Your change would make the data invalid. See the Validation tab for details.',
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-      });
-      return false;
-    }
     setThemes(updatedThemes);
     return true;
   };
@@ -179,9 +159,11 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
     <Box>
       <Text fontSize="2xl" fontWeight="bold" mb={4}>Themes</Text>
       <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
-        <Button leftIcon={<LuPlus />} size="sm" onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
-          Add Theme
-        </Button>
+        {canEdit && (
+          <Button leftIcon={<LuPlus />} size="sm" onClick={() => handleOpen(null)} colorScheme="blue" mb={4}>
+            Add Theme
+          </Button>
+        )}
         <VStack align="stretch" spacing={2}>
           {themes.map((theme, i) => (
             <Box 
@@ -198,26 +180,36 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
                   <Text fontSize="sm" color={colorMode === 'dark' ? 'gray.400' : 'gray.600'}>
                     {theme.description || ''}
                   </Text>
-                  {theme.isDefault && (
-                    <Tag colorScheme="green" size="sm" mt={1}>Default</Tag>
-                  )}
+                  <HStack spacing={2} mt={1}>
+                    {theme.isDefault && (
+                      <Tag colorScheme="green" size="sm">Default</Tag>
+                    )}
+                    {theme.status === 'deprecated' && (
+                      <Tag colorScheme="red" size="sm">Deprecated</Tag>
+                    )}
+                    {theme.overrideSource && (
+                      <Tag colorScheme="blue" size="sm">External</Tag>
+                    )}
+                  </HStack>
                 </Box>
-                <HStack>
-                  <IconButton 
-                    aria-label="Edit theme" 
-                    icon={<LuPencil />} 
-                    size="sm" 
-                    onClick={() => handleOpen(i)}
-                    colorScheme={colorMode === 'dark' ? 'blue' : 'gray'}
-                  />
-                  <IconButton 
-                    aria-label="Delete theme" 
-                    icon={<LuTrash2 />} 
-                    size="sm" 
-                    colorScheme="red" 
-                    onClick={() => handleDelete(i)}
-                  />
-                </HStack>
+                {canEdit && (
+                  <HStack>
+                    <IconButton 
+                      aria-label="Edit theme" 
+                      icon={<LuPencil />} 
+                      size="sm" 
+                      onClick={() => handleOpen(i)}
+                      colorScheme={colorMode === 'dark' ? 'blue' : 'gray'}
+                    />
+                    <IconButton 
+                      aria-label="Delete theme" 
+                      icon={<LuTrash2 />} 
+                      size="sm" 
+                      colorScheme="red" 
+                      onClick={() => handleDelete(i)}
+                    />
+                  </HStack>
+                )}
               </HStack>
             </Box>
           ))}
@@ -256,6 +248,52 @@ export function ThemesTab({ themes, setThemes }: ThemesTabProps) {
                 >
                   {form.isDefault ? 'Default Theme' : 'Set as Default'}
                 </Button>
+              </FormControl>
+              
+              <FormControl>
+                <FormLabel>Status</FormLabel>
+                <Select
+                  value={form.status || 'active'}
+                  onChange={e => handleFormChange('status', e.target.value)}
+                  bg={colorMode === 'dark' ? 'gray.700' : 'white'}
+                >
+                  <option value="active">Active</option>
+                  <option value="deprecated">Deprecated</option>
+                </Select>
+                <FormHelperText>Lifecycle status of this theme</FormHelperText>
+              </FormControl>
+              
+              <FormControl>
+                <FormLabel>External Theme Override</FormLabel>
+                <VStack spacing={2} align="stretch">
+                  <Input
+                    placeholder="Repository URI (e.g., owner/repo)"
+                    value={form.overrideSource?.repositoryUri || ''}
+                    onChange={e => {
+                      const repositoryUri = e.target.value;
+                      const filePath = form.overrideSource?.filePath || '';
+                      setForm(prev => ({
+                        ...prev,
+                        overrideSource: repositoryUri && filePath ? { repositoryUri, filePath } : undefined
+                      }));
+                    }}
+                    bg={colorMode === 'dark' ? 'gray.700' : 'white'}
+                  />
+                  <Input
+                    placeholder="File path (e.g., theme-dark.json)"
+                    value={form.overrideSource?.filePath || ''}
+                    onChange={e => {
+                      const repositoryUri = form.overrideSource?.repositoryUri || '';
+                      const filePath = e.target.value;
+                      setForm(prev => ({
+                        ...prev,
+                        overrideSource: repositoryUri && filePath ? { repositoryUri, filePath } : undefined
+                      }));
+                    }}
+                    bg={colorMode === 'dark' ? 'gray.700' : 'white'}
+                  />
+                </VStack>
+                <FormHelperText>Optional: Reference to external theme override file</FormHelperText>
               </FormControl>
             </VStack>
           </ModalBody>

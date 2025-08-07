@@ -1,5 +1,7 @@
 import { GitHubApiService } from './githubApi';
 import { StorageService } from './storage';
+import { JsonValidator } from '../utils/jsonValidator';
+import type { GitHubFile } from '../config/github';
 
 export interface PlatformExtensionData {
   systemId: string;
@@ -74,11 +76,11 @@ export class PlatformExtensionDataService {
     branch: string,
     platformId: string
   ): Promise<PlatformExtensionDataResult> {
-    const cacheKey = `${repositoryUri}:${filePath}:${branch}:${platformId}`;
+    const cacheKey = `${platformId}-${repositoryUri}-${filePath}-${branch}`;
     
     // Check cache first
     const cached = this.cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+    if (cached && (Date.now() - cached.timestamp) < this.CACHE_DURATION) {
       console.log(`[PlatformExtensionDataService] Using cached data for ${platformId}`);
       return {
         data: cached.data,
@@ -89,8 +91,30 @@ export class PlatformExtensionDataService {
     try {
       console.log(`[PlatformExtensionDataService] Fetching data for ${platformId} from ${repositoryUri}/${filePath}`);
       
-      // Fetch from GitHub
-      const fileContent = await GitHubApiService.getFileContent(repositoryUri, filePath, branch);
+      let fileContent: GitHubFile;
+      
+      // Check if user is authenticated
+      const isAuthenticated = await import('./githubAuth').then(module => module.GitHubAuthService.isAuthenticated());
+      
+      // Check if this is a private repository pattern (company/design-system-*)
+      const isPrivateRepoPattern = repositoryUri.match(/^company\/design-system-/);
+      
+      if (isAuthenticated && !isPrivateRepoPattern) {
+        // Use authenticated API call for repositories user has access to
+        fileContent = await GitHubApiService.getFileContent(repositoryUri, filePath, branch);
+      } else if (isPrivateRepoPattern) {
+        // Skip fetching for private repository patterns (user likely doesn't have access)
+        console.log(`[PlatformExtensionDataService] Skipping private repository pattern for ${platformId}: ${repositoryUri}`);
+        return {
+          data: null,
+          source: 'not-found',
+          error: 'Private repository - access not available'
+        };
+      } else {
+        // Use public API call for unauthenticated users (only for public repositories)
+        console.log(`[PlatformExtensionDataService] Using public API for ${platformId} (user not authenticated)`);
+        fileContent = await GitHubApiService.getPublicFileContent(repositoryUri, filePath, branch);
+      }
       
       if (!fileContent || !fileContent.content) {
         console.warn(`[PlatformExtensionDataService] No content found for ${platformId}`);
@@ -101,8 +125,32 @@ export class PlatformExtensionDataService {
         };
       }
 
-      // Parse the JSON content
-      const data = JSON.parse(fileContent.content) as PlatformExtensionData;
+      // Parse the JSON content with better error handling
+      let data: PlatformExtensionData;
+      try {
+        data = JSON.parse(fileContent.content) as PlatformExtensionData;
+      } catch (parseError) {
+        console.error(`[PlatformExtensionDataService] JSON parse error for ${platformId}:`, {
+          error: parseError,
+          contentLength: fileContent.content.length,
+          contentPreview: fileContent.content.substring(0, 200) + '...',
+          repositoryUri,
+          filePath,
+          branch
+        });
+        
+        // Use JsonValidator for detailed error analysis
+        if (parseError instanceof SyntaxError) {
+          const errorInfo = JsonValidator.formatErrorInfo(
+            parseError, 
+            fileContent.content, 
+            `Platform Extension ${platformId} (${repositoryUri}/${filePath})`
+          );
+          console.error(errorInfo);
+        }
+        
+        throw parseError;
+      }
       
       // Validate that this is a platform extension file
       if (!data.systemId || !data.platformId || !data.version) {

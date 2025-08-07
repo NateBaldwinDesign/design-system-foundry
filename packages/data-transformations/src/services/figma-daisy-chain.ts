@@ -844,31 +844,11 @@ export class FigmaDaisyChainService {
   }
 
   /**
-   * Build code syntax for a token
+   * Build code syntax for a token using pre-generated data
    */
   private buildCodeSyntax(token: Token, tokenSystem: TokenSystem): any {
-    const codeSyntax: any = {};
-    
-    // Map platform code syntax to Figma's expected format
-    for (const cs of token.codeSyntax || []) {
-      const platform = tokenSystem.platforms?.find((p: any) => p.id === cs.platformId);
-      if (platform) {
-        switch (platform.displayName?.toLowerCase()) {
-          case 'css':
-          case 'web':
-            codeSyntax.WEB = cs.formattedName;
-            break;
-          case 'ios':
-            codeSyntax.iOS = cs.formattedName;
-            break;
-          case 'android':
-            codeSyntax.ANDROID = cs.formattedName;
-            break;
-        }
-      }
-    }
-    
-    return codeSyntax;
+    // Use pre-generated code syntax from the preprocessor
+    return (token as Token & { codeSyntax?: Record<string, string> }).codeSyntax || {};
   }
 
   /**

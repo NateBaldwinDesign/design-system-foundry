@@ -21,7 +21,7 @@ import { ZodError } from 'zod';
 import { TaxonomyPicker } from '../components/TaxonomyPicker';
 import { PropertyTypePicker } from '../components/PropertyTypePicker';
 import { useSchema, type Schema } from '../hooks/useSchema';
-import { CodeSyntaxService } from '../services/codeSyntax';
+import { CodeSyntaxGenerator } from '@token-model/data-transformations';
 
 // Add utility function to filter property types based on resolved value type
 const getFilteredPropertyTypes = (resolvedValueTypeId: string, resolvedValueTypes: ResolvedValueType[], standardPropertyTypes: PropertyType[]): PropertyType[] => {
@@ -200,7 +200,7 @@ export default function TokensWorkflow({
     private: false,
     taxonomies: [] as TokenTaxonomyRef[],
     propertyTypes: [] as PropertyType[],
-    codeSyntax: [],
+
   });
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { schema } = useSchema();
@@ -238,31 +238,13 @@ export default function TokensWorkflow({
       const validTaxonomies = (newToken.taxonomies || []).filter(
         (ref: TokenTaxonomyRef) => ref.taxonomyId && ref.termId
       );
-      const codeSyntax = CodeSyntaxService.generateAllCodeSyntaxes(
-        { ...newToken, taxonomies: validTaxonomies } as Token,
-        schema || { 
-          platforms: [], 
-          namingRules: { taxonomyOrder: [] }, 
-          taxonomies: [], 
-          standardPropertyTypes: [],
-          version: '1.0.0',
-          systemName: 'Default',
-          systemId: 'default',
-          tokenCollections: [],
-          dimensions: [],
-          themes: [],
-          tokens: [],
-          resolvedValueTypes: [],
-          versionHistory: []
-        } as Schema
-      );
+      // Note: codeSyntax is no longer part of the schema - it's generated on-demand
       const token = TokenSchema.parse({
         id: crypto.randomUUID(),
         ...newToken,
         resolvedValueTypeId: (newToken.resolvedValueTypeId as string) || 'color',
         propertyTypes: (newToken.propertyTypes || []).filter(Boolean),
-        taxonomies: validTaxonomies,
-        codeSyntax
+        taxonomies: validTaxonomies
       });
       setTokens([...tokens, token]);
       setNewToken({
@@ -273,7 +255,7 @@ export default function TokensWorkflow({
         private: false,
         taxonomies: [],
         propertyTypes: [],
-        codeSyntax: [],
+
       });
       toast({
         title: 'Token added',
@@ -377,27 +359,35 @@ export default function TokensWorkflow({
               disabled={taxonomies.length === 0}
             />
 
-            <Text fontSize="lg" fontWeight="medium">Code Syntax (auto-generated)</Text>
+            <Text fontSize="lg" fontWeight="medium">Generated Names Preview</Text>
             <VStack spacing={2} align="stretch">
-              {Object.entries(CodeSyntaxService.generateAllCodeSyntaxes(newToken as Token, schema || { 
-  platforms: [], 
-  namingRules: { taxonomyOrder: [] }, 
-  taxonomies: [], 
-  standardPropertyTypes: [],
-  version: '1.0.0',
-  systemName: 'Default',
-  systemId: 'default',
-  tokenCollections: [],
-  dimensions: [],
-  themes: [],
-  tokens: [],
-  resolvedValueTypes: [],
-  versionHistory: []
-} as Schema)).map(([key, value]) => (
-                <HStack key={key} spacing={2}>
-                  <Text fontSize="sm">{key}: {typeof value === 'string' ? value : JSON.stringify(value)}</Text>
-                </HStack>
-              ))}
+              {schema?.platforms && schema.platforms.length > 0 ? (
+                schema.platforms.map((platform) => {
+                  try {
+                    const generator = new CodeSyntaxGenerator({
+                      tokens: [newToken as Token],
+                      platforms: schema.platforms || [],
+                      taxonomies: schema.taxonomies || [],
+                      taxonomyOrder: schema.taxonomyOrder || [],
+                      platformExtensions: new Map() // TODO: Load platform extensions
+                    });
+                    const name = generator.generateTokenCodeSyntaxForPlatform(newToken as Token, platform.id);
+                    return (
+                      <HStack key={platform.id} spacing={2}>
+                        <Text fontSize="sm">{platform.displayName}: {name}</Text>
+                      </HStack>
+                    );
+                  } catch (error) {
+                    return (
+                      <HStack key={platform.id} spacing={2}>
+                        <Text fontSize="sm" color="red.500">{platform.displayName}: Error generating name</Text>
+                      </HStack>
+                    );
+                  }
+                })
+              ) : (
+                <Text fontSize="sm" color="gray.500">No platforms configured</Text>
+              )}
             </VStack>
 
             {fieldErrors.general && (
@@ -443,10 +433,23 @@ export default function TokensWorkflow({
                           }).join(', ')
                         : 'None'}
                     </Text>
-                    <Text fontSize="sm">Code Syntax: {
-                      Array.isArray(token.codeSyntax)
-                        ? token.codeSyntax.map((entry: { platformId: string; formattedName: string }) => `${entry.platformId}: ${entry.formattedName}`).join(', ')
-                        : ''
+                    <Text fontSize="sm">Generated Names: {
+                      schema?.platforms && schema.platforms.length > 0 ? (
+                        schema.platforms.map(platform => {
+                          try {
+                            const generator = new CodeSyntaxGenerator({
+                              tokens: [token],
+                              platforms: schema.platforms || [],
+                              taxonomies: schema.taxonomies || [],
+                              taxonomyOrder: schema.taxonomyOrder || [],
+                              platformExtensions: new Map() // TODO: Load platform extensions
+                            });
+                            return `${platform.displayName}: ${generator.generateTokenCodeSyntaxForPlatform(token, platform.id)}`;
+                          } catch (error) {
+                            return `${platform.displayName}: Error`;
+                          }
+                        }).join(', ')
+                      ) : 'No platforms configured'
                     }</Text>
                   </VStack>
                 </Box>

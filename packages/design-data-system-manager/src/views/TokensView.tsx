@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Box, Text, HStack, Flex, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Tabs, TabList, Tab, InputGroup, InputRightElement, Center, Icon, InputLeftElement, useColorMode } from '@chakra-ui/react';
+import { Box, Text, HStack, Flex, Input, Table, Thead, Tbody, Tr, Th, Td, IconButton, Badge, Button, Popover, PopoverTrigger, PopoverContent, PopoverBody, Checkbox, VStack, Tabs, TabList, Tab, InputGroup, InputRightElement, Center, Icon, InputLeftElement, useColorMode, Switch, FormControl, FormLabel, Select } from '@chakra-ui/react';
 import { Edit, Columns, Filter, X, Search } from 'lucide-react';
-import type { TokenCollection, ResolvedValueType, Taxonomy, Mode } from '@token-model/data-model';
+import type { TokenCollection, ResolvedValueType, Taxonomy, Mode, Dimension } from '@token-model/data-model';
 import type { ExtendedToken } from '../components/TokenEditorDialog';
 import TokenTag from '../components/TokenTag';
 import TokenResolvedValueTag from '../components/TokenResolvedValueTag';
@@ -9,6 +9,7 @@ import { formatValueForDisplay } from '../utils/valueTypeUtils';
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
 import TokenIcon from '../icons/TokenIcon';
 import { PageTemplate } from '../components/PageTemplate';
+import type { DataSourceContext } from '../services/dataSourceManager';
 
 interface TokensViewProps {
   tokens: ExtendedToken[];
@@ -16,8 +17,14 @@ interface TokensViewProps {
   resolvedValueTypes: ResolvedValueType[];
   taxonomies: Taxonomy[];
   modes: Mode[];
+  dimensions: Dimension[];
   renderAddTokenButton?: React.ReactNode;
   onEditToken?: (token: ExtendedToken) => void;
+  canEdit?: boolean;
+  // NEW: Data source context for edit mode filtering
+  dataSourceContext?: DataSourceContext;
+  // NEW: Dimension order for mode label combinations
+  dimensionOrder?: string[];
 }
 
 export function TokensView({ 
@@ -25,8 +32,13 @@ export function TokensView({
   collections, 
   resolvedValueTypes, 
   taxonomies,
+  modes,
+  dimensions,
   renderAddTokenButton,
-  onEditToken
+  onEditToken,
+  canEdit = false, // Changed default to false to respect edit mode state
+  dataSourceContext,
+  dimensionOrder = []
 }: TokensViewProps) {
   // Filter state
   const [activeTab, setActiveTab] = useState<string>('PRIMITIVE');
@@ -37,12 +49,28 @@ export function TokensView({
   const [privateFilters, setPrivateFilters] = useState<boolean[]>([]);
   const [themeableFilters, setThemeableFilters] = useState<boolean[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sourceSpecificDataOnly, setSourceSpecificDataOnly] = useState(false);
+  
+  // NEW: Dimension mode filtering state - initialize with default modes
+  const [dimensionModeFilters, setDimensionModeFilters] = useState<Record<string, string>>(() => {
+    const initialFilters: Record<string, string> = {};
+    dimensions.forEach(dimension => {
+      if (dimension.defaultMode) {
+        // Find the mode name that matches the defaultMode ID
+        const defaultMode = dimension.modes.find(mode => mode.id === dimension.defaultMode);
+        if (defaultMode) {
+          initialFilters[dimension.id] = dimension.defaultMode;
+        }
+      }
+    });
+    return initialFilters;
+  });
 
   // Column visibility state
   const [visibleColumns, setVisibleColumns] = useState({
     tokenTier: false,
     propertyTypes: false,
-    codeSyntax: false,
+
     taxonomies: false,
     private: false,
     themeable: true,
@@ -60,6 +88,8 @@ export function TokensView({
     setPrivateFilters([]);
     setThemeableFilters([]);
     setSearchTerm('');
+    setSourceSpecificDataOnly(false);
+    // Note: dimension mode filters are not cleared as they control value display, not token filtering
   };
 
   // Unique values for filters
@@ -92,7 +122,37 @@ export function TokensView({
     const matchesPrivate = privateFilters.length === 0 || privateFilters.includes(token.private);
     const matchesThemeable = themeableFilters.length === 0 || themeableFilters.includes(token.themeable);
 
-    return matchesSearch && matchesTokenTier && matchesCollection && matchesType && matchesStatus && matchesPrivate && matchesThemeable;
+
+
+    // NEW: Apply source-specific data only filter
+    const matchesSourceSpecific = !sourceSpecificDataOnly || (() => {
+      if (!dataSourceContext?.editMode.isActive) return true;
+      
+      const { sourceType, sourceId } = dataSourceContext.editMode;
+      
+      // For platform extensions, check if token has platform overrides or is platform-specific
+      if (sourceType === 'platform-extension' && sourceId) {
+        // Check if token has platform overrides for this platform
+        const hasPlatformOverrides = token.valuesByMode?.some(vbm => 
+          vbm.platformOverrides?.some(po => po.platformId === sourceId)
+        );
+        
+        // Check if token is omitted by this platform (would be in omittedTokens)
+        // For now, we'll show all tokens and let the user filter manually
+        return hasPlatformOverrides;
+      }
+      
+      // For theme overrides, check if token is themeable and has theme overrides
+      if (sourceType === 'theme-override' && sourceId) {
+        // Only show themeable tokens
+        return token.themeable === true;
+      }
+      
+      // For core data, show all tokens
+      return true;
+    })();
+
+    return matchesSearch && matchesTokenTier && matchesCollection && matchesType && matchesStatus && matchesPrivate && matchesThemeable && matchesSourceSpecific;
   });
 
   // Get type from ID
@@ -111,7 +171,126 @@ export function TokensView({
   const getValueDisplay = (token: ExtendedToken) => {
     if (!token.valuesByMode?.length) return '-';
 
-    return token.valuesByMode.map((modeValue) => {
+    // Filter valuesByMode based on dimension mode selections
+    const filteredModeValues = token.valuesByMode.filter((modeValue) => {
+      // If no dimension mode filters are set, show all values (existing behavior)
+      if (Object.keys(dimensionModeFilters).length === 0) {
+        return true;
+      }
+
+      // If modeIds is empty array [], this value should always be shown (schema validation)
+      if (modeValue.modeIds.length === 0) {
+        return true;
+      }
+
+      // Group modeIds by dimension
+      const modeIdsByDimension = new Map<string, string[]>();
+      modeValue.modeIds.forEach(modeId => {
+        const dimension = dimensions.find(dim => 
+          dim.modes.some(mode => mode.id === modeId)
+        );
+        
+        if (dimension) {
+          if (!modeIdsByDimension.has(dimension.id)) {
+            modeIdsByDimension.set(dimension.id, []);
+          }
+          modeIdsByDimension.get(dimension.id)!.push(modeId);
+        }
+      });
+
+      // Check if this modeValue matches the dimension selections
+      // Only check dimensions that this value actually has modes for
+      for (const [dimensionId, selectedModeId] of Object.entries(dimensionModeFilters)) {
+        const modeIdsForDimension = modeIdsByDimension.get(dimensionId);
+        
+        // If this value doesn't have modes for this dimension, skip it
+        // (the value is not affected by this dimension's selection)
+        if (!modeIdsForDimension) {
+          continue;
+        }
+        
+        if (selectedModeId === '') {
+          // "All modes" selected for this dimension - any mode is acceptable
+          continue;
+        }
+        
+        // Specific mode selected - check if this value has that mode
+        if (!modeIdsForDimension.includes(selectedModeId)) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+
+    // If no values match the filters, show '-'
+    if (filteredModeValues.length === 0) return '-';
+
+    // Helper function to get mode info for a modeId
+    const getModeInfo = (modeId: string) => {
+      const dimension = dimensions.find(dim => 
+        dim.modes.some(mode => mode.id === modeId)
+      );
+      
+      if (dimension) {
+        const mode = dimension.modes.find(m => m.id === modeId);
+        if (mode) {
+          return { dimension, mode };
+        }
+      }
+      return null;
+    };
+
+    // Helper function to create combined mode labels
+    const createCombinedModeLabels = (modeIds: string[]) => {
+      if (modeIds.length === 0) return null;
+
+      // Get all mode info
+      const modeInfos = modeIds.map(modeId => getModeInfo(modeId)).filter(Boolean);
+      if (modeInfos.length === 0) return null;
+
+      // Check which dimensions have "All modes" selected
+      const dimensionsWithAllModes = new Set<string>();
+      Object.entries(dimensionModeFilters).forEach(([dimensionId, selectedModeId]) => {
+        if (selectedModeId === '') { // Empty string means "All modes"
+          dimensionsWithAllModes.add(dimensionId);
+        }
+      });
+
+      // If no dimensions have "All modes" selected, don't show labels
+      if (dimensionsWithAllModes.size === 0) return null;
+
+      // Filter mode infos to only include modes from dimensions with "All modes" selected
+      const relevantModeInfos = modeInfos.filter(info => 
+        dimensionsWithAllModes.has(info!.dimension.id)
+      );
+
+      if (relevantModeInfos.length === 0) return null;
+
+      // Sort dimensions by dimensionOrder
+      const sortedModeInfos = relevantModeInfos.sort((a, b) => {
+        const aIndex = dimensionOrder.indexOf(a!.dimension.id);
+        const bIndex = dimensionOrder.indexOf(b!.dimension.id);
+        
+        // If both are in dimensionOrder, sort by their position
+        if (aIndex !== -1 && bIndex !== -1) {
+          return aIndex - bIndex;
+        }
+        
+        // If only one is in dimensionOrder, prioritize it
+        if (aIndex !== -1) return -1;
+        if (bIndex !== -1) return 1;
+        
+        // If neither is in dimensionOrder, sort alphabetically by dimension name
+        return a!.dimension.displayName.localeCompare(b!.dimension.displayName);
+      });
+
+      // Create combined label
+      const modeNames = sortedModeInfos.map(info => info!.mode.name);
+      return modeNames.join(' + ');
+    };
+
+    return filteredModeValues.map((modeValue) => {
       const value = modeValue.value;
       if (!value) return null;
 
@@ -193,9 +372,21 @@ export function TokensView({
         displayValue = String(value);
       }
 
+      // Create combined mode label
+      const combinedLabel = createCombinedModeLabels(modeValue.modeIds);
+
       return (
         <Box key={modeValue.modeIds.join(',')}>
-          {displayValue}
+          {combinedLabel ? (
+            <HStack spacing={2} align="center">
+              <Text fontSize="sm" fontWeight="medium" color="gray.600" minW="fit-content">
+                {combinedLabel}:
+              </Text>
+              {displayValue}
+            </HStack>
+          ) : (
+            displayValue
+          )}
         </Box>
       );
     });
@@ -232,34 +423,87 @@ export function TokensView({
     }));
   };
 
+  const algorightmBgColor = colorMode === 'dark' ? 'purple.800' : 'orange.100';
+  const defaultBgColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
+
   return (
     <PageTemplate 
       title="Tokens"
       headerComponent={
-        <InputGroup width="300px">
-          <InputLeftElement pointerEvents='none'>
-            <Search size={16} />
-          </InputLeftElement>
-          <Input
-            placeholder="Search tokens..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <InputRightElement>
-              <IconButton
-                aria-label="Clear search"
-                icon={<X size={14} />}
+        <HStack spacing={4} width="auto" justify="space-between">
+          {/* NEW: Source-specific data only toggle */}
+          {dataSourceContext?.editMode.isActive && dataSourceContext.editMode.sourceType !== 'core' && (
+            <FormControl display="flex" alignItems="center" width="auto">
+              <FormLabel htmlFor="source-specific-data-only" mb="0" fontSize="sm">
+                Source-specific data only
+              </FormLabel>
+              <Switch
+                id="source-specific-data-only"
+                isChecked={sourceSpecificDataOnly}
+                onChange={(e) => setSourceSpecificDataOnly(e.target.checked)}
                 size="sm"
-                variant="ghost"
-                onClick={() => setSearchTerm('')}
               />
-            </InputRightElement>
+            </FormControl>
           )}
-        </InputGroup>
+
+          <InputGroup width="300px">
+            <InputLeftElement pointerEvents='none'>
+              <Search size={16} />
+            </InputLeftElement>
+            <Input
+              placeholder="Search tokens..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <InputRightElement>
+                <IconButton
+                  aria-label="Clear search"
+                  icon={<X size={14} />}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSearchTerm('')}
+                />
+              </InputRightElement>
+            )}
+          </InputGroup>
+          
+        </HStack>
       }
       maxWidth="100%"
     >
+      {/* NEW: Dimension mode dropdowns */}
+      {dimensions.length > 0 && (
+        <Box>
+          <HStack spacing={4} align="flex-end">
+            {dimensions.map(dimension => (
+              <FormControl key={dimension.id} width="auto">
+                <FormLabel htmlFor={`dimension-${dimension.id}`} mb="0" fontSize="sm">
+                  {dimension.displayName}
+                </FormLabel>
+                <Select
+                  id={`dimension-${dimension.id}`}
+                  value={dimensionModeFilters[dimension.id] || ''}
+                  onChange={(e) => setDimensionModeFilters(prev => ({
+                    ...prev,
+                    [dimension.id]: e.target.value
+                  }))}
+                  size="sm"
+                  width="150px"
+                >
+                  <option value="">All modes</option>
+                  {dimension.modes.map(mode => (
+                    <option key={mode.id} value={mode.id}>
+                      {mode.name}
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            ))}
+          </HStack>
+        </Box>
+      )}
+
       <Tabs 
         onChange={(index) => {
           const tabs = ['PRIMITIVE', 'SEMANTIC', 'COMPONENT'];
@@ -412,6 +656,8 @@ export function TokensView({
                       </VStack>
                     </Box>
 
+                    
+
                     <Button
                       size="sm"
                       variant="ghost"
@@ -476,12 +722,7 @@ export function TokensView({
                     >
                       Property Types
                     </Checkbox>
-                    <Checkbox
-                      isChecked={visibleColumns.codeSyntax}
-                      onChange={() => handleColumnToggle('codeSyntax')}
-                    >
-                      Code Syntax
-                    </Checkbox>
+
                     <Checkbox
                       isChecked={visibleColumns.generatedByAlgorithm}
                       onChange={() => handleColumnToggle('generatedByAlgorithm')}
@@ -542,7 +783,7 @@ export function TokensView({
               {visibleColumns.taxonomies && <Th>Taxonomies</Th>}
               {visibleColumns.tokenTier && <Th>Token Tier</Th>}
               {visibleColumns.propertyTypes && <Th>Property Types</Th>}
-              {visibleColumns.codeSyntax && <Th>Code Syntax</Th>}
+
               {visibleColumns.generatedByAlgorithm && <Th>Generated By Algorithm</Th>}
               {visibleColumns.algorithm && <Th>Algorithm</Th>}
               <Th>Actions</Th>
@@ -552,7 +793,7 @@ export function TokensView({
             {filteredTokens.map(token => (
               <Tr key={token.id}>
                 <Td>
-                  <HStack spacing={2} backgroundColor={token.generatedByAlgorithm ? "orange.100" : "gray.100"} borderRadius="md" p={2} width="fit-content">
+                  <HStack spacing={2} backgroundColor={token.generatedByAlgorithm ? algorightmBgColor : defaultBgColor} borderRadius="md" p={2} width="fit-content">
                     {getValueTypeIcon(getTypeFromId(token.resolvedValueTypeId), 20, 'currentColor', token.generatedByAlgorithm, getTypeNameFromId(token.resolvedValueTypeId))}
                   </HStack>
                 </Td>
@@ -610,15 +851,7 @@ export function TokensView({
                     ))}
                   </Td>
                 )}
-                {visibleColumns.codeSyntax && (
-                  <Td>
-                    {token.codeSyntax?.map((syntax, idx) => (
-                      <Text key={idx} fontSize="sm">
-                        {syntax.platformId}: {syntax.formattedName}
-                      </Text>
-                    ))}
-                  </Td>
-                )}
+
                 {visibleColumns.generatedByAlgorithm && (
                   <Td>
                     {token.generatedByAlgorithm ? 'Yes' : 'No'}
@@ -631,7 +864,7 @@ export function TokensView({
                 )}
                 <Td>
                   <HStack spacing={2}>
-                    {onEditToken && (
+                    {canEdit && onEditToken && (
                       <IconButton
                         aria-label="Edit token"
                         icon={<Edit size={16} />}

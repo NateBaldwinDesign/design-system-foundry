@@ -37,6 +37,9 @@ export interface MergedData {
     omittedTokens: number;
     platformCount: number;
     themeCount: number;
+    excludedThemeOverrides: number;
+    validThemeOverrides: number;
+    themeOverrideValidationErrors: string[];
   };
 }
 
@@ -81,13 +84,36 @@ export function mergeData(
     omittedDimensions = [...omittedDimensions, ...(extension.omittedDimensions || [])];
   }
 
-  // Apply theme overrides
+  // Track platform-omitted tokens for theme override validation
+  const platformOmittedTokens: string[] = [];
+  
+  // Apply platform extensions
+  for (const extension of relevantExtensions) {
+    const result = applyPlatformExtension(mergedTokens, mergedPlatforms, extension, includeOmitted);
+    mergedTokens = result.tokens;
+    mergedPlatforms = result.platforms;
+    omittedModes = [...omittedModes, ...(extension.omittedModes || [])];
+    omittedDimensions = [...omittedDimensions, ...(extension.omittedDimensions || [])];
+    
+    // Track omitted tokens for theme override validation
+    if (extension.tokenOverrides) {
+      for (const tokenOverride of extension.tokenOverrides) {
+        if (tokenOverride.omit && !includeOmitted) {
+          platformOmittedTokens.push(tokenOverride.id);
+        }
+      }
+    }
+  }
+
+  // Apply theme overrides with validation
+  let themeOverrideResult = { tokens: mergedTokens, excludedOverrides: 0 };
   if (themeOverrides) {
     const relevantThemes = targetThemeId 
       ? { [targetThemeId]: themeOverrides[targetThemeId] }
       : themeOverrides;
     
-    mergedTokens = applyThemeOverrides(mergedTokens, relevantThemes);
+    themeOverrideResult = applyThemeOverrides(mergedTokens, relevantThemes, platformOmittedTokens);
+    mergedTokens = themeOverrideResult.tokens;
   }
 
   // Calculate analytics
@@ -95,7 +121,8 @@ export function mergeData(
     coreData.tokens,
     mergedTokens,
     platformExtensions,
-    themeOverrides
+    themeOverrides,
+    themeOverrideResult.excludedOverrides
   );
 
   return {
@@ -164,6 +191,7 @@ function applyPlatformExtension(
 /**
  * Merges token properties from platform extension into existing token
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mergeTokenProperties(existingToken: Token, override: any): Token {
   return {
     ...existingToken,
@@ -178,29 +206,63 @@ function mergeTokenProperties(existingToken: Token, override: any): Token {
     algorithmId: override.algorithmId ?? existingToken.algorithmId,
     taxonomies: override.taxonomies ?? existingToken.taxonomies,
     propertyTypes: override.propertyTypes ?? existingToken.propertyTypes,
-    codeSyntax: override.codeSyntax ?? existingToken.codeSyntax,
     valuesByMode: override.valuesByMode ?? existingToken.valuesByMode
   };
 }
 
 /**
- * Applies theme overrides to tokens
+ * Validates if a theme override can be applied to a token
+ * Token must exist in merged tokens and not be omitted by platform
  */
-function applyThemeOverrides(tokens: Token[], themeOverrides: ThemeOverrides): Token[] {
-  const result = [...tokens];
+function validateThemeOverrideTokenExistence(
+  tokenId: string, 
+  mergedTokens: Token[], 
+  platformOmittedTokens: string[]
+): boolean {
+  // Token must exist in merged tokens
+  const tokenExists = mergedTokens.some(t => t.id === tokenId);
+  
+  // Token must not be omitted by platform
+  const notOmitted = !platformOmittedTokens.includes(tokenId);
+  
+  return tokenExists && notOmitted;
+}
 
-  for (const [, overrides] of Object.entries(themeOverrides)) {
+/**
+ * Applies theme overrides to tokens with validation
+ * Only applies overrides to tokens that exist and are not omitted by platforms
+ */
+function applyThemeOverrides(
+  tokens: Token[], 
+  themeOverrides: ThemeOverrides, 
+  platformOmittedTokens: string[] = []
+): { tokens: Token[]; excludedOverrides: number } {
+  const result = [...tokens];
+  let excludedOverrides = 0;
+
+  for (const [themeId, overrides] of Object.entries(themeOverrides)) {
+    // Validate that overrides is an array
+    if (!Array.isArray(overrides)) {
+      console.error(`[DataMerger] Theme ${themeId} overrides is not an array:`, overrides);
+      continue;
+    }
+    
     for (const override of overrides) {
-      const tokenIndex = result.findIndex(t => t.id === override.tokenId);
-      
-      if (tokenIndex !== -1) {
-        // Apply theme override to token
-        result[tokenIndex] = applyThemeOverrideToToken(result[tokenIndex], override);
+      // Validate that the token exists and is not omitted by platform
+      if (validateThemeOverrideTokenExistence(override.tokenId, tokens, platformOmittedTokens)) {
+        const tokenIndex = result.findIndex(t => t.id === override.tokenId);
+        if (tokenIndex !== -1) {
+          // Apply theme override to token
+          result[tokenIndex] = applyThemeOverrideToToken(result[tokenIndex], override);
+        }
+      } else {
+        excludedOverrides++;
+        console.warn(`[DataMerger] Theme override excluded: Token ${override.tokenId} does not exist or was omitted by platform`);
       }
     }
   }
 
-  return result;
+  return { tokens: result, excludedOverrides };
 }
 
 /**
@@ -238,7 +300,8 @@ function calculateAnalytics(
   originalTokens: Token[],
   mergedTokens: Token[],
   platformExtensions: PlatformExtension[],
-  themeOverrides?: ThemeOverrides
+  themeOverrides?: ThemeOverrides,
+  excludedThemeOverrides: number = 0
 ): MergedData['analytics'] {
   const totalTokens = originalTokens.length;
   const overriddenTokens = mergedTokens.filter(token => 
@@ -252,13 +315,22 @@ function calculateAnalytics(
   
   const omittedTokens = originalTokens.length - mergedTokens.length + newTokens;
   
+  // Calculate theme override analytics
+  const totalThemeOverrides = themeOverrides 
+    ? Object.values(themeOverrides).flat().length 
+    : 0;
+  const validThemeOverrides = totalThemeOverrides - excludedThemeOverrides;
+  
   return {
     totalTokens,
     overriddenTokens,
     newTokens,
     omittedTokens,
     platformCount: platformExtensions.length,
-    themeCount: themeOverrides ? Object.keys(themeOverrides).length : 0
+    themeCount: themeOverrides ? Object.keys(themeOverrides).length : 0,
+    excludedThemeOverrides,
+    validThemeOverrides,
+    themeOverrideValidationErrors: [] // Will be populated if needed for debugging
   };
 }
 

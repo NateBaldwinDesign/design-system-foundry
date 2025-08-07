@@ -17,9 +17,6 @@ import {
   Spinner,
   InputGroup,
   InputRightElement,
-  Card,
-  CardHeader,
-  CardBody,
   Heading,
   Divider,
   Tabs,
@@ -39,12 +36,25 @@ import { FigmaConfigurationService } from '../services/figmaConfigurationService
 import { SyntaxPatternsEditor, SyntaxPatterns } from '../components/shared/SyntaxPatternsEditor';
 import { StorageService } from '../services/storage';
 import { CollectionsView } from './CollectionsView';
+import type { DataSourceContext } from '../services/dataSourceManager';
+
+import { FigmaConfigurationOverrideService } from '../services/figmaConfigurationOverrideService';
+import { detectChanges } from '../components/ChangeLog';
 
 interface FigmaConfigurationsViewProps {
   tokenSystem: TokenSystem;
+  canEdit?: boolean;
+  hasEditPermissions?: boolean;
+  // NEW: Data source context for source-specific Figma configuration
+  dataSourceContext?: DataSourceContext;
 }
 
-export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = ({ tokenSystem }) => {
+export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = ({ 
+  tokenSystem,
+  canEdit = false,
+  hasEditPermissions = false,
+  dataSourceContext
+}) => {
   const { colorMode } = useColorMode();
   const toast = useToast();
   
@@ -65,29 +75,151 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
     formatString: ''
   });
 
-  // Get data for CollectionsView
-  const collections = StorageService.getCollections();
-  const tokens = StorageService.getTokens();
-  const resolvedValueTypes = StorageService.getValueTypes();
+  // Get data for CollectionsView using new data management services
+  const mergedData = StorageService.getMergedData();
+  const collections = mergedData?.tokenCollections || [];
+  const tokens = mergedData?.tokens || [];
+  const resolvedValueTypes = mergedData?.resolvedValueTypes || [];
 
-  // Load configuration and check change tracking state on mount
+    // Load configuration and check change tracking state on mount
   useEffect(() => {
     const initializeSettings = async () => {
       setCheckingChanges(true);
       
-      // Load Figma configuration from main data system
-      const currentFigmaConfig = tokenSystem.figmaConfiguration;
-      if (currentFigmaConfig) {
-        setFileKey(currentFigmaConfig.fileKey || '');
-        const schemaPatterns = currentFigmaConfig.syntaxPatterns || {};
-        setSyntaxPatterns({
-          prefix: schemaPatterns.prefix || '',
-          suffix: schemaPatterns.suffix || '',
-          delimiter: schemaPatterns.delimiter || '_',
-          capitalization: schemaPatterns.capitalization === 'camel' ? 'none' : (schemaPatterns.capitalization || 'none'),
-          formatString: schemaPatterns.formatString || ''
-        });
+      // Initialize Figma configuration override session if in edit mode
+      if (dataSourceContext?.editMode.isActive) {
+        FigmaConfigurationOverrideService.initializeSession(dataSourceContext);
       }
+      
+      // Get Figma configuration using new data management services
+      let sourceFileKey = '';
+      let sourceSyntaxPatterns: {
+        prefix?: string;
+        suffix?: string;
+        delimiter?: string;
+        capitalization?: string;
+        formatString?: string;
+      } = {};
+      
+      // Get core data for syntax patterns (always from core)
+      const coreData = StorageService.getCoreData();
+      const localEdits = StorageService.getLocalEdits();
+      const sourceContext = StorageService.getSourceContext();
+      
+      // Determine the current source type and ID
+      const currentSourceType = sourceContext?.sourceType || 'core';
+      const currentSourceId = sourceContext?.sourceId;
+      
+      console.log('[FigmaConfigurationsView] Loading config for:', { currentSourceType, currentSourceId, isEditMode: dataSourceContext?.editMode.isActive });
+      console.log('[FigmaConfigurationsView] Core data available:', !!coreData);
+      console.log('[FigmaConfigurationsView] Local edits available:', !!localEdits);
+      
+      // Check for staged changes first (only in edit mode)
+      if (dataSourceContext?.editMode.isActive) {
+        const stagedChanges = FigmaConfigurationOverrideService.getStagedConfigurationChanges();
+        console.log('[FigmaConfigurationsView] Checking for staged changes...');
+        console.log('[FigmaConfigurationsView] Staged changes found:', stagedChanges);
+        
+        if (stagedChanges) {
+          console.log('[FigmaConfigurationsView] === USING STAGED CHANGES ===');
+          console.log('[FigmaConfigurationsView] Staged figmaFileKey:', stagedChanges.figmaFileKey);
+          console.log('[FigmaConfigurationsView] Staged syntaxPatterns:', stagedChanges.syntaxPatterns);
+          sourceFileKey = stagedChanges.figmaFileKey || '';
+          sourceSyntaxPatterns = stagedChanges.syntaxPatterns || {};
+        } else {
+          console.log('[FigmaConfigurationsView] No staged changes found');
+        }
+      } else {
+        console.log('[FigmaConfigurationsView] Not in edit mode, skipping staged changes check');
+      }
+      
+      // If no staged changes, load from source data
+      if (!sourceFileKey && !sourceSyntaxPatterns.prefix) {
+        console.log('[FigmaConfigurationsView] No staged changes found, loading from source data');
+        console.log('[FigmaConfigurationsView] Current source type:', currentSourceType);
+        console.log('[FigmaConfigurationsView] Current source ID:', currentSourceId);
+        
+        if (currentSourceType === 'core') {
+          // Core data - use figmaConfiguration from local edits (if available) or core data
+          const sourceData = localEdits || coreData;
+          const currentFigmaConfig = (sourceData as any)?.figmaConfiguration;
+          console.log('[FigmaConfigurationsView] === CORE DATA SOURCE ===');
+          console.log('[FigmaConfigurationsView] Source: localEdits.figmaConfiguration or coreData.figmaConfiguration');
+          console.log('[FigmaConfigurationsView] Raw figmaConfiguration:', currentFigmaConfig);
+          console.log('[FigmaConfigurationsView] figmaConfiguration.fileKey:', currentFigmaConfig?.fileKey);
+          console.log('[FigmaConfigurationsView] figmaConfiguration.syntaxPatterns:', currentFigmaConfig?.syntaxPatterns);
+          
+          if (currentFigmaConfig) {
+            sourceFileKey = currentFigmaConfig.fileKey || '';
+            sourceSyntaxPatterns = currentFigmaConfig.syntaxPatterns || {};
+            console.log('[FigmaConfigurationsView] Extracted core fileKey:', sourceFileKey);
+            console.log('[FigmaConfigurationsView] Extracted core syntaxPatterns:', sourceSyntaxPatterns);
+          } else {
+            console.log('[FigmaConfigurationsView] WARNING: No figmaConfiguration found in source data');
+          }
+        } else if (currentSourceType === 'platform' && currentSourceId) {
+          // Platform extension - get figmaFileKey from root level of platform extension data
+          console.log('[FigmaConfigurationsView] === PLATFORM EXTENSION SOURCE ===');
+          console.log('[FigmaConfigurationsView] Source ID:', currentSourceId);
+          
+          // Get platform data from local edits or storage
+          const platformData = StorageService.getPlatformExtensionData(currentSourceId) || localEdits;
+          console.log('[FigmaConfigurationsView] Platform data:', platformData);
+          
+          if (platformData) {
+            // Platform extensions have figmaFileKey at root level
+            sourceFileKey = (platformData as any).figmaFileKey || '';
+            console.log('[FigmaConfigurationsView] Extracted platform fileKey:', sourceFileKey);
+          } else {
+            console.log('[FigmaConfigurationsView] WARNING: No platform data found for ID:', currentSourceId);
+          }
+        } else if (currentSourceType === 'theme' && currentSourceId) {
+          // Theme override - get figmaFileKey from root level of theme override data
+          console.log('[FigmaConfigurationsView] === THEME OVERRIDE SOURCE ===');
+          console.log('[FigmaConfigurationsView] Source ID:', currentSourceId);
+          
+          // Get theme data from local edits or storage
+          const themeData = StorageService.getThemeOverrideData(currentSourceId) || localEdits;
+          console.log('[FigmaConfigurationsView] Theme data:', themeData);
+          
+          if (themeData) {
+            // Theme overrides have figmaFileKey at root level
+            sourceFileKey = (themeData as any).figmaFileKey || '';
+            console.log('[FigmaConfigurationsView] Extracted theme fileKey:', sourceFileKey);
+          } else {
+            console.log('[FigmaConfigurationsView] WARNING: No theme data found for ID:', currentSourceId);
+          }
+        }
+      } else {
+        console.log('[FigmaConfigurationsView] Using staged changes, skipping source data loading');
+      }
+      
+      // ALWAYS get syntax patterns from core data, regardless of source type
+      if (coreData?.figmaConfiguration?.syntaxPatterns) {
+        sourceSyntaxPatterns = coreData.figmaConfiguration.syntaxPatterns;
+        console.log('[FigmaConfigurationsView] Using core syntax patterns:', sourceSyntaxPatterns);
+      } else {
+        console.log('[FigmaConfigurationsView] WARNING: No syntax patterns found in core data');
+      }
+      
+      console.log('[FigmaConfigurationsView] === FINAL CONFIGURATION ===');
+      console.log('[FigmaConfigurationsView] Final sourceFileKey:', sourceFileKey);
+      console.log('[FigmaConfigurationsView] Final sourceSyntaxPatterns:', sourceSyntaxPatterns);
+      
+      // Set the file key and syntax patterns
+      setFileKey(sourceFileKey);
+      const finalSyntaxPatterns = {
+        prefix: sourceSyntaxPatterns.prefix || '',
+        suffix: sourceSyntaxPatterns.suffix || '',
+        delimiter: (sourceSyntaxPatterns.delimiter as '_' | '-' | '.' | '/' | '') || '_',
+        capitalization: sourceSyntaxPatterns.capitalization === 'camel' ? 'none' : (sourceSyntaxPatterns.capitalization as 'none' | 'uppercase' | 'lowercase' | 'capitalize') || 'none',
+        formatString: sourceSyntaxPatterns.formatString || ''
+      };
+      setSyntaxPatterns(finalSyntaxPatterns);
+      
+      console.log('[FigmaConfigurationsView] === UI STATE UPDATES ===');
+      console.log('[FigmaConfigurationsView] Setting fileKey state to:', sourceFileKey);
+      console.log('[FigmaConfigurationsView] Setting syntaxPatterns state to:', finalSyntaxPatterns);
       
       // Load access token from separate storage (not part of schema)
       const config = FigmaConfigurationService.getConfiguration();
@@ -95,10 +227,48 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
         setAccessToken(config.accessToken || '');
       }
       
-      // Check change tracking state
+      // Check change tracking state using new data management system
       try {
-        const state = await ChangeTrackingService.getChangeTrackingState();
-        setChangeTrackingState(state);
+        const sourceSnapshot = StorageService.getSourceSnapshot();
+        const localEdits = StorageService.getLocalEdits();
+        
+        console.log('[FigmaConfigurationsView] Checking change tracking with new system:', {
+          hasSourceSnapshot: !!sourceSnapshot,
+          hasLocalEdits: !!localEdits,
+          sourceSnapshotType: sourceSnapshot ? typeof sourceSnapshot : 'null',
+          localEditsType: localEdits ? typeof localEdits : 'null'
+        });
+        
+        if (!sourceSnapshot || !localEdits) {
+          console.log('[FigmaConfigurationsView] Missing data for change tracking, allowing export');
+          setChangeTrackingState({
+            hasLocalChanges: false,
+            hasGitHubDivergence: false,
+            canExport: true,
+            changeCount: 0
+          });
+        } else {
+          // Compare source snapshot vs local edits using the same logic as ChangeLog
+          const changes = detectChanges(sourceSnapshot as Record<string, unknown>, localEdits as Record<string, unknown>);
+          const hasLocalChanges = changes.length > 0;
+          
+          console.log('[FigmaConfigurationsView] Change detection results:', {
+            totalChanges: changes.length,
+            hasLocalChanges,
+            changes: changes.map((c: any) => `${c.type} ${c.entityType}: ${c.entityName}`)
+          });
+          
+          // For now, we'll skip GitHub divergence check to simplify
+          // TODO: Implement GitHub divergence check using new system
+          const hasGitHubDivergence = false;
+          
+          setChangeTrackingState({
+            hasLocalChanges,
+            hasGitHubDivergence,
+            canExport: !hasLocalChanges, // Block export if there are local changes
+            changeCount: changes.length
+          });
+        }
       } catch (error) {
         console.error('[FigmaConfigurationsView] Error checking change tracking:', error);
         // Default to allowing export if we can't check
@@ -124,7 +294,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
     return () => {
       window.removeEventListener('token-model:data-change', handleDataChange);
     };
-  }, [tokenSystem.figmaConfiguration]);
+  }, [tokenSystem.figmaConfiguration, dataSourceContext]);
 
   // Test Figma access token and file
   const testTokenManually = async () => {
@@ -249,7 +419,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
 
       // Use the FigmaExportService for the complete publishing workflow
       const figmaExportService = new FigmaExportService();
-      const result = await figmaExportService.publishToFigma(canonicalTokenSystem as TokenSystem, {
+      const result = await figmaExportService.publishToFigma({
         accessToken: accessToken,
         fileId: fileKey
       });
@@ -314,7 +484,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       console.log('[FigmaConfigurationsView] Canonical token system:', canonicalTokenSystem);
       const figmaExportService = new FigmaExportService();
       
-      const result = await figmaExportService.exportToFigma(canonicalTokenSystem, {
+      const result = await figmaExportService.exportToFigma({
         accessToken: accessToken,
         fileId: fileKey
       });
@@ -395,6 +565,11 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
 
   // Handle syntax pattern changes
   const handleSyntaxPatternsChange = (newPatterns: SyntaxPatterns) => {
+    // Only allow changes when in edit mode
+    if (!dataSourceContext?.editMode.isActive) {
+      return;
+    }
+    
     setSyntaxPatterns(newPatterns);
     
     // Convert 'none' back to 'camel' for schema compatibility
@@ -403,30 +578,63 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       capitalization: newPatterns.capitalization === 'none' ? 'camel' as const : newPatterns.capitalization
     };
     
-    // Update the main data system
-    const updatedFigmaConfig = {
-      fileKey: tokenSystem.figmaConfiguration?.fileKey || '',
-      syntaxPatterns: schemaPatterns
-    };
+    // In edit mode, stage changes for the current source
+    const { sourceType, sourceId } = dataSourceContext.editMode;
     
-    // Save to storage and trigger change tracking
-    StorageService.setFigmaConfiguration(updatedFigmaConfig);
-    window.dispatchEvent(new CustomEvent('token-model:data-change'));
+    if (sourceType === 'core') {
+      // Core data - update via StorageService
+      const updatedFigmaConfig = {
+        fileKey: fileKey,
+        syntaxPatterns: schemaPatterns
+      };
+      StorageService.setFigmaConfiguration(updatedFigmaConfig);
+      window.dispatchEvent(new CustomEvent('token-model:data-change'));
+    } else if (sourceType === 'platform-extension' && sourceId) {
+      // Platform extension - stage changes for later commit
+      FigmaConfigurationOverrideService.stageConfigurationChange(fileKey, schemaPatterns);
+    } else if (sourceType === 'theme-override' && sourceId) {
+      // Theme overrides don't have syntax patterns, but we can log this
+      console.log('[FigmaConfigurationsView] Theme overrides do not support syntax pattern changes');
+    }
   };
 
   // Handle file key changes
   const handleFileKeyChange = (newFileKey: string) => {
+    // Only allow changes when in edit mode
+    if (!dataSourceContext?.editMode.isActive) {
+      return;
+    }
+    
     setFileKey(newFileKey);
     
-    // Update the main data system
-    const updatedFigmaConfig = {
-      fileKey: newFileKey,
-      syntaxPatterns: tokenSystem.figmaConfiguration?.syntaxPatterns
-    };
+    // In edit mode, stage changes for the current source
+    const { sourceType, sourceId } = dataSourceContext.editMode;
     
-    // Save to storage and trigger change tracking
-    StorageService.setFigmaConfiguration(updatedFigmaConfig);
-    window.dispatchEvent(new CustomEvent('token-model:data-change'));
+    if (sourceType === 'core') {
+      // Core data - update via StorageService
+      const updatedFigmaConfig = {
+        fileKey: newFileKey,
+        syntaxPatterns: tokenSystem.figmaConfiguration?.syntaxPatterns
+      };
+      StorageService.setFigmaConfiguration(updatedFigmaConfig);
+      window.dispatchEvent(new CustomEvent('token-model:data-change'));
+    } else if (sourceType === 'platform-extension' && sourceId) {
+      // Platform extension - stage changes for later commit
+      FigmaConfigurationOverrideService.stageConfigurationChange(newFileKey, tokenSystem.figmaConfiguration?.syntaxPatterns);
+    } else if (sourceType === 'theme-override' && sourceId) {
+      // Theme override - stage changes for later commit
+      FigmaConfigurationOverrideService.stageConfigurationChange(newFileKey);
+    }
+  };
+
+  // Helper function to determine if syntax patterns should be shown
+  const shouldShowSyntaxPatterns = (): boolean => {
+    // Get current source context from new data management services
+    const sourceContext = StorageService.getSourceContext();
+    const currentSourceType = sourceContext?.sourceType || 'core';
+    
+    // Show syntax patterns only for core data (not for platform or theme sources)
+    return currentSourceType === 'core';
   };
 
   // Render change tracking status
@@ -467,11 +675,8 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
   const renderPublishingTab = () => (
     <VStack spacing={6} align="stretch">
       {/* Figma Configuration Card */}
-      <Card>
-        <CardHeader pb={0}>
+      <Box p={4} mb={4} borderWidth={1} borderRadius="md" bg={colorMode === 'dark' ? 'gray.900' : 'white'}>
           <Heading size="md" mb={0}>Figma Credentials</Heading>
-        </CardHeader>
-        <CardBody>
           <VStack spacing={6} align="stretch">
             {/* Change Tracking Alert */}
             {renderChangeTrackingStatus()}
@@ -510,6 +715,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
                     onChange={(e) => handleFileKeyChange(e.target.value)}
                     placeholder="yTy5ytxeFPRiGou5Poed8a"
                     fontFamily="mono"
+                    isReadOnly={!dataSourceContext?.editMode.isActive}
                   />
                 </FormControl>
               </VStack>
@@ -517,17 +723,22 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
 
             <Divider />
 
-            {/* Syntax Patterns */}
-            <Box>
-              <Heading size="sm" mb={4}>Syntax Patterns</Heading>
-              <SyntaxPatternsEditor
-                syntaxPatterns={syntaxPatterns}
-                onSyntaxPatternsChange={handleSyntaxPatternsChange}
-                showTitle={false}
-              />
-            </Box>
+            {/* Syntax Patterns - Only show for core data */}
+            {shouldShowSyntaxPatterns() && (
+              <>
+                <Box>
+                  <Heading size="sm" mb={4}>Syntax Patterns</Heading>
+                  <SyntaxPatternsEditor
+                    syntaxPatterns={syntaxPatterns}
+                    onSyntaxPatternsChange={handleSyntaxPatternsChange}
+                    showTitle={false}
+                    isReadOnly={!dataSourceContext?.editMode.isActive}
+                  />
+                </Box>
 
-            <Divider />
+                <Divider />
+              </>
+            )}
 
             {/* Actions */}
             <HStack spacing={3} justify="flex-end">
@@ -536,7 +747,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
                 onClick={handleExportOnly}
                 isLoading={exportLoading}
                 loadingText="Generating API data..."
-                isDisabled={!accessToken || !fileKey || !changeTrackingState?.canExport}
+                isDisabled={!accessToken || !fileKey || (dataSourceContext?.editMode.isActive && !changeTrackingState?.canExport)}
                 leftIcon={<Download size={14} />}
               >
                 Generate API Data
@@ -547,7 +758,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
                 onClick={handlePublish}
                 isLoading={publishLoading}
                 loadingText="Publishing..."
-                isDisabled={!accessToken || !fileKey || !changeTrackingState?.canExport}
+                isDisabled={!accessToken || !fileKey || (dataSourceContext?.editMode.isActive && !changeTrackingState?.canExport)}
               >
                 Publish to Figma
               </Button>
@@ -613,8 +824,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
               </Box>
             )}
           </VStack>
-        </CardBody>
-      </Card>
+      </Box>
 
       {/* Pre-Publish Dialog */}
       {exportResult?.data && (
@@ -639,14 +849,16 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       {/* Tabs */}
       <Tabs>
         <TabList>
-          <Tab>Publishing</Tab>
+          {hasEditPermissions && <Tab>Publishing</Tab>}
           <Tab>Variable Collections</Tab>
         </TabList>
 
         <TabPanels mt={4}>
-          <TabPanel>
-            {renderPublishingTab()}
-          </TabPanel>
+          {hasEditPermissions && (
+            <TabPanel>
+              {renderPublishingTab()}
+            </TabPanel>
+          )}
           
           <TabPanel>
             <CollectionsView
@@ -654,6 +866,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
               onUpdate={(collections) => StorageService.setCollections(collections)}
               tokens={tokens}
               resolvedValueTypes={resolvedValueTypes}
+              canEdit={canEdit}
             />
           </TabPanel>
         </TabPanels>

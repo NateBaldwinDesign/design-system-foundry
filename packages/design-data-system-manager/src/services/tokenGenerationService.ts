@@ -3,7 +3,7 @@ import type { Algorithm, TokenGeneration, Formula, Condition } from '../types/al
 import { createUniqueId } from '../utils/id';
 import { AlgorithmExecutionService } from './algorithmExecutionService';
 import { StorageService } from './storage';
-import { CodeSyntaxService } from './codeSyntax';
+// Note: CodeSyntaxService has been removed as codeSyntax is no longer part of the schema
 import type { Dimension } from '@token-model/data-model';
 
 export interface GeneratedToken {
@@ -489,7 +489,6 @@ export class TokenGenerationService {
       algorithmId: algorithm.id,
       taxonomies: taxonomiesArray,
       propertyTypes: [],
-      codeSyntax: [],
       valuesByMode: [
         {
           modeIds: [],
@@ -869,7 +868,6 @@ export class TokenGenerationService {
       algorithmId: algorithm.id,
       taxonomies: taxonomiesArray,
       propertyTypes: [],
-      codeSyntax: [],
       valuesByMode: [
         {
           modeIds: modeIds,
@@ -880,18 +878,6 @@ export class TokenGenerationService {
       ]
     };
 
-    // Generate code syntax for all platforms
-    const platforms = StorageService.getPlatforms();
-    const taxonomyOrder = StorageService.getTaxonomyOrder();
-    const schema = {
-      platforms,
-      taxonomies: availableTaxonomies,
-      taxonomyOrder
-    };
-    
-    const codeSyntax = CodeSyntaxService.generateAllCodeSyntaxes(token, schema);
-    token.codeSyntax = codeSyntax;
-
     console.log('🎯 TokenGenerationService.createTokenWithLogicalMappingAndModes: Token created successfully', {
       tokenId: token.id,
       displayName: token.displayName,
@@ -900,8 +886,7 @@ export class TokenGenerationService {
       value: token.valuesByMode[0]?.value,
       taxonomiesCount: token.taxonomies.length,
       generatedByAlgorithm: token.generatedByAlgorithm,
-      algorithmId: token.algorithmId,
-      codeSyntaxCount: token.codeSyntax.length
+      algorithmId: token.algorithmId
     });
 
     return token;

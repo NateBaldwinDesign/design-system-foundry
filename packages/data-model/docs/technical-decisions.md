@@ -75,6 +75,82 @@ Phase 2 implements the data model and validation layer for platform extensions, 
 
 ---
 
+# Technical Decisions: Data Merging Hierarchy and Theme Override Validation
+
+## Context
+The data merging system implements a hierarchical model where data flows through three distinct layers, each with specific responsibilities and constraints. This ensures proper validation and prevents invalid theme overrides from being applied.
+
+## Conceptual Model (Metaphor)
+- **Core Data** = "people have two eyes" (base foundation)
+- **Platform Extensions** = "This pirate wears a patch, so he only has one eye" (can alter structure/existence)
+- **Theme Overrides** = "wearing rose tinted glasses" (can only alter values, not structure)
+
+## Key Principles
+1. **Platforms can alter structure**: They can omit tokens, add new tokens, and modify existing tokens
+2. **Themes can only alter values**: They can override values of existing tokens but cannot create new tokens
+3. **Strict merge order**: Core → Platform → Theme (sequential, never parallel)
+4. **Theme validation**: Theme overrides must only apply to tokens that exist in the current merged context
+
+## Validation Rules
+
+### Theme Override Validation Rules
+1. **Token Existence**: The target token must exist in the current merged tokens array
+2. **Not Omitted**: The target token must not be omitted by any platform extension
+3. **Platform Context**: Theme overrides can apply to:
+   - Core tokens (not omitted by platforms)
+   - Platform-added tokens (if they have theme overrides)
+4. **Value Override Only**: Theme overrides can only modify token values, not structure
+
+### Platform Extension Rules
+1. **Can Omit**: Platforms can omit tokens from the merged result
+2. **Can Add**: Platforms can add new tokens to the merged result
+3. **Can Modify**: Platforms can modify existing token properties
+4. **Structure Control**: Platforms have final say on what tokens exist
+
+### Core Data Rules
+1. **Foundation**: Core data provides the base foundation
+2. **Reference Point**: All platform modifications and theme overrides are based on core data
+3. **Validation Source**: Core data provides the reference for validation
+
+## Implementation Details
+
+### Merge Process
+1. **Start with Core Data**: Begin with all tokens from core data
+2. **Apply Platform Extensions**: 
+   - Track omitted tokens for theme validation
+   - Apply token overrides and additions
+   - Update platform configurations
+3. **Apply Theme Overrides with Validation**:
+   - Validate each theme override against current merged context
+   - Exclude overrides for non-existent or omitted tokens
+   - Apply valid overrides to existing tokens
+
+### Analytics Enhancement
+The merging system now tracks:
+- `excludedThemeOverrides`: Count of theme overrides excluded due to validation
+- `validThemeOverrides`: Count of theme overrides successfully applied
+- `themeOverrideValidationErrors`: Array of error messages for debugging
+
+### Error Handling
+- Invalid theme overrides are logged as warnings
+- Excluded overrides are counted in analytics
+- The merge process continues even with invalid overrides
+- Detailed error messages help with debugging
+
+## Rationale
+- **Data Integrity**: Prevents invalid theme overrides from corrupting the merged data
+- **Clear Hierarchy**: Establishes clear responsibilities for each data layer
+- **Predictable Behavior**: Ensures consistent merging behavior across all scenarios
+- **Debugging Support**: Provides clear feedback when theme overrides are excluded
+
+## Implementation Notes
+- Theme override validation happens after platform processing
+- Omitted tokens are tracked throughout the platform extension phase
+- Analytics provide visibility into theme override application
+- All validation logic is centralized in the data merger
+
+---
+
 # Technical Decisions: Platform Data Modularization (Phase 3)
 
 ## Context

@@ -25,12 +25,18 @@ import {
 import { GitHubSaveService, SaveOptions } from '../services/githubSave';
 import { GitHubApiService } from '../services/githubApi';
 import type { GitHubBranch } from '../config/github';
+import type { DataSourceContext } from '../services/dataSourceManager';
 
 interface GitHubSaveDialogProps {
   isOpen: boolean;
   onClose: () => void;
   saveMode: 'direct' | 'pullRequest';
   onSuccess?: (result: { success: boolean; message: string; pullRequestUrl?: string }) => void;
+  // Branch-based governance props
+  currentBranch?: string;
+  isEditMode?: boolean;
+  // Data source context for proper repository targeting
+  dataSourceContext?: DataSourceContext;
 }
 
 export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
@@ -38,6 +44,11 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
   onClose,
   saveMode,
   onSuccess,
+  // Branch-based governance props
+  currentBranch = 'main',
+  isEditMode = false,
+  // Data source context for proper repository targeting
+  dataSourceContext,
 }) => {
   const [commitMessage, setCommitMessage] = useState('');
   const [prTitle, setPrTitle] = useState('');
@@ -108,7 +119,7 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
     const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
     if (!repoInfo) return;
 
-    const currentData = GitHubSaveService['getCurrentDataForFileType'](repoInfo.fileType);
+    const currentData = GitHubSaveService['getCurrentDataForFileType'](repoInfo.fileType === 'schema' ? 'core' : repoInfo.fileType);
     const warning = GitHubSaveService.getFileSizeWarning(currentData);
     setFileSizeWarning(warning);
   };
@@ -123,6 +134,7 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
         targetBranch: saveMode === 'pullRequest' ? targetBranch : undefined,
         prTitle: saveMode === 'pullRequest' ? prTitle : undefined,
         prDescription: saveMode === 'pullRequest' ? prDescription : undefined,
+        dataSourceContext: dataSourceContext,
       };
 
       const result = await GitHubSaveService.saveToGitHub(options);
@@ -191,9 +203,16 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
             {repoInfo && (
               <Box p={4} bg="gray.50" borderRadius="md">
                 <Text fontWeight="bold">Repository: {repoInfo.fullName}</Text>
-                <Text>Branch: {repoInfo.branch}</Text>
+                <Text fontWeight="medium" color={isEditMode ? 'blue.600' : 'gray.700'}>
+                  Branch: {currentBranch} {isEditMode && '(Editing)'}
+                </Text>
                 <Text>File: {repoInfo.filePath}</Text>
                 <Text>Type: {repoInfo.fileType === 'schema' ? 'Core Data' : 'Theme Override'}</Text>
+                {isEditMode && (
+                  <Text fontSize="sm" color="blue.600" mt={2}>
+                    💡 You&apos;re editing on a feature branch. Changes will be saved to this branch.
+                  </Text>
+                )}
               </Box>
             )}
 

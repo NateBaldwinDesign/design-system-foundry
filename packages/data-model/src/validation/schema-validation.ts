@@ -930,4 +930,126 @@ export class SchemaValidationService {
       warnings
     };
   }
+
+  // NEW: Source-specific validation methods for edit context
+  /**
+   * Validate data for specific edit source
+   */
+  static validateForEditSource(
+    data: Record<string, unknown>,
+    sourceType: 'core' | 'platform-extension' | 'theme-override',
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    sourceId?: string
+  ): ValidationResult {
+    try {
+      switch (sourceType) {
+        case 'core':
+          return this.validateCoreData(data as TokenSystem);
+        case 'platform-extension':
+          return this.validatePlatformExtension(data as PlatformExtension);
+        case 'theme-override':
+          return this.validateThemeOverrideFile(data as ThemeOverrideFile);
+        default:
+          return {
+            isValid: false,
+            errors: [`Unknown source type: ${sourceType}`],
+            warnings: []
+          };
+      }
+    } catch (error) {
+      return {
+        isValid: false,
+        errors: [error instanceof Error ? error.message : 'Validation failed'],
+        warnings: []
+      };
+    }
+  }
+
+  /**
+   * Validate override creation
+   */
+  static validateOverrideCreation(
+    tokenId: string,
+    newValue: Record<string, unknown>,
+    sourceType: 'platform-extension' | 'theme-override',
+    sourceId: string
+  ): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Basic validation
+    if (!tokenId) {
+      errors.push('Token ID is required');
+    }
+
+    if (!sourceId) {
+      errors.push('Source ID is required');
+    }
+
+    if (!newValue) {
+      errors.push('New value is required');
+    }
+
+    // Source-specific validation
+    if (sourceType === 'theme-override') {
+      // Theme-specific validation rules
+      if (!newValue.valuesByMode || !Array.isArray(newValue.valuesByMode)) {
+        errors.push('Theme overrides must include valuesByMode array');
+      }
+    }
+
+    if (sourceType === 'platform-extension') {
+      // Platform-specific validation rules
+      if (tokenId.includes('theme-')) {
+        warnings.push(`Token ${tokenId} appears to be theme-specific and may not be appropriate for platform override`);
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
+   * Validate theme editing restrictions
+   */
+  static validateThemeEdit(tokenId: string, isThemeable: boolean): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    if (!isThemeable) {
+      errors.push(`Token ${tokenId} is not themeable and cannot be edited in theme mode`);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
+   * Validate platform editing
+   */
+  static validatePlatformEdit(tokenId: string, platformId: string): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Platform-specific validation rules
+    if (tokenId.includes('theme-')) {
+      warnings.push(`Token ${tokenId} appears to be theme-specific and may not be appropriate for platform override`);
+    }
+
+    if (!platformId) {
+      errors.push('Platform ID is required for platform editing');
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
 } 

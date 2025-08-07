@@ -139,7 +139,7 @@ export const CreateNew: Story = {
       themeable: false,
       tokenCollectionId: 'default',
       propertyTypes: [],
-      codeSyntax: [],
+  
       tokenTier: 'PRIMITIVE',
       generatedByAlgorithm: false
     },

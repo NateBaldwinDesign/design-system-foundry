@@ -214,6 +214,66 @@ export class GitHubApiService {
     
     return fileData;
   }
+
+  /**
+   * Get file content from a public repository (no authentication required)
+   */
+  static async getPublicFileContent(repo: string, path: string, branch: string): Promise<GitHubFile> {
+    console.log('[GitHubApiService] Fetching public file content:', { repo, path, branch });
+    
+    // First, check if the repository exists
+    const repoResponse = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}`, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    if (!repoResponse.ok) {
+      if (repoResponse.status === 404) {
+        throw new Error(`Repository not found: ${repo}`);
+      } else if (repoResponse.status === 403) {
+        throw new Error(`Repository is private: ${repo}`);
+      } else {
+        throw new Error(`Failed to access repository: ${repoResponse.status} ${repoResponse.statusText}`);
+      }
+    }
+    
+    // Now try to get the specific file
+    const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}/contents/${path}?ref=${branch}`, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`File not found: ${path} in ${repo}/${branch}`);
+      } else if (response.status === 403) {
+        throw new Error(`Repository is private: ${repo}`);
+      } else {
+        throw new Error(`Failed to fetch file content: ${response.status} ${response.statusText}`);
+      }
+    }
+    
+    const fileData = await response.json();
+    
+    // GitHub API returns content as base64 encoded string
+    // We need to decode it to get the actual content
+    if (fileData.content && fileData.encoding === 'base64') {
+      try {
+        // Decode base64 content
+        const decodedContent = atob(fileData.content);
+        return {
+          ...fileData,
+          content: decodedContent,
+        };
+      } catch (error) {
+        throw new Error('Failed to decode file content');
+      }
+    }
+    
+    return fileData;
+  }
   
   /**
    * Create or update a file in the repository (idempotent)
@@ -414,6 +474,7 @@ export class GitHubApiService {
    * Create a new branch
    */
   static async createBranch(repo: string, baseBranch: string, newBranch: string): Promise<void> {
+    console.log('[GitHubApiService] Creating branch:', { repo, baseBranch, newBranch });
     const accessToken = await GitHubAuthService.getValidAccessToken();
     
     // First, get the SHA of the base branch
@@ -447,6 +508,22 @@ export class GitHubApiService {
     if (!response.ok) {
       throw new Error(`Failed to create branch: ${response.statusText}`);
     }
+  }
+
+  /**
+   * Check if a branch exists
+   */
+  static async branchExists(repo: string, branchName: string): Promise<boolean> {
+    const accessToken = await GitHubAuthService.getValidAccessToken();
+    
+    const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}/branches/${branchName}`, {
+      headers: {
+        'Authorization': `token ${accessToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    return response.ok;
   }
   
   /**
@@ -557,19 +634,21 @@ export class GitHubApiService {
     try {
       const data = JSON.parse(content);
       
-      // Check for schema.json structure
-      if (data.tokenCollections && data.dimensions && data.tokens && data.platforms) {
-        return 'schema';
+      // Check for platform-extension.json structure FIRST (most specific)
+      if (data.systemId && data.platformId && data.version && data.figmaFileKey) {
+        return 'platform-extension';
       }
       
       // Check for theme-override.json structure
-      if (data.systemId && data.themeId && data.tokenOverrides) {
+      if (data.systemId && data.themeId && data.tokenOverrides && !data.platformId) {
         return 'theme-override';
       }
       
-      // Check for platform-extension.json structure
-      if (data.systemId && data.platformId && data.version) {
-        return 'platform-extension';
+      // Check for schema.json structure (core design system schema) - most general
+      // Must have these core properties that define a complete design system
+      if (data.tokenCollections && data.dimensions && data.tokens && data.platforms && 
+          data.systemName && data.systemId && data.version && !data.platformId) {
+        return 'schema';
       }
       
       return 'unknown';
@@ -603,5 +682,81 @@ export class GitHubApiService {
    */
   static hasSelectedRepository(): boolean {
     return this.getSelectedRepositoryInfo() !== null;
+  }
+
+  /**
+   * Check if the authenticated user has write access to a specific repository
+   * Uses /user/repos with affiliation=owner,collaborator to find repos where user has push access
+   */
+  static async hasWriteAccessToRepository(repoFullName: string): Promise<boolean> {
+    console.log(`[GitHubApiService] Checking write access for repository: ${repoFullName}`);
+    const accessToken = await GitHubAuthService.getValidAccessToken();
+    
+    // First, try to get the specific repository directly to check permissions
+    try {
+      const repoResponse = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repoFullName}`, {
+        headers: {
+          'Authorization': `token ${accessToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      });
+      
+      if (repoResponse.ok) {
+        const repo = await repoResponse.json();
+        // Check if user has push access (admin, write, or maintain permissions)
+        const hasPushAccess = repo.permissions?.push === true || 
+                             repo.permissions?.admin === true || 
+                             repo.permissions?.maintain === true;
+        
+        console.log(`[GitHubApiService] Direct repo check: User ${hasPushAccess ? 'has' : 'does not have'} write access to ${repoFullName}`);
+        return hasPushAccess;
+      }
+    } catch (error) {
+      console.warn(`[GitHubApiService] Direct repo check failed for ${repoFullName}:`, error);
+      // Fall back to the list method
+    }
+    
+    // Fallback: Use /user/repos with affiliation=owner,collaborator to get repos where user has write access
+    // Fetch all pages to ensure we don't miss repositories due to pagination
+    const allRepos: GitHubRepo[] = [];
+    let page = 1;
+    const perPage = 100;
+    
+    while (page <= 10) { // Safety limit to prevent infinite loops
+      const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/user/repos?affiliation=owner,collaborator&per_page=${perPage}&page=${page}`, {
+        headers: {
+          'Authorization': `token ${accessToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      });
+      
+      if (!response.ok) {
+        console.error(`[GitHubApiService] Failed to check repository access: ${response.statusText}`);
+        // Default to view-only access if we can't determine permissions
+        return false;
+      }
+      
+      const repos = await response.json();
+      
+      // If no more repositories, break
+      if (repos.length === 0) {
+        break;
+      }
+      
+      allRepos.push(...repos);
+      
+      // If we got fewer than perPage results, we've reached the end
+      if (repos.length < perPage) {
+        break;
+      }
+      
+      page++;
+    }
+    
+    // Check if the target repository is in the list of repos where user has write access
+    const hasAccess = allRepos.some((repo: GitHubRepo) => repo.full_name === repoFullName);
+    
+    console.log(`[GitHubApiService] List method: User ${hasAccess ? 'has' : 'does not have'} write access to ${repoFullName} (checked ${allRepos.length} repos)`);
+    return hasAccess;
   }
 } 

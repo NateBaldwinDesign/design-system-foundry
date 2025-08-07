@@ -1,0 +1,24 @@
+{
+  "systemId": "nates-design-system",
+  "themeId": "theme-default",
+  "figmaFileKey": "test-theme-override-key",
+  "tokenOverrides": [
+    {
+      "tokenId": "token-7777-7777-7777",
+      "valuesByMode": [
+        {
+          "modeIds": [],
+          "value": {
+            "value": "#ff0000"
+          },
+          "platformOverrides": [
+            {
+              "platformId": "platform-000000",
+              "value": "#cc0000"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+} 

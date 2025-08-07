@@ -6,6 +6,8 @@ import { StorageService } from '../services/storage';
 import type { GitHubUser } from '../config/github';
 import type { ViewId } from '../hooks/useViewState';
 import { DataManager, type DataSnapshot } from '../services/dataManager';
+import type { DataSourceContext } from '../services/dataSourceManager';
+import { ChangeTrackingService } from '../services/changeTrackingService';
 
 interface DataSourceOption {
   label: string;
@@ -25,14 +27,50 @@ interface AppLayoutProps {
     fullName: string;
     branch: string;
     filePath: string;
-    fileType: 'schema' | 'theme-override';
+    fileType: 'schema' | 'theme-override' | 'platform-extension';
   } | null;
   onGitHubConnect?: () => Promise<void>;
   onGitHubDisconnect?: () => void;
-  onFileSelected?: (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override') => void;
+  onFileSelected?: (fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override' | 'platform-extension') => void;
+  onRefreshData?: () => Promise<void>;
   currentView: ViewId;
   onNavigate: (viewId: ViewId) => void;
   children: React.ReactNode;
+  // URL-based access props
+  isViewOnlyMode?: boolean;
+  urlRepoInfo?: {
+    repo: string;
+    path: string;
+    branch: string;
+  } | null;
+  // GitHub permissions
+  hasEditPermissions?: boolean;
+  // Data source context props
+  dataSourceContext?: DataSourceContext;
+  onPlatformChange?: (platformId: string | null) => void;
+  onThemeChange?: (themeId: string | null) => void;
+  // Branch-based governance props
+  isEditMode?: boolean;
+  currentBranch?: string;
+  editModeBranch?: string | null;
+  onBranchCreated?: (branchName: string) => void;
+  onEnterEditMode?: () => void;
+  onExitEditMode?: () => void;
+  // NEW: Edit context props
+  editContext?: {
+    isEditMode: boolean;
+    sourceType: 'core' | 'platform-extension' | 'theme-override';
+    sourceId: string | null;
+    sourceName: string;
+  };
+  onSaveChanges?: () => void;
+  onDiscardChanges?: () => void;
+  pendingOverrides?: Array<{
+    tokenId: string;
+    tokenName: string;
+    overrideType: 'platform' | 'theme';
+    overrideSource: string;
+  }>;
 }
 
 // Custom event for data changes
@@ -50,9 +88,31 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   onGitHubConnect,
   onGitHubDisconnect,
   onFileSelected,
+  onRefreshData,
   currentView,
   onNavigate,
   children,
+  // URL-based access props
+  isViewOnlyMode = false,
+  urlRepoInfo = null,
+  // GitHub permissions
+  hasEditPermissions = false,
+  // Data source context props
+  dataSourceContext,
+  onPlatformChange,
+  onThemeChange,
+  // Branch-based governance props
+  isEditMode = false,
+  currentBranch = 'main',
+  editModeBranch = null,
+  onBranchCreated,
+  onEnterEditMode,
+  onExitEditMode,
+  // NEW: Edit context props
+  editContext,
+  onSaveChanges,
+  onDiscardChanges,
+  pendingOverrides = [],
 }: AppLayoutProps) => {
   const { colorMode } = useColorMode();
   const [hasChanges, setHasChanges] = useState(false);
@@ -159,71 +219,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
     // Update current data state
     setCurrentData(currentDataSnapshot);
 
-    // Compare with baseline
-    const baselineSnapshot = baselineRef.current;
-    const hasAnyChanges = JSON.stringify(currentDataSnapshot) !== JSON.stringify(baselineSnapshot);
+    // Use ChangeTrackingService to get the total change count (includes override changes)
+    const totalChanges = ChangeTrackingService.getChangeCount();
     
-    if (hasAnyChanges) {
-      // Count changes by comparing arrays
-      let totalChanges = 0;
-      const keyFields = ['tokens', 'collections', 'dimensions', 'themes', 'resolvedValueTypes', 'taxonomies', 'algorithms', 'platforms', 'componentProperties', 'componentCategories', 'components'];
-      
-      keyFields.forEach(field => {
-        const current = (currentDataSnapshot as Record<string, unknown>)[field] as unknown[] || [];
-        const baseline = (baselineSnapshot as Record<string, unknown>)[field] as unknown[] || [];
-        
-        if (Array.isArray(current) && Array.isArray(baseline)) {
-          const currentIds = new Set(current.map((item: unknown) => {
-            const obj = item as Record<string, unknown>;
-            return obj?.id as string;
-          }).filter(Boolean));
-          const baselineIds = new Set(baseline.map((item: unknown) => {
-            const obj = item as Record<string, unknown>;
-            return obj?.id as string;
-          }).filter(Boolean));
-          
-          // Count added items
-          const added = Array.from(currentIds).filter(id => !baselineIds.has(id)).length;
-          // Count removed items
-          const removed = Array.from(baselineIds).filter(id => !currentIds.has(id)).length;
-          
-          // Count modified items (items that exist in both but have different content)
-          const commonIds = Array.from(currentIds).filter(id => baselineIds.has(id));
-          let modified = 0;
-          commonIds.forEach(id => {
-            const currentItem = current.find((item: unknown) => {
-              const obj = item as Record<string, unknown>;
-              return obj?.id === id;
-            });
-            const baselineItem = baseline.find((item: unknown) => {
-              const obj = item as Record<string, unknown>;
-              return obj?.id === id;
-            });
-            if (currentItem && baselineItem && JSON.stringify(currentItem) !== JSON.stringify(baselineItem)) {
-              modified++;
-            }
-          });
-          
-          totalChanges += added + removed + modified;
-        }
-      });
-      
-      // Check taxonomyOrder (array)
-      const currentTaxonomyOrder = (currentDataSnapshot as Record<string, unknown>).taxonomyOrder as string[] || [];
-      const baselineTaxonomyOrder = (baselineSnapshot as Record<string, unknown>).taxonomyOrder as string[] || [];
-      
-      if (JSON.stringify(currentTaxonomyOrder) !== JSON.stringify(baselineTaxonomyOrder)) {
-        totalChanges += 1; // Count as one change for taxonomyOrder modifications
-      }
-      
-      // Check dimensionOrder (array)
-      const currentDimensionOrder = (currentDataSnapshot as Record<string, unknown>).dimensionOrder as string[] || [];
-      const baselineDimensionOrder = (baselineSnapshot as Record<string, unknown>).dimensionOrder as string[] || [];
-      
-      if (JSON.stringify(currentDimensionOrder) !== JSON.stringify(baselineDimensionOrder)) {
-        totalChanges += 1; // Count as one change for dimensionOrder modifications
-      }
-      
+    if (totalChanges > 0) {
       setHasChanges(true);
       setChangeCount(totalChanges);
     } else {
@@ -328,9 +327,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           changeCount={changeCount}
           currentData={currentData}
           baselineData={baselineData}
-          dataSource={dataSource}
-          setDataSource={setDataSource}
-          dataOptions={dataOptions}
           onResetData={onResetData}
           onExportData={onExportData}
           isGitHubConnected={isGitHubConnected}
@@ -339,6 +335,24 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           onGitHubConnect={onGitHubConnect}
           onGitHubDisconnect={onGitHubDisconnect}
           onFileSelected={onFileSelected}
+          onRefreshData={onRefreshData}
+          isURLBasedAccess={isViewOnlyMode}
+          urlRepoInfo={urlRepoInfo}
+          hasEditPermissions={hasEditPermissions}
+          dataSourceContext={dataSourceContext}
+          onPlatformChange={onPlatformChange}
+          onThemeChange={onThemeChange}
+          // Branch-based governance props
+          isEditMode={isEditMode}
+          currentBranch={currentBranch}
+          onBranchCreated={onBranchCreated}
+          onEnterEditMode={onEnterEditMode}
+          onExitEditMode={onExitEditMode}
+          // NEW: Edit context props
+          editContext={editContext}
+          onSaveChanges={onSaveChanges}
+          onDiscardChanges={onDiscardChanges}
+          pendingOverrides={pendingOverrides}
         />
         <Box flex="1" overflow="auto"  bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
           {children}
