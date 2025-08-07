@@ -1063,7 +1063,7 @@ export const Header: React.FC<HeaderProps> = ({
               <PopoverTrigger>
                 <IconButton
                   aria-label="User Menu"
-                  icon={<UserRound size={16} />}
+                  icon={<Avatar size="xs" src={githubUser.avatar_url}/>}
                   size="sm"
                   variant="ghost"
                   onClick={() => setIsUserMenuOpen(true)}
