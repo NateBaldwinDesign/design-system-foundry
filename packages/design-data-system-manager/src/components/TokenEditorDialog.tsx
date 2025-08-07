@@ -331,6 +331,19 @@ export function TokenEditorDialog({
     collections,
     dataSourceContext
   }: TokenEditorDialogProps) {
+  
+  // ADD COMPREHENSIVE DEBUG LOGGING
+  console.log('🔄 [TokenEditorDialog] RENDER START - Component ID:', token.id, 'Open:', open, 'IsNew:', isNew);
+  console.log('🔄 [TokenEditorDialog] Props received:', {
+    tokenId: token.id,
+    tokenName: token.displayName,
+    open,
+    isNew,
+    resolvedValueTypesCount: resolvedValueTypes?.length,
+    schemaExists: !!schema,
+    dataSourceContextExists: !!dataSourceContext
+  });
+
   console.debug('[TokenEditorDialog] Received resolvedValueTypes:', resolvedValueTypes);
 
   const { colorMode } = useColorMode();
@@ -1271,8 +1284,6 @@ export function TokenEditorDialog({
                 </Box>
               </Box>
 
-
-
               {/* Values Section */}
               <Box>
                 <HStack gap={2} align="center" mb={3}>
@@ -1514,4 +1525,4 @@ export function TokenEditorDialog({
       </AlertDialog>
     </>
   );
-} 
+}
