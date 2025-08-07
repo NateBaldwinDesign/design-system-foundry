@@ -252,49 +252,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({
       <Box p={8}>
         <Heading size="xl" mb={8}>{getWelcomeMessage()}</Heading>
         
-        {/* Data Source Context Indicator */}
-        {(() => {
-          const urlParams = new URLSearchParams(window.location.search);
-          const platformFromURL = urlParams.get('platform');
-          const themeFromURL = urlParams.get('theme');
-          
-          if (platformFromURL || themeFromURL) {
-            return (
-              <Box p={4} borderWidth={1} borderRadius="md" bg="chakra-body-bg" mb={6}>
-                <HStack spacing={4} align="center">
-                  <Text fontSize="sm" fontWeight="medium" color="gray.600">
-                    Current Data Source:
-                  </Text>
-                  
-                  {platformFromURL && (
-                    <HStack spacing={2}>
-                      <Monitor size={16} />
-                      <Badge colorScheme="blue" variant="subtle">
-                        {platformsForAnalytics.find(p => p.id === platformFromURL)?.displayName || platformFromURL}
-                      </Badge>
-                    </HStack>
-                  )}
-                  
-                  {themeFromURL && (
-                    <HStack spacing={2}>
-                      <Palette size={16} />
-                      <Badge colorScheme="purple" variant="subtle">
-                        {themes.find(t => t.id === themeFromURL)?.displayName || themeFromURL}
-                      </Badge>
-                    </HStack>
-                  )}
-                  
-                  {!platformFromURL && !themeFromURL && (
-                    <Badge colorScheme="gray" variant="subtle">
-                      Core Data
-                    </Badge>
-                  )}
-                </HStack>
-              </Box>
-            );
-          }
-          return null;
-        })()}
         
         {/* Platform Extension Analytics Section */}
         {platformStatsError && (
