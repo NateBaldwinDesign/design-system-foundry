@@ -62,18 +62,31 @@ export class GitHubSearchService {
     console.log(`[GitHubSearchService] Searching GitHub for: ${query} (page: ${page})`);
     
     try {
-      const accessToken = await GitHubAuthService.getValidAccessToken();
+      // Try to get access token for authenticated requests (includes private repos)
+      let accessToken: string | null = null;
+      
+      try {
+        accessToken = await GitHubAuthService.getValidAccessToken();
+        console.log('[GitHubSearchService] Using authenticated search (includes private repositories)');
+      } catch (error) {
+        console.log('[GitHubSearchService] No valid access token, using public API (public repositories only)');
+      }
+      
       const perPage = 10;
       
       // Search repositories
       const searchUrl = `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}&sort=updated&order=desc`;
       
-      const response = await fetch(searchUrl, {
-        headers: {
-          'Authorization': `token ${accessToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
-      });
+      const headers: Record<string, string> = {
+        'Accept': 'application/vnd.github.v3+json',
+      };
+      
+      // Add authorization header only if we have a valid token
+      if (accessToken) {
+        headers['Authorization'] = `token ${accessToken}`;
+      }
+      
+      const response = await fetch(searchUrl, { headers });
 
       if (!response.ok) {
         throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
@@ -89,11 +102,11 @@ export class GitHubSearchService {
       
       for (const repo of repositories) {
         try {
-          const schemaFiles = await this.findSchemaFiles(repo.full_name, repo.default_branch);
+          const schemaFiles = await this.findSchemaFiles(repo.full_name, repo.default_branch, accessToken || undefined);
           
           // Only include repositories that have schema files
           if (schemaFiles.length > 0) {
-            const permissions = await this.checkPermissions(repo.full_name);
+            const permissions = await this.checkPermissions(repo.full_name, accessToken || undefined);
             
             results.push({
               repository: repo,
@@ -136,14 +149,27 @@ export class GitHubSearchService {
       const repoFullName = repoMatch[1];
       console.log(`[GitHubSearchService] Searching by URL: ${repoFullName}`);
 
+      // Try to get access token for authenticated requests
+      let accessToken: string | null = null;
+      
+      try {
+        accessToken = await GitHubAuthService.getValidAccessToken();
+        console.log('[GitHubSearchService] Using authenticated URL search');
+      } catch (error) {
+        console.log('[GitHubSearchService] No valid access token, using public API for URL search');
+      }
+
       // Get repository details
-      const accessToken = await GitHubAuthService.getValidAccessToken();
-      const response = await fetch(`https://api.github.com/repos/${repoFullName}`, {
-        headers: {
-          'Authorization': `token ${accessToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
-      });
+      const headers: Record<string, string> = {
+        'Accept': 'application/vnd.github.v3+json',
+      };
+      
+      // Add authorization header only if we have a valid token
+      if (accessToken) {
+        headers['Authorization'] = `token ${accessToken}`;
+      }
+      
+      const response = await fetch(`https://api.github.com/repos/${repoFullName}`, { headers });
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -155,10 +181,10 @@ export class GitHubSearchService {
       const repository = await response.json() as GitHubRepo;
       
       // Find schema files
-      const schemaFiles = await this.findSchemaFiles(repoFullName, repository.default_branch);
+      const schemaFiles = await this.findSchemaFiles(repoFullName, repository.default_branch, accessToken || undefined);
       
       // Check permissions
-      const permissions = await this.checkPermissions(repoFullName);
+      const permissions = await this.checkPermissions(repoFullName, accessToken || undefined);
 
       return {
         repository,
@@ -177,14 +203,31 @@ export class GitHubSearchService {
    * TODO: When we address repo creation and standardized repo scaffolding, 
    * we should limit scanning to common paths (root, /src, /data, /schemas) for performance
    */
-  static async findSchemaFiles(repo: string, branch: string): Promise<SchemaFile[]> {
+  static async findSchemaFiles(repo: string, branch: string, accessToken?: string): Promise<SchemaFile[]> {
     console.log(`[GitHubSearchService] Scanning repository ${repo} for schema files`);
     
     try {
-      const accessToken = await GitHubAuthService.getValidAccessToken();
+      // If no access token provided, try to get one
+      let token = accessToken;
+      let isAuthenticated = false;
+      
+      if (!token) {
+        try {
+          token = await GitHubAuthService.getValidAccessToken();
+          isAuthenticated = true;
+        } catch (error) {
+          console.log('[GitHubSearchService] No access token available, using public API for repository scan');
+          isAuthenticated = false;
+        }
+      } else {
+        isAuthenticated = true;
+      }
       
       // Get all JSON files in the repository
-      const allJsonFiles = await this.getAllJsonFiles(repo, branch, accessToken);
+      const allJsonFiles = isAuthenticated 
+        ? await this.getAllJsonFiles(repo, branch, token!)
+        : await this.getAllPublicJsonFiles(repo, branch);
+        
       console.log(`[GitHubSearchService] Found ${allJsonFiles.length} JSON files in ${repo}`);
 
       const schemaFiles: SchemaFile[] = [];
@@ -192,7 +235,10 @@ export class GitHubSearchService {
       // Check each JSON file for schema compliance
       for (const file of allJsonFiles) {
         try {
-          const content = await GitHubApiService.getFileContent(repo, file.path, branch);
+          const content = isAuthenticated
+            ? await GitHubApiService.getFileContent(repo, file.path, branch)
+            : await GitHubApiService.getPublicFileContent(repo, file.path, branch);
+            
           const fileType = this.identifySchemaFile(content.content);
           
           if (fileType === 'schema') {
@@ -223,8 +269,23 @@ export class GitHubSearchService {
   /**
    * Check user permissions for a repository
    */
-  static async checkPermissions(repo: string): Promise<PermissionStatus> {
+  static async checkPermissions(repo: string, accessToken?: string): Promise<PermissionStatus> {
     try {
+      // If no access token provided, try to get one
+      let token = accessToken;
+      if (!token) {
+        try {
+          token = await GitHubAuthService.getValidAccessToken();
+        } catch (error) {
+          // No authentication available - assume view-only access for public repositories
+          return {
+            canEdit: false,
+            canView: true,
+            reason: 'Public repository - sign in for edit access'
+          };
+        }
+      }
+      
       const hasWriteAccess = await GitHubApiService.hasWriteAccessToRepository(repo);
       
       return {
@@ -278,6 +339,47 @@ export class GitHubSearchService {
       } else if (item.type === 'dir') {
         // Recursively search subdirectories
         const subFiles = await this.getAllJsonFiles(repo, branch, accessToken, item.path);
+        files.push(...subFiles);
+      }
+    }
+
+    return files;
+  }
+
+  /**
+   * Get all JSON files in a repository recursively (public access)
+   */
+  private static async getAllPublicJsonFiles(
+    repo: string, 
+    branch: string, 
+    path: string = ''
+  ): Promise<Array<{ path: string; name: string; size: number; lastModified?: string }>> {
+    const url = `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`;
+    
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch directory contents: ${response.statusText}`);
+    }
+
+    const contents = await response.json();
+    const files: Array<{ path: string; name: string; size: number; lastModified?: string }> = [];
+
+    for (const item of contents) {
+      if (item.type === 'file' && item.name.endsWith('.json')) {
+        files.push({
+          path: item.path,
+          name: item.name,
+          size: item.size,
+          lastModified: item.updated_at,
+        });
+      } else if (item.type === 'dir') {
+        // Recursively search subdirectories
+        const subFiles = await this.getAllPublicJsonFiles(repo, branch, item.path);
         files.push(...subFiles);
       }
     }
