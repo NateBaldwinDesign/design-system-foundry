@@ -759,4 +759,57 @@ export class GitHubApiService {
     console.log(`[GitHubApiService] List method: User ${hasAccess ? 'has' : 'does not have'} write access to ${repoFullName} (checked ${allRepos.length} repos)`);
     return hasAccess;
   }
+
+  /**
+   * Get branches from a public repository (no authentication required)
+   */
+  static async getPublicBranches(repo: string): Promise<GitHubBranch[]> {
+    console.log('[GitHubApiService] Fetching public branches:', { repo });
+    
+    // First, check if the repository exists
+    const repoResponse = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}`, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    if (!repoResponse.ok) {
+      if (repoResponse.status === 404) {
+        throw new Error(`Repository not found: ${repo}`);
+      } else if (repoResponse.status === 403) {
+        throw new Error(`Repository is private: ${repo}`);
+      } else {
+        throw new Error(`Failed to access repository: ${repoResponse.status} ${repoResponse.statusText}`);
+      }
+    }
+    
+    // Now try to get the branches
+    const response = await fetch(`${GITHUB_CONFIG.apiBaseUrl}/repos/${repo}/branches`, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`Branches not found for repository: ${repo}`);
+      } else if (response.status === 403) {
+        throw new Error(`Repository is private: ${repo}`);
+      } else {
+        throw new Error(`Failed to fetch branches: ${response.status} ${response.statusText}`);
+      }
+    }
+    
+    const branches = await response.json();
+    
+    // Cache the branches (with error handling)
+    try {
+      GitHubCacheService.setBranches(repo, branches);
+    } catch (error) {
+      console.warn('Failed to cache public branches, but continuing with API response:', error);
+      // Continue without caching - the data is still available from the API
+    }
+    
+    return branches;
+  }
 } 

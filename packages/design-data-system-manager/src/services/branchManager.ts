@@ -3,6 +3,7 @@ import { GitHubCacheService } from './githubCache';
 import { StatePersistenceManager, type RepositoryContext } from './statePersistenceManager';
 import { RefreshManager } from './refreshManager';
 import type { GitHubBranch } from '../config/github';
+import { GitHubAuthService } from './githubAuth';
 
 export class BranchManager {
   private static instance: BranchManager;
@@ -78,14 +79,28 @@ export class BranchManager {
         }
       }
       
-      // 2. Fetch from GitHub API
-      console.log('[BranchManager] Fetching branches from GitHub for:', repositoryFullName);
-      const branches = await GitHubApiService.getBranches(repositoryFullName);
+      // 2. Try to get access token for authenticated requests
+      let isAuthenticated = false;
       
-      // 3. Cache with TTL
+      try {
+        await GitHubAuthService.getValidAccessToken();
+        isAuthenticated = true;
+        console.log('[BranchManager] Using authenticated branch loading');
+      } catch (error) {
+        console.log('[BranchManager] No valid access token, using public API for branch loading');
+        isAuthenticated = false;
+      }
+      
+      // 3. Fetch from GitHub API (authenticated or public)
+      console.log('[BranchManager] Fetching branches from GitHub for:', repositoryFullName);
+      const branches = isAuthenticated 
+        ? await GitHubApiService.getBranches(repositoryFullName)
+        : await GitHubApiService.getPublicBranches(repositoryFullName);
+      
+      // 4. Cache with TTL
       GitHubCacheService.setBranchesWithTTL(repositoryFullName, branches);
       
-      // 4. Update state persistence
+      // 5. Update state persistence
       const stateManager = StatePersistenceManager.getInstance();
       const branchNames = branches.map(b => b.name);
       stateManager.setRepositoryBranches(repositoryFullName, branchNames);
@@ -98,11 +113,11 @@ export class BranchManager {
       
       // Fallback to cached branches from state persistence
       const stateManager = StatePersistenceManager.getInstance();
-      const cachedBranches = stateManager.getRepositoryBranches(repositoryFullName);
+      const fallbackBranches = stateManager.getRepositoryBranches(repositoryFullName);
       
-      if (cachedBranches.length > 0) {
+      if (fallbackBranches && fallbackBranches.length > 0) {
         console.log('[BranchManager] Using fallback cached branches for:', repositoryFullName);
-        return cachedBranches;
+        return fallbackBranches;
       }
       
       throw error;

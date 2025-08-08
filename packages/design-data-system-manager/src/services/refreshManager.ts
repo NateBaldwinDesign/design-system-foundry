@@ -125,12 +125,25 @@ export class RefreshManager {
   private static async refreshDataFromRepository(repository: RepositoryContext): Promise<void> {
     console.log('[RefreshManager] Refreshing data from repository:', repository);
     
-    // Load updated data from the target repository
-    const fileContent = await GitHubApiService.getFileContent(
-      repository.fullName,
-      repository.filePath,
-      repository.branch
-    );
+    // Try to get access token for authenticated requests
+    let fileContent;
+    
+    try {
+      // Try authenticated request first
+      fileContent = await GitHubApiService.getFileContent(
+        repository.fullName,
+        repository.filePath,
+        repository.branch
+      );
+    } catch (error) {
+      // If authenticated request fails, try public request
+      console.log('[RefreshManager] Authenticated file refresh failed, trying public API');
+      fileContent = await GitHubApiService.getPublicFileContent(
+        repository.fullName,
+        repository.filePath,
+        repository.branch
+      );
+    }
     
     if (!fileContent || !fileContent.content) {
       throw new Error('Failed to load file content from GitHub');

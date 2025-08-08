@@ -61,11 +61,9 @@ export const ThemeDropdown: React.FC<ThemeDropdownProps> = ({
       >
         <option value="none">None (Core Data)</option>
         {availableThemes.map((theme) => {
-          const { hasPermission } = getThemeStatus(theme.id);
           return (
             <option key={theme.id} value={theme.id}>
               {theme.displayName}
-              {!hasPermission && ' (No Access)'}
             </option>
           );
         })}

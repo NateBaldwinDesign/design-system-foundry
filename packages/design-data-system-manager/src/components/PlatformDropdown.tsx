@@ -64,11 +64,9 @@ export const PlatformDropdown: React.FC<PlatformDropdownProps> = ({
       >
         <option value="none">None (Core Data)</option>
         {availablePlatforms.map((platform) => {
-          const { hasPermission } = getPlatformStatus(platform.id);
           return (
             <option key={platform.id} value={platform.id}>
               {platform.displayName}
-              {!hasPermission && ' (No Access)'}
             </option>
           );
         })}
