@@ -53,7 +53,7 @@ import { URLStateManager } from './services/urlStateManager';
 import { DataLoaderService } from './services/dataLoaderService';
 import { DataMergerService } from './services/dataMergerService';
 import { PlatformSyntaxPatternService } from './services/platformSyntaxPatternService';
-import { exampleData, algorithmData, mergeData } from '@token-model/data-model';
+import { exampleData, algorithmData } from '@token-model/data-model';
 import { isMainBranch } from './utils/BranchValidationUtils';
 
 const App = () => {
@@ -661,9 +661,18 @@ const App = () => {
       
       console.log('[App] Checking GitHub connection:', { isConnected, currentUser, repoInfo });
       
-      setIsGitHubConnected(isConnected);
-      setGithubUser(currentUser);
-      setSelectedRepoInfo(repoInfo);
+      // Only update state if it has actually changed
+      if (isConnected !== isGitHubConnected) {
+        setIsGitHubConnected(isConnected);
+      }
+      
+      if (JSON.stringify(currentUser) !== JSON.stringify(githubUser)) {
+        setGithubUser(currentUser);
+      }
+      
+      if (JSON.stringify(repoInfo) !== JSON.stringify(selectedRepoInfo)) {
+        setSelectedRepoInfo(repoInfo);
+      }
     };
 
     // Check immediately on mount
@@ -730,6 +739,13 @@ const App = () => {
     const handleOAuthComplete = () => {
       console.log('[App] OAuth completion event received');
       checkGitHubConnection();
+      
+      // Ensure we're not in view-only mode after successful authentication
+      // unless we're on a main branch
+      const isOnMainBranch = isMainBranch(currentBranch);
+      if (!isOnMainBranch) {
+        setIsViewOnlyMode(false);
+      }
     };
 
     window.addEventListener('storage', handleStorageChange);
@@ -744,7 +760,7 @@ const App = () => {
       window.removeEventListener('github:oauth-complete', handleOAuthComplete);
       clearInterval(intervalId); // Clear the interval on unmount
     };
-  }, []); // Empty dependency array
+  }, [currentBranch]); // Add currentBranch to dependencies
 
   useEffect(() => {
     // Create data options from the package exports
@@ -940,47 +956,21 @@ const App = () => {
   // GitHub state management handlers
   const handleGitHubConnect = async () => {
     try {
-      // Check for URL parameters first
-      const urlParams = new URLSearchParams(window.location.search);
-      const repo = urlParams.get('repo');
-      const path = urlParams.get('path');
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const branch = urlParams.get('branch') || 'main';
-
-      if (repo && path) {
-        // URL parameters present - skip repository selection dialog
-        console.log('[App] URL parameters detected, proceeding with direct authentication');
-        
-        // Only clear OAuth state if user is already authenticated
-        if (GitHubAuthService.isAuthenticated()) {
-          console.log('User already authenticated, clearing OAuth state before new auth');
-          GitHubAuthService.clearOAuthState();
-        }
-        
-        // Initiate the OAuth flow
-        await GitHubAuthService.initiateAuth();
-        
-        // Note: initiateAuth() redirects to GitHub, so code after this won't execute
-        // The state will be updated when the user returns from GitHub
-      } else {
-        // No URL parameters - show repository selection dialog (current behavior)
-        console.log('[App] No URL parameters, showing repository selection dialog');
-        
-        // Only clear OAuth state if user is already authenticated
-        if (GitHubAuthService.isAuthenticated()) {
-          console.log('User already authenticated, clearing OAuth state before new auth');
-          GitHubAuthService.clearOAuthState();
-        }
-        
-        // Initiate the OAuth flow
-        await GitHubAuthService.initiateAuth();
-        
-        // Note: initiateAuth() redirects to GitHub, so code after this won't execute
-        // The state will be updated when the user returns from GitHub
+      console.log('[App] Initiating GitHub authentication');
+      
+      // Only clear OAuth state if user is already authenticated
+      if (GitHubAuthService.isAuthenticated()) {
+        console.log('[App] User already authenticated, clearing OAuth state before new auth');
+        GitHubAuthService.clearOAuthState();
       }
       
+      // Initiate the OAuth flow - this will store the current URL for return
+      await GitHubAuthService.initiateAuth();
+      
+      // Note: initiateAuth() redirects to GitHub, so code after this won't execute
+      // The state will be updated when the user returns from GitHub
     } catch (error) {
-      console.error('GitHub connection error:', error);
+      console.error('[App] GitHub connection error:', error);
       toast({
         title: 'GitHub Connection Failed',
         description: error instanceof Error ? error.message : 'Failed to connect to GitHub. Please try again.',
@@ -1315,234 +1305,7 @@ const App = () => {
     window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
   };
 
-  // Data merging function - simplified version
-  const mergeDataForCurrentContext = async (context: DataSourceContext) => {
-    try {
-      console.log('[App] Merging data for context:', context);
-      
-      // Get base data from storage (core data)
-      const rootData = StorageService.getRootData();
-      const coreData = {
-        systemName: rootData.systemName || 'Design System',
-        systemId: rootData.systemId || 'design-system',
-        version: rootData.version || '1.0.0',
-        versionHistory: (rootData.versionHistory || []).map(vh => ({
-          date: vh.date,
-          version: vh.version,
-          dimensions: vh.dimensions,
-          migrationStrategy: vh.migrationStrategy ? {
-            emptyModeIds: vh.migrationStrategy.emptyModeIds as 'mapToDefaults' | 'preserveEmpty' | 'requireExplicit',
-            preserveOriginalValues: vh.migrationStrategy.preserveOriginalValues
-          } : undefined
-        })),
-        tokens: StorageService.getTokens(),
-        tokenCollections: StorageService.getCollections(),
-        dimensions: StorageService.getDimensions(),
-        platforms: StorageService.getPlatforms(),
-        themes: StorageService.getThemes(),
-        taxonomies: StorageService.getTaxonomies(),
-        componentProperties: StorageService.getComponentProperties(),
-        componentCategories: StorageService.getComponentCategories(),
-        components: StorageService.getComponents(),
-        resolvedValueTypes: StorageService.getValueTypes(),
-        algorithms: StorageService.getAlgorithms(),
-        taxonomyOrder: StorageService.getTaxonomyOrder() || [],
-        dimensionOrder: StorageService.getDimensionOrder() || [],
-        propertyTypes: [],
-        standardPropertyTypes: [],
-        figmaConfiguration: StorageService.getFigmaConfiguration() || { fileKey: '' }
-      };
 
-      // Prepare platform extensions array
-      const platformExtensions = [];
-      
-      // Load platform extension data if a platform is selected
-      if (context.currentPlatform && context.currentPlatform !== 'none') {
-        try {
-          const platformRepo = context.repositories.platforms[context.currentPlatform];
-          if (platformRepo) {
-            console.log(`[App] Loading platform extension from ${platformRepo.fullName}/${platformRepo.filePath}`);
-            
-            const fileContent = await GitHubApiService.getFileContent(
-              platformRepo.fullName,
-              platformRepo.filePath,
-              platformRepo.branch
-            );
-            
-            if (fileContent && fileContent.content) {
-              const platformData = JSON.parse(fileContent.content);
-              console.log('[App] Platform extension data:', platformData);
-              platformExtensions.push(platformData);
-            }
-          }
-        } catch (error) {
-          console.warn(`[App] Failed to load platform extension for ${context.currentPlatform}:`, error);
-        }
-      }
-
-      // Prepare theme overrides object
-      let themeOverrides = undefined;
-      
-      // Load theme override data if a theme is selected
-      if (context.currentTheme && context.currentTheme !== 'none') {
-        try {
-          const themeRepo = context.repositories.themes[context.currentTheme];
-          if (themeRepo) {
-            console.log(`[App] Loading theme override from ${themeRepo.fullName}/${themeRepo.filePath}`);
-            
-            const fileContent = await GitHubApiService.getFileContent(
-              themeRepo.fullName,
-              themeRepo.filePath,
-              themeRepo.branch
-            );
-            
-            if (fileContent && fileContent.content) {
-              const themeData = JSON.parse(fileContent.content);
-              console.log('[App] Theme override data:', themeData);
-              
-              // Extract theme overrides from the theme data
-              if (themeData.themeId && themeData.tokenOverrides) {
-                // Transform the theme override file structure to match ThemeOverride type
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const transformedOverrides = themeData.tokenOverrides.map((tokenOverride: any) => {
-                  // Take the first valueByMode entry as the main override value
-                  const firstValueByMode = tokenOverride.valuesByMode?.[0];
-                  if (!firstValueByMode) {
-                    console.warn(`[App] Token override ${tokenOverride.tokenId} has no valuesByMode`);
-                    return null;
-                  }
-
-                  // Transform platform overrides to match ThemePlatformOverride structure
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  const transformedPlatformOverrides = firstValueByMode.platformOverrides?.map((platformOverride: any) => ({
-                    platformId: platformOverride.platformId,
-                    value: {
-                      value: platformOverride.value,
-                      tokenId: platformOverride.value?.tokenId
-                    }
-                  }));
-
-                  return {
-                    tokenId: tokenOverride.tokenId,
-                    value: {
-                      value: firstValueByMode.value?.value || firstValueByMode.value,
-                      tokenId: firstValueByMode.value?.tokenId
-                    },
-                    platformOverrides: transformedPlatformOverrides
-                  };
-                }).filter(Boolean); // Remove null entries
-
-                // Validate theme ID consistency between core data and theme override file
-                const coreThemeId = context.currentTheme;
-                const themeOverrideFileId = themeData.themeId;
-                
-                if (coreThemeId !== themeOverrideFileId) {
-                  const errorMessage = `Theme ID mismatch: Core data theme "${coreThemeId}" does not match theme override file "${themeOverrideFileId}". Theme overrides cannot be applied.`;
-                  console.error('[App] Theme ID mismatch:', {
-                    coreThemeId,
-                    themeOverrideFileId,
-                    contextCurrentTheme: context.currentTheme
-                  });
-                  
-                  toast({
-                    title: 'Theme Override Error',
-                    description: errorMessage,
-                    status: 'error',
-                    duration: 8000,
-                    isClosable: true,
-                  });
-                  
-                  // Don't apply theme overrides if IDs don't match
-                  themeOverrides = undefined;
-                } else {
-                  // IDs match - apply theme overrides
-                  themeOverrides = {
-                    [coreThemeId]: transformedOverrides
-                  };
-                  
-                  console.log('[App] Theme ID mapping (valid):', {
-                    themeOverrideFileId,
-                    coreThemeId,
-                    contextCurrentTheme: context.currentTheme
-                  });
-                }
-                console.log('[App] Transformed theme overrides:', themeOverrides);
-                console.log('[App] Transformed overrides array:', transformedOverrides);
-                console.log('[App] Is transformedOverrides an array?', Array.isArray(transformedOverrides));
-                console.log('[App] Transformed overrides length:', transformedOverrides?.length);
-              }
-            }
-          }
-        } catch (error) {
-          console.warn(`[App] Failed to load theme override for ${context.currentTheme}:`, error);
-        }
-      }
-
-      // Use the proper mergeData function from data-model with correct merge order
-      const mergeOptions = {
-        targetPlatformId: context.currentPlatform && context.currentPlatform !== 'none' ? context.currentPlatform : undefined,
-        targetThemeId: context.currentTheme && context.currentTheme !== 'none' ? context.currentTheme : undefined,
-        includeOmitted: false
-      };
-
-      console.log('[App] Calling mergeData with options:', mergeOptions);
-      const mergedResult = mergeData(coreData, platformExtensions, themeOverrides, mergeOptions);
-      
-      console.log('[App] Merge result analytics:', mergedResult.analytics);
-
-      // Update UI state with merged data
-      setTokens(mergedResult.mergedTokens);
-      setCollections(coreData.tokenCollections); // Collections don't change in merging
-      setDimensions(coreData.dimensions); // Dimensions don't change in merging
-      setPlatforms(mergedResult.mergedPlatforms);
-      setThemes(coreData.themes); // Themes don't change in merging
-      setTaxonomies(coreData.taxonomies); // Taxonomies don't change in merging
-      setComponentProperties(coreData.componentProperties); // Component properties don't change in merging
-      setComponentCategories(coreData.componentCategories); // Component categories don't change in merging
-      setComponents(coreData.components); // Components don't change in merging
-      setResolvedValueTypes(coreData.resolvedValueTypes); // Value types don't change in merging
-
-      // Update change tracking baseline
-      const newBaselineData = {
-        collections: coreData.tokenCollections,
-        modes: StorageService.getModes(), // Modes don't change in merging
-        dimensions: coreData.dimensions,
-        resolvedValueTypes: coreData.resolvedValueTypes,
-        platforms: mergedResult.mergedPlatforms,
-        themes: coreData.themes,
-        tokens: mergedResult.mergedTokens,
-        taxonomies: coreData.taxonomies,
-        componentProperties: coreData.componentProperties,
-        componentCategories: coreData.componentCategories,
-        components: coreData.components,
-        algorithms: coreData.algorithms,
-        taxonomyOrder: coreData.taxonomyOrder,
-      };
-
-      ChangeTrackingService.setBaselineData(newBaselineData);
-      setChangeLogData({
-        currentData: newBaselineData,
-        baselineData: newBaselineData
-      });
-
-      // Dispatch event to notify change detection
-      window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
-      
-      console.log('[App] Data merging completed. Tokens:', mergedResult.mergedTokens.length);
-      console.log('[App] Excluded theme overrides:', mergedResult.analytics.excludedThemeOverrides);
-      console.log('[App] Valid theme overrides:', mergedResult.analytics.validThemeOverrides);
-      
-    } catch (error) {
-      console.error('Error merging data:', error);
-      toast({
-        title: 'Error merging data',
-        description: error instanceof Error ? error.message : 'Failed to merge data sources',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-  };
 
   // Data source change handlers
   const handlePlatformChange = async (platformId: string | null) => {
@@ -1850,141 +1613,143 @@ const App = () => {
   return (
     <BrowserRouter>
       <Box h="100vh" display="flex" flexDirection="column">
-        <Box flex="1" position="relative">
-          {shouldShowHomepage() ? (
-            <Homepage
-              isGitHubConnected={isGitHubConnected}
-              githubUser={githubUser}
-              selectedRepoInfo={selectedRepoInfo}
-              onGitHubConnect={handleGitHubConnect}
-              onGitHubDisconnect={handleGitHubDisconnect}
-            />
-          ) : (
-            <AppLayout
-              dataSource={dataSource}
-              setDataSource={setDataSource}
-              dataOptions={dataOptions}
-              onResetData={handleResetData}
-              onExportData={() => {}}
-              isGitHubConnected={isGitHubConnected}
-              githubUser={githubUser}
-              selectedRepoInfo={selectedRepoInfo}
-              onGitHubConnect={handleGitHubConnect}
-              onGitHubDisconnect={handleGitHubDisconnect}
-              onFileSelected={handleFileSelected}
-              onRefreshData={handleRefreshCurrentData}
-              currentView={currentView}
-              onNavigate={navigateToView}
-              isViewOnlyMode={isViewOnlyMode}
-              urlRepoInfo={isViewOnlyMode ? (() => {
-                const urlParams = new URLSearchParams(window.location.search);
-                const repo = urlParams.get('repo');
-                const path = urlParams.get('path');
-                const branch = urlParams.get('branch');
-                return repo && path && branch ? { repo, path, branch } : null;
-              })() : null}
-              hasEditPermissions={hasEditPermissions}
-              dataSourceContext={dataSourceContext}
-              onPlatformChange={handlePlatformChange}
-              onThemeChange={handleThemeChange}
-              isEditMode={isEditMode}
-              currentBranch={currentBranch}
-              editModeBranch={editModeBranch}
-              onBranchCreated={handleBranchCreated}
-              onEnterEditMode={handleEnterEditMode}
-              onExitEditMode={handleExitEditMode}
-              // NEW: Edit context props
-              editContext={isEditMode ? (() => {
-                if (!dataSourceContext) return undefined;
-                
-                const { currentPlatform, currentTheme, availablePlatforms, availableThemes } = dataSourceContext;
-                
-                // Find platform name if platform is selected
-                const platformName = currentPlatform && currentPlatform !== 'none' 
-                  ? availablePlatforms.find(p => p.id === currentPlatform)?.displayName || currentPlatform
-                  : undefined;
-                
-                // Find theme name if theme is selected
-                const themeName = currentTheme && currentTheme !== 'none'
-                  ? availableThemes.find(t => t.id === currentTheme)?.displayName || currentTheme
-                  : undefined;
-                
-                // Determine source type and name
-                let sourceType: 'core' | 'platform-extension' | 'theme-override' = 'core';
-                let sourceName = 'Core Design System';
-                
-                if (currentPlatform && currentPlatform !== 'none') {
-                  sourceType = 'platform-extension';
-                  sourceName = platformName || currentPlatform;
-                } else if (currentTheme && currentTheme !== 'none') {
-                  sourceType = 'theme-override';
-                  sourceName = themeName || currentTheme;
-                }
-                
-                return {
-                  isEditMode: true,
-                  sourceType,
-                  sourceId: currentPlatform !== 'none' ? currentPlatform : currentTheme !== 'none' ? currentTheme : null,
-                  sourceName,
-                };
-              })() : undefined}
-                             onSaveChanges={undefined} // Let Header use its own save workflow
-               onDiscardChanges={handleDiscardChanges}
-              pendingOverrides={pendingOverrides}
-            >
-              <Routes>
-                <Route path="/auth/github/callback" element={<GitHubCallback />} />
-                <Route path="/" element={<div />} />
-                <Route path="*" element={<div />} />
-              </Routes>
-              
-              <ViewRenderer
-                currentView={currentView}
-                tokens={tokens}
-                collections={collections}
-                modes={modes}
-                dimensions={dimensions}
-                resolvedValueTypes={resolvedValueTypes}
-                platforms={platforms}
-                themes={themes}
-                taxonomies={taxonomies}
-                componentProperties={componentProperties}
-                componentCategories={componentCategories}
-                components={components}
-                algorithms={algorithms}
-                dimensionOrder={dimensionOrder}
-                taxonomyOrder={taxonomyOrder}
-                schema={schema}
-                githubUser={githubUser}
-                isViewOnlyMode={isViewOnlyMode}
-                hasEditPermissions={hasEditPermissions}
-                dataSourceContext={dataSourceContext}
-                isAppLoading={isAppLoading}
-                canEdit={hasEditPermissions && isEditMode}
-                onUpdateTokens={handleUpdateTokens}
-                onUpdateCollections={handleUpdateCollections}
-                onUpdateDimensions={handleUpdateDimensions}
-                onUpdateResolvedValueTypes={handleUpdateResolvedValueTypes}
-                onUpdatePlatforms={handleUpdatePlatforms}
-                onUpdateThemes={handleUpdateThemes}
-                onUpdateTaxonomies={handleUpdateTaxonomies}
-                onUpdateComponentProperties={handleUpdateComponentProperties}
-                onUpdateComponentCategories={handleUpdateComponentCategories}
-                onUpdateComponents={handleUpdateComponents}
-                onUpdateAlgorithms={handleUpdateAlgorithms}
-                setDimensionOrder={setDimensionOrder}
-                setTaxonomyOrder={setTaxonomyOrder}
-                selectedToken={selectedToken}
-                isEditorOpen={isEditorOpen}
-                onAddToken={handleAddToken}
-                onEditToken={handleEditToken}
-                onCloseEditor={handleCloseEditor}
-                onSaveToken={handleSaveToken}
-                onDeleteToken={handleDeleteToken}
-              />
-            </AppLayout>
-          )}
-        </Box>
+        {/* Routes must be outside conditional rendering to handle callback URLs */}
+        <Routes>
+          <Route path="/auth/github/callback" element={<GitHubCallback />} />
+          <Route path="/callback" element={<GitHubCallback />} />
+          <Route path="/" element={
+            <Box flex="1" position="relative">
+              {shouldShowHomepage() ? (
+                <Homepage
+                  isGitHubConnected={isGitHubConnected}
+                  githubUser={githubUser}
+                  selectedRepoInfo={selectedRepoInfo}
+                  onGitHubConnect={handleGitHubConnect}
+                  onGitHubDisconnect={handleGitHubDisconnect}
+                />
+              ) : (
+                <AppLayout
+                  dataSource={dataSource}
+                  setDataSource={setDataSource}
+                  dataOptions={dataOptions}
+                  onResetData={handleResetData}
+                  onExportData={() => {}}
+                  isGitHubConnected={isGitHubConnected}
+                  githubUser={githubUser}
+                  selectedRepoInfo={selectedRepoInfo}
+                  onGitHubConnect={handleGitHubConnect}
+                  onGitHubDisconnect={handleGitHubDisconnect}
+                  onFileSelected={handleFileSelected}
+                  onRefreshData={handleRefreshCurrentData}
+                  currentView={currentView}
+                  onNavigate={navigateToView}
+                  isViewOnlyMode={isViewOnlyMode}
+                  urlRepoInfo={isViewOnlyMode ? (() => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const repo = urlParams.get('repo');
+                    const path = urlParams.get('path');
+                    const branch = urlParams.get('branch');
+                    return repo && path && branch ? { repo, path, branch } : null;
+                  })() : null}
+                  hasEditPermissions={hasEditPermissions}
+                  dataSourceContext={dataSourceContext}
+                  onPlatformChange={handlePlatformChange}
+                  onThemeChange={handleThemeChange}
+                  isEditMode={isEditMode}
+                  currentBranch={currentBranch}
+                  editModeBranch={editModeBranch}
+                  onBranchCreated={handleBranchCreated}
+                  onEnterEditMode={handleEnterEditMode}
+                  onExitEditMode={handleExitEditMode}
+                  // NEW: Edit context props
+                  editContext={isEditMode ? (() => {
+                    if (!dataSourceContext) return undefined;
+                    
+                    const { currentPlatform, currentTheme, availablePlatforms, availableThemes } = dataSourceContext;
+                    
+                    // Find platform name if platform is selected
+                    const platformName = currentPlatform && currentPlatform !== 'none' 
+                      ? availablePlatforms.find(p => p.id === currentPlatform)?.displayName || currentPlatform
+                      : undefined;
+                    
+                    // Find theme name if theme is selected
+                    const themeName = currentTheme && currentTheme !== 'none'
+                      ? availableThemes.find(t => t.id === currentTheme)?.displayName || currentTheme
+                      : undefined;
+                    
+                    // Determine source type and name
+                    let sourceType: 'core' | 'platform-extension' | 'theme-override' = 'core';
+                    let sourceName = 'Core Design System';
+                    
+                    if (currentPlatform && currentPlatform !== 'none') {
+                      sourceType = 'platform-extension';
+                      sourceName = platformName || currentPlatform;
+                    } else if (currentTheme && currentTheme !== 'none') {
+                      sourceType = 'theme-override';
+                      sourceName = themeName || currentTheme;
+                    }
+                    
+                    return {
+                      isEditMode: true,
+                      sourceType,
+                      sourceId: currentPlatform !== 'none' ? currentPlatform : currentTheme !== 'none' ? currentTheme : null,
+                      sourceName,
+                    };
+                  })() : undefined}
+                                 onSaveChanges={undefined} // Let Header use its own save workflow
+                   onDiscardChanges={handleDiscardChanges}
+                  pendingOverrides={pendingOverrides}
+                >
+                  <ViewRenderer
+                    currentView={currentView}
+                    tokens={tokens}
+                    collections={collections}
+                    modes={modes}
+                    dimensions={dimensions}
+                    resolvedValueTypes={resolvedValueTypes}
+                    platforms={platforms}
+                    themes={themes}
+                    taxonomies={taxonomies}
+                    componentProperties={componentProperties}
+                    componentCategories={componentCategories}
+                    components={components}
+                    algorithms={algorithms}
+                    dimensionOrder={dimensionOrder}
+                    taxonomyOrder={taxonomyOrder}
+                    schema={schema}
+                    githubUser={githubUser}
+                    isViewOnlyMode={isViewOnlyMode}
+                    hasEditPermissions={hasEditPermissions}
+                    dataSourceContext={dataSourceContext}
+                    isAppLoading={isAppLoading}
+                    canEdit={hasEditPermissions && isEditMode}
+                    onUpdateTokens={handleUpdateTokens}
+                    onUpdateCollections={handleUpdateCollections}
+                    onUpdateDimensions={handleUpdateDimensions}
+                    onUpdateResolvedValueTypes={handleUpdateResolvedValueTypes}
+                    onUpdatePlatforms={handleUpdatePlatforms}
+                    onUpdateThemes={handleUpdateThemes}
+                    onUpdateTaxonomies={handleUpdateTaxonomies}
+                    onUpdateComponentProperties={handleUpdateComponentProperties}
+                    onUpdateComponentCategories={handleUpdateComponentCategories}
+                    onUpdateComponents={handleUpdateComponents}
+                    onUpdateAlgorithms={handleUpdateAlgorithms}
+                    setDimensionOrder={setDimensionOrder}
+                    setTaxonomyOrder={setTaxonomyOrder}
+                    selectedToken={selectedToken}
+                    isEditorOpen={isEditorOpen}
+                    onAddToken={handleAddToken}
+                    onEditToken={handleEditToken}
+                    onCloseEditor={handleCloseEditor}
+                    onSaveToken={handleSaveToken}
+                    onDeleteToken={handleDeleteToken}
+                  />
+                </AppLayout>
+              )}
+            </Box>
+          } />
+          <Route path="*" element={<div />} />
+        </Routes>
 
         {/* Change Log Modal */}
         <Modal isOpen={isOpen} onClose={onClose} size="6xl">

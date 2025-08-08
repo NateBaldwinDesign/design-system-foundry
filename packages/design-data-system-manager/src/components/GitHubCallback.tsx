@@ -117,10 +117,10 @@ export const GitHubCallback: React.FC = () => {
                 dataSourceManager.initializeFromURL();
                 
                 // Update URL parameters to reflect data source context
-                URLStateManager.updateMultipleURLParameters({
-                  platform: platform || undefined,
-                  theme: theme || undefined
-                });
+                URLStateManager.updateURLWithPlatformTheme(
+                  platform || null,
+                  theme || null
+                );
               }
 
               // Set repository info and permissions
@@ -144,7 +144,32 @@ export const GitHubCallback: React.FC = () => {
                 isClosable: true,
               });
               
-              // Redirect to main app
+              // Restore original URL parameters and redirect
+              const originalUrlContext = localStorage.getItem('github_oauth_original_url_context');
+              if (originalUrlContext) {
+                try {
+                  const context = JSON.parse(originalUrlContext);
+                  const url = new URL(window.location.origin);
+                  
+                  // Restore all original parameters
+                  if (context.repo) url.searchParams.set('repo', context.repo);
+                  if (context.branch) url.searchParams.set('branch', context.branch);
+                  if (context.path) url.searchParams.set('path', context.path);
+                  if (context.platform) url.searchParams.set('platform', context.platform);
+                  if (context.theme) url.searchParams.set('theme', context.theme);
+                  
+                  console.log('[GitHubCallback] Restoring original URL context:', context);
+                  localStorage.removeItem('github_oauth_original_url_context');
+                  
+                  // Navigate to the restored URL
+                  window.location.href = url.toString();
+                  return;
+                } catch (error) {
+                  console.error('[GitHubCallback] Error restoring URL context:', error);
+                }
+              }
+              
+              // Fallback to main app if no original context
               navigate('/');
               
             } else {
@@ -179,10 +204,10 @@ export const GitHubCallback: React.FC = () => {
                 dataSourceManager.initializeFromURL();
                 
                 // Update URL parameters to reflect data source context
-                URLStateManager.updateMultipleURLParameters({
-                  platform: platform || undefined,
-                  theme: theme || undefined
-                });
+                URLStateManager.updateURLWithPlatformTheme(
+                  platform || null,
+                  theme || null
+                );
               }
               
               // Set repository info and permissions
@@ -206,7 +231,32 @@ export const GitHubCallback: React.FC = () => {
                 isClosable: true,
               });
               
-              // Redirect to main app
+              // Restore original URL parameters and redirect
+              const originalUrlContext = localStorage.getItem('github_oauth_original_url_context');
+              if (originalUrlContext) {
+                try {
+                  const context = JSON.parse(originalUrlContext);
+                  const url = new URL(window.location.origin);
+                  
+                  // Restore all original parameters
+                  if (context.repo) url.searchParams.set('repo', context.repo);
+                  if (context.branch) url.searchParams.set('branch', context.branch);
+                  if (context.path) url.searchParams.set('path', context.path);
+                  if (context.platform) url.searchParams.set('platform', context.platform);
+                  if (context.theme) url.searchParams.set('theme', context.theme);
+                  
+                  console.log('[GitHubCallback] Restoring original URL context (view-only):', context);
+                  localStorage.removeItem('github_oauth_original_url_context');
+                  
+                  // Navigate to the restored URL
+                  window.location.href = url.toString();
+                  return;
+                } catch (error) {
+                  console.error('[GitHubCallback] Error restoring URL context (view-only):', error);
+                }
+              }
+              
+              // Fallback to main app if no original context
               navigate('/');
             }
             
@@ -235,7 +285,32 @@ export const GitHubCallback: React.FC = () => {
               }
             }));
             
-            // Redirect to main app
+            // Restore original URL parameters and redirect
+            const originalUrlContext = localStorage.getItem('github_oauth_original_url_context');
+            if (originalUrlContext) {
+              try {
+                const context = JSON.parse(originalUrlContext);
+                const url = new URL(window.location.origin);
+                
+                // Restore all original parameters
+                if (context.repo) url.searchParams.set('repo', context.repo);
+                if (context.branch) url.searchParams.set('branch', context.branch);
+                if (context.path) url.searchParams.set('path', context.path);
+                if (context.platform) url.searchParams.set('platform', context.platform);
+                if (context.theme) url.searchParams.set('theme', context.theme);
+                
+                console.log('[GitHubCallback] Restoring original URL context (error fallback):', context);
+                localStorage.removeItem('github_oauth_original_url_context');
+                
+                // Navigate to the restored URL
+                window.location.href = url.toString();
+                return;
+              } catch (error) {
+                console.error('[GitHubCallback] Error restoring URL context (error fallback):', error);
+              }
+            }
+            
+            // Fallback to main app if no original context
             navigate('/');
           }
           

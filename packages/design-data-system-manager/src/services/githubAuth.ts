@@ -50,6 +50,22 @@ export class GitHubAuthService {
     localStorage.setItem('github_oauth_state', state);
     localStorage.setItem('github_oauth_code_verifier', codeVerifier);
     
+    // Store current URL parameters to restore after authentication
+    const currentUrlParams = new URLSearchParams(window.location.search);
+    const urlContext = {
+      repo: currentUrlParams.get('repo'),
+      branch: currentUrlParams.get('branch'),
+      path: currentUrlParams.get('path'),
+      platform: currentUrlParams.get('platform'),
+      theme: currentUrlParams.get('theme')
+    };
+    
+    // Only store if we have meaningful URL parameters (not just callback params)
+    if (urlContext.repo || urlContext.platform || urlContext.theme) {
+      localStorage.setItem('github_oauth_original_url_context', JSON.stringify(urlContext));
+      console.log('[GitHubAuthService] Storing original URL context for OAuth flow:', urlContext);
+    }
+    
     const params = new URLSearchParams({
       client_id: GITHUB_CONFIG.clientId,
       redirect_uri: GITHUB_CONFIG.redirectUri,
@@ -224,6 +240,7 @@ export class GitHubAuthService {
   static clearOAuthState(): void {
     localStorage.removeItem('github_oauth_state');
     localStorage.removeItem('github_oauth_code_verifier');
+    localStorage.removeItem('github_oauth_original_url_context');
   }
   
   /**

@@ -11,9 +11,7 @@ import {
   useToast,
   useColorMode,
   HStack,
-  Icon,
   Divider,
-  Flex,
   Spinner,
   Popover,
   PopoverTrigger,
@@ -26,7 +24,7 @@ import {
 import { Github, ExternalLink } from 'lucide-react';
 import { FindDesignSystemDialog } from '../components/FindDesignSystemDialog';
 import type { GitHubUser } from '../config/github';
-import { within } from '@storybook/test';
+
 import Logo from '../components/Logo';
 
 interface HomepageProps {
@@ -53,7 +51,7 @@ export const Homepage: React.FC<HomepageProps> = ({
   const { colorMode } = useColorMode();
   const toast = useToast();
   const [showFindDesignSystem, setShowFindDesignSystem] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+
 
   const [isGitHubConnecting, setIsGitHubConnecting] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);

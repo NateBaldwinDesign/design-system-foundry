@@ -12,6 +12,7 @@ import type {
   DataLoadResult, 
   DataValidationResult 
 } from '../types/dataManagement';
+import { GitHubAuthService } from './githubAuth';
 
 export class DataLoaderService {
   private static instance: DataLoaderService;
@@ -75,54 +76,69 @@ export class DataLoaderService {
     }
   }
 
-  /**
-   * Step 1: Load core data from GitHub
-   */
-  private async loadCoreData(
-    repo: string | null, 
-    path: string | null, 
-    branch: string
-  ): Promise<DataLoadResult> {
-    if (!repo || !path) {
-      return {
-        success: false,
-        error: 'Repository and path parameters are required'
-      };
-    }
-
-    try {
-      console.log(`[DataLoaderService] Loading core data from ${repo}/${path} on branch ${branch}`);
-      
-      const fileContent = await GitHubApiService.getFileContent(repo, path, branch);
-      const parsedData = JSON.parse(fileContent.content);
-      
-      // Validate the data structure
-      const validation = this.validateData(parsedData, 'schema');
-      if (!validation.isValid) {
-        return {
-          success: false,
-          error: `Invalid core data structure: ${validation.errors.join(', ')}`,
-          validationResult: validation
-        };
-      }
-
-      // Store core data
-      StorageService.setCoreData(parsedData as TokenSystem);
-      
-      console.log('[DataLoaderService] Core data loaded and validated successfully');
-      return {
-        success: true,
-        data: parsedData as TokenSystem
-      };
-
-    } catch (error) {
-      console.error('[DataLoaderService] Error loading core data:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to load core data'
-      };
-    }
+/**
+ * Step 1: Load core data from GitHub (with public repository fallback)
+ */
+private async loadCoreData(
+  repo: string | null, 
+  path: string | null, 
+  branch: string
+): Promise<DataLoadResult> {
+  if (!repo || !path) {
+    return {
+      success: false,
+      error: 'Repository and path parameters are required'
+    };
   }
+
+  try {
+    console.log(`[DataLoaderService] Loading core data from ${repo}/${path} on branch ${branch}`);
+    
+    let fileContent;
+    
+    // Try authenticated access first (if user is signed in)
+    try {
+      if (GitHubAuthService.isAuthenticated()) {
+        console.log('[DataLoaderService] User is authenticated, trying authenticated access');
+        fileContent = await GitHubApiService.getFileContent(repo, path, branch);
+      } else {
+        throw new Error('User not authenticated, trying public access');
+      }
+    } catch (authError) {
+      // If authenticated access fails or user isn't authenticated, try public access
+      console.log('[DataLoaderService] Authenticated access failed, trying public access:', authError);
+      fileContent = await GitHubApiService.getPublicFileContent(repo, path, branch);
+    }
+    
+    const parsedData = JSON.parse(fileContent.content);
+    
+    // Validate the data structure
+    const validation = this.validateData(parsedData, 'schema');
+    if (!validation.isValid) {
+      return {
+        success: false,
+        error: `Invalid core data structure: ${validation.errors.join(', ')}`,
+        validationResult: validation
+      };
+    }
+
+    // Store core data
+    StorageService.setCoreData(parsedData as TokenSystem);
+    
+    console.log('[DataLoaderService] Core data loaded and validated successfully');
+    return {
+      success: true,
+      data: parsedData as TokenSystem
+    };
+
+  } catch (error) {
+    console.error('[DataLoaderService] Error loading core data:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load core data'
+    };
+  }
+}
 
   /**
    * Step 2: Determine and load source data
@@ -184,121 +200,149 @@ export class DataLoaderService {
     }
   }
 
-  /**
-   * Load platform extension data
-   */
-  private async loadPlatformData(platformId: string, coreData: TokenSystem): Promise<DataLoadResult> {
-    const platform = coreData.platforms?.find(p => p.id === platformId);
-    if (!platform) {
-      return {
-        success: false,
-        error: `Platform with ID '${platformId}' not found in core data`
-      };
-    }
-
-    if (!platform.extensionSource) {
-      return {
-        success: false,
-        error: `Platform '${platformId}' does not have an extension source configured`
-      };
-    }
-
-    try {
-      const { repositoryUri, filePath, branch = 'main' } = platform.extensionSource;
-      const [owner, repo] = repositoryUri.split('/');
-      const fullRepoName = `${owner}/${repo}`;
-
-      console.log(`[DataLoaderService] Loading platform data from ${fullRepoName}/${filePath}`);
-      
-      const fileContent = await GitHubApiService.getFileContent(fullRepoName, filePath, branch);
-      const parsedData = JSON.parse(fileContent.content);
-      
-      // Validate platform extension data
-      const validation = this.validateData(parsedData, 'platform-extension');
-      if (!validation.isValid) {
-        return {
-          success: false,
-          error: `Invalid platform extension data: ${validation.errors.join(', ')}`,
-          validationResult: validation
-        };
-      }
-
-      const platformData = parsedData as PlatformExtension;
-      StorageService.setSourceSnapshot(platformData);
-      StorageService.setPlatformExtensionData(platformId, platformData);
-      
-      console.log('[DataLoaderService] Platform data loaded successfully');
-      return {
-        success: true,
-        data: platformData
-      };
-
-    } catch (error) {
-      console.error('[DataLoaderService] Error loading platform data:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to load platform data'
-      };
-    }
+/**
+ * Load platform extension data (with public repository fallback)
+ */
+private async loadPlatformData(platformId: string, coreData: TokenSystem): Promise<DataLoadResult> {
+  const platform = coreData.platforms?.find(p => p.id === platformId);
+  if (!platform) {
+    return {
+      success: false,
+      error: `Platform with ID '${platformId}' not found in core data`
+    };
   }
 
-  /**
-   * Load theme override data
-   */
-  private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<DataLoadResult> {
-    const theme = coreData.themes?.find(t => t.id === themeId);
-    if (!theme) {
-      return {
-        success: false,
-        error: `Theme with ID '${themeId}' not found in core data`
-      };
-    }
-
-    if (!theme.overrideSource) {
-      return {
-        success: false,
-        error: `Theme '${themeId}' does not have an override source configured`
-      };
-    }
-
-    try {
-      const { repositoryUri, filePath, branch = 'main' } = theme.overrideSource;
-      const [owner, repo] = repositoryUri.split('/');
-      const fullRepoName = `${owner}/${repo}`;
-
-      console.log(`[DataLoaderService] Loading theme data from ${fullRepoName}/${filePath}`);
-      
-      const fileContent = await GitHubApiService.getFileContent(fullRepoName, filePath, branch);
-      const parsedData = JSON.parse(fileContent.content);
-      
-      // Validate theme override data
-      const validation = this.validateData(parsedData, 'theme-override');
-      if (!validation.isValid) {
-        return {
-          success: false,
-          error: `Invalid theme override data: ${validation.errors.join(', ')}`,
-          validationResult: validation
-        };
-      }
-
-      const themeData = parsedData as ThemeOverrideFile;
-      StorageService.setSourceSnapshot(themeData);
-      StorageService.setThemeOverrideData(themeId, themeData);
-      
-      console.log('[DataLoaderService] Theme data loaded successfully');
-      return {
-        success: true,
-        data: themeData
-      };
-
-    } catch (error) {
-      console.error('[DataLoaderService] Error loading theme data:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to load theme data'
-      };
-    }
+  if (!platform.extensionSource) {
+    return {
+      success: false,
+      error: `Platform '${platformId}' does not have an extension source configured`
+    };
   }
+
+  try {
+    const { repositoryUri, filePath, branch = 'main' } = platform.extensionSource;
+    const [owner, repo] = repositoryUri.split('/');
+    const fullRepoName = `${owner}/${repo}`;
+
+    console.log(`[DataLoaderService] Loading platform data from ${fullRepoName}/${filePath}`);
+    
+    let fileContent;
+    
+    // Try authenticated access first (if user is signed in)
+    try {
+      if (GitHubAuthService.isAuthenticated()) {
+        fileContent = await GitHubApiService.getFileContent(fullRepoName, filePath, branch);
+      } else {
+        throw new Error('User not authenticated, trying public access');
+      }
+    } catch (authError) {
+      // If authenticated access fails or user isn't authenticated, try public access
+      console.log('[DataLoaderService] Platform authenticated access failed, trying public access');
+      fileContent = await GitHubApiService.getPublicFileContent(fullRepoName, filePath, branch);
+    }
+    
+    const parsedData = JSON.parse(fileContent.content);
+    
+    // Validate platform extension data
+    const validation = this.validateData(parsedData, 'platform-extension');
+    if (!validation.isValid) {
+      return {
+        success: false,
+        error: `Invalid platform extension data: ${validation.errors.join(', ')}`,
+        validationResult: validation
+      };
+    }
+
+    const platformData = parsedData as PlatformExtension;
+    StorageService.setSourceSnapshot(platformData);
+    StorageService.setPlatformExtensionData(platformId, platformData);
+    
+    console.log('[DataLoaderService] Platform data loaded successfully');
+    return {
+      success: true,
+      data: platformData
+    };
+
+  } catch (error) {
+    console.error('[DataLoaderService] Error loading platform data:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load platform data'
+    };
+  }
+}
+
+/**
+ * Load theme override data (with public repository fallback)
+ */
+private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<DataLoadResult> {
+  const theme = coreData.themes?.find(t => t.id === themeId);
+  if (!theme) {
+    return {
+      success: false,
+      error: `Theme with ID '${themeId}' not found in core data`
+    };
+  }
+
+  if (!theme.overrideSource) {
+    return {
+      success: false,
+      error: `Theme '${themeId}' does not have an override source configured`
+    };
+  }
+
+  try {
+    const { repositoryUri, filePath, branch = 'main' } = theme.overrideSource;
+    const [owner, repo] = repositoryUri.split('/');
+    const fullRepoName = `${owner}/${repo}`;
+
+    console.log(`[DataLoaderService] Loading theme data from ${fullRepoName}/${filePath}`);
+    
+    let fileContent;
+    
+    // Try authenticated access first (if user is signed in)
+    try {
+      if (GitHubAuthService.isAuthenticated()) {
+        fileContent = await GitHubApiService.getFileContent(fullRepoName, filePath, branch);
+      } else {
+        throw new Error('User not authenticated, trying public access');
+      }
+    } catch (authError) {
+      // If authenticated access fails or user isn't authenticated, try public access
+      console.log('[DataLoaderService] Theme authenticated access failed, trying public access');
+      fileContent = await GitHubApiService.getPublicFileContent(fullRepoName, filePath, branch);
+    }
+    
+    const parsedData = JSON.parse(fileContent.content);
+    
+    // Validate theme override data
+    const validation = this.validateData(parsedData, 'theme-override');
+    if (!validation.isValid) {
+      return {
+        success: false,
+        error: `Invalid theme override data: ${validation.errors.join(', ')}`,
+        validationResult: validation
+      };
+    }
+
+    const themeData = parsedData as ThemeOverrideFile;
+    StorageService.setSourceSnapshot(themeData);
+    StorageService.setThemeOverrideData(themeId, themeData);
+    
+    console.log('[DataLoaderService] Theme data loaded successfully');
+    return {
+      success: true,
+      data: themeData
+    };
+
+  } catch (error) {
+    console.error('[DataLoaderService] Error loading theme data:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to load theme data'
+    };
+  }
+}
 
   /**
    * Step 3: Create merged data
