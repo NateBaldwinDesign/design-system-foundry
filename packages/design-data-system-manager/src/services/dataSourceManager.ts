@@ -5,6 +5,7 @@ import { ChangeTrackingService } from './changeTrackingService';
 import { OverrideTrackingService } from './overrideTrackingService';
 import { DataEditorService } from './dataEditorService';
 import { SourceManagerService } from './sourceManagerService';
+import { DataMergerService } from './dataMergerService';
 import { PlatformSyntaxPatternService } from './platformSyntaxPatternService';
 import type { Platform, Theme } from '@token-model/data-model';
 
@@ -195,6 +196,11 @@ export class DataSourceManager {
       
       // Determine source type based on themeId
       const sourceType = themeId ? 'theme' : 'core';
+      
+      // Ensure repository information is up-to-date before switching
+      if (themeId) {
+        this.updateAvailableSources();
+      }
       
       // Switch source using SourceManagerService
       const switchResult = await sourceManager.switchSource(sourceType, themeId || undefined);

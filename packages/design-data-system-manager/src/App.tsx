@@ -1311,12 +1311,7 @@ const App = () => {
   const handlePlatformChange = async (platformId: string | null) => {
     setIsAppLoading(true); // Start app loading state
     try {
-      const dataSourceManager = DataSourceManager.getInstance();
-      await dataSourceManager.switchToPlatform(platformId);
-      const newContext = dataSourceManager.getCurrentContext();
-      setDataSourceContext(newContext);
-      
-      // Update URL parameters
+      // CRITICAL: Update URL FIRST before any data operations
       const url = new URL(window.location.href);
       if (platformId) {
         url.searchParams.set('platform', platformId);
@@ -1324,6 +1319,12 @@ const App = () => {
         url.searchParams.delete('platform');
       }
       window.history.replaceState({}, '', url.toString());
+      
+      // Now proceed with data source switching (URL is already updated)
+      const dataSourceManager = DataSourceManager.getInstance();
+      await dataSourceManager.switchToPlatform(platformId);
+      const newContext = dataSourceManager.getCurrentContext();
+      setDataSourceContext(newContext);
       
       // SourceManagerService already handled the merge, just update UI state
       // No need to call mergeDataForCurrentContext since DataMergerService already computed merged data
@@ -1343,12 +1344,7 @@ const App = () => {
   const handleThemeChange = async (themeId: string | null) => {
     setIsAppLoading(true); // Start app loading state
     try {
-      const dataSourceManager = DataSourceManager.getInstance();
-      await dataSourceManager.switchToTheme(themeId);
-      const newContext = dataSourceManager.getCurrentContext();
-      setDataSourceContext(newContext);
-      
-      // Update URL parameters
+      // CRITICAL: Update URL FIRST before any data operations
       const url = new URL(window.location.href);
       if (themeId) {
         url.searchParams.set('theme', themeId);
@@ -1356,6 +1352,12 @@ const App = () => {
         url.searchParams.delete('theme');
       }
       window.history.replaceState({}, '', url.toString());
+      
+      // Now proceed with data source switching (URL is already updated)
+      const dataSourceManager = DataSourceManager.getInstance();
+      await dataSourceManager.switchToTheme(themeId);
+      const newContext = dataSourceManager.getCurrentContext();
+      setDataSourceContext(newContext);
       
       // SourceManagerService already handled the merge, just update UI state
       // No need to call mergeDataForCurrentContext since DataMergerService already computed merged data

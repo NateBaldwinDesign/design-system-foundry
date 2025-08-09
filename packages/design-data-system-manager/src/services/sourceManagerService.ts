@@ -242,15 +242,58 @@ export class SourceManagerService {
             const context = dataSourceManager.getCurrentContext();
             const themeRepo = context.repositories.themes[sourceId];
             
-            if (themeRepo) {
+            if (!themeRepo) {
+              // Theme repository not found in context, try to load directly from core data
+              console.log(`[SourceManagerService] Theme repository not found in context, loading directly from core data for: ${sourceId}`);
+              
+              const coreData = StorageService.getCoreData();
+              const theme = coreData?.themes?.find(t => t.id === sourceId);
+              
+              if (theme?.overrideSource) {
+                const { repositoryUri, filePath } = theme.overrideSource;
+                const branch = 'main'; // Default branch since overrideSource doesn't specify branch
+                console.log(`[SourceManagerService] Loading theme override directly from ${repositoryUri}/${filePath}`);
+                
+                const { GitHubApiService } = await import('./githubApi');
+                
+                // Try authenticated request first, then fallback to public API
+                let fileContent;
+                try {
+                  fileContent = await GitHubApiService.getFileContent(repositoryUri, filePath, branch);
+                } catch (error) {
+                  console.log('[SourceManagerService] Authenticated theme loading failed, trying public API');
+                  fileContent = await GitHubApiService.getPublicFileContent(repositoryUri, filePath, branch);
+                }
+                
+                if (fileContent && fileContent.content) {
+                  themeData = JSON.parse(fileContent.content);
+                  console.log('[SourceManagerService] Theme override data loaded from GitHub:', themeData);
+                  
+                  // Store the loaded data for future use
+                  StorageService.setThemeOverrideData(sourceId, themeData);
+                }
+              }
+            } else {
               console.log(`[SourceManagerService] Loading theme override from ${themeRepo.fullName}/${themeRepo.filePath}`);
               
               const { GitHubApiService } = await import('./githubApi');
-              const fileContent = await GitHubApiService.getFileContent(
-                themeRepo.fullName,
-                themeRepo.filePath,
-                themeRepo.branch
-              );
+              
+              // Try authenticated request first, then fallback to public API
+              let fileContent;
+              try {
+                fileContent = await GitHubApiService.getFileContent(
+                  themeRepo.fullName,
+                  themeRepo.filePath,
+                  themeRepo.branch
+                );
+              } catch (error) {
+                console.log('[SourceManagerService] Authenticated theme loading failed, trying public API');
+                fileContent = await GitHubApiService.getPublicFileContent(
+                  themeRepo.fullName,
+                  themeRepo.filePath,
+                  themeRepo.branch
+                );
+              }
               
               if (fileContent && fileContent.content) {
                 themeData = JSON.parse(fileContent.content);

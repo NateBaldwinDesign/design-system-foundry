@@ -42,21 +42,30 @@ export class DataMergerService {
     }
 
     try {
-      let mergedData: TokenSystem;
+      // Read current selections from URL (authoritative source for dropdowns)
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentPlatform = urlParams.get('platform');
+      const currentTheme = urlParams.get('theme');
+      
+      console.log('[DataMergerService] Current URL selections:', { currentPlatform, currentTheme });
+      
+      let mergedData: TokenSystem = coreData;
 
-      if (sourceContext.sourceType === 'core') {
-        // Core data is the source, no merging needed
-        mergedData = coreData;
-      } else if (sourceContext.sourceType === 'platform') {
-        // Merge core data with platform extension
-        mergedData = await this.mergePlatformData(coreData, sourceContext.sourceId);
-      } else if (sourceContext.sourceType === 'theme') {
-        // Merge core data with theme override
-        mergedData = await this.mergeThemeData(coreData, sourceContext.sourceId);
-      } else {
-        console.warn('[DataMergerService] Unknown source type, using core data');
-        mergedData = coreData;
+      // Apply platform extension if selected (Core + Platform)
+      if (currentPlatform && currentPlatform !== 'none') {
+        console.log('[DataMergerService] Applying platform extension:', currentPlatform);
+        mergedData = await this.mergePlatformData(mergedData, currentPlatform);
       }
+
+      // Apply theme override if selected (Core + Platform + Theme)
+      if (currentTheme && currentTheme !== 'none') {
+        console.log('[DataMergerService] Applying theme override:', currentTheme);
+        mergedData = await this.mergeThemeData(mergedData, currentTheme);
+      }
+      
+      console.log('[DataMergerService] Final merge order applied: Core', 
+        currentPlatform && currentPlatform !== 'none' ? '+ Platform(' + currentPlatform + ')' : '', 
+        currentTheme && currentTheme !== 'none' ? '+ Theme(' + currentTheme + ')' : '');
 
       // Store merged data
       StorageService.setMergedData(mergedData);

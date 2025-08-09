@@ -19,6 +19,7 @@ import {
   CircleCheckBig,
   FileCode,
   Boxes,
+  ChartPie,
 } from 'lucide-react';
 import Logo from './Logo';
 import TokenIcon from '../icons/TokenIcon';
@@ -45,8 +46,9 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'themes', label: 'Themes', icon: PaletteIcon },
   { id: 'platforms', label: 'Platforms', icon: MonitorSmartphone },
   { id: 'figma-settings', label: 'Figma', icon: FigmaIcon },
+  { id: 'analysis', label: 'Analysis', icon: ChartPie },
   
-  { id: 'validation', label: 'Validation', icon: CircleCheckBig },
+  // { id: 'validation', label: 'Validation', icon: CircleCheckBig },
   { id: 'schemas', label: 'Schemas', icon: FileCode },
 ];
 
