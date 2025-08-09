@@ -16,7 +16,6 @@ import {
   MonitorSmartphone,
   FigmaIcon,
   Waypoints,
-  CircleCheckBig,
   FileCode,
   Boxes,
   ChartPie,

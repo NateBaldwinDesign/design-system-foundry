@@ -40,6 +40,7 @@ import type { TokenSystem } from '@token-model/data-model';
 import SchemasView from '../views/SchemasView';
 import ComponentsView from '../views/ComponentsView';
 import { CollectionsView } from '../views/CollectionsView';
+import AnalysisView from '../views/AnalysisView';
 
 import type { DataSourceContext } from '../services/dataSourceManager';
 
@@ -240,6 +241,9 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
       
       case 'validation':
         return <ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />;
+      
+      case 'analysis':
+        return <AnalysisView />;
       
       case 'schemas':
         return <SchemasView />;
