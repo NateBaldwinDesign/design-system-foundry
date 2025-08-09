@@ -210,7 +210,7 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <AlgorithmsView algorithms={algorithms} onUpdate={onUpdateAlgorithms} onUpdateTokens={onUpdateTokens} canEdit={effectiveCanEdit} />;
       
       case 'analysis':
-        return <TokenAnalysis tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} resolvedValueTypes={resolvedValueTypes} />;
+        return <AnalysisView/>;
       
       case 'dimensions':
         return (
