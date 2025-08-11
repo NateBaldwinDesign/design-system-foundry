@@ -119,15 +119,23 @@ export function createTooltip(): d3.Selection<HTMLDivElement, unknown, null, und
   return d3.select("body")
     .append("div")
     .attr("class", "circle-pack-tooltip")
-    .style("position", "absolute")
+    .style("position", "fixed") // Use fixed positioning to avoid scrolling issues
     .style("visibility", "hidden")
-    .style("background", "rgba(0, 0, 0, 0.8)")
+    .style("background", "rgba(26, 32, 44, 0.95)") // Chakra UI gray.900 with transparency
     .style("color", "white")
-    .style("padding", "8px")
-    .style("border-radius", "4px")
-    .style("font-size", "12px")
+    .style("padding", "10px 14px")
+    .style("border-radius", "8px")
+    .style("font-size", "13px")
+    .style("font-family", "system-ui, -apple-system, sans-serif")
+    .style("font-weight", "500")
+    .style("line-height", "1.4")
     .style("pointer-events", "none")
-    .style("z-index", "1000");
+    .style("z-index", "9999")
+    .style("box-shadow", "0 8px 25px rgba(0, 0, 0, 0.25)")
+    .style("max-width", "220px")
+    .style("white-space", "nowrap")
+    .style("backdrop-filter", "blur(8px)")
+    .style("border", "1px solid rgba(255, 255, 255, 0.1)");
 }
 
 /**
@@ -138,19 +146,49 @@ export function showTooltip(
   node: CirclePackNode,
   event: MouseEvent
 ) {
+  // Format the content based on node type
+  let typeLabel = node.type;
+  if (node.entityType) {
+    typeLabel = `${node.type} (${node.entityType})`;
+  }
+  
   const content = `
-    <div><strong>${node.name}</strong></div>
-    <div>Type: ${node.type}</div>
-    ${node.entityType ? `<div>Entity: ${node.entityType}</div>` : ''}
-    ${node.value ? `<div>Value: ${node.value}</div>` : ''}
-    ${node.hasChildren ? `<div>Has children: Yes</div>` : ''}
+    <div style="margin-bottom: 6px; font-weight: 600; color: #E2E8F0;">${node.name}</div>
+    <div style="margin-bottom: 4px; color: #A0AEC0;">Type: ${typeLabel}</div>
+    ${node.value && node.value > 1 ? `<div style="margin-bottom: 4px; color: #A0AEC0;">Items: ${node.value}</div>` : ''}
+    ${node.hasChildren ? `<div style="color: #68D391;">✓ Has children</div>` : ''}
   `;
+
+  // Get viewport dimensions
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+  
+  // Get tooltip dimensions (approximate)
+  const tooltipWidth = 220; // max-width from CSS
+  const tooltipHeight = 90; // approximate height for improved content
+  
+  // Calculate position relative to viewport
+  let left = event.clientX + 10;
+  let top = event.clientY - 10;
+  
+  // Adjust for viewport boundaries
+  if (left + tooltipWidth > viewportWidth) {
+    left = event.clientX - tooltipWidth - 10;
+  }
+  
+  if (top + tooltipHeight > viewportHeight) {
+    top = event.clientY - tooltipHeight - 10;
+  }
+  
+  // Ensure tooltip doesn't go off-screen
+  left = Math.max(10, Math.min(left, viewportWidth - tooltipWidth - 10));
+  top = Math.max(10, Math.min(top, viewportHeight - tooltipHeight - 10));
 
   tooltip
     .html(content)
     .style("visibility", "visible")
-    .style("left", (event.pageX + 10) + "px")
-    .style("top", (event.pageY - 10) + "px");
+    .style("left", left + "px")
+    .style("top", top + "px");
 }
 
 /**

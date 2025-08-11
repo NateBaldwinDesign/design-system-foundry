@@ -16,7 +16,9 @@ import {
   updateNodePositions,
   exportAsSVG,
   exportAsPNG,
-  createTooltip
+  createTooltip,
+  showTooltip,
+  hideTooltip
 } from './utils/d3-helpers';
 
 export const CirclePack = forwardRef<CirclePackRef, CirclePackProps>((props, ref) => {
@@ -156,6 +158,19 @@ export const CirclePack = forwardRef<CirclePackRef, CirclePackProps>((props, ref
         setState(prev => ({ ...prev, hoveredNode: node }));
       }
     );
+
+    // Add tooltip events to circles
+    if (d3Refs.current.circles && d3Refs.current.tooltip) {
+      d3Refs.current.circles
+        .on("mouseover", (event, d) => {
+          // Show tooltip immediately
+          showTooltip(d3Refs.current.tooltip!, d.data, event);
+        })
+        .on("mouseout", () => {
+          // Hide tooltip immediately
+          hideTooltip(d3Refs.current.tooltip!);
+        });
+    }
 
     // Create node labels
     d3Refs.current.labels = createNodeLabels(container, nodes, showLabels);

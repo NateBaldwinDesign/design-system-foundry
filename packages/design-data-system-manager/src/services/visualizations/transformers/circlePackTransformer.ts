@@ -132,7 +132,7 @@ export class CirclePackTransformer extends BaseDataTransformer<TokenSystem, Circ
         hasChildren: tokenSystem.tokens.length > 0,
         dataSource: 'core',
         children: tokenSystem.tokens.map(token => ({
-          name: token.name || `Token ${token.id}`,
+          name: token.displayName || `Token ${token.id}`,
           type: 'token',
           tokenId: token.id,
           value: 1,
@@ -172,7 +172,7 @@ export class CirclePackTransformer extends BaseDataTransformer<TokenSystem, Circ
         hasChildren: tokenSystem.dimensions.length > 0,
         dataSource: 'core',
         children: tokenSystem.dimensions.map(dimension => ({
-          name: dimension.name || `Dimension ${dimension.id}`,
+          name: dimension.displayName || `Dimension ${dimension.id}`,
           type: 'dimension',
           dimensionId: dimension.id,
           value: dimension.modes?.length || 0,
