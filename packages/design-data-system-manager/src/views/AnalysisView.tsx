@@ -26,25 +26,28 @@ import {
 import { RefreshCw } from 'lucide-react';
 import { PageTemplate } from '../components/PageTemplate';
 import { NetworkDiagram } from '../components/visualizations/NetworkDiagram';
-import { ChordDiagram } from '../components/visualizations/ChordDiagram';
+import { CirclePack } from '../components/visualizations/CirclePack';
+import { CirclePackDebug } from '../components/visualizations/CirclePack/CirclePackDebug';
 import { VisualizationContainer, VisualizationToolbar, VisualizationLegend } from '../components/visualizations/shared';
 import { DataTransformationService } from '../services/visualizations';
 import { StorageService } from '../services/storage';
 import type { 
   TokenDependencyGraph,
-  ChordDiagramData,
+  CirclePackResult,
   LegendItem
 } from '../services/visualizations/types';
 import type { FilterOptions } from '../services/visualizations/types/network-data';
 import type { NetworkDiagramRef as ComponentRef } from '../components/visualizations/NetworkDiagram/types';
+import type { CirclePackRef, D3CirclePackNode } from '../components/visualizations/CirclePack/types';
 
 const AnalysisView: React.FC = () => {
   // State management
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [networkData, setNetworkData] = useState<TokenDependencyGraph | null>(null);
-  const [chordData, setChordData] = useState<ChordDiagramData | null>(null);
+  const [circlePackData, setCirclePackData] = useState<CirclePackResult | null>(null);
   const [currentLayout, setCurrentLayout] = useState<'force' | 'hierarchical' | 'circular'>('force');
+
   const [showLabels] = useState(true);
   const [showStatistics] = useState(true);
   const [filterOptions] = useState<FilterOptions>({
@@ -52,8 +55,9 @@ const AnalysisView: React.FC = () => {
     showOnlyCircular: false
   });
 
-  // Component ref
+  // Component refs
   const networkDiagramRef = useRef<ComponentRef>(null);
+  const circlePackRef = useRef<CirclePackRef>(null);
 
   // Load and transform data
   const loadAnalysisData = async () => {
@@ -85,22 +89,21 @@ const AnalysisView: React.FC = () => {
         }
       );
 
-      // Transform for chord diagram
-      const transformedChordData = await transformationService.transformMergedData<ChordDiagramData>(
+      // Transform for circle pack
+      const transformedCirclePackData = await transformationService.transformMergedData<CirclePackResult>(
         mergedData,
-        'chord',
+        'circlePack',
         {
           metadata: { generatedBy: 'AnalysisView' }
         }
       );
 
       setNetworkData(transformedNetworkData);
-      setChordData(transformedChordData);
+      setCirclePackData(transformedCirclePackData);
       console.log('[AnalysisView] Analysis data loaded successfully:', {
         networkNodes: transformedNetworkData.nodes.length,
         networkEdges: transformedNetworkData.edges.length,
-        chordNodes: transformedChordData.nodes.length,
-        chordLinks: transformedChordData.links.length,
+        circlePackNodes: transformedCirclePackData.data.children?.length || 0,
         circularDependencies: transformedNetworkData.circularDependencies.length
       });
 
@@ -166,6 +169,14 @@ const AnalysisView: React.FC = () => {
   };
   const handleExport = (format: 'png' | 'svg' | 'json') => {
     networkDiagramRef.current?.exportVisualization(format);
+  };
+
+
+  const handleCirclePackNodeClick = (node: D3CirclePackNode) => {
+    console.log('[AnalysisView] Circle pack node clicked:', node);
+  };
+  const handleCirclePackZoomChange = (path: string[]) => {
+    console.log('[AnalysisView] Circle pack zoom changed:', path);
   };
 
   // Statistics display
@@ -273,7 +284,83 @@ const AnalysisView: React.FC = () => {
         </TabList>
         <TabPanels>
           <TabPanel>
-            {/* System analysis visualizations go here */}
+            <VStack spacing={6} align="stretch">
+              {/* Circle Pack Visualization */}
+              <Card>
+                <CardHeader>
+                  <Heading size="md">System Overview</Heading>
+                  <Text fontSize="sm" color="gray.600">
+                    Interactive visualization of your entire design system ecosystem
+                  </Text>
+                </CardHeader>
+                <CardBody>
+                  <HStack align="start" spacing={6}>
+                    {/* Circle Pack */}
+                    <Box flex={1}>
+                      <VisualizationContainer
+                        height={600}
+                      >
+                        {circlePackData && (
+                          <CirclePack
+                            ref={circlePackRef}
+                            data={circlePackData.data}
+
+                            onNodeClick={handleCirclePackNodeClick}
+                            onZoomChange={handleCirclePackZoomChange}
+                            width={800}
+                            height={600}
+                            showLabels={true}
+                            showBreadcrumbs={true}
+                            interactive={true}
+                          />
+                        )}
+                      </VisualizationContainer>
+                    </Box>
+
+                    {/* System Statistics */}
+                    <Box minW="250px">
+                      {circlePackData && (
+                        <Card>
+                          <CardHeader>
+                            <Heading size="sm">System Statistics</Heading>
+                          </CardHeader>
+                          <CardBody>
+                            <VStack spacing={4} align="stretch">
+                              <SimpleGrid columns={1} spacing={3}>
+                                <Box>
+                                  <Text fontSize="sm" color="gray.600">Total Nodes</Text>
+                                  <Text fontSize="lg" fontWeight="bold">{circlePackData.statistics.totalNodes}</Text>
+                                </Box>
+                              <Box>
+                                <Text fontSize="sm" color="gray.600">Core Entities</Text>
+                                <Text fontSize="lg" fontWeight="bold">{circlePackData.statistics.totalCoreEntities}</Text>
+                              </Box>
+                              <Box>
+                                <Text fontSize="sm" color="gray.600">Platforms</Text>
+                                <Text fontSize="lg" fontWeight="bold">{circlePackData.statistics.totalPlatforms}</Text>
+                              </Box>
+                              <Box>
+                                <Text fontSize="sm" color="gray.600">Themes</Text>
+                                <Text fontSize="lg" fontWeight="bold">{circlePackData.statistics.totalThemes}</Text>
+                              </Box>
+                              <Box>
+                                <Text fontSize="sm" color="gray.600">Max Depth</Text>
+                                <Text fontSize="lg" fontWeight="bold">{circlePackData.statistics.maxDepth}</Text>
+                              </Box>
+                              <Box>
+                                <Text fontSize="sm" color="gray.600">Avg Depth</Text>
+                                <Text fontSize="lg" fontWeight="bold">{circlePackData.statistics.averageDepth.toFixed(1)}</Text>
+                              </Box>
+                            </SimpleGrid>
+                          </VStack>
+                        </CardBody>
+                        </Card>
+                      )}
+                    </Box>
+                  </HStack>
+                </CardBody>
+              </Card>
+            </VStack>
           </TabPanel>
           <TabPanel>
             <VStack spacing={6} align="stretch">
@@ -339,107 +426,7 @@ const AnalysisView: React.FC = () => {
                 </CardBody>
               </Card>
 
-              {/* Mode & Platform Analysis Chord Diagram */}
-              <Card>
-                <CardHeader>
-                  <Heading size="md">Mode & Platform Relationships</Heading>
-                  <Text fontSize="sm" color="gray.600">
-                    Chord diagram showing token value flows between different mode states and platform overrides
-                  </Text>
-                </CardHeader>
-                <CardBody>
-                  <HStack align="start" spacing={6}>
-                    {/* Chord Diagram */}
-                    <Box flex={1}>
-                      <VisualizationContainer
-                        height={500}
-                      >
-                        {chordData && (
-                          <ChordDiagram
-                            data={chordData}
-                            showLabels={showLabels}
-                            showStatistics={false}
-                            width={500}
-                            height={500}
-                            interactive={true}
-                            onNodeClick={(node) => {
-                              console.log('[AnalysisView] Chord node clicked:', node);
-                            }}
-                            onLinkClick={(link) => {
-                              console.log('[AnalysisView] Chord link clicked:', link);
-                            }}
-                          />
-                        )}
-                      </VisualizationContainer>
-                    </Box>
-
-                    {/* Chord Statistics */}
-                    <Box minW="300px">
-                      {chordData && (
-                        <Card>
-                          <CardHeader>
-                            <Heading size="sm">Mode Analysis</Heading>
-                          </CardHeader>
-                          <CardBody>
-                            <SimpleGrid columns={1} spacing={3}>
-                              <Box>
-                                <Text fontSize="sm" color="gray.600">Total Modes</Text>
-                                <Text fontSize="lg" fontWeight="bold">{chordData.statistics.totalModes}</Text>
-                              </Box>
-                              <Box>
-                                <Text fontSize="sm" color="gray.600">Mode Conflicts</Text>
-                                <Text fontSize="lg" fontWeight="bold">{chordData.statistics.totalConflicts}</Text>
-                              </Box>
-                              <Box>
-                                <Text fontSize="sm" color="gray.600">Coupling Score</Text>
-                                <Badge colorScheme={chordData.statistics.modeCouplingScore > 0.7 ? 'red' : 'green'}>
-                                  {(chordData.statistics.modeCouplingScore * 100).toFixed(0)}%
-                                </Badge>
-                              </Box>
-                              <Box>
-                                <Text fontSize="sm" color="gray.600">Platform Complexity</Text>
-                                <Badge colorScheme={chordData.statistics.platformComplexityScore > 0.7 ? 'red' : 'green'}>
-                                  {(chordData.statistics.platformComplexityScore * 100).toFixed(0)}%
-                                </Badge>
-                              </Box>
-                            </SimpleGrid>
-                            
-                            {chordData.statistics.recommendations.length > 0 && (
-                              <Box mt={4}>
-                                <Text fontSize="sm" fontWeight="bold" mb={2}>Recommendations</Text>
-                                {chordData.statistics.recommendations.slice(0, 3).map((rec, index) => (
-                                  <Alert key={index} status={rec.severity === 'error' ? 'error' : 'warning'} size="sm" mb={2}>
-                                    <AlertIcon />
-                                    <Box>
-                                      <Text fontSize="xs" fontWeight="bold">{rec.title}</Text>
-                                      <Text fontSize="xs">{rec.description}</Text>
-                                    </Box>
-                                  </Alert>
-                                ))}
-                              </Box>
-                            )}
-                          </CardBody>
-                        </Card>
-                      )}
-                    </Box>
-                  </HStack>
-                </CardBody>
-              </Card>
-
-              {/* Circular Dependencies Alert */}
-              {networkData && networkData.circularDependencies.length > 0 && (
-                <Alert status="warning">
-                  <AlertIcon />
-                  <Box>
-                    <Text fontWeight="bold">
-                      {networkData.circularDependencies.length} Circular Dependencies Detected
-                    </Text>
-                    <Text fontSize="sm">
-                      These may cause issues in your design system. Click on highlighted nodes to explore the dependency chains.
-                    </Text>
-                  </Box>
-                </Alert>
-              )}
+              
             </VStack>
           </TabPanel>
         </TabPanels>

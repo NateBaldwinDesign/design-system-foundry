@@ -3,7 +3,7 @@
  * Adheres to @project-rules.mdc and schema.json compliance
  */
 
-export type VisualizationType = 'network' | 'chord' | 'hierarchical' | 'sankey' | 'heatmap' | 'timeline' | 'scatter';
+export type VisualizationType = 'network' | 'chord' | 'circlePack' | 'hierarchical' | 'sankey' | 'heatmap' | 'timeline' | 'scatter';
 
 export interface TransformOptions {
   filters?: FilterOptions;

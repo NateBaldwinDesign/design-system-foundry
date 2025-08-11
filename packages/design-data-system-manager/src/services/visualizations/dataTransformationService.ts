@@ -18,6 +18,7 @@ import type {
 import type { TokenDependencyGraph } from './types/network-data';
 import { TokenDependencyTransformer } from './transformers/tokenDependencyTransformer';
 import { ChordDataTransformer } from './transformers/chordDataTransformer';
+import { CirclePackTransformer } from './transformers/circlePackTransformer';
 
 export class DataTransformationService {
   private static instance: DataTransformationService;
@@ -162,6 +163,9 @@ export class DataTransformationService {
     
     // Register the chord diagram transformer for mode/platform analysis
     this.registerTransformer('chord', new ChordDataTransformer());
+    
+    // Register the circle pack transformer for system overview
+    this.registerTransformer('circlePack', new CirclePackTransformer());
     
     // Future transformers would be registered here:
     // this.registerTransformer('hierarchical', new HierarchicalTransformer());

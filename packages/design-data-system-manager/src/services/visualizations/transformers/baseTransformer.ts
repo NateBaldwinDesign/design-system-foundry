@@ -29,7 +29,7 @@ export abstract class BaseDataTransformer<TInput, TOutput> implements DataTransf
    * Validate input data structure
    * Override this method for specific validation requirements
    */
-  protected validateInput(input: TInput): boolean {
+  public validateInput(input: TInput): boolean {
     if (!input) {
       console.error(`[${this.transformerName}] Input is null or undefined`);
       return false;

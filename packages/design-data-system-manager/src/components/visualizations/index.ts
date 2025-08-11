@@ -5,4 +5,5 @@
 
 export * from './NetworkDiagram';
 export * from './ChordDiagram';
+export * from './CirclePack';
 export * from './shared';
