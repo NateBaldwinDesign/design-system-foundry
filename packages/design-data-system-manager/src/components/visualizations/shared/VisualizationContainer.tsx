@@ -38,9 +38,6 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
       <Box
         width={width}
         height={height}
-        borderWidth={1}
-        borderRadius="md"
-        bg="white"
         p={8}
       >
         <Center height="100%">
@@ -60,9 +57,6 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
       <Box
         width={width}
         height={height}
-        borderWidth={1}
-        borderRadius="md"
-        bg="white"
         p={6}
       >
         <Alert status="error" borderRadius="md">
@@ -122,9 +116,6 @@ export const VisualizationContainer: React.FC<VisualizationContainerProps> = ({
         <Box
           flex={1}
           height={height}
-          borderWidth={1}
-          borderRadius="md"
-          bg="white"
           overflow="hidden"
           position="relative"
         >

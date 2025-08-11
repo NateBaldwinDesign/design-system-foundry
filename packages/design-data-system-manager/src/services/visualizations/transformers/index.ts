@@ -5,3 +5,4 @@
 
 export { BaseDataTransformer } from './baseTransformer';
 export { TokenDependencyTransformer } from './tokenDependencyTransformer';
+export { ChordDataTransformer } from './chordDataTransformer';

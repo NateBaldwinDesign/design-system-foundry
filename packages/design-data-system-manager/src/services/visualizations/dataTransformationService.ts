@@ -17,6 +17,7 @@ import type {
 } from './types/visualization-data';
 import type { TokenDependencyGraph } from './types/network-data';
 import { TokenDependencyTransformer } from './transformers/tokenDependencyTransformer';
+import { ChordDataTransformer } from './transformers/chordDataTransformer';
 
 export class DataTransformationService {
   private static instance: DataTransformationService;
@@ -158,6 +159,9 @@ export class DataTransformationService {
     
     // Register the token dependency transformer for network visualizations
     this.registerTransformer('network', new TokenDependencyTransformer());
+    
+    // Register the chord diagram transformer for mode/platform analysis
+    this.registerTransformer('chord', new ChordDataTransformer());
     
     // Future transformers would be registered here:
     // this.registerTransformer('hierarchical', new HierarchicalTransformer());
