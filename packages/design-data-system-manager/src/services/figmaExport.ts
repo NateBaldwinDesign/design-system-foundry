@@ -265,12 +265,44 @@ export class FigmaExportService {
         };
       }
       
+      // CRITICAL: Log dimensionOrder for debugging
+      console.log('[FigmaExportService] 🔍 CRITICAL DEBUG - mergedData dimensionOrder:', mergedData.dimensionOrder);
+      console.log('[FigmaExportService] 🔍 CRITICAL DEBUG - mergedData dimensions:', mergedData.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
+      
+      if (!mergedData.dimensionOrder || mergedData.dimensionOrder.length === 0) {
+        console.error('[FigmaExportService] 🚨 CRITICAL ERROR: mergedData dimensionOrder is missing or empty!');
+        console.error('[FigmaExportService] 🚨 This will prevent daisy-chaining from working!');
+        return {
+          success: false,
+          error: {
+            code: 'MISSING_DIMENSION_ORDER',
+            message: 'Design system is missing dimension order. This will prevent proper variable creation.'
+          }
+        };
+      }
+      
       // 2. Pre-process the data for Figma export using existing source context
       const preprocessorOptions: FigmaPreprocessorOptions = {
         includePlatformCodeSyntax: true
       };
       
       const preprocessorResult = await this.preprocessor.preprocessForFigma(preprocessorOptions);
+      
+      // CRITICAL: Log dimensionOrder after preprocessing
+      console.log('[FigmaExportService] 🔍 CRITICAL DEBUG - preprocessorResult dimensionOrder:', preprocessorResult.enhancedTokenSystem.dimensionOrder);
+      console.log('[FigmaExportService] 🔍 CRITICAL DEBUG - preprocessorResult dimensions:', preprocessorResult.enhancedTokenSystem.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
+      
+      if (!preprocessorResult.enhancedTokenSystem.dimensionOrder || preprocessorResult.enhancedTokenSystem.dimensionOrder.length === 0) {
+        console.error('[FigmaExportService] 🚨 CRITICAL ERROR: preprocessorResult dimensionOrder is missing or empty!');
+        console.error('[FigmaExportService] 🚨 This will prevent daisy-chaining from working!');
+        return {
+          success: false,
+          error: {
+            code: 'PREPROCESSOR_DIMENSION_ORDER_LOST',
+            message: 'Dimension order was lost during preprocessing. This will prevent proper variable creation.'
+          }
+        };
+      }
       
       // 3. Check validation results
       if (!preprocessorResult.validation.isValid) {
@@ -377,12 +409,25 @@ export class FigmaExportService {
    * Publish the current design system data to Figma Variables API
    */
   async publishToFigma(options: FigmaExportOptions = {}): Promise<FigmaExportResult> {
-    if (!options.accessToken || !options.fileId) {
+    console.log('[FigmaExportService] Starting publishing to Figma...');
+    console.log('[FigmaExportService] Options:', options);
+    
+    if (!options.fileId) {
       return {
         success: false,
         error: {
-          code: 'MISSING_CREDENTIALS',
-          message: 'Figma access token and file ID are required for publishing'
+          code: 'MISSING_FILE_ID',
+          message: 'File ID is required for publishing to Figma'
+        }
+      };
+    }
+
+    if (!options.accessToken) {
+      return {
+        success: false,
+        error: {
+          code: 'MISSING_ACCESS_TOKEN',
+          message: 'Access token is required for publishing to Figma'
         }
       };
     }
@@ -393,12 +438,50 @@ export class FigmaExportService {
       // First, transform the data using the existing export logic
       const exportResult = await this.exportToFigma(options);
       
+      console.log('[FigmaExportService] Export result:', {
+        success: exportResult.success,
+        hasData: !!exportResult.data,
+        error: exportResult.error
+      });
+      
       if (!exportResult.success || !exportResult.data) {
+        console.error('[FigmaExportService] Export failed or no data:', exportResult.error);
         return exportResult;
+      }
+
+      // Validate the data before sending to Figma API
+      console.log('[FigmaExportService] 🔍 VALIDATING DATA BEFORE SENDING TO FIGMA:');
+      console.log('[FigmaExportService] - Collections count:', exportResult.data.collections.length);
+      console.log('[FigmaExportService] - Variables count:', exportResult.data.variables.length);
+      console.log('[FigmaExportService] - Variable Modes count:', exportResult.data.variableModes.length);
+      console.log('[FigmaExportService] - Variable Mode Values count:', exportResult.data.variableModeValues.length);
+      
+      // Check for empty or invalid data
+      if (exportResult.data.collections.length === 0) {
+        console.error('[FigmaExportService] 🚨 CRITICAL ERROR: No collections to send to Figma!');
+        return {
+          success: false,
+          error: {
+            code: 'NO_COLLECTIONS',
+            message: 'No variable collections to publish to Figma. Please ensure your design system has data.'
+          }
+        };
+      }
+      
+      if (exportResult.data.variables.length === 0) {
+        console.error('[FigmaExportService] 🚨 CRITICAL ERROR: No variables to send to Figma!');
+        return {
+          success: false,
+          error: {
+            code: 'NO_VARIABLES',
+            message: 'No variables to publish to Figma. Please ensure your design system has tokens.'
+          }
+        };
       }
 
       // Step 2: POST the transformed data to Figma API
       console.log('[FigmaExportService] POSTing data to Figma API...');
+      console.log('[FigmaExportService] URL:', `https://api.figma.com/v1/files/${options.fileId}/variables`);
       
       // Log the complete POST payload for debugging
       console.log('[FigmaExportService] 🔍 COMPLETE POST PAYLOAD DATA:');
@@ -450,8 +533,15 @@ export class FigmaExportService {
         })
       });
 
+      console.log('[FigmaExportService] Response status:', response.status);
+      console.log('[FigmaExportService] Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('[FigmaExportService] 🚨 FIGMA API ERROR RESPONSE:');
+        console.error('[FigmaExportService] Status:', response.status);
+        console.error('[FigmaExportService] Status Text:', response.statusText);
+        console.error('[FigmaExportService] Error Body:', errorText);
         return {
           success: false,
           error: {

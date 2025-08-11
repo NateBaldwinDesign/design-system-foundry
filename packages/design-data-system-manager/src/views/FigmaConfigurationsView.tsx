@@ -23,7 +23,8 @@ import {
   TabList,
   TabPanels,
   Tab,
-  TabPanel
+  TabPanel,
+  Select
 } from '@chakra-ui/react';
 import { PageTemplate } from '../components/PageTemplate';
 import { Download, Copy, Eye, EyeOff, AlertTriangle, TestTube } from 'lucide-react';
@@ -40,6 +41,7 @@ import type { DataSourceContext } from '../services/dataSourceManager';
 
 import { FigmaConfigurationOverrideService } from '../services/figmaConfigurationOverrideService';
 import { detectChanges } from '../components/ChangeLog';
+import { DataMergerService } from '../services/dataMergerService';
 
 interface FigmaConfigurationsViewProps {
   tokenSystem: TokenSystem;
@@ -60,6 +62,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
   
   const [accessToken, setAccessToken] = useState('');
   const [fileKey, setFileKey] = useState('');
+  const [fileColorProfile, setFileColorProfile] = useState<'srgb' | 'display-p3'>('srgb');
   const [exportLoading, setExportLoading] = useState(false);
   const [publishLoading, setPublishLoading] = useState(false);
   const [showPrePublishDialog, setShowPrePublishDialog] = useState(false);
@@ -74,6 +77,85 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
     capitalization: 'none',
     formatString: ''
   });
+
+  /**
+   * Validate merged data structure for Figma publishing
+   * Ensures the data has the required fields for daisy-chaining
+   */
+  const validateMergedDataForFigma = (data: TokenSystem): boolean => {
+    const errors: string[] = [];
+    
+    if (!data.dimensionOrder || data.dimensionOrder.length === 0) {
+      errors.push('Missing dimensionOrder - required for daisy-chaining');
+    }
+    
+    if (!data.dimensions || data.dimensions.length === 0) {
+      errors.push('Missing dimensions array');
+    }
+    
+    if (!data.tokens || data.tokens.length === 0) {
+      errors.push('Missing tokens array');
+    }
+    
+    if (!data.tokenCollections || data.tokenCollections.length === 0) {
+      errors.push('Missing tokenCollections array');
+    }
+    
+    if (errors.length > 0) {
+      console.error('[FigmaConfigurationsView] Merged data validation failed:', errors);
+      return false;
+    }
+    
+    console.log('[FigmaConfigurationsView] Merged data validation passed');
+    return true;
+  };
+
+  /**
+   * Get the appropriate token system for Figma publishing based on current source context
+   * For core data: use canonical schema-compliant data
+   * For platform/theme data: use merged data (core + extensions/overrides)
+   */
+  const getTokenSystemForFigma = async (): Promise<TokenSystem> => {
+    const sourceContext = StorageService.getSourceContext();
+    
+    if (sourceContext?.sourceType === 'core' || !sourceContext) {
+      // Core data - use canonical schema-compliant data
+      console.log('[FigmaConfigurationsView] Using core data for Figma publishing');
+      const coreData = createSchemaJsonFromLocalStorage();
+      console.log('[FigmaConfigurationsView] Core data dimensionOrder:', coreData.dimensionOrder);
+      console.log('[FigmaConfigurationsView] Core data dimensions:', coreData.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
+      return coreData;
+    } else {
+      // Platform or theme source - use merged data
+      console.log('[FigmaConfigurationsView] Using merged data for Figma publishing:', {
+        sourceType: sourceContext.sourceType,
+        sourceId: sourceContext.sourceId
+      });
+      
+      const dataMerger = DataMergerService.getInstance();
+      const mergedData = await dataMerger.computeMergedData();
+      
+      if (!mergedData) {
+        console.warn('[FigmaConfigurationsView] Failed to compute merged data, falling back to core data');
+        const coreData = createSchemaJsonFromLocalStorage();
+        console.log('[FigmaConfigurationsView] Fallback core data dimensionOrder:', coreData.dimensionOrder);
+        return coreData;
+      }
+      
+      // Validate merged data structure
+      if (!validateMergedDataForFigma(mergedData)) {
+        console.warn('[FigmaConfigurationsView] Merged data validation failed, falling back to core data');
+        const coreData = createSchemaJsonFromLocalStorage();
+        console.log('[FigmaConfigurationsView] Fallback core data dimensionOrder:', coreData.dimensionOrder);
+        return coreData;
+      }
+      
+      console.log('[FigmaConfigurationsView] Merged data dimensionOrder:', mergedData.dimensionOrder);
+      console.log('[FigmaConfigurationsView] Merged data dimensions:', mergedData.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
+      
+      return mergedData;
+    }
+  };
 
   // Get data for CollectionsView using new data management services
   const mergedData = StorageService.getMergedData();
@@ -100,6 +182,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
         capitalization?: string;
         formatString?: string;
       } = {};
+      let sourceFileColorProfile: 'srgb' | 'display-p3' = 'srgb';
       
       // Get core data for syntax patterns (always from core)
       const coreData = StorageService.getCoreData();
@@ -395,10 +478,10 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
     try {
       console.log('[FigmaConfigurationsView] Starting Figma publishing...');
       
-      // Always use the canonical, schema-compliant token system from local storage
+      // Get the appropriate token system based on current source context
       let canonicalTokenSystem;
       try {
-        canonicalTokenSystem = createSchemaJsonFromLocalStorage();
+        canonicalTokenSystem = await getTokenSystemForFigma();
       } catch (err) {
         toast({
           title: 'Publishing failed',
@@ -416,6 +499,25 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
         collectionsCount: canonicalTokenSystem.tokenCollections?.length || 0,
         dimensionsCount: canonicalTokenSystem.dimensions?.length || 0
       });
+      
+      // CRITICAL: Log dimensionOrder for debugging
+      console.log('[FigmaConfigurationsView] 🔍 CRITICAL DEBUG - dimensionOrder before FigmaExportService:', canonicalTokenSystem.dimensionOrder);
+      console.log('[FigmaConfigurationsView] 🔍 CRITICAL DEBUG - dimensions before FigmaExportService:', canonicalTokenSystem.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
+      
+      if (!canonicalTokenSystem.dimensionOrder || canonicalTokenSystem.dimensionOrder.length === 0) {
+        console.error('[FigmaConfigurationsView] 🚨 CRITICAL ERROR: dimensionOrder is missing or empty!');
+        console.error('[FigmaConfigurationsView] 🚨 This will prevent daisy-chaining from working!');
+        
+        // Show a more helpful error message with option to load example data
+        toast({
+          title: 'No Design System Data Found',
+          description: 'No design system data is loaded. Please load example data or connect to a GitHub repository first.',
+          status: 'error',
+          duration: 8000,
+          isClosable: true
+        });
+        return;
+      }
 
       // Use the FigmaExportService for the complete publishing workflow
       const figmaExportService = new FigmaExportService();
@@ -466,10 +568,10 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
     try {
       console.log('[FigmaConfigurationsView] Starting export only...');
       
-      // Always use the canonical, schema-compliant token system from local storage
+      // Get the appropriate token system based on current source context
       let canonicalTokenSystem;
       try {
-        canonicalTokenSystem = createSchemaJsonFromLocalStorage();
+        canonicalTokenSystem = await getTokenSystemForFigma();
       } catch (err) {
         toast({
           title: 'Export failed',
@@ -627,6 +729,36 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
     }
   };
 
+  // Handle file color profile changes
+  const handleFileColorProfileChange = (newFileColorProfile: 'srgb' | 'display-p3') => {
+    // Only allow changes when in edit mode
+    if (!dataSourceContext?.editMode.isActive) {
+      return;
+    }
+    
+    setFileColorProfile(newFileColorProfile);
+    
+    // In edit mode, stage changes for the current source
+    const { sourceType, sourceId } = dataSourceContext.editMode;
+    
+    if (sourceType === 'core') {
+      // Core data - update via StorageService
+      const updatedFigmaConfig = {
+        fileKey: fileKey,
+        syntaxPatterns: tokenSystem.figmaConfiguration?.syntaxPatterns,
+        fileColorProfile: newFileColorProfile
+      };
+      StorageService.setFigmaConfiguration(updatedFigmaConfig);
+      window.dispatchEvent(new CustomEvent('token-model:data-change'));
+    } else if (sourceType === 'platform-extension' && sourceId) {
+      // Platform extension - stage changes for later commit
+      FigmaConfigurationOverrideService.stageConfigurationChange(fileKey, tokenSystem.figmaConfiguration?.syntaxPatterns, newFileColorProfile);
+    } else if (sourceType === 'theme-override' && sourceId) {
+      // Theme override - stage changes for later commit
+      FigmaConfigurationOverrideService.stageConfigurationChange(fileKey, undefined, newFileColorProfile);
+    }
+  };
+
   // Helper function to determine if syntax patterns should be shown
   const shouldShowSyntaxPatterns = (): boolean => {
     // Get current source context from new data management services
@@ -639,21 +771,9 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
 
   // Helper function to determine if publishing tab should be shown
   const shouldShowPublishingTab = (): boolean => {
-    // User must be authenticated and have edit permissions
-    if (!hasEditPermissions && !canEdit) {
-      return false;
-    }
-    
-    // If dataSourceContext is provided, check if user has edit permissions for current source
-    if (dataSourceContext) {
-      return dataSourceContext.editMode.isActive || 
-             (dataSourceContext.permissions?.core && !dataSourceContext.currentPlatform && !dataSourceContext.currentTheme) ||
-             (dataSourceContext.currentPlatform && dataSourceContext.permissions?.platforms?.[dataSourceContext.currentPlatform]) ||
-             (dataSourceContext.currentTheme && dataSourceContext.permissions?.themes?.[dataSourceContext.currentTheme]);
-    }
-    
-    // Fallback to basic edit permissions check
-    return hasEditPermissions || canEdit;
+    // User must have edit permissions to show publishing tab
+    // hasEditPermissions comes from App.tsx and represents hasWriteAccess
+    return hasEditPermissions === true;
   };
 
   // Render change tracking status
@@ -736,6 +856,18 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
                     fontFamily="mono"
                     isReadOnly={!dataSourceContext?.editMode.isActive}
                   />
+                </FormControl>
+
+                <FormControl>
+                  <FormLabel>File Color Profile</FormLabel>
+                  <Select
+                    value={fileColorProfile}
+                    onChange={(e) => handleFileColorProfileChange(e.target.value as 'srgb' | 'display-p3')}
+                    isDisabled={!dataSourceContext?.editMode.isActive}
+                  >
+                    <option value="srgb">sRGB</option>
+                    <option value="display-p3">Display P3</option>
+                  </Select>
                 </FormControl>
               </VStack>
             </Box>

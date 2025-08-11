@@ -28,13 +28,20 @@ export class FigmaDaisyChainService {
   transformTokenWithDaisyChaining(
     token: Token,
     tokenSystem: TokenSystem,
-    figmaCodeSyntax: { platformId: string; formattedName: string }
+    figmaCodeSyntax: { platformId: string; formattedName: string },
+    fileColorProfile: 'srgb' | 'display-p3' = 'srgb'
   ): { variables: FigmaVariable[], modeValues: FigmaVariableModeValue[] } {
+    console.log(`[FigmaDaisyChain] 🔍 Starting daisy-chaining for token: ${token.id} (${token.displayName})`);
+    console.log(`[FigmaDaisyChain] 🔍 Token system dimensionOrder:`, tokenSystem.dimensionOrder);
+    console.log(`[FigmaDaisyChain] 🔍 Token system dimensions:`, tokenSystem.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
+    
     const variables: FigmaVariable[] = [];
     const modeValues: FigmaVariableModeValue[] = [];
 
     // Get dimensions that this token actually uses
     const usedDimensions = this.getUsedDimensionsForToken(token, tokenSystem);
+    
+    console.log(`[FigmaDaisyChain] 🔍 Used dimensions for token ${token.id}:`, usedDimensions.map(d => ({ id: d.id, displayName: d.displayName })));
     
     if (usedDimensions.length === 0) {
       console.log(`[FigmaDaisyChain] Token ${token.id} has no dimension dependencies, creating direct variable`);
@@ -66,7 +73,8 @@ export class FigmaDaisyChainService {
           figmaCodeSyntax,
           dimension,
           usedDimensions,
-          true // isFirstDimension = true
+          true, // isFirstDimension = true
+          fileColorProfile
         );
         variables.push(...intermediaryResult.dimensionVariables);
         modeValues.push(...intermediaryResult.dimensionModeValues);
@@ -79,7 +87,8 @@ export class FigmaDaisyChainService {
           figmaCodeSyntax,
           dimension,
           modeToVariableMap,
-          usedDimensions.slice(0, i + 1)
+          usedDimensions.slice(0, i + 1),
+          fileColorProfile
         );
         variables.push(...referenceResult.referenceVariables);
         modeValues.push(...referenceResult.referenceModeValues);
@@ -120,20 +129,28 @@ export class FigmaDaisyChainService {
    * Only includes dimensions where the token has mode-specific values
    */
   private getUsedDimensionsForToken(token: Token, tokenSystem: TokenSystem): any[] {
+    console.log(`[FigmaDaisyChain] 🔍 getUsedDimensionsForToken called for token: ${token.id}`);
+    console.log(`[FigmaDaisyChain] 🔍 Token valuesByMode:`, token.valuesByMode);
+    console.log(`[FigmaDaisyChain] 🔍 Token system dimensionOrder:`, tokenSystem.dimensionOrder);
+    
     const usedDimensionIds = new Set<string>();
     
     // Collect all dimension IDs that the token has values for
     for (const valueByMode of token.valuesByMode || []) {
+      console.log(`[FigmaDaisyChain] 🔍 Processing valueByMode with modeIds:`, valueByMode.modeIds);
       for (const modeId of valueByMode.modeIds) {
         // Find which dimension this mode belongs to
         for (const dimension of tokenSystem.dimensions || []) {
           if (dimension.modes?.some((mode: any) => mode.id === modeId)) {
+            console.log(`[FigmaDaisyChain] 🔍 Found mode ${modeId} belongs to dimension: ${dimension.displayName} (${dimension.id})`);
             usedDimensionIds.add(dimension.id);
             break;
           }
         }
       }
     }
+
+    console.log(`[FigmaDaisyChain] 🔍 Used dimension IDs found:`, Array.from(usedDimensionIds));
 
     // Return dimensions in the order they appear in dimensionOrder
     const usedDimensions: any[] = [];
@@ -146,6 +163,7 @@ export class FigmaDaisyChainService {
       }
     }
 
+    console.log(`[FigmaDaisyChain] 🔍 Final used dimensions (ordered):`, usedDimensions.map(d => ({ id: d.id, displayName: d.displayName })));
     return usedDimensions;
   }
 
@@ -159,7 +177,8 @@ export class FigmaDaisyChainService {
     figmaCodeSyntax: { platformId: string; formattedName: string },
     dimension: any,
     allUsedDimensions: any[],
-    isFirstDimension: boolean
+    isFirstDimension: boolean,
+    fileColorProfile: 'srgb' | 'display-p3' = 'srgb'
   ): { 
     dimensionVariables: FigmaVariable[], 
     dimensionModeValues: FigmaVariableModeValue[],
@@ -265,7 +284,7 @@ export class FigmaDaisyChainService {
               }
             } else {
               // Direct value - convert normally
-              const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem);
+              const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem, fileColorProfile);
               modeValue = {
                 variableId: this.idManager.getFigmaId(variableId),
                 modeId: this.idManager.getFigmaId(deterministicModeId),
@@ -364,7 +383,7 @@ export class FigmaDaisyChainService {
           }
         } else {
           // Direct value - convert normally
-          const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem);
+          const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem, fileColorProfile);
           modeValue = {
             variableId: this.idManager.getFigmaId(variableId),
             modeId: this.idManager.getFigmaId(deterministicModeId),
@@ -394,7 +413,8 @@ export class FigmaDaisyChainService {
     figmaCodeSyntax: { platformId: string; formattedName: string },
     dimension: any,
     modeToVariableMap: Record<string, string>,
-    dimensionsUpToThis: any[]
+    dimensionsUpToThis: any[],
+    fileColorProfile: 'srgb' | 'display-p3' = 'srgb'
   ): { 
     referenceVariables: FigmaVariable[], 
     referenceModeValues: FigmaVariableModeValue[],
@@ -497,7 +517,7 @@ export class FigmaDaisyChainService {
           }
         } else {
           // Direct value - convert normally
-          const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem);
+          const convertedValue = this.valueConverter.convertValue(valueByMode.value, token.resolvedValueTypeId, tokenSystem, fileColorProfile);
           modeValue = {
             variableId: this.idManager.getFigmaId(variableId),
             modeId: this.idManager.getFigmaId(deterministicModeId),
@@ -849,6 +869,44 @@ export class FigmaDaisyChainService {
   private buildCodeSyntax(token: Token, tokenSystem: TokenSystem): any {
     // Use pre-generated code syntax from the preprocessor
     return (token as Token & { codeSyntax?: Record<string, string> }).codeSyntax || {};
+  }
+
+  /**
+   * Get unique mode combinations for a specific dimension
+   * Returns all unique mode combinations that include at least one mode from the given dimension
+   */
+  private getUniqueModeCombinationsForDimension(token: Token, dimension: any, allUsedDimensions: any[]): string[][] {
+    const combinations: string[][] = [];
+    
+    // Get all mode combinations from the token's valuesByMode
+    for (const valueByMode of token.valuesByMode || []) {
+      if (valueByMode.modeIds.length > 0) {
+        // Check if this combination includes at least one mode from the given dimension
+        const hasDimensionMode = valueByMode.modeIds.some(modeId => 
+          dimension.modes?.some((m: any) => m.id === modeId)
+        );
+        
+        if (hasDimensionMode) {
+          // Fill in missing default modes for other dimensions
+          const expandedCombination = this.expandModeCombinationWithDefaults(
+            valueByMode.modeIds, 
+            allUsedDimensions
+          );
+          
+          // Check if this combination is unique
+          const combinationKey = this.createModeKey(expandedCombination);
+          const isUnique = !combinations.some(existing => 
+            this.createModeKey(existing) === combinationKey
+          );
+          
+          if (isUnique) {
+            combinations.push(expandedCombination);
+          }
+        }
+      }
+    }
+
+    return combinations;
   }
 
   /**

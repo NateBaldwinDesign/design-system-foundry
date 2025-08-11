@@ -43,6 +43,16 @@ export class FigmaPreprocessor {
       throw new Error('No merged data available for Figma export');
     }
     
+    // CRITICAL: Log dimensionOrder for debugging
+    console.log('[FigmaPreprocessor] 🔍 CRITICAL DEBUG - mergedData dimensionOrder:', mergedData.dimensionOrder);
+    console.log('[FigmaPreprocessor] 🔍 CRITICAL DEBUG - mergedData dimensions:', mergedData.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
+    
+    if (!mergedData.dimensionOrder || mergedData.dimensionOrder.length === 0) {
+      console.error('[FigmaPreprocessor] 🚨 CRITICAL ERROR: mergedData dimensionOrder is missing or empty!');
+      console.error('[FigmaPreprocessor] 🚨 This will prevent daisy-chaining from working!');
+      throw new Error('Design system is missing dimension order. This will prevent proper variable creation.');
+    }
+    
     // 2. Get current source context from existing DataSourceManager
     const sourceContext = this.dataSourceManager.getCurrentContext();
     
@@ -54,6 +64,16 @@ export class FigmaPreprocessor {
     
     // 5. Generate code syntax dynamically for target platforms
     const enhancedTokenSystem = await this.generateCodeSyntax(mergedData, targetPlatforms, options);
+    
+    // CRITICAL: Log dimensionOrder after code syntax generation
+    console.log('[FigmaPreprocessor] 🔍 CRITICAL DEBUG - enhancedTokenSystem dimensionOrder:', enhancedTokenSystem.dimensionOrder);
+    console.log('[FigmaPreprocessor] 🔍 CRITICAL DEBUG - enhancedTokenSystem dimensions:', enhancedTokenSystem.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
+    
+    if (!enhancedTokenSystem.dimensionOrder || enhancedTokenSystem.dimensionOrder.length === 0) {
+      console.error('[FigmaPreprocessor] 🚨 CRITICAL ERROR: enhancedTokenSystem dimensionOrder is missing or empty!');
+      console.error('[FigmaPreprocessor] 🚨 This will prevent daisy-chaining from working!');
+      throw new Error('Dimension order was lost during code syntax generation. This will prevent proper variable creation.');
+    }
     
     // 6. Validate the enhanced data
     const validation = this.validatePreprocessedData(enhancedTokenSystem, targetPlatforms);
@@ -135,10 +155,27 @@ export class FigmaPreprocessor {
       };
     }) || [];
     
-    return {
+    const result = {
       ...tokenSystem,
-      tokens: enhancedTokens
+      tokens: enhancedTokens,
+      // Explicitly preserve dimensionOrder to ensure it's not lost
+      dimensionOrder: tokenSystem.dimensionOrder,
+      // Explicitly preserve fileColorProfile to ensure it's not lost
+      figmaConfiguration: {
+        ...tokenSystem.figmaConfiguration,
+        fileColorProfile: tokenSystem.figmaConfiguration?.fileColorProfile || 'srgb'
+      }
     };
+    
+    // Final validation: ensure dimensionOrder is preserved
+    if (!result.dimensionOrder || result.dimensionOrder.length === 0) {
+      console.error('[FigmaPreprocessor] 🚨 CRITICAL ERROR: dimensionOrder was lost during code syntax generation!');
+      console.error('[FigmaPreprocessor] 🚨 Attempting to reconstruct from dimensions...');
+      result.dimensionOrder = tokenSystem.dimensions?.map(d => d.id) || [];
+      console.log('[FigmaPreprocessor] Reconstructed dimensionOrder:', result.dimensionOrder);
+    }
+    
+    return result;
   }
   
   /**
