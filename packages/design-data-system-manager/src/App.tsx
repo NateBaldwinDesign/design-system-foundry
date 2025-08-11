@@ -543,7 +543,7 @@ const App = () => {
             setDimensionOrder(mergedData.dimensionOrder || []);
             
             // Update available sources after React state is updated with new data
-            dataSourceManager.updateAvailableSources();
+            await dataSourceManager.updateAvailableSources();
             
             setLoading(false);
             setIsAppLoading(false); // End app loading state for URL loading
@@ -597,7 +597,7 @@ const App = () => {
             
             // Update DataSourceManager after data is loaded
             const dataSourceManager = DataSourceManager.getInstance();
-            dataSourceManager.updateAvailableSources();
+            await dataSourceManager.updateAvailableSources();
             
             setIsViewOnlyMode(false);
             setIsAppLoading(false); // End app loading state for URL error fallback
@@ -630,7 +630,7 @@ const App = () => {
           
           // Update DataSourceManager after data is loaded
           const dataSourceManager = DataSourceManager.getInstance();
-          dataSourceManager.updateAvailableSources();
+          await dataSourceManager.updateAvailableSources();
           
           setIsViewOnlyMode(false);
           setIsAppLoading(false); // End app loading state for default initialization
@@ -835,7 +835,9 @@ const App = () => {
       // Even with existing data, we need to ensure DataSourceManager is properly initialized
       // This is especially important for theme permissions when no URL parameters are present
       const dataSourceManager = DataSourceManager.getInstance();
-      dataSourceManager.updateAvailableSources();
+      dataSourceManager.updateAvailableSources().catch(error => {
+        console.error('[App] Failed to update available sources:', error);
+      });
       
       // Check if user is authenticated and update permissions
       const authenticatedUser = GitHubAuthService.getCurrentUser();
@@ -1232,7 +1234,9 @@ const App = () => {
     
     // Update DataSourceManager with new platform data
     const dataSourceManager = DataSourceManager.getInstance();
-    dataSourceManager.updateAvailableSources();
+    dataSourceManager.updateAvailableSources().catch(error => {
+      console.error('[App] Failed to update available sources:', error);
+    });
     if (GitHubAuthService.getCurrentUser()) {
       dataSourceManager.updatePermissions();
     }
@@ -1249,7 +1253,9 @@ const App = () => {
     
     // Update DataSourceManager with new theme data
     const dataSourceManager = DataSourceManager.getInstance();
-    dataSourceManager.updateAvailableSources();
+    dataSourceManager.updateAvailableSources().catch(error => {
+      console.error('[App] Failed to update available sources:', error);
+    });
     if (GitHubAuthService.getCurrentUser()) {
       dataSourceManager.updatePermissions();
     }
@@ -1326,6 +1332,36 @@ const App = () => {
       const newContext = dataSourceManager.getCurrentContext();
       setDataSourceContext(newContext);
       
+                    // CRITICAL: Update permissions for the new data source context
+      if (githubUser) {
+        // DataSourceManager already updated permissions during switchToPlatform
+        // Just read the current permissions from the context
+        const updatedContext = dataSourceManager.getCurrentContext();
+        
+        // Determine edit permissions based on current data source
+        let hasWriteAccess = false;
+        
+        if (platformId) {
+          // Platform extension selected - check platform permissions
+          hasWriteAccess = updatedContext.permissions?.platforms?.[platformId] || false;
+        } else if (updatedContext.currentTheme && updatedContext.currentTheme !== 'none') {
+          // Theme override selected - check theme permissions
+          hasWriteAccess = updatedContext.permissions?.themes?.[updatedContext.currentTheme] || false;
+        } else {
+          // Core data selected - check core permissions
+          hasWriteAccess = updatedContext.permissions?.core || false;
+        }
+        
+        // Branch-based governance: Show edit button if user has write access
+        // But only allow actual editing on non-main branches
+        const isOnMainBranch = isMainBranch(currentBranch);
+        const canShowEditButton = hasWriteAccess; // Show button if user has write access
+        const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
+        
+        setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
+        setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
+      }
+      
       // SourceManagerService already handled the merge, just update UI state
       // No need to call mergeDataForCurrentContext since DataMergerService already computed merged data
     } catch (error) {
@@ -1358,6 +1394,36 @@ const App = () => {
       await dataSourceManager.switchToTheme(themeId);
       const newContext = dataSourceManager.getCurrentContext();
       setDataSourceContext(newContext);
+      
+      // CRITICAL: Update permissions for the new data source context
+      if (githubUser) {
+        // DataSourceManager already updated permissions during switchToTheme
+        // Just read the current permissions from the context
+        const updatedContext = dataSourceManager.getCurrentContext();
+        
+        // Determine edit permissions based on current data source
+        let hasWriteAccess = false;
+        
+        if (themeId) {
+          // Theme override selected - check theme permissions
+          hasWriteAccess = updatedContext.permissions?.themes?.[themeId] || false;
+        } else if (updatedContext.currentPlatform && updatedContext.currentPlatform !== 'none') {
+          // Platform extension selected - check platform permissions
+          hasWriteAccess = updatedContext.permissions?.platforms?.[updatedContext.currentPlatform] || false;
+        } else {
+          // Core data selected - check core permissions
+          hasWriteAccess = updatedContext.permissions?.core || false;
+        }
+        
+        // Branch-based governance: Show edit button if user has write access
+        // But only allow actual editing on non-main branches
+        const isOnMainBranch = isMainBranch(currentBranch);
+        const canShowEditButton = hasWriteAccess; // Show button if user has write access
+        const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
+        
+        setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
+        setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
+      }
       
       // SourceManagerService already handled the merge, just update UI state
       // No need to call mergeDataForCurrentContext since DataMergerService already computed merged data

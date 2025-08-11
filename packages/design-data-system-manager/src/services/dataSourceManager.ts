@@ -163,8 +163,13 @@ export class DataSourceManager {
       this.updateViewModeContext();
       // Update baseline for the new source
       this.updateBaselineForCurrentSource();
-      // Update permissions for the new context
+      
+      // CRITICAL: Update available sources AFTER the source switch to populate repository info
+      await this.updateAvailableSources();
+      
+      // Update permissions for the new context (now with populated repository info)
       await this.updatePermissions();
+      
       // Persist to storage
       this.persistToStorage();
       // Notify callbacks
@@ -197,11 +202,6 @@ export class DataSourceManager {
       // Determine source type based on themeId
       const sourceType = themeId ? 'theme' : 'core';
       
-      // Ensure repository information is up-to-date before switching
-      if (themeId) {
-        this.updateAvailableSources();
-      }
-      
       // Switch source using SourceManagerService
       const switchResult = await sourceManager.switchSource(sourceType, themeId || undefined);
       
@@ -218,8 +218,13 @@ export class DataSourceManager {
       this.updateViewModeContext();
       // Update baseline for the new source
       this.updateBaselineForCurrentSource();
-      // Update permissions for the new context
+      
+      // CRITICAL: Update available sources AFTER the source switch to populate repository info
+      await this.updateAvailableSources();
+      
+      // Update permissions for the new context (now with populated repository info)
       await this.updatePermissions();
+      
       // Persist to storage
       this.persistToStorage();
       // Notify callbacks
@@ -232,7 +237,7 @@ export class DataSourceManager {
   /**
    * Update available platforms and themes from current data
    */
-  updateAvailableSources(): void {
+  async updateAvailableSources(): Promise<void> {
     try {
       // Get platforms from storage
       const platforms = StorageService.getPlatforms();
@@ -286,6 +291,10 @@ export class DataSourceManager {
       });
       
       console.log('[DataSourceManager] Final platform repositories:', this.currentContext.repositories.platforms);
+
+      // CRITICAL: Also populate repository information for dynamically loaded platforms
+      // This handles platforms that are loaded from external sources but not in core data
+      await this.populateDynamicPlatformRepositories();
 
       // Extract repository information from themes
       this.currentContext.repositories.themes = {};
@@ -825,6 +834,83 @@ export class DataSourceManager {
       }
     } catch (error) {
       console.error('Failed to reset to main branch:', error);
+    }
+  }
+
+  /**
+   * Populate repository information for dynamically loaded platforms
+   * This handles platforms that are loaded from external sources but not in core data
+   */
+  private async populateDynamicPlatformRepositories(): Promise<void> {
+    try {
+      // Get platform extension data from storage (dynamically loaded platforms)
+      const platformExtensionData = StorageService.getPlatformExtensionData();
+      console.log('[DataSourceManager] Populating dynamic platform repositories from:', platformExtensionData);
+      
+      if (!platformExtensionData) {
+        console.log('[DataSourceManager] No dynamic platform data found');
+        return;
+      }
+
+      // Process each dynamically loaded platform
+      for (const [platformId, platformData] of Object.entries(platformExtensionData)) {
+        // Skip if already in repositories (from core data)
+        if (this.currentContext.repositories.platforms[platformId]) {
+          console.log(`[DataSourceManager] Platform ${platformId} already in repositories, skipping`);
+          continue;
+        }
+
+        // Try to get repository information from core data first
+        const coreData = StorageService.getCoreData();
+        const platform = coreData?.platforms?.find(p => p.id === platformId);
+        
+        if (platform?.extensionSource) {
+          console.log(`[DataSourceManager] Adding dynamic platform ${platformId} with repository from core data: ${platform.extensionSource.repositoryUri}`);
+          
+          this.currentContext.repositories.platforms[platformId] = {
+            fullName: platform.extensionSource.repositoryUri,
+            branch: 'main', // Default branch
+            filePath: platform.extensionSource.filePath,
+            fileType: 'platform-extension'
+          };
+        } else {
+          console.log(`[DataSourceManager] Platform ${platformId} not found in core data, trying to get from source context`);
+          
+                  // Try to get from source context (for dynamically loaded platforms)
+        const sourceContext = StorageService.getSourceContext();
+        if (sourceContext?.sourceType === 'platform' && sourceContext.sourceId === platformId) {
+          console.log(`[DataSourceManager] Adding dynamic platform ${platformId} with repository from source context: ${sourceContext.sourceRepository.fullName}`);
+          
+          this.currentContext.repositories.platforms[platformId] = {
+            fullName: sourceContext.sourceRepository.fullName,
+            branch: sourceContext.sourceRepository.branch,
+            filePath: sourceContext.sourceRepository.filePath,
+            fileType: 'platform-extension'
+          };
+        } else {
+          // Try to get from core data as a fallback
+          const coreData = StorageService.getCoreData();
+          const platform = coreData?.platforms?.find(p => p.id === platformId);
+          
+          if (platform?.extensionSource) {
+            console.log(`[DataSourceManager] Adding dynamic platform ${platformId} with repository from core data: ${platform.extensionSource.repositoryUri}`);
+            
+            this.currentContext.repositories.platforms[platformId] = {
+              fullName: platform.extensionSource.repositoryUri,
+              branch: 'main', // Default branch
+              filePath: platform.extensionSource.filePath,
+              fileType: 'platform-extension'
+            };
+          } else {
+            console.log(`[DataSourceManager] Platform ${platformId} has no repository information available`);
+          }
+        }
+        }
+      }
+      
+      console.log('[DataSourceManager] Final repositories after dynamic population:', this.currentContext.repositories.platforms);
+    } catch (error) {
+      console.error('[DataSourceManager] Error populating dynamic platform repositories:', error);
     }
   }
 } 

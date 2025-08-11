@@ -637,6 +637,25 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
     return currentSourceType === 'core';
   };
 
+  // Helper function to determine if publishing tab should be shown
+  const shouldShowPublishingTab = (): boolean => {
+    // User must be authenticated and have edit permissions
+    if (!hasEditPermissions && !canEdit) {
+      return false;
+    }
+    
+    // If dataSourceContext is provided, check if user has edit permissions for current source
+    if (dataSourceContext) {
+      return dataSourceContext.editMode.isActive || 
+             (dataSourceContext.permissions?.core && !dataSourceContext.currentPlatform && !dataSourceContext.currentTheme) ||
+             (dataSourceContext.currentPlatform && dataSourceContext.permissions?.platforms?.[dataSourceContext.currentPlatform]) ||
+             (dataSourceContext.currentTheme && dataSourceContext.permissions?.themes?.[dataSourceContext.currentTheme]);
+    }
+    
+    // Fallback to basic edit permissions check
+    return hasEditPermissions || canEdit;
+  };
+
   // Render change tracking status
   const renderChangeTrackingStatus = () => {
     if (checkingChanges) {
@@ -849,12 +868,12 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       {/* Tabs */}
       <Tabs>
         <TabList>
-          {hasEditPermissions && <Tab>Publishing</Tab>}
+          {shouldShowPublishingTab() && <Tab>Publishing</Tab>}
           <Tab>Variable Collections</Tab>
         </TabList>
 
         <TabPanels mt={4}>
-          {hasEditPermissions && (
+          {shouldShowPublishingTab() && (
             <TabPanel>
               {renderPublishingTab()}
             </TabPanel>
