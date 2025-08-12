@@ -95,8 +95,6 @@ interface HeaderProps {
   hasEditPermissions?: boolean;
   // Data source context props
   dataSourceContext?: DataSourceContext;
-  onPlatformChange?: (platformId: string | null) => void;
-  onThemeChange?: (themeId: string | null) => void;
   // Branch-based governance props
   isEditMode?: boolean;
   currentBranch?: string;
@@ -151,8 +149,6 @@ export const Header: React.FC<HeaderProps> = ({
   hasEditPermissions = false,
   // Data source context props
   dataSourceContext,
-  onPlatformChange,
-  onThemeChange,
   // Branch-based governance props
   isEditMode = false,
   currentBranch = 'main',
@@ -220,7 +216,44 @@ export const Header: React.FC<HeaderProps> = ({
 
 
 
-  // Handle source switching warning events
+  // NEW: URL-based source switching handlers
+  const handlePlatformChange = (platformId: string | null) => {
+    console.log('[Header] Platform change requested:', platformId);
+    
+    // Update URL parameters
+    const url = new URL(window.location.href);
+    if (platformId && platformId !== 'none') {
+      url.searchParams.set('platform', platformId);
+      console.log('[Header] Setting platform parameter:', platformId);
+    } else {
+      url.searchParams.delete('platform');
+      console.log('[Header] Removing platform parameter');
+    }
+    
+    // Refresh the entire app with new parameters
+    console.log('[Header] Refreshing app with new URL:', url.toString());
+    window.location.href = url.toString();
+  };
+
+  const handleThemeChange = (themeId: string | null) => {
+    console.log('[Header] Theme change requested:', themeId);
+    
+    // Update URL parameters
+    const url = new URL(window.location.href);
+    if (themeId && themeId !== 'none') {
+      url.searchParams.set('theme', themeId);
+      console.log('[Header] Setting theme parameter:', themeId);
+    } else {
+      url.searchParams.delete('theme');
+      console.log('[Header] Removing theme parameter');
+    }
+    
+    // Refresh the entire app with new parameters
+    console.log('[Header] Refreshing app with new URL:', url.toString());
+    window.location.href = url.toString();
+  };
+
+  // Handle source switching warning events (keeping for backward compatibility)
   useEffect(() => {
     const handleSourceSwitchWarning = (event: CustomEvent) => {
       setSourceSwitchWarningData(event.detail);
@@ -942,13 +975,13 @@ export const Header: React.FC<HeaderProps> = ({
                   availablePlatforms={sourceManager.getAvailablePlatforms()}
                   currentPlatform={currentPlatformFromURL}
                   permissions={currentDataSourceContext?.permissions?.platforms || {}}
-                  onPlatformChange={onPlatformChange || (() => {})}
+                  onPlatformChange={handlePlatformChange}
                 />
                 <ThemeDropdown
                   availableThemes={sourceManager.getAvailableThemes()}
                   currentTheme={currentThemeFromURL}
                   permissions={currentDataSourceContext?.permissions?.themes || {}}
-                  onThemeChange={onThemeChange || (() => {})}
+                  onThemeChange={handleThemeChange}
                 />
               </HStack>
 

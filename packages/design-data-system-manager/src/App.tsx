@@ -1305,132 +1305,9 @@ const App = () => {
 
 
 
-  // Data source change handlers
-  const handlePlatformChange = async (platformId: string | null) => {
-    setIsAppLoading(true); // Start app loading state
-    try {
-      // CRITICAL: Update URL FIRST before any data operations
-      const url = new URL(window.location.href);
-      if (platformId) {
-        url.searchParams.set('platform', platformId);
-      } else {
-        url.searchParams.delete('platform');
-      }
-      window.history.replaceState({}, '', url.toString());
-      
-      // Now proceed with data source switching (URL is already updated)
-      const dataSourceManager = DataSourceManager.getInstance();
-      await dataSourceManager.switchToPlatform(platformId);
-      const newContext = dataSourceManager.getCurrentContext();
-      setDataSourceContext(newContext);
-      
-      // CRITICAL: Update permissions for the new data source context
-      if (githubUser) {
-        // Force refresh permissions after source switch to ensure accuracy
-        await dataSourceManager.forceRefreshPermissions();
-        const updatedContext = dataSourceManager.getCurrentContext();
-        
-        // Determine edit permissions based on current data source
-        let hasWriteAccess = false;
-        
-        if (platformId) {
-          // Platform extension selected - check platform permissions
-          hasWriteAccess = updatedContext.permissions?.platforms?.[platformId] || false;
-        } else if (updatedContext.currentTheme && updatedContext.currentTheme !== 'none') {
-          // Theme override selected - check theme permissions
-          hasWriteAccess = updatedContext.permissions?.themes?.[updatedContext.currentTheme] || false;
-        } else {
-          // Core data selected - check core permissions
-          hasWriteAccess = updatedContext.permissions?.core || false;
-        }
-        
-        // Branch-based governance: Show edit button if user has write access
-        // But only allow actual editing on non-main branches
-        const isOnMainBranch = isMainBranch(currentBranch);
-        const canShowEditButton = hasWriteAccess; // Show button if user has write access
-        const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
-        
-        setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
-        setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
-      }
-      
-      // SourceManagerService already handled the merge, just update UI state
-      // No need to call mergeDataForCurrentContext since DataMergerService already computed merged data
-    } catch (error) {
-      toast({
-        title: 'Error switching platform',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    } finally {
-      setIsAppLoading(false); // End app loading state
-    }
-  };
-
-  const handleThemeChange = async (themeId: string | null) => {
-    setIsAppLoading(true); // Start app loading state
-    try {
-      // CRITICAL: Update URL FIRST before any data operations
-      const url = new URL(window.location.href);
-      if (themeId) {
-        url.searchParams.set('theme', themeId);
-      } else {
-        url.searchParams.delete('theme');
-      }
-      window.history.replaceState({}, '', url.toString());
-      
-      // Now proceed with data source switching (URL is already updated)
-      const dataSourceManager = DataSourceManager.getInstance();
-      await dataSourceManager.switchToTheme(themeId);
-      const newContext = dataSourceManager.getCurrentContext();
-      setDataSourceContext(newContext);
-      
-      // CRITICAL: Update permissions for the new data source context
-      if (githubUser) {
-        // Force refresh permissions after source switch to ensure accuracy
-        await dataSourceManager.forceRefreshPermissions();
-        const updatedContext = dataSourceManager.getCurrentContext();
-        
-        // Determine edit permissions based on current data source
-        let hasWriteAccess = false;
-        
-        if (themeId) {
-          // Theme override selected - check theme permissions
-          hasWriteAccess = updatedContext.permissions?.themes?.[themeId] || false;
-        } else if (updatedContext.currentPlatform && updatedContext.currentPlatform !== 'none') {
-          // Platform extension selected - check platform permissions
-          hasWriteAccess = updatedContext.permissions?.platforms?.[updatedContext.currentPlatform] || false;
-        } else {
-          // Core data selected - check core permissions
-          hasWriteAccess = updatedContext.permissions?.core || false;
-        }
-        
-        // Branch-based governance: Show edit button if user has write access
-        // But only allow actual editing on non-main branches
-        const isOnMainBranch = isMainBranch(currentBranch);
-        const canShowEditButton = hasWriteAccess; // Show button if user has write access
-        const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
-        
-        setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
-        setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
-      }
-      
-      // SourceManagerService already handled the merge, just update UI state
-      // No need to call mergeDataForCurrentContext since DataMergerService already computed merged data
-    } catch (error) {
-      toast({
-        title: 'Error switching theme',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-    } finally {
-      setIsAppLoading(false); // End app loading state
-    }
-  };
+  // REMOVED: Complex dropdown state management - now handled by URL-based approach
+  // The dropdowns in Header.tsx now update URL parameters and refresh the entire app
+  // This eliminates the complex state synchronization issues we were experiencing
 
   // Branch-based governance handlers
   const handleBranchCreated = async (newBranchName: string) => {
@@ -1713,8 +1590,6 @@ const App = () => {
                   })() : null}
                   hasEditPermissions={hasEditPermissions}
                   dataSourceContext={dataSourceContext}
-                  onPlatformChange={handlePlatformChange}
-                  onThemeChange={handleThemeChange}
                   isEditMode={isEditMode}
                   currentBranch={currentBranch}
                   editModeBranch={editModeBranch}
