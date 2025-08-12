@@ -127,6 +127,7 @@ export class FigmaDaisyChainService {
   /**
    * Get the dimensions that a token actually uses (has values for)
    * Only includes dimensions where the token has mode-specific values
+   * Handles platform extension tokens with empty modeIds arrays
    */
   private getUsedDimensionsForToken(token: Token, tokenSystem: TokenSystem): any[] {
     console.log(`[FigmaDaisyChain] 🔍 getUsedDimensionsForToken called for token: ${token.id}`);
@@ -135,16 +136,27 @@ export class FigmaDaisyChainService {
     
     const usedDimensionIds = new Set<string>();
     
-    // Collect all dimension IDs that the token has values for
-    for (const valueByMode of token.valuesByMode || []) {
-      console.log(`[FigmaDaisyChain] 🔍 Processing valueByMode with modeIds:`, valueByMode.modeIds);
-      for (const modeId of valueByMode.modeIds) {
-        // Find which dimension this mode belongs to
-        for (const dimension of tokenSystem.dimensions || []) {
-          if (dimension.modes?.some((mode: any) => mode.id === modeId)) {
-            console.log(`[FigmaDaisyChain] 🔍 Found mode ${modeId} belongs to dimension: ${dimension.displayName} (${dimension.id})`);
-            usedDimensionIds.add(dimension.id);
-            break;
+    // Check if this is a platform extension token (has empty modeIds arrays)
+    const hasEmptyModeIds = token.valuesByMode?.some(vbm => vbm.modeIds.length === 0);
+    
+    if (hasEmptyModeIds) {
+      // Platform extension token: use all dimensions from dimensionOrder
+      console.log(`[FigmaDaisyChain] 🔍 Platform extension token detected (empty modeIds), using all dimensions from dimensionOrder`);
+      for (const dimensionId of tokenSystem.dimensionOrder || []) {
+        usedDimensionIds.add(dimensionId);
+      }
+    } else {
+      // Core token: collect dimension IDs based on modeIds
+      for (const valueByMode of token.valuesByMode || []) {
+        console.log(`[FigmaDaisyChain] 🔍 Processing valueByMode with modeIds:`, valueByMode.modeIds);
+        for (const modeId of valueByMode.modeIds) {
+          // Find which dimension this mode belongs to
+          for (const dimension of tokenSystem.dimensions || []) {
+            if (dimension.modes?.some((mode: any) => mode.id === modeId)) {
+              console.log(`[FigmaDaisyChain] 🔍 Found mode ${modeId} belongs to dimension: ${dimension.displayName} (${dimension.id})`);
+              usedDimensionIds.add(dimension.id);
+              break;
+            }
           }
         }
       }
@@ -665,11 +677,37 @@ export class FigmaDaisyChainService {
 
   /**
    * Find the value for a specific mode combination
+   * Handles platform extension tokens with empty modeIds arrays as default values
    */
   private findValueByModeForModeCombination(token: Token, modeIds: string[]): any {
-    return token.valuesByMode?.find(vbm => 
+    // First, try to find an exact match
+    const exactMatch = token.valuesByMode?.find(vbm => 
       modeIds.every(modeId => vbm.modeIds.includes(modeId))
-    ) || { value: null };
+    );
+    
+    if (exactMatch) {
+      return exactMatch;
+    }
+    
+    // If no exact match, look for entries with empty modeIds (platform extension defaults)
+    const defaultMatch = token.valuesByMode?.find(vbm => 
+      vbm.modeIds.length === 0
+    );
+    
+    if (defaultMatch) {
+      console.log(`[FigmaDaisyChain] Using default value for token ${token.id} with modeIds:`, modeIds);
+      return defaultMatch;
+    }
+    
+    // Fallback to first available value
+    const firstValue = token.valuesByMode?.[0];
+    if (firstValue) {
+      console.log(`[FigmaDaisyChain] Using first available value for token ${token.id} with modeIds:`, modeIds);
+      return firstValue;
+    }
+    
+    console.warn(`[FigmaDaisyChain] No value found for token ${token.id} with modeIds:`, modeIds);
+    return { value: null };
   }
 
   /**

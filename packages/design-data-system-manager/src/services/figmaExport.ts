@@ -73,7 +73,14 @@ export class FigmaExportService {
       const themeOverrides = StorageService.getAllThemeOverrideData();
       
       if (coreData) {
+        console.log('[FigmaExportService] Core data dimensionOrder before merging:', coreData.dimensionOrder);
+        
         const mergedData = enhancedMerger.mergeData(context, coreData, platformExtensions, themeOverrides);
+        
+        console.log('[FigmaExportService] Merged data dimensionOrder after merging:', mergedData.dimensionOrder);
+        
+        // Ensure we have a valid fileKey
+        const fileKey = coreData.figmaConfiguration?.fileKey || 'default-figma-file';
         
         // Convert MergedDataSnapshot back to TokenSystem format
         const tokenSystem: TokenSystem = {
@@ -86,9 +93,26 @@ export class FigmaExportService {
           resolvedValueTypes: coreData.resolvedValueTypes,
           themes: coreData.themes,
           taxonomies: coreData.taxonomies,
-          figmaConfiguration: coreData.figmaConfiguration,
+          figmaConfiguration: {
+            ...coreData.figmaConfiguration,
+            fileKey: fileKey,
+            fileColorProfile: coreData.figmaConfiguration?.fileColorProfile || 'srgb'
+          },
           // Add any other required properties
+          systemName: coreData.systemName,
+          systemId: coreData.systemId,
+          version: coreData.version,
+          versionHistory: coreData.versionHistory,
+          dimensionOrder: mergedData.dimensionOrder, // Use merged dimensionOrder instead of core
+          taxonomyOrder: coreData.taxonomyOrder,
+          standardPropertyTypes: coreData.standardPropertyTypes,
+          componentProperties: coreData.componentProperties,
+          componentCategories: coreData.componentCategories,
+          components: coreData.components,
+          extensions: coreData.extensions
         };
+        
+        console.log('[FigmaExportService] Final tokenSystem dimensionOrder:', tokenSystem.dimensionOrder);
         
         console.log('[FigmaExportService] Merged data stats:', {
           tokensCount: tokenSystem.tokens?.length || 0,
@@ -227,7 +251,7 @@ export class FigmaExportService {
     const cleanedTokens = tokenSystem.tokens?.map(token => {
       // Clean valuesByMode - remove platformOverrides
       const cleanedValuesByMode = token.valuesByMode?.map(valueByMode => {
-        const { platformOverrides, ...cleanedValueByMode } = valueByMode as any;
+        const { platformOverrides, ...cleanedValueByMode } = valueByMode as { platformOverrides?: unknown; [key: string]: unknown };
         if (platformOverrides) {
           console.log(`[FigmaExportService] Removed platformOverrides from token ${token.id}`);
         }
@@ -248,30 +272,33 @@ export class FigmaExportService {
     };
   }
 
-  async exportToFigma(options: FigmaExportOptions = {}): Promise<FigmaExportResult> {
+  /**
+   * Export the current design system data to Figma Variables format
+   */
+  async exportToFigma(options: FigmaExportOptions = {}, mergedTokenSystem?: TokenSystem): Promise<FigmaExportResult> {
     console.log('[FigmaExportService] Starting Figma export...');
     
     try {
-      // 1. Use existing data management services to get current merged data
-      // No need to manually determine source context - use existing infrastructure
-      const mergedData = StorageService.getMergedData();
-      if (!mergedData) {
-        return {
-          success: false,
-          error: {
-            code: 'NO_DATA_AVAILABLE',
-            message: 'No merged data available for export'
-          }
-        };
+      // Use provided merged token system or get it from the standard method
+      let tokenSystem: TokenSystem;
+      
+      if (mergedTokenSystem) {
+        console.log('[FigmaExportService] Using provided merged token system');
+        tokenSystem = mergedTokenSystem;
+      } else {
+        console.log('[FigmaExportService] Getting token system for export...');
+        tokenSystem = await this.getTokenSystemForExport();
       }
       
       // CRITICAL: Log dimensionOrder for debugging
-      console.log('[FigmaExportService] 🔍 CRITICAL DEBUG - mergedData dimensionOrder:', mergedData.dimensionOrder);
-      console.log('[FigmaExportService] 🔍 CRITICAL DEBUG - mergedData dimensions:', mergedData.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
+      console.log('[FigmaExportService] 🔍 CRITICAL DEBUG - tokenSystem dimensionOrder:', tokenSystem.dimensionOrder);
+      console.log('[FigmaExportService] 🔍 CRITICAL DEBUG - tokenSystem dimensions:', tokenSystem.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
+      console.log('[FigmaExportService] 🔍 CRITICAL DEBUG - tokenSystem tokens count:', tokenSystem.tokens?.length);
       
-      if (!mergedData.dimensionOrder || mergedData.dimensionOrder.length === 0) {
-        console.error('[FigmaExportService] 🚨 CRITICAL ERROR: mergedData dimensionOrder is missing or empty!');
+      if (!tokenSystem.dimensionOrder || tokenSystem.dimensionOrder.length === 0) {
+        console.error('[FigmaExportService] 🚨 CRITICAL ERROR: tokenSystem dimensionOrder is missing or empty!');
         console.error('[FigmaExportService] 🚨 This will prevent daisy-chaining from working!');
+        
         return {
           success: false,
           error: {
@@ -408,9 +435,10 @@ export class FigmaExportService {
   /**
    * Publish the current design system data to Figma Variables API
    */
-  async publishToFigma(options: FigmaExportOptions = {}): Promise<FigmaExportResult> {
+  async publishToFigma(options: FigmaExportOptions = {}, mergedTokenSystem?: TokenSystem): Promise<FigmaExportResult> {
     console.log('[FigmaExportService] Starting publishing to Figma...');
     console.log('[FigmaExportService] Options:', options);
+    console.log('[FigmaExportService] Merged token system provided:', !!mergedTokenSystem);
     
     if (!options.fileId) {
       return {
@@ -432,146 +460,69 @@ export class FigmaExportService {
       };
     }
 
-    console.log('[FigmaExportService] Starting publishing to Figma...');
-    
     try {
-      // First, transform the data using the existing export logic
-      const exportResult = await this.exportToFigma(options);
+      const result = await this.exportToFigma(options, mergedTokenSystem);
       
-      console.log('[FigmaExportService] Export result:', {
-        success: exportResult.success,
-        hasData: !!exportResult.data,
-        error: exportResult.error
-      });
-      
-      if (!exportResult.success || !exportResult.data) {
-        console.error('[FigmaExportService] Export failed or no data:', exportResult.error);
-        return exportResult;
+      if (result.success && result.data) {
+        // Publish to Figma API
+        const publishResult = await this.publishToFigmaAPI(result.data, options);
+        return publishResult;
+      } else {
+        return result;
       }
-
-      // Validate the data before sending to Figma API
-      console.log('[FigmaExportService] 🔍 VALIDATING DATA BEFORE SENDING TO FIGMA:');
-      console.log('[FigmaExportService] - Collections count:', exportResult.data.collections.length);
-      console.log('[FigmaExportService] - Variables count:', exportResult.data.variables.length);
-      console.log('[FigmaExportService] - Variable Modes count:', exportResult.data.variableModes.length);
-      console.log('[FigmaExportService] - Variable Mode Values count:', exportResult.data.variableModeValues.length);
-      
-      // Check for empty or invalid data
-      if (exportResult.data.collections.length === 0) {
-        console.error('[FigmaExportService] 🚨 CRITICAL ERROR: No collections to send to Figma!');
-        return {
-          success: false,
-          error: {
-            code: 'NO_COLLECTIONS',
-            message: 'No variable collections to publish to Figma. Please ensure your design system has data.'
-          }
-        };
-      }
-      
-      if (exportResult.data.variables.length === 0) {
-        console.error('[FigmaExportService] 🚨 CRITICAL ERROR: No variables to send to Figma!');
-        return {
-          success: false,
-          error: {
-            code: 'NO_VARIABLES',
-            message: 'No variables to publish to Figma. Please ensure your design system has tokens.'
-          }
-        };
-      }
-
-      // Step 2: POST the transformed data to Figma API
-      console.log('[FigmaExportService] POSTing data to Figma API...');
-      console.log('[FigmaExportService] URL:', `https://api.figma.com/v1/files/${options.fileId}/variables`);
-      
-      // Log the complete POST payload for debugging
-      console.log('[FigmaExportService] 🔍 COMPLETE POST PAYLOAD DATA:');
-      console.log('[FigmaExportService] Full Collections Array:', JSON.stringify(exportResult.data.collections, null, 2));
-      console.log('[FigmaExportService] Full Variables Array:', JSON.stringify(exportResult.data.variables, null, 2));
-      console.log('[FigmaExportService] Full Variable Modes Array:', JSON.stringify(exportResult.data.variableModes, null, 2));
-      console.log('[FigmaExportService] Full Variable Mode Values Array:', JSON.stringify(exportResult.data.variableModeValues, null, 2));
-      
-      // Log summary statistics
-      console.log('[FigmaExportService] POST PAYLOAD SUMMARY:');
-      console.log('[FigmaExportService] - Collections:', {
-        total: exportResult.data.collections.length,
-        create: exportResult.data.collections.filter(c => c.action === 'CREATE').length,
-        update: exportResult.data.collections.filter(c => c.action === 'UPDATE').length
-      });
-      console.log('[FigmaExportService] - Variables:', {
-        total: exportResult.data.variables.length,
-        create: exportResult.data.variables.filter(v => v.action === 'CREATE').length,
-        update: exportResult.data.variables.filter(v => v.action === 'UPDATE').length
-      });
-      console.log('[FigmaExportService] - Variable Modes:', {
-        total: exportResult.data.variableModes.length,
-        create: exportResult.data.variableModes.filter(m => m.action === 'CREATE').length,
-        update: exportResult.data.variableModes.filter(m => m.action === 'UPDATE').length
-      });
-      console.log('[FigmaExportService] - Variable Mode Values:', exportResult.data.variableModeValues.length);
-      
-      // Log the exact JSON being sent to Figma API
-      const postPayload = {
-        variables: exportResult.data.variables,
-        variableCollections: exportResult.data.collections,
-        variableModes: exportResult.data.variableModes,
-        variableModeValues: exportResult.data.variableModeValues
-      };
-      console.log('[FigmaExportService] 🔍 EXACT JSON BEING SENT TO FIGMA API:');
-      console.log(JSON.stringify(postPayload, null, 2));
-      
-      const response = await fetch(`https://api.figma.com/v1/files/${options.fileId}/variables`, {
-        method: 'POST',
-        headers: {
-          'X-Figma-Token': options.accessToken,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          variables: exportResult.data.variables,
-          variableCollections: exportResult.data.collections,
-          variableModes: exportResult.data.variableModes,
-          variableModeValues: exportResult.data.variableModeValues
-        })
-      });
-
-      console.log('[FigmaExportService] Response status:', response.status);
-      console.log('[FigmaExportService] Response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[FigmaExportService] 🚨 FIGMA API ERROR RESPONSE:');
-        console.error('[FigmaExportService] Status:', response.status);
-        console.error('[FigmaExportService] Status Text:', response.statusText);
-        console.error('[FigmaExportService] Error Body:', errorText);
-        return {
-          success: false,
-          error: {
-            code: 'FIGMA_API_ERROR',
-            message: `Figma API request failed: ${response.status} ${response.statusText} - ${errorText}`
-          }
-        };
-      }
-
-      const apiResponse = await response.json();
-      console.log('[FigmaExportService] Figma API response:', apiResponse);
-
-      // Update mappings with the API response
-      await FigmaMappingService.updateMappingFromApiResponse(options.fileId, apiResponse);
-      
-      console.log('[FigmaExportService] Publishing completed successfully');
-      return {
-        success: true,
-        data: exportResult.data
-      };
     } catch (error) {
-      console.error('[FigmaExportService] Unexpected error during publishing:', error);
+      console.error('[FigmaExportService] Publishing failed:', error);
       return {
         success: false,
         error: {
-          code: 'PUBLISHING_ERROR',
-          message: error instanceof Error ? error.message : 'Unknown publishing error',
-          details: error
+          code: 'PUBLISHING_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error during publishing'
         }
       };
     }
+  }
+
+  /**
+   * Publish the transformed data to Figma API
+   */
+  private async publishToFigmaAPI(data: any, options: FigmaExportOptions): Promise<FigmaExportResult> {
+    console.log('[FigmaExportService] Publishing to Figma API...');
+    
+    const response = await fetch(`https://api.figma.com/v1/files/${options.fileId}/variables`, {
+      method: 'POST',
+      headers: {
+        'X-Figma-Token': options.accessToken,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        variables: data.variables,
+        variableCollections: data.collections,
+        variableModes: data.variableModes,
+        variableModeValues: data.variableModeValues
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[FigmaExportService] Figma API error:', response.status, errorText);
+      return {
+        success: false,
+        error: {
+          code: 'FIGMA_API_ERROR',
+          message: `Figma API request failed: ${response.status} ${response.statusText} - ${errorText}`
+        }
+      };
+    }
+
+    const apiResponse = await response.json();
+    console.log('[FigmaExportService] Figma API response:', apiResponse);
+
+    // Update mappings with the API response
+    await FigmaMappingService.updateMappingFromApiResponse(options.fileId!, apiResponse);
+    
+    return {
+      success: true,
+      data: data
+    };
   }
 } 

@@ -79,38 +79,6 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
   });
 
   /**
-   * Validate merged data structure for Figma publishing
-   * Ensures the data has the required fields for daisy-chaining
-   */
-  const validateMergedDataForFigma = (data: TokenSystem): boolean => {
-    const errors: string[] = [];
-    
-    if (!data.dimensionOrder || data.dimensionOrder.length === 0) {
-      errors.push('Missing dimensionOrder - required for daisy-chaining');
-    }
-    
-    if (!data.dimensions || data.dimensions.length === 0) {
-      errors.push('Missing dimensions array');
-    }
-    
-    if (!data.tokens || data.tokens.length === 0) {
-      errors.push('Missing tokens array');
-    }
-    
-    if (!data.tokenCollections || data.tokenCollections.length === 0) {
-      errors.push('Missing tokenCollections array');
-    }
-    
-    if (errors.length > 0) {
-      console.error('[FigmaConfigurationsView] Merged data validation failed:', errors);
-      return false;
-    }
-    
-    console.log('[FigmaConfigurationsView] Merged data validation passed');
-    return true;
-  };
-
-  /**
    * Get the appropriate token system for Figma publishing based on current source context
    * For core data: use canonical schema-compliant data
    * For platform/theme data: use merged data (core + extensions/overrides)
@@ -123,7 +91,6 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       console.log('[FigmaConfigurationsView] Using core data for Figma publishing');
       const coreData = createSchemaJsonFromLocalStorage();
       console.log('[FigmaConfigurationsView] Core data dimensionOrder:', coreData.dimensionOrder);
-      console.log('[FigmaConfigurationsView] Core data dimensions:', coreData.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
       return coreData;
     } else {
       // Platform or theme source - use merged data
@@ -138,21 +105,10 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       if (!mergedData) {
         console.warn('[FigmaConfigurationsView] Failed to compute merged data, falling back to core data');
         const coreData = createSchemaJsonFromLocalStorage();
-        console.log('[FigmaConfigurationsView] Fallback core data dimensionOrder:', coreData.dimensionOrder);
-        return coreData;
-      }
-      
-      // Validate merged data structure
-      if (!validateMergedDataForFigma(mergedData)) {
-        console.warn('[FigmaConfigurationsView] Merged data validation failed, falling back to core data');
-        const coreData = createSchemaJsonFromLocalStorage();
-        console.log('[FigmaConfigurationsView] Fallback core data dimensionOrder:', coreData.dimensionOrder);
         return coreData;
       }
       
       console.log('[FigmaConfigurationsView] Merged data dimensionOrder:', mergedData.dimensionOrder);
-      console.log('[FigmaConfigurationsView] Merged data dimensions:', mergedData.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
-      
       return mergedData;
     }
   };
@@ -206,8 +162,10 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
         if (stagedChanges) {
           console.log('[FigmaConfigurationsView] === USING STAGED CHANGES ===');
           console.log('[FigmaConfigurationsView] Staged figmaFileKey:', stagedChanges.figmaFileKey);
+          console.log('[FigmaConfigurationsView] Staged fileColorProfile:', stagedChanges.fileColorProfile);
           console.log('[FigmaConfigurationsView] Staged syntaxPatterns:', stagedChanges.syntaxPatterns);
           sourceFileKey = stagedChanges.figmaFileKey || '';
+          sourceFileColorProfile = stagedChanges.fileColorProfile || 'srgb';
           sourceSyntaxPatterns = stagedChanges.syntaxPatterns || {};
         } else {
           console.log('[FigmaConfigurationsView] No staged changes found');
@@ -230,18 +188,21 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
           console.log('[FigmaConfigurationsView] Source: localEdits.figmaConfiguration or coreData.figmaConfiguration');
           console.log('[FigmaConfigurationsView] Raw figmaConfiguration:', currentFigmaConfig);
           console.log('[FigmaConfigurationsView] figmaConfiguration.fileKey:', currentFigmaConfig?.fileKey);
+          console.log('[FigmaConfigurationsView] figmaConfiguration.fileColorProfile:', currentFigmaConfig?.fileColorProfile);
           console.log('[FigmaConfigurationsView] figmaConfiguration.syntaxPatterns:', currentFigmaConfig?.syntaxPatterns);
           
           if (currentFigmaConfig) {
             sourceFileKey = currentFigmaConfig.fileKey || '';
+            sourceFileColorProfile = currentFigmaConfig.fileColorProfile || 'srgb';
             sourceSyntaxPatterns = currentFigmaConfig.syntaxPatterns || {};
             console.log('[FigmaConfigurationsView] Extracted core fileKey:', sourceFileKey);
+            console.log('[FigmaConfigurationsView] Extracted core fileColorProfile:', sourceFileColorProfile);
             console.log('[FigmaConfigurationsView] Extracted core syntaxPatterns:', sourceSyntaxPatterns);
           } else {
             console.log('[FigmaConfigurationsView] WARNING: No figmaConfiguration found in source data');
           }
         } else if (currentSourceType === 'platform' && currentSourceId) {
-          // Platform extension - get figmaFileKey from root level of platform extension data
+          // Platform extension - get figmaFileKey and fileColorProfile from root level of platform extension data
           console.log('[FigmaConfigurationsView] === PLATFORM EXTENSION SOURCE ===');
           console.log('[FigmaConfigurationsView] Source ID:', currentSourceId);
           
@@ -250,14 +211,16 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
           console.log('[FigmaConfigurationsView] Platform data:', platformData);
           
           if (platformData) {
-            // Platform extensions have figmaFileKey at root level
+            // Platform extensions have figmaFileKey and fileColorProfile at root level
             sourceFileKey = (platformData as any).figmaFileKey || '';
+            sourceFileColorProfile = (platformData as any).fileColorProfile || 'srgb';
             console.log('[FigmaConfigurationsView] Extracted platform fileKey:', sourceFileKey);
+            console.log('[FigmaConfigurationsView] Extracted platform fileColorProfile:', sourceFileColorProfile);
           } else {
             console.log('[FigmaConfigurationsView] WARNING: No platform data found for ID:', currentSourceId);
           }
         } else if (currentSourceType === 'theme' && currentSourceId) {
-          // Theme override - get figmaFileKey from root level of theme override data
+          // Theme override - get figmaFileKey and fileColorProfile from root level of theme override data
           console.log('[FigmaConfigurationsView] === THEME OVERRIDE SOURCE ===');
           console.log('[FigmaConfigurationsView] Source ID:', currentSourceId);
           
@@ -266,9 +229,11 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
           console.log('[FigmaConfigurationsView] Theme data:', themeData);
           
           if (themeData) {
-            // Theme overrides have figmaFileKey at root level
+            // Theme overrides have figmaFileKey and fileColorProfile at root level
             sourceFileKey = (themeData as any).figmaFileKey || '';
+            sourceFileColorProfile = (themeData as any).fileColorProfile || 'srgb';
             console.log('[FigmaConfigurationsView] Extracted theme fileKey:', sourceFileKey);
+            console.log('[FigmaConfigurationsView] Extracted theme fileColorProfile:', sourceFileColorProfile);
           } else {
             console.log('[FigmaConfigurationsView] WARNING: No theme data found for ID:', currentSourceId);
           }
@@ -287,6 +252,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       
       console.log('[FigmaConfigurationsView] === FINAL CONFIGURATION ===');
       console.log('[FigmaConfigurationsView] Final sourceFileKey:', sourceFileKey);
+      console.log('[FigmaConfigurationsView] Final sourceFileColorProfile:', sourceFileColorProfile);
       console.log('[FigmaConfigurationsView] Final sourceSyntaxPatterns:', sourceSyntaxPatterns);
       
       // Set the file key and syntax patterns
@@ -299,10 +265,12 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
         formatString: sourceSyntaxPatterns.formatString || ''
       };
       setSyntaxPatterns(finalSyntaxPatterns);
+      setFileColorProfile(sourceFileColorProfile);
       
       console.log('[FigmaConfigurationsView] === UI STATE UPDATES ===');
       console.log('[FigmaConfigurationsView] Setting fileKey state to:', sourceFileKey);
       console.log('[FigmaConfigurationsView] Setting syntaxPatterns state to:', finalSyntaxPatterns);
+      console.log('[FigmaConfigurationsView] Setting fileColorProfile state to:', sourceFileColorProfile);
       
       // Load access token from separate storage (not part of schema)
       const config = FigmaConfigurationService.getConfiguration();
@@ -524,7 +492,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       const result = await figmaExportService.publishToFigma({
         accessToken: accessToken,
         fileId: fileKey
-      });
+      }, canonicalTokenSystem);
 
       if (result.success) {
         // Store the export result for display
@@ -589,7 +557,7 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
       const result = await figmaExportService.exportToFigma({
         accessToken: accessToken,
         fileId: fileKey
-      });
+      }, canonicalTokenSystem);
       
       console.log('[FigmaConfigurationsView] Export result:', result);
       setExportResult(result);

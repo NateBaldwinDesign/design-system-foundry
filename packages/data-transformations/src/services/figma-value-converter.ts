@@ -132,213 +132,139 @@ export class FigmaValueConverter {
    * Convert string value to Figma color
    */
   private convertStringToFigmaColor(value: string, fileColorProfile: 'srgb' | 'display-p3' = 'srgb'): { r: number; g: number; b: number; a?: number } {
-    // Handle hex colors
-    if (isHexColor(value)) {
+    console.log(`[FigmaValueConverter] Converting color string: "${value}" with profile: ${fileColorProfile}`);
+    
+    try {
+      // Step 1: Create Color object from original color data
       const color = new Color(value);
-      const rgb = color.to(fileColorProfile);
+      console.log(`[FigmaValueConverter] Created color object:`, color);
       
+      // Step 2: Convert to target file profile
+      let targetColor;
+      if (fileColorProfile === 'srgb') {
+        // Convert to sRGB and constrain to gamut
+        targetColor = color.toGamut('srgb').to('srgb');
+        console.log(`[FigmaValueConverter] Converted to sRGB:`, targetColor.coords);
+      } else if (fileColorProfile === 'display-p3') {
+        // Convert to Display-P3
+        targetColor = color.to('p3');
+        console.log(`[FigmaValueConverter] Converted to Display-P3:`, targetColor.coords);
+      } else {
+        // Fallback to sRGB
+        targetColor = color.toGamut('srgb').to('srgb');
+        console.log(`[FigmaValueConverter] Fallback to sRGB:`, targetColor.coords);
+      }
+      
+      // Step 3: Extract RGB values and ensure they're in 0-1 range
+      const coords = targetColor.coords;
       const result: { r: number; g: number; b: number; a?: number } = {
-        r: rgb.coords[0],
-        g: rgb.coords[1],
-        b: rgb.coords[2]
+        r: Math.max(0, Math.min(1, coords[0])),
+        g: Math.max(0, Math.min(1, coords[1])),
+        b: Math.max(0, Math.min(1, coords[2]))
       };
       
-      if (rgb.alpha !== 1) {
-        result.a = rgb.alpha;
+      // Step 4: Add alpha if present
+      if (targetColor.alpha !== 1) {
+        result.a = targetColor.alpha;
       }
       
+      console.log(`[FigmaValueConverter] Final RGB result:`, result);
       return result;
+      
+    } catch (error) {
+      console.error(`[FigmaValueConverter] Error converting color string "${value}":`, error);
+      return { r: 0, g: 0, b: 0 };
     }
-
-    // Handle Display-P3 colors when fileColorProfile is display-p3
-    if (fileColorProfile === 'display-p3' && value.startsWith('color(display-p3')) {
-      // Extract P3 values directly from the color string
-      const p3Match = value.match(/color\(display-p3\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)(?:\s+\/\s+([0-9.]+))?\)/);
-      if (p3Match) {
-        const result: { r: number; g: number; b: number; a?: number } = {
-          r: parseFloat(p3Match[1]),
-          g: parseFloat(p3Match[2]),
-          b: parseFloat(p3Match[3])
-        };
-        
-        if (p3Match[4]) {
-          result.a = parseFloat(p3Match[4]);
-        }
-        
-        return result;
-      }
-    }
-
-    // Handle other color formats
-    const color = new Color(value);
-    
-    // If converting to sRGB, ensure the color is in gamut
-    if (fileColorProfile === 'srgb') {
-      const sRgbColor = color.to('srgb');
-      
-      // Check if any coordinates are outside 0-1 range
-      const coords = sRgbColor.coords;
-      const needsClamping = coords.some(coord => coord < 0 || coord > 1);
-      
-      if (needsClamping) {
-        // Use toGamut to clamp the color
-        const clampedColor = color.toGamut('srgb');
-        const clampedRgb = clampedColor.to('srgb');
-        
-        const result: { r: number; g: number; b: number; a?: number } = {
-          r: Math.max(0, Math.min(1, clampedRgb.coords[0])),
-          g: Math.max(0, Math.min(1, clampedRgb.coords[1])),
-          b: Math.max(0, Math.min(1, clampedRgb.coords[2]))
-        };
-        
-        if (clampedRgb.alpha !== 1) {
-          result.a = clampedRgb.alpha;
-        }
-        
-        return result;
-      }
-      
-      const result: { r: number; g: number; b: number; a?: number } = {
-        r: sRgbColor.coords[0],
-        g: sRgbColor.coords[1],
-        b: sRgbColor.coords[2]
-      };
-      
-      if (sRgbColor.alpha !== 1) {
-        result.a = sRgbColor.alpha;
-      }
-      
-      return result;
-    }
-    
-    // For other color profiles, convert normally
-    const rgb = color.to(fileColorProfile);
-    
-    const result: { r: number; g: number; b: number; a?: number } = {
-      r: rgb.coords[0],
-      g: rgb.coords[1],
-      b: rgb.coords[2]
-    };
-    
-    if (rgb.alpha !== 1) {
-      result.a = rgb.alpha;
-    }
-    
-    return result;
   }
 
   /**
    * Convert object value to Figma color
    */
   private convertObjectToFigmaColor(colorObj: any, fileColorProfile: 'srgb' | 'display-p3' = 'srgb'): { r: number; g: number; b: number; a?: number } {
-    // If it's already an RGB object, convert from 0-255 to 0-1 range if needed
-    if (colorObj.r !== undefined && colorObj.g !== undefined && colorObj.b !== undefined) {
-      // Check if values are in 0-255 range and convert to 0-1
-      const maxValue = Math.max(colorObj.r, colorObj.g, colorObj.b);
-      const scale = maxValue > 1 ? 255 : 1;
-      
-      const result: { r: number; g: number; b: number; a?: number } = {
-        r: colorObj.r / scale,
-        g: colorObj.g / scale,
-        b: colorObj.b / scale
-      };
-      
-      if (colorObj.a !== undefined) {
-        result.a = colorObj.a;
-      }
-      
-      return result;
-    }
-
-    // Handle Display-P3 object format when fileColorProfile is display-p3
-    if (fileColorProfile === 'display-p3' && colorObj.p3) {
-      const result: { r: number; g: number; b: number; a?: number } = {
-        r: colorObj.p3.r,
-        g: colorObj.p3.g,
-        b: colorObj.p3.b
-      };
-      
-      if (colorObj.p3.a !== undefined) {
-        result.a = colorObj.p3.a;
-      }
-      
-      return result;
-    }
-
-    // If it has hex property, convert it
-    if (colorObj.hex) {
-      return this.convertStringToFigmaColor(colorObj.hex, fileColorProfile);
-    }
+    console.log(`[FigmaValueConverter] Converting color object:`, colorObj, `with profile: ${fileColorProfile}`);
     
-    // Handle token value format: {value: "#4C6FFE"}
-    if (colorObj.value && typeof colorObj.value === 'string') {
-      return this.convertStringToFigmaColor(colorObj.value, fileColorProfile);
-    }
-
-    // Handle CSS color format: {value: "color(display-p3 1 0 0)"}
-    if (colorObj.value && typeof colorObj.value === 'string' && colorObj.value.startsWith('color(')) {
-      return this.convertStringToFigmaColor(colorObj.value, fileColorProfile);
-    }
-
-    // Fallback: try to convert the object as a color
     try {
-      const color = new Color(colorObj);
+      // Handle token value format: {value: "#4C6FFE"} or {value: "color(display-p3 1 0 0)"}
+      if (colorObj.value && typeof colorObj.value === 'string') {
+        return this.convertStringToFigmaColor(colorObj.value, fileColorProfile);
+      }
       
-      // If converting to sRGB, ensure the color is in gamut
-      if (fileColorProfile === 'srgb') {
-        const sRgbColor = color.to('srgb');
-        
-        // Check if any coordinates are outside 0-1 range
-        const coords = sRgbColor.coords;
-        const needsClamping = coords.some(coord => coord < 0 || coord > 1);
-        
-        if (needsClamping) {
-          // Use toGamut to clamp the color
-          const clampedColor = color.toGamut('srgb');
-          const clampedRgb = clampedColor.to('srgb');
-          
-          const result: { r: number; g: number; b: number; a?: number } = {
-            r: Math.max(0, Math.min(1, clampedRgb.coords[0])),
-            g: Math.max(0, Math.min(1, clampedRgb.coords[1])),
-            b: Math.max(0, Math.min(1, clampedRgb.coords[2]))
-          };
-          
-          if (clampedRgb.alpha !== 1) {
-            result.a = clampedRgb.alpha;
-          }
-          
-          return result;
-        }
+      // Handle RGB object format: {r: 255, g: 0, b: 0}
+      if (colorObj.r !== undefined && colorObj.g !== undefined && colorObj.b !== undefined) {
+        // Check if values are in 0-255 range and convert to 0-1
+        const maxValue = Math.max(colorObj.r, colorObj.g, colorObj.b);
+        const scale = maxValue > 1 ? 255 : 1;
         
         const result: { r: number; g: number; b: number; a?: number } = {
-          r: sRgbColor.coords[0],
-          g: sRgbColor.coords[1],
-          b: sRgbColor.coords[2]
+          r: colorObj.r / scale,
+          g: colorObj.g / scale,
+          b: colorObj.b / scale
         };
         
-        if (sRgbColor.alpha !== 1) {
-          result.a = sRgbColor.alpha;
+        if (colorObj.a !== undefined) {
+          result.a = colorObj.a;
         }
         
+        console.log(`[FigmaValueConverter] RGB object result:`, result);
         return result;
       }
       
-      // For other color profiles, convert normally
-      const rgb = color.to(fileColorProfile);
-      
-      const result: { r: number; g: number; b: number; a?: number } = {
-        r: rgb.coords[0],
-        g: rgb.coords[1],
-        b: rgb.coords[2]
-      };
-      
-      if (rgb.alpha !== 1) {
-        result.a = rgb.alpha;
+      // Handle hex property: {hex: "#4C6FFE"}
+      if (colorObj.hex) {
+        return this.convertStringToFigmaColor(colorObj.hex, fileColorProfile);
       }
       
+      // Handle Display-P3 object format: {p3: {r: 1, g: 0, b: 0}}
+      if (colorObj.p3 && colorObj.p3.r !== undefined && colorObj.p3.g !== undefined && colorObj.p3.b !== undefined) {
+        const result: { r: number; g: number; b: number; a?: number } = {
+          r: colorObj.p3.r,
+          g: colorObj.p3.g,
+          b: colorObj.p3.b
+        };
+        
+        if (colorObj.p3.a !== undefined) {
+          result.a = colorObj.p3.a;
+        }
+        
+        console.log(`[FigmaValueConverter] P3 object result:`, result);
+        return result;
+      }
+      
+      // Fallback: try to convert the object as a color using colorjs.io
+      console.log(`[FigmaValueConverter] Attempting to convert object as color using colorjs.io`);
+      const color = new Color(colorObj);
+      
+      // Convert to target file profile
+      let targetColor;
+      if (fileColorProfile === 'srgb') {
+        // Convert to sRGB and constrain to gamut
+        targetColor = color.toGamut('srgb').to('srgb');
+      } else if (fileColorProfile === 'display-p3') {
+        // Convert to Display-P3
+        targetColor = color.to('p3');
+      } else {
+        // Fallback to sRGB
+        targetColor = color.toGamut('srgb').to('srgb');
+      }
+      
+      // Extract RGB values and ensure they're in 0-1 range
+      const coords = targetColor.coords;
+      const result: { r: number; g: number; b: number; a?: number } = {
+        r: Math.max(0, Math.min(1, coords[0])),
+        g: Math.max(0, Math.min(1, coords[1])),
+        b: Math.max(0, Math.min(1, coords[2]))
+      };
+      
+      // Add alpha if present
+      if (targetColor.alpha !== 1) {
+        result.a = targetColor.alpha;
+      }
+      
+      console.log(`[FigmaValueConverter] Colorjs.io conversion result:`, result);
       return result;
+      
     } catch (error) {
-      console.warn(`[FigmaValueConverter] Failed to convert color object:`, colorObj, error);
+      console.error(`[FigmaValueConverter] Error converting color object:`, error);
       return { r: 0, g: 0, b: 0 };
     }
   }

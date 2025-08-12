@@ -372,8 +372,32 @@ export class EnhancedDataMerger {
       }
     }
 
-    // Filter out omitted tokens
-    result.tokens = result.tokens.filter(token => !token.omit);
+    // Filter out omitted tokens, but preserve tokens that are referenced by other tokens
+    const referencedTokenIds = new Set<string>();
+    
+    // Collect all token IDs that are referenced by other tokens
+    for (const token of result.tokens) {
+      for (const valueByMode of token.valuesByMode || []) {
+        if (valueByMode.value && typeof valueByMode.value === 'object' && 'tokenId' in valueByMode.value) {
+          referencedTokenIds.add(valueByMode.value.tokenId);
+        }
+      }
+    }
+    
+    // Only filter out tokens that are omitted AND not referenced by other tokens
+    result.tokens = result.tokens.filter(token => {
+      if (token.omit) {
+        // Check if this token is referenced by other tokens
+        if (referencedTokenIds.has(token.id)) {
+          console.log(`[EnhancedDataMerger] Preserving omitted token ${token.id} because it is referenced by other tokens`);
+          return true; // Keep it
+        } else {
+          console.log(`[EnhancedDataMerger] Removing omitted token ${token.id} (not referenced)`);
+          return false; // Remove it
+        }
+      }
+      return true; // Keep non-omitted tokens
+    });
 
     // Handle omitted modes and dimensions
     if (platformExtension.omittedModes) {
@@ -382,6 +406,14 @@ export class EnhancedDataMerger {
 
     if (platformExtension.omittedDimensions) {
       result.dimensions = result.dimensions.filter(dimension => !platformExtension.omittedDimensions!.includes(dimension.id));
+      
+      // Update dimensionOrder to remove omitted dimensions
+      if (result.dimensionOrder) {
+        result.dimensionOrder = result.dimensionOrder.filter(dimensionId => 
+          !platformExtension.omittedDimensions!.includes(dimensionId)
+        );
+        console.log(`[EnhancedDataMerger] Updated dimensionOrder after removing omitted dimensions:`, result.dimensionOrder);
+      }
     }
 
     return result;
