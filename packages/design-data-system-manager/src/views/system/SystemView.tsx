@@ -13,6 +13,7 @@ import { ComponentPropertiesView } from './ComponentPropertiesView';
 import { ComponentCategoriesView } from './ComponentCategoriesView';
 import { PageTemplate } from '../../components/PageTemplate';
 import { StorageService } from '../../services/storage';
+import { useTabState } from '../../hooks/useTabState';
 import type { TokenSystem, PlatformExtension, ThemeOverrideFile } from '@token-model/data-model';
 
 interface SystemViewProps {
@@ -20,6 +21,9 @@ interface SystemViewProps {
 }
 
 export const SystemView: React.FC<SystemViewProps> = ({ canEdit = false }) => {
+  // Use tab state management with URL parameters
+  const { currentTab, navigateToTab } = useTabState('system', 0);
+  
   // Get data from the new data management system
   const localEdits = StorageService.getLocalEdits();
   const mergedData = StorageService.getMergedData();
@@ -76,7 +80,7 @@ export const SystemView: React.FC<SystemViewProps> = ({ canEdit = false }) => {
     <PageTemplate 
       title="System"
     >
-      <Tabs>
+      <Tabs index={currentTab} onChange={navigateToTab}>
         <TabList>
           <Tab>Dimensions</Tab>
           <Tab>Taxonomies</Tab>

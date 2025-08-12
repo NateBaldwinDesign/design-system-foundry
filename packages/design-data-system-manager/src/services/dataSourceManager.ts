@@ -335,6 +335,19 @@ export class DataSourceManager {
       
       console.log('[DataSourceManager] Final theme repositories:', this.currentContext.repositories.themes);
 
+      // CRITICAL: Update core repository information from GitHubApiService
+      // This ensures the core repository info is always up-to-date
+      const selectedRepoInfo = GitHubApiService.getSelectedRepositoryInfo();
+      if (selectedRepoInfo) {
+        console.log('[DataSourceManager] Updating core repository info from GitHubApiService:', selectedRepoInfo);
+        this.currentContext.repositories.core = {
+          fullName: selectedRepoInfo.fullName,
+          branch: selectedRepoInfo.branch,
+          filePath: selectedRepoInfo.filePath,
+          fileType: selectedRepoInfo.fileType
+        };
+      }
+
       // Validate current selections
       this.validateCurrentSelections();
       
@@ -380,6 +393,70 @@ export class DataSourceManager {
     } catch (error) {
       this.callbacks.onError?.(error instanceof Error ? error.message : 'Failed to update repository info');
     }
+  }
+
+  /**
+   * Update branch information for a specific repository
+   */
+  updateRepositoryBranch(
+    type: 'core' | 'platform-extension' | 'theme-override',
+    branch: string,
+    sourceId?: string
+  ): void {
+    try {
+      console.log('[DataSourceManager] Updating branch for repository:', { type, sourceId, branch });
+      
+      switch (type) {
+        case 'core':
+          if (this.currentContext.repositories.core) {
+            this.currentContext.repositories.core.branch = branch;
+          }
+          break;
+        case 'platform-extension':
+          if (sourceId && this.currentContext.repositories.platforms[sourceId]) {
+            this.currentContext.repositories.platforms[sourceId].branch = branch;
+          }
+          break;
+        case 'theme-override':
+          if (sourceId && this.currentContext.repositories.themes[sourceId]) {
+            this.currentContext.repositories.themes[sourceId].branch = branch;
+          }
+          break;
+      }
+
+      // Persist to storage
+      this.persistToStorage();
+      
+      console.log('[DataSourceManager] Branch updated successfully');
+      
+    } catch (error) {
+      this.callbacks.onError?.(error instanceof Error ? error.message : 'Failed to update repository branch');
+    }
+  }
+
+  /**
+   * Get current repository information for the active data source
+   */
+  getCurrentRepositoryInfo(): RepositoryInfo | null {
+    const { currentPlatform, currentTheme, repositories } = this.currentContext;
+
+    if (currentPlatform && currentPlatform !== 'none') {
+      return repositories.platforms[currentPlatform] || null;
+    }
+
+    if (currentTheme && currentTheme !== 'none') {
+      return repositories.themes[currentTheme] || null;
+    }
+
+    return repositories.core;
+  }
+
+  /**
+   * Get current branch for the active data source
+   */
+  getCurrentBranch(): string {
+    const repoInfo = this.getCurrentRepositoryInfo();
+    return repoInfo?.branch || 'main';
   }
 
   /**
@@ -876,35 +953,20 @@ export class DataSourceManager {
         } else {
           console.log(`[DataSourceManager] Platform ${platformId} not found in core data, trying to get from source context`);
           
-                  // Try to get from source context (for dynamically loaded platforms)
-        const sourceContext = StorageService.getSourceContext();
-        if (sourceContext?.sourceType === 'platform' && sourceContext.sourceId === platformId) {
-          console.log(`[DataSourceManager] Adding dynamic platform ${platformId} with repository from source context: ${sourceContext.sourceRepository.fullName}`);
-          
-          this.currentContext.repositories.platforms[platformId] = {
-            fullName: sourceContext.sourceRepository.fullName,
-            branch: sourceContext.sourceRepository.branch,
-            filePath: sourceContext.sourceRepository.filePath,
-            fileType: 'platform-extension'
-          };
-        } else {
-          // Try to get from core data as a fallback
-          const coreData = StorageService.getCoreData();
-          const platform = coreData?.platforms?.find(p => p.id === platformId);
-          
-          if (platform?.extensionSource) {
-            console.log(`[DataSourceManager] Adding dynamic platform ${platformId} with repository from core data: ${platform.extensionSource.repositoryUri}`);
+          // Try to get from source context (for dynamically loaded platforms)
+          const sourceContext = StorageService.getSourceContext();
+          if (sourceContext?.sourceType === 'platform' && sourceContext.sourceId === platformId) {
+            console.log(`[DataSourceManager] Adding dynamic platform ${platformId} with repository from source context: ${sourceContext.sourceRepository.fullName}`);
             
             this.currentContext.repositories.platforms[platformId] = {
-              fullName: platform.extensionSource.repositoryUri,
-              branch: 'main', // Default branch
-              filePath: platform.extensionSource.filePath,
+              fullName: sourceContext.sourceRepository.fullName,
+              branch: sourceContext.sourceRepository.branch,
+              filePath: sourceContext.sourceRepository.filePath,
               fileType: 'platform-extension'
             };
           } else {
             console.log(`[DataSourceManager] Platform ${platformId} has no repository information available`);
           }
-        }
         }
       }
       

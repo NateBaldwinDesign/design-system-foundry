@@ -23,19 +23,7 @@ export function getTokenStats(tokens: Token[]) {
   };
 }
 
-export function getPlatformOverrideStats(tokens: Token[], platforms: Platform[]) {
-  // For each platform, count tokens with platformOverrides
-  return platforms.map(platform => {
-    const count = tokens.filter(token =>
-      Array.isArray(token.valuesByMode) &&
-      token.valuesByMode.some((vbm: { platformOverrides?: { platformId: string }[] }) =>
-        Array.isArray(vbm.platformOverrides) &&
-        vbm.platformOverrides.some((po: { platformId: string }) => po.platformId === platform.id)
-      )
-    ).length;
-    return { platformId: platform.id, platformName: platform.displayName, count };
-  });
-}
+// Removed getPlatformOverrideStats function as platformOverrides is no longer part of the schema
 
 export async function getPlatformExtensionStats(platforms: Platform[]) {
   console.log('[DashboardStats] getPlatformExtensionStats called with platforms:', {

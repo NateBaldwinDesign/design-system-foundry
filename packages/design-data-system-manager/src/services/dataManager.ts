@@ -471,6 +471,52 @@ export class DataManager {
    * Load data from localStorage
    */
   private loadFromStorage(): DataSnapshot {
+    // CRITICAL FIX: Use local edits data instead of base storage data
+    // This ensures that user changes are reflected in the UI
+    const localEdits = StorageService.getLocalEdits();
+    
+    console.log('[DataManager] Loading data from storage:', {
+      hasLocalEdits: !!localEdits,
+      localEditsType: localEdits ? typeof localEdits : 'null'
+    });
+    
+    // If we have local edits, use them (they contain the user's changes)
+    if (localEdits && 'tokens' in localEdits) {
+      console.log('[DataManager] Using local edits data for current state');
+      const snapshot = {
+        collections: ('tokenCollections' in localEdits ? localEdits.tokenCollections : undefined) || StorageService.getCollections(),
+        modes: StorageService.getModes(), // modes are not in TokenSystem
+        dimensions: ('dimensions' in localEdits ? localEdits.dimensions : undefined) || StorageService.getDimensions(),
+        resolvedValueTypes: ('resolvedValueTypes' in localEdits ? localEdits.resolvedValueTypes : undefined) || StorageService.getValueTypes(),
+        platforms: ('platforms' in localEdits ? localEdits.platforms : undefined) || StorageService.getPlatforms(),
+        themes: ('themes' in localEdits ? localEdits.themes : undefined) || StorageService.getThemes(),
+        tokens: ('tokens' in localEdits ? localEdits.tokens : undefined) || StorageService.getTokens(),
+        taxonomies: ('taxonomies' in localEdits ? localEdits.taxonomies : undefined) || StorageService.getTaxonomies(),
+        componentProperties: ('componentProperties' in localEdits ? localEdits.componentProperties : undefined) || StorageService.getComponentProperties(),
+        componentCategories: ('componentCategories' in localEdits ? localEdits.componentCategories : undefined) || StorageService.getComponentCategories(),
+        components: ('components' in localEdits ? localEdits.components : undefined) || StorageService.getComponents(),
+        algorithms: StorageService.getAlgorithms(), // algorithms are not in TokenSystem
+        taxonomyOrder: ('taxonomyOrder' in localEdits ? localEdits.taxonomyOrder : undefined) || StorageService.getTaxonomyOrder(),
+        dimensionOrder: ('dimensionOrder' in localEdits ? localEdits.dimensionOrder : undefined) || StorageService.getDimensionOrder(),
+        algorithmFile: StorageService.getAlgorithmFile(), // algorithmFile is not in TokenSystem
+        // MultiRepositoryManager data
+        linkedRepositories: StorageService.getLinkedRepositories(),
+        platformExtensions: StorageService.getPlatformExtensions(),
+        themeOverrides: StorageService.getThemeOverrides(),
+        figmaConfiguration: ('figmaConfiguration' in localEdits ? localEdits.figmaConfiguration : undefined) || StorageService.getFigmaConfiguration(),
+      };
+      
+      console.log('[DataManager] Loaded from local edits:', {
+        tokensCount: snapshot.tokens.length,
+        collectionsCount: snapshot.collections.length,
+        dimensionsCount: snapshot.dimensions.length
+      });
+      
+      return snapshot;
+    }
+    
+    // Fallback to base storage data if no local edits exist
+    console.log('[DataManager] No local edits found, using base storage data');
     const snapshot = {
       collections: StorageService.getCollections(),
       modes: StorageService.getModes(),
@@ -497,28 +543,28 @@ export class DataManager {
     // Update state.storageData with loaded data
     this.state.storageData = {
       core: {
-        systemName: 'Design System',
-        systemId: 'design-system',
-        version: '1.0.0',
-        versionHistory: [],
-        dimensions: snapshot.dimensions,
-        dimensionOrder: snapshot.dimensionOrder,
-        taxonomyOrder: snapshot.taxonomyOrder,
         tokenCollections: snapshot.collections,
-        tokens: snapshot.tokens,
-        platforms: snapshot.platforms,
-        themes: snapshot.themes || [],
-        taxonomies: snapshot.taxonomies,
-        standardPropertyTypes: [],
-        propertyTypes: [],
+        dimensions: snapshot.dimensions,
         resolvedValueTypes: snapshot.resolvedValueTypes,
+        platforms: snapshot.platforms,
+        themes: snapshot.themes,
+        tokens: snapshot.tokens,
+        taxonomies: snapshot.taxonomies,
         componentProperties: snapshot.componentProperties,
         componentCategories: snapshot.componentCategories,
         components: snapshot.components,
-        figmaConfiguration: snapshot.figmaConfiguration || { fileKey: '', fileColorProfile: 'srgb' }
+        taxonomyOrder: snapshot.taxonomyOrder,
+        dimensionOrder: snapshot.dimensionOrder,
+        figmaConfiguration: snapshot.figmaConfiguration as any,
+        propertyTypes: [],
+        standardPropertyTypes: [],
+        systemId: 'design-system',
+        version: '1.0.0',
+        systemName: 'Design System',
+        versionHistory: [],
       },
-      platformExtensions: (snapshot.platformExtensions || {}) as Record<string, PlatformExtension>,
-      themeOverrides: (snapshot.themeOverrides || {}) as Record<string, ThemeOverrideFile>
+      platformExtensions: {},
+      themeOverrides: {}
     };
 
     return snapshot;

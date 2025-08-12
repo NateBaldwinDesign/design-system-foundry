@@ -53,14 +53,10 @@ import { OverrideCreationService } from '../services/overrideCreationService';
 import { OverrideTrackingService } from '../services/overrideTrackingService';
 import { PlatformNamePreview } from './PlatformNamePreview';
 
-// ExtendedToken type to include platformOverrides
+// ValueByMode interface for token values
 export interface ValueByMode {
   modeIds: string[];
   value: TokenValue;
-  platformOverrides?: {
-    platformId: string;
-    value: string;
-  }[];
   metadata?: Record<string, unknown>;
 }
 
@@ -115,7 +111,6 @@ function filterTaxonomiesByValueType(taxonomies: Taxonomy[], resolvedValueTypeId
 type PreservedValue = {
   modeIds: string[];
   value: TokenValue;
-  platformOverrides?: { platformId: string; value: string }[];
 };
 
 // Add type for the preserved values ref
@@ -366,8 +361,7 @@ export function TokenEditorDialog({
       ...rest,
       themeable: token.themeable ?? false,
       valuesByMode: valuesByMode.map(vbm => ({
-        ...vbm,
-        platformOverrides: vbm.platformOverrides ? [...vbm.platformOverrides] : []
+        ...vbm
       }))
     };
   });
@@ -433,8 +427,7 @@ export function TokenEditorDialog({
         ...rest,
         themeable: token.themeable ?? false,
         valuesByMode: valuesByMode.map(vbm => ({
-          ...vbm,
-          platformOverrides: vbm.platformOverrides ? [...vbm.platformOverrides] : []
+          ...vbm
         }))
       };
       
@@ -547,8 +540,7 @@ export function TokenEditorDialog({
           const globalValue = prev.valuesByMode.find(vbm => vbm.modeIds.length === 0);
           const newValuesByMode = dim.modes.map(mode => ({
             modeIds: [mode.id],
-            value: globalValue ? globalValue.value : getDefaultTokenValue(prev.resolvedValueTypeId, { resolvedValueTypes }),
-            platformOverrides: globalValue ? globalValue.platformOverrides : undefined
+            value: globalValue ? globalValue.value : getDefaultTokenValue(prev.resolvedValueTypeId, { resolvedValueTypes })
           }));
           
           console.log('[handleToggleDimension] Created new values for no previous dimensions:', {
@@ -602,8 +594,7 @@ export function TokenEditorDialog({
             
             newValuesByMode.push({
               modeIds: newModeIds,
-              value: currentValue.value,
-              platformOverrides: currentValue.platformOverrides
+              value: currentValue.value
             });
           }
         });
@@ -633,8 +624,7 @@ export function TokenEditorDialog({
                 
                 newValuesByMode.push({
                   modeIds: [mode.id],
-                  value: combinatoryValue.value,
-                  platformOverrides: combinatoryValue.platformOverrides
+                  value: combinatoryValue.value
                 });
               } else {
                 // Fallback to a current value or default
@@ -649,8 +639,7 @@ export function TokenEditorDialog({
                 
                 newValuesByMode.push({
                   modeIds: [mode.id],
-                  value: fallbackValue,
-                  platformOverrides: currentValues.length > 0 ? currentValues[0].platformOverrides : undefined
+                  value: fallbackValue
                 });
               }
             } else {
@@ -666,8 +655,7 @@ export function TokenEditorDialog({
               
               newValuesByMode.push({
                 modeIds: [mode.id],
-                value: defaultValue,
-                platformOverrides: undefined
+                value: defaultValue
               });
             }
           }

@@ -787,61 +787,63 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const handleSwitchBranch = () => {
-    // Determine the target repository based on new source context
+    console.log('[Header] Branch switch requested');
+    
+    // Determine the target repository based on current data source context
     let targetRepository: { fullName: string; branch: string; filePath: string; fileType: string } | null = null;
     
-    if (currentSourceContext) {
-      // Use new source context to determine switch target
-      if (currentSourceContext.sourceType === 'platform' && currentSourceContext.sourceId) {
-        // Platform extension switching
-        const sourceRepo = currentSourceContext.sourceRepository;
+    // Get current data source context from DataSourceManager
+    const dataSourceManager = DataSourceManager.getInstance();
+    const currentContext = dataSourceManager.getCurrentContext();
+    
+    console.log('[Header] Current data source context:', {
+      currentPlatform: currentContext.currentPlatform,
+      currentTheme: currentContext.currentTheme,
+      repositories: currentContext.repositories
+    });
+    
+    // Determine target repository based on current data source
+    if (currentContext.currentPlatform && currentContext.currentPlatform !== 'none') {
+      // Platform extension switching
+      const platformRepo = currentContext.repositories.platforms[currentContext.currentPlatform];
+      if (platformRepo) {
         targetRepository = {
-          fullName: sourceRepo.fullName,
-          branch: sourceRepo.branch,
-          filePath: sourceRepo.filePath,
+          fullName: platformRepo.fullName,
+          branch: platformRepo.branch,
+          filePath: platformRepo.filePath,
           fileType: 'platform-extension'
         };
-      } else if (currentSourceContext.sourceType === 'theme' && currentSourceContext.sourceId) {
-        // Theme override switching
-        const sourceRepo = currentSourceContext.sourceRepository;
+        console.log('[Header] Target repository for platform:', targetRepository);
+      }
+    } else if (currentContext.currentTheme && currentContext.currentTheme !== 'none') {
+      // Theme override switching
+      const themeRepo = currentContext.repositories.themes[currentContext.currentTheme];
+      if (themeRepo) {
         targetRepository = {
-          fullName: sourceRepo.fullName,
-          branch: sourceRepo.branch,
-          filePath: sourceRepo.filePath,
+          fullName: themeRepo.fullName,
+          branch: themeRepo.branch,
+          filePath: themeRepo.filePath,
           fileType: 'theme-override'
         };
-      } else {
-        // Core data switching
-        const coreRepo = currentSourceContext.coreRepository;
+        console.log('[Header] Target repository for theme:', targetRepository);
+      }
+    } else {
+      // Core data switching
+      const coreRepo = currentContext.repositories.core;
+      if (coreRepo) {
         targetRepository = {
           fullName: coreRepo.fullName,
           branch: coreRepo.branch,
           filePath: coreRepo.filePath,
           fileType: 'schema'
         };
+        console.log('[Header] Target repository for core:', targetRepository);
       }
-    } else if (isURLBasedAccess || urlRepoInfo) {
-      // URL-based access - use URL parameters
-      const urlParams = new URLSearchParams(window.location.search);
-      const repo = urlParams.get('repo');
-      const path = urlParams.get('path') || 'schema.json';
-      const branch = urlParams.get('branch') || 'main';
-      
-      if (repo) {
-        targetRepository = {
-          fullName: repo,
-          branch: branch,
-          filePath: path,
-          fileType: 'schema' // Default to schema for URL-based access
-        };
-      }
-    } else {
-      // Fallback to selectedRepoInfo for backward compatibility
-      targetRepository = selectedRepoInfo || null;
     }
 
     // Check if we have repository information
     if (!targetRepository?.fullName) {
+      console.error('[Header] No target repository found for branch switching');
       toast({
         title: 'No Repository Selected',
         description: 'Please select a platform or theme, or ensure you have a valid repository connection.',
@@ -861,26 +863,17 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const handleSwitchBranchSelected = (branchName: string) => {
-    // Switch to the selected branch in view mode
-    // This should trigger a data refresh to load the new branch data
-    if (onRefreshData) {
-      // Update the URL to reflect the new branch
-      const url = new URL(window.location.href);
-      url.searchParams.set('branch', branchName);
-      window.history.replaceState({}, '', url.toString());
-      
-      // Refresh data to load the new branch (suppress the data refresh toast)
-      onRefreshData(true); // Pass suppressToast = true to prevent duplicate toast
-      
-      toast({
-        title: 'Branch Switched',
-        description: `Now viewing branch "${branchName}"`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-    }
-    setShowSwitchBranchDialog(false);
+    console.log('[Header] Branch selected for switching:', branchName);
+    
+    // Update the URL to reflect the new branch
+    const url = new URL(window.location.href);
+    url.searchParams.set('branch', branchName);
+    
+    console.log('[Header] Updating URL with new branch:', url.toString());
+    
+    // Refresh the entire app with new branch parameter
+    // This ensures the app loads data from the new branch
+    window.location.href = url.toString();
   };
 
   return (

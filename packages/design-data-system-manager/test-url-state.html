@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL State Test</title>
+</head>
+<body>
+    <h1>URL State Management Test</h1>
+    <p>This page tests the URL-based view and tab state management.</p>
+    
+        <h2>Test URLs:</h2>
+    <ul>
+      <li><a href="?view=dashboard">Dashboard (default)</a></li>
+      <li><a href="?view=tokens">Tokens View</a></li>
+      <li><a href="?view=tokens&tab=1">Tokens View - Semantic Tab</a></li>
+      <li><a href="?view=system">System View</a></li>
+      <li><a href="?view=system&tab=3">System View - Component Categories Tab</a></li>
+      <li><a href="?view=analysis">Analysis View</a></li>
+      <li><a href="?view=analysis&tab=1">Analysis View - Tokens Tab</a></li>
+      <li><a href="?view=analysis&tab=2">Analysis View - Modes Tab</a></li>
+      <li><a href="?view=analysis&tab=3">Analysis View - Platforms & Themes Tab</a></li>
+      <li><a href="?view=analysis&tab=4">Analysis View - Taxonomies Tab</a></li>
+      <li><a href="?view=platforms&platform=test">Platforms with platform parameter</a></li>
+      <li><a href="?view=themes&theme=test">Themes with theme parameter</a></li>
+    </ul>
+    
+    <h2>Current URL Parameters:</h2>
+    <div id="params"></div>
+    
+    <script>
+        function updateParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const paramsDiv = document.getElementById('params');
+            let html = '<ul>';
+            
+            for (const [key, value] of urlParams.entries()) {
+                html += `<li><strong>${key}:</strong> ${value}</li>`;
+            }
+            
+            if (urlParams.entries().next().done) {
+                html += '<li><em>No parameters</em></li>';
+            }
+            
+            html += '</ul>';
+            paramsDiv.innerHTML = html;
+        }
+        
+        // Update on page load
+        updateParams();
+        
+        // Update when URL changes
+        window.addEventListener('popstate', updateParams);
+    </script>
+</body>
+</html>

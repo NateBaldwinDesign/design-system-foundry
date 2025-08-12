@@ -84,10 +84,10 @@ function resolveEmptyModeIds(
  * Maintains metadata and platform overrides
  */
 function mergeValuesByMode(
-  existingValuesByMode: Array<{ modeIds: string[]; value: { value?: unknown } | { tokenId: string }; metadata?: Record<string, unknown>; platformOverrides?: Array<{ platformId: string; value: string; metadata?: Record<string, unknown> }> }>,
-  overrideValuesByMode: Array<{ modeIds: string[]; value: { value?: unknown } | { tokenId: string }; metadata?: Record<string, unknown>; platformOverrides?: Array<{ platformId: string; value: string; metadata?: Record<string, unknown> }> }>,
+  existingValuesByMode: Array<{ modeIds: string[]; value: { value?: unknown } | { tokenId: string }; metadata?: Record<string, unknown> }>,
+  overrideValuesByMode: Array<{ modeIds: string[]; value: { value?: unknown } | { tokenId: string }; metadata?: Record<string, unknown> }>,
   dimensions: Array<{ id: string; defaultMode: string }>
-): Array<{ modeIds: string[]; value: { value?: unknown } | { tokenId: string }; metadata?: Record<string, unknown>; platformOverrides?: Array<{ platformId: string; value: string; metadata?: Record<string, unknown> }> }> {
+): Array<{ modeIds: string[]; value: { value?: unknown } | { tokenId: string }; metadata?: Record<string, unknown> }> {
   console.log('[mergeValuesByMode] 🔄 Starting mergeValuesByMode:', {
     existingCount: existingValuesByMode.length,
     overrideCount: overrideValuesByMode.length,
@@ -133,8 +133,7 @@ function mergeValuesByMode(
       result[existingIndex] = {
         ...result[existingIndex],
         value: overrideValue.value,
-        metadata: overrideValue.metadata ?? result[existingIndex].metadata,
-        platformOverrides: overrideValue.platformOverrides ?? result[existingIndex].platformOverrides
+        metadata: overrideValue.metadata ?? result[existingIndex].metadata
       };
     } else {
       // Add new entry
@@ -142,8 +141,7 @@ function mergeValuesByMode(
       result.push({
         modeIds: resolvedModeIds,
         value: overrideValue.value,
-        metadata: overrideValue.metadata,
-        platformOverrides: overrideValue.platformOverrides
+        metadata: overrideValue.metadata
       });
     }
   }

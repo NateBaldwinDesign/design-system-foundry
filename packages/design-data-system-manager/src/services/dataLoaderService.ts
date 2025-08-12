@@ -33,11 +33,15 @@ export class DataLoaderService {
     try {
       console.log('[DataLoaderService] Starting data loading from URL parameters');
       
+      // Get branch from URL parameters (defaults to 'main')
+      const branchFromURL = urlParams.get('branch') || 'main';
+      console.log('[DataLoaderService] Using branch from URL:', branchFromURL);
+      
       // Step 1: Load core data
       const coreResult = await this.loadCoreData(
         urlParams.get('repo'), 
         urlParams.get('path'), 
-        urlParams.get('branch') || 'main'
+        branchFromURL
       );
       
       if (!coreResult.success) {
@@ -46,7 +50,7 @@ export class DataLoaderService {
 
       // Step 2: Determine and load source data
       const sourceType = this.determineSourceType(urlParams);
-      const sourceResult = await this.loadSourceData(sourceType, urlParams);
+      const sourceResult = await this.loadSourceData(sourceType, urlParams, branchFromURL);
       
       if (!sourceResult.success) {
         return sourceResult;
@@ -145,7 +149,8 @@ private async loadCoreData(
    */
   private async loadSourceData(
     sourceType: DataSourceType, 
-    urlParams: URLSearchParams
+    urlParams: URLSearchParams,
+    branch: string
   ): Promise<DataLoadResult> {
     const coreData = StorageService.getCoreData();
     if (!coreData) {
@@ -171,7 +176,7 @@ private async loadCoreData(
           };
         }
 
-        return await this.loadPlatformData(platformId, coreData);
+        return await this.loadPlatformData(platformId, coreData, branch);
       }
 
       if (sourceType === 'theme') {
@@ -183,7 +188,7 @@ private async loadCoreData(
           };
         }
 
-        return await this.loadThemeData(themeId, coreData);
+        return await this.loadThemeData(themeId, coreData, branch);
       }
 
       return {
@@ -203,7 +208,7 @@ private async loadCoreData(
 /**
  * Load platform extension data (with public repository fallback)
  */
-private async loadPlatformData(platformId: string, coreData: TokenSystem): Promise<DataLoadResult> {
+private async loadPlatformData(platformId: string, coreData: TokenSystem, branch: string): Promise<DataLoadResult> {
   const platform = coreData.platforms?.find(p => p.id === platformId);
   if (!platform) {
     return {
@@ -220,11 +225,11 @@ private async loadPlatformData(platformId: string, coreData: TokenSystem): Promi
   }
 
   try {
-    const { repositoryUri, filePath, branch = 'main' } = platform.extensionSource;
+    const { repositoryUri, filePath } = platform.extensionSource;
     const [owner, repo] = repositoryUri.split('/');
     const fullRepoName = `${owner}/${repo}`;
 
-    console.log(`[DataLoaderService] Loading platform data from ${fullRepoName}/${filePath}`);
+    console.log(`[DataLoaderService] Loading platform data from ${fullRepoName}/${filePath} on branch ${branch}`);
     
     let fileContent;
     
@@ -254,7 +259,7 @@ private async loadPlatformData(platformId: string, coreData: TokenSystem): Promi
     }
 
     const platformData = parsedData as PlatformExtension;
-    StorageService.setSourceSnapshot(platformData);
+    StorageService.setSourceSnapshot(platformData as unknown as TokenSystem);
     StorageService.setPlatformExtensionData(platformId, platformData);
     
     console.log('[DataLoaderService] Platform data loaded successfully');
@@ -275,7 +280,7 @@ private async loadPlatformData(platformId: string, coreData: TokenSystem): Promi
 /**
  * Load theme override data (with public repository fallback)
  */
-private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<DataLoadResult> {
+private async loadThemeData(themeId: string, coreData: TokenSystem, branch: string): Promise<DataLoadResult> {
   const theme = coreData.themes?.find(t => t.id === themeId);
   if (!theme) {
     return {
@@ -292,11 +297,11 @@ private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<Dat
   }
 
   try {
-    const { repositoryUri, filePath, branch = 'main' } = theme.overrideSource;
+    const { repositoryUri, filePath } = theme.overrideSource;
     const [owner, repo] = repositoryUri.split('/');
     const fullRepoName = `${owner}/${repo}`;
 
-    console.log(`[DataLoaderService] Loading theme data from ${fullRepoName}/${filePath}`);
+    console.log(`[DataLoaderService] Loading theme data from ${fullRepoName}/${filePath} on branch ${branch}`);
     
     let fileContent;
     
@@ -326,7 +331,7 @@ private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<Dat
     }
 
     const themeData = parsedData as ThemeOverrideFile;
-    StorageService.setSourceSnapshot(themeData);
+    StorageService.setSourceSnapshot(themeData as unknown as TokenSystem);
     StorageService.setThemeOverrideData(themeId, themeData);
     
     console.log('[DataLoaderService] Theme data loaded successfully');

@@ -510,18 +510,7 @@
                       }
                     ]
                   },
-                  "platformOverrides": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "required": ["platformId", "value"],
-                      "properties": {
-                        "platformId": { "type": "string" },
-                        "value": { "type": "string" },
-                        "metadata": { "type": "object" }
-                      }
-                    }
-                  },
+
                   "metadata": { "type": "object" }
                 }
               },

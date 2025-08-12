@@ -9,6 +9,7 @@ import { formatValueForDisplay } from '../utils/valueTypeUtils';
 import { getValueTypeIcon } from '../utils/getValueTypeIcon';
 import TokenIcon from '../icons/TokenIcon';
 import { PageTemplate } from '../components/PageTemplate';
+import { useTabState } from '../hooks/useTabState';
 import type { DataSourceContext } from '../services/dataSourceManager';
 
 interface TokensViewProps {
@@ -40,8 +41,12 @@ export function TokensView({
   dataSourceContext,
   dimensionOrder = []
 }: TokensViewProps) {
-  // Filter state
-  const [activeTab, setActiveTab] = useState<string>('PRIMITIVE');
+  // Use tab state management with URL parameters
+  const { currentTab, navigateToTab } = useTabState('tokens', 0);
+  
+  // Map tab index to token tier
+  const tokenTiers = ['PRIMITIVE', 'SEMANTIC', 'COMPONENT'];
+  const activeTab = tokenTiers[currentTab] || 'PRIMITIVE';
   const { colorMode } = useColorMode();
   const [collectionFilters, setCollectionFilters] = useState<string[]>([]);
   const [typeFilters, setTypeFilters] = useState<string[]>([]);
@@ -505,10 +510,8 @@ export function TokensView({
       )}
 
       <Tabs 
-        onChange={(index) => {
-          const tabs = ['PRIMITIVE', 'SEMANTIC', 'COMPONENT'];
-          setActiveTab(tabs[index]);
-        }} 
+        index={currentTab}
+        onChange={navigateToTab}
         mb={4}
         variant={searchTerm ? "unstyled" : "line"}
         opacity={searchTerm ? 0.5 : 1}

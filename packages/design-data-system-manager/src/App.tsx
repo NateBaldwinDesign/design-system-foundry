@@ -1344,6 +1344,30 @@ const App = () => {
         branch: newBranchName
       };
       
+      // CRITICAL FIX: Update DataSourceManager with the new branch information
+      // This ensures that GitHubSaveService gets the correct branch when making commits
+      if (currentContext.currentPlatform && currentContext.currentPlatform !== 'none') {
+        // Update platform repository branch
+        dataSourceManager.updateRepositoryBranch('platform-extension', newBranchName, currentContext.currentPlatform);
+        console.log('[App] Updated platform repository branch:', {
+          platform: currentContext.currentPlatform,
+          newBranch: newBranchName
+        });
+      } else if (currentContext.currentTheme && currentContext.currentTheme !== 'none') {
+        // Update theme repository branch
+        dataSourceManager.updateRepositoryBranch('theme-override', newBranchName, currentContext.currentTheme);
+        console.log('[App] Updated theme repository branch:', {
+          theme: currentContext.currentTheme,
+          newBranch: newBranchName
+        });
+      } else {
+        // Update core repository branch
+        dataSourceManager.updateRepositoryBranch('core', newBranchName);
+        console.log('[App] Updated core repository branch:', {
+          newBranch: newBranchName
+        });
+      }
+      
       // Update StatePersistenceManager with current repository context
       const stateManager = StatePersistenceManager.getInstance();
       stateManager.updateRepositoryContext(currentRepository);
@@ -1411,11 +1435,12 @@ const App = () => {
         duration: 3000,
         isClosable: true,
       });
+      
     } catch (error) {
-      console.error('Failed to switch to new branch:', error);
+      console.error('[App] Failed to handle branch creation:', error);
       toast({
-        title: 'Branch Switch Failed',
-        description: error instanceof Error ? error.message : 'Failed to switch to new branch',
+        title: 'Branch Creation Failed',
+        description: error instanceof Error ? error.message : 'Failed to create branch',
         status: 'error',
         duration: 5000,
         isClosable: true,

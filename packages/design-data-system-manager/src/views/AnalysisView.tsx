@@ -27,10 +27,10 @@ import { RefreshCw } from 'lucide-react';
 import { PageTemplate } from '../components/PageTemplate';
 import { NetworkDiagram } from '../components/visualizations/NetworkDiagram';
 import { CirclePack } from '../components/visualizations/CirclePack';
-import { CirclePackDebug } from '../components/visualizations/CirclePack/CirclePackDebug';
 import { VisualizationContainer, VisualizationToolbar, VisualizationLegend } from '../components/visualizations/shared';
 import { DataTransformationService } from '../services/visualizations';
 import { StorageService } from '../services/storage';
+import { useTabState } from '../hooks/useTabState';
 import type { 
   TokenDependencyGraph,
   CirclePackResult,
@@ -41,6 +41,9 @@ import type { NetworkDiagramRef as ComponentRef } from '../components/visualizat
 import type { CirclePackRef, D3CirclePackNode } from '../components/visualizations/CirclePack/types';
 
 const AnalysisView: React.FC = () => {
+  // Use tab state management with URL parameters
+  const { currentTab, navigateToTab } = useTabState('analysis', 0);
+  
   // State management
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -274,7 +277,7 @@ const AnalysisView: React.FC = () => {
   // Render main analysis view
   return (
     <PageTemplate title="Analysis" maxWidth="100%">
-      <Tabs>
+      <Tabs index={currentTab} onChange={navigateToTab}>
         <TabList>
           <Tab>System</Tab>
           <Tab>Tokens</Tab>
