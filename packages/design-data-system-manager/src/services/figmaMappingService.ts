@@ -39,6 +39,10 @@ export class FigmaMappingService {
   private static readonly STORAGE_KEY_PREFIX = 'figma-mapping:';
   private static readonly FIGMA_DIR = '.figma';
   private static readonly MAPPINGS_DIR = `${FigmaMappingService.FIGMA_DIR}/mappings`;
+  
+  // Debounce auto-commit to prevent race conditions
+  private static autoCommitTimers: Map<string, NodeJS.Timeout> = new Map();
+  private static readonly AUTO_COMMIT_DEBOUNCE_MS = 10000; // 10 seconds
 
   /**
    * Save tempToRealId mapping for a specific Figma file (localStorage only)
@@ -115,24 +119,37 @@ export class FigmaMappingService {
         console.log(`[FigmaMappingService] Successfully saved mapping to GitHub: ${filename}`);
       } catch (error) {
         // If we get a 409 conflict, it means the file was modified by someone else
-        // Try to get the latest SHA and retry once
+        // Try to get the latest SHA and retry with exponential backoff
         if (error instanceof Error && error.message.includes('409')) {
-          console.log(`[FigmaMappingService] Got 409 conflict, retrying with latest SHA...`);
-          try {
-            // Wait a moment for any concurrent updates to complete
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            await GitHubApiService.createOrUpdateFile(
-              `${repoInfo.owner}/${repoInfo.repo}`,
-              filename,
-              content,
-              'main',
-              commitMessage
-            );
-            console.log(`[FigmaMappingService] Successfully saved mapping to GitHub after retry: ${filename}`);
-          } catch (retryError) {
-            console.error(`[FigmaMappingService] Failed to save mapping to GitHub after retry:`, retryError);
-            throw retryError;
+          console.log(`[FigmaMappingService] Got 409 conflict, retrying with exponential backoff...`);
+          
+          // Try up to 3 times with exponential backoff
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              // Exponential backoff: 2^attempt seconds (2s, 4s, 8s)
+              const delay = Math.pow(2, attempt) * 1000;
+              console.log(`[FigmaMappingService] Retry attempt ${attempt}/3, waiting ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              
+              // Retry - GitHubApiService will automatically fetch the latest SHA
+              await GitHubApiService.createOrUpdateFile(
+                `${repoInfo.owner}/${repoInfo.repo}`,
+                filename,
+                content,
+                'main',
+                commitMessage
+              );
+              console.log(`[FigmaMappingService] Successfully saved mapping to GitHub after retry attempt ${attempt}: ${filename}`);
+              return; // Success, exit the retry loop
+            } catch (retryError) {
+              console.warn(`[FigmaMappingService] Retry attempt ${attempt}/3 failed:`, retryError);
+              if (attempt === 3) {
+                // Final attempt failed
+                console.error(`[FigmaMappingService] All retry attempts failed for file ${fileKey}`);
+                throw retryError;
+              }
+              // Continue to next attempt
+            }
           }
         } else {
           console.error(`[FigmaMappingService] Failed to save mapping to GitHub:`, error);
@@ -589,14 +606,30 @@ export class FigmaMappingService {
     });
     
     if (repoInfo && isGitHubAvailable) {
-      try {
-        console.log(`[FigmaMappingService] Attempting to auto-commit mapping to GitHub for file ${fileKey}...`);
-        await this.saveMappingToGitHub(fileKey, mappingData, repoInfo);
-        console.log(`[FigmaMappingService] ✅ Successfully auto-committed mapping to both localStorage and GitHub for file ${fileKey}`);
-      } catch (error) {
-        console.error(`[FigmaMappingService] ❌ Failed to auto-commit mapping to GitHub for file ${fileKey}:`, error);
-        // Continue with localStorage only if GitHub save fails
+      // Clear any existing timer for this file
+      const existingTimer = this.autoCommitTimers.get(fileKey);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        console.log(`[FigmaMappingService] Cleared existing auto-commit timer for file ${fileKey}`);
       }
+      
+      // Set up debounced auto-commit
+      const timer = setTimeout(async () => {
+        try {
+          console.log(`[FigmaMappingService] Executing debounced auto-commit for file ${fileKey}...`);
+          await this.saveMappingToGitHub(fileKey, mappingData, repoInfo);
+          console.log(`[FigmaMappingService] ✅ Successfully auto-committed mapping to both localStorage and GitHub for file ${fileKey}`);
+        } catch (error) {
+          console.error(`[FigmaMappingService] ❌ Failed to auto-commit mapping to GitHub for file ${fileKey}:`, error);
+          // Continue with localStorage only if GitHub save fails
+        } finally {
+          // Clean up timer reference
+          this.autoCommitTimers.delete(fileKey);
+        }
+      }, this.AUTO_COMMIT_DEBOUNCE_MS);
+      
+      this.autoCommitTimers.set(fileKey, timer);
+      console.log(`[FigmaMappingService] Scheduled debounced auto-commit for file ${fileKey} in ${this.AUTO_COMMIT_DEBOUNCE_MS}ms`);
     } else {
       console.log(`[FigmaMappingService] ⚠️ GitHub integration not available for auto-commit, saved mapping to localStorage only for file ${fileKey}`);
       if (!repoInfo) {

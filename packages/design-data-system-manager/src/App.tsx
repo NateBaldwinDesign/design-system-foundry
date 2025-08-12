@@ -1324,10 +1324,10 @@ const App = () => {
       const newContext = dataSourceManager.getCurrentContext();
       setDataSourceContext(newContext);
       
-                    // CRITICAL: Update permissions for the new data source context
+      // CRITICAL: Update permissions for the new data source context
       if (githubUser) {
-        // DataSourceManager already updated permissions during switchToPlatform
-        // Just read the current permissions from the context
+        // Force refresh permissions after source switch to ensure accuracy
+        await dataSourceManager.forceRefreshPermissions();
         const updatedContext = dataSourceManager.getCurrentContext();
         
         // Determine edit permissions based on current data source
@@ -1389,8 +1389,8 @@ const App = () => {
       
       // CRITICAL: Update permissions for the new data source context
       if (githubUser) {
-        // DataSourceManager already updated permissions during switchToTheme
-        // Just read the current permissions from the context
+        // Force refresh permissions after source switch to ensure accuracy
+        await dataSourceManager.forceRefreshPermissions();
         const updatedContext = dataSourceManager.getCurrentContext();
         
         // Determine edit permissions based on current data source

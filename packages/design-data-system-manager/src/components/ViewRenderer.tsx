@@ -36,6 +36,7 @@ import { SystemView } from '../views/system/SystemView';
 import { TokenEditorDialog } from './TokenEditorDialog';
 import { FigmaConfigurationsView } from '../views/FigmaConfigurationsView';
 import { createSchemaJsonFromLocalStorage } from '../services/createJson';
+import { StorageService } from '../services/storage';
 import type { TokenSystem } from '@token-model/data-model';
 import SchemasView from '../views/SchemasView';
 import ComponentsView from '../views/ComponentsView';
@@ -236,14 +237,45 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
       case 'platforms':
         return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} canEdit={effectiveCanEdit} />;
       
-      case 'figma-settings':
-        return <FigmaConfigurationsView tokenSystem={createSchemaJsonFromLocalStorage()} canEdit={effectiveCanEdit} hasEditPermissions={hasEditPermissions} dataSourceContext={dataSourceContext} />;
+      case 'figma-settings': {
+        // Get the appropriate token system based on current source context
+        const getTokenSystemForFigmaSettings = () => {
+          const sourceContext = dataSourceContext;
+          
+          if (sourceContext?.currentPlatform === null && sourceContext?.currentTheme === null) {
+            // Core data - use pure core data, not merged data
+            const coreData = StorageService.getCoreData();
+            
+            if (!coreData) {
+              // Fallback to createSchemaJsonFromLocalStorage if no core data
+              return createSchemaJsonFromLocalStorage();
+            }
+            
+            // Ensure dimensionOrder is included from localStorage if not present in coreData
+            if (!coreData.dimensionOrder || coreData.dimensionOrder.length === 0) {
+              const dimensionOrder = StorageService.getDimensionOrder();
+              if (dimensionOrder && dimensionOrder.length > 0) {
+                coreData.dimensionOrder = dimensionOrder;
+              }
+            }
+            
+            return coreData;
+          } else {
+            // Platform or theme source - use merged data
+            return createSchemaJsonFromLocalStorage();
+          }
+        };
+        
+        return <FigmaConfigurationsView 
+          tokenSystem={getTokenSystemForFigmaSettings()} 
+          canEdit={effectiveCanEdit} 
+          hasEditPermissions={hasEditPermissions} 
+          dataSourceContext={dataSourceContext} 
+        />;
+      }
       
       case 'validation':
         return <ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />;
-      
-      case 'analysis':
-        return <AnalysisView />;
       
       case 'schemas':
         return <SchemasView />;
