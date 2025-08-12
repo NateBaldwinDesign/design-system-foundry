@@ -151,7 +151,7 @@ export class DataManager {
   }
 
   /**
-   * Initialize the data manager and load initial data
+   * Initialize the data manager and load data from storage
    */
   async initialize(callbacks: DataManagerCallbacks = {}): Promise<DataSnapshot> {
     this.callbacks = callbacks;
@@ -183,19 +183,22 @@ export class DataManager {
     // Set baseline for change tracking
     this.setBaseline(snapshot);
     
+    // Update presentation data to ensure merged data is available
+    this.updatePresentationData();
+    
     this.isInitialized = true;
     
     // Notify that data has been loaded
-    this.callbacks.onDataLoaded?.(snapshot);
+    this.callbacks.onDataLoaded?.(this.state.presentationData);
     
     console.log('[DataManager] Initialized with data:', {
-      tokens: snapshot.tokens.length,
-      collections: snapshot.collections.length,
-      dimensions: snapshot.dimensions.length,
-      platforms: snapshot.platforms.length
+      tokens: this.state.presentationData.tokens.length,
+      collections: this.state.presentationData.collections.length,
+      dimensions: this.state.presentationData.dimensions.length,
+      platforms: this.state.presentationData.platforms.length
     });
     
-    return snapshot;
+    return this.state.presentationData;
   }
 
   /**
@@ -242,17 +245,20 @@ export class DataManager {
       this.setBaseline(snapshot);
       console.log('[DataManager] Set new baseline for change tracking');
       
+      // Update presentation data to ensure merged data is available
+      this.updatePresentationData();
+      
       // Notify that data has been loaded with new baseline
-      this.callbacks.onDataLoaded?.(snapshot);
-      this.callbacks.onBaselineUpdated?.(snapshot);
+      this.callbacks.onDataLoaded?.(this.state.presentationData);
+      this.callbacks.onBaselineUpdated?.(this.state.presentationData);
       
       console.log('[DataManager] Successfully loaded GitHub data:', {
-        tokens: snapshot.tokens.length,
-        collections: snapshot.collections.length,
-        dimensions: snapshot.dimensions.length
+        tokens: this.state.presentationData.tokens.length,
+        collections: this.state.presentationData.collections.length,
+        dimensions: this.state.presentationData.dimensions.length
       });
       
-      return snapshot;
+      return this.state.presentationData;
     } catch (error) {
       console.error('[DataManager] Error loading GitHub data:', error);
       throw error;
@@ -281,17 +287,20 @@ export class DataManager {
       this.setBaseline(snapshot);
       console.log('[DataManager] Set new baseline for change tracking');
       
+      // Update presentation data to ensure merged data is available
+      this.updatePresentationData();
+      
       // Notify that data has been loaded with new baseline
-      this.callbacks.onDataLoaded?.(snapshot);
-      this.callbacks.onBaselineUpdated?.(snapshot);
+      this.callbacks.onDataLoaded?.(this.state.presentationData);
+      this.callbacks.onBaselineUpdated?.(this.state.presentationData);
       
       console.log('[DataManager] Successfully loaded example data:', {
-        tokens: snapshot.tokens.length,
-        collections: snapshot.collections.length,
-        dimensions: snapshot.dimensions.length
+        tokens: this.state.presentationData.tokens.length,
+        collections: this.state.presentationData.collections.length,
+        dimensions: this.state.presentationData.dimensions.length
       });
       
-      return snapshot;
+      return this.state.presentationData;
     } catch (error) {
       console.error('[DataManager] Error loading example data:', error);
       throw error;
@@ -343,20 +352,23 @@ export class DataManager {
       // Set new baseline for change tracking
       this.setBaseline(snapshot);
       
+      // Update presentation data to ensure merged data is available
+      this.updatePresentationData();
+      
       // Notify that data has been loaded with new baseline
-      this.callbacks.onDataLoaded?.(snapshot);
-      this.callbacks.onBaselineUpdated?.(snapshot);
+      this.callbacks.onDataLoaded?.(this.state.presentationData);
+      this.callbacks.onBaselineUpdated?.(this.state.presentationData);
       
       console.log('[DataManager] Successfully loaded URL config data:', {
         repo: config.repo,
         path,
         branch,
-        tokens: snapshot.tokens.length,
-        collections: snapshot.collections.length,
-        dimensions: snapshot.dimensions.length
+        tokens: this.state.presentationData.tokens.length,
+        collections: this.state.presentationData.collections.length,
+        dimensions: this.state.presentationData.dimensions.length
       });
       
-      return snapshot;
+      return this.state.presentationData;
     } catch (error) {
       console.error('[DataManager] Error loading URL config data:', error);
       throw error;
@@ -459,7 +471,7 @@ export class DataManager {
    * Load data from localStorage
    */
   private loadFromStorage(): DataSnapshot {
-    return {
+    const snapshot = {
       collections: StorageService.getCollections(),
       modes: StorageService.getModes(),
       dimensions: StorageService.getDimensions(),
@@ -481,6 +493,35 @@ export class DataManager {
       themeOverrides: StorageService.getThemeOverrides(),
       figmaConfiguration: StorageService.getFigmaConfiguration(),
     };
+
+    // Update state.storageData with loaded data
+    this.state.storageData = {
+      core: {
+        systemName: 'Design System',
+        systemId: 'design-system',
+        version: '1.0.0',
+        versionHistory: [],
+        dimensions: snapshot.dimensions,
+        dimensionOrder: snapshot.dimensionOrder,
+        taxonomyOrder: snapshot.taxonomyOrder,
+        tokenCollections: snapshot.collections,
+        tokens: snapshot.tokens,
+        platforms: snapshot.platforms,
+        themes: snapshot.themes || [],
+        taxonomies: snapshot.taxonomies,
+        standardPropertyTypes: [],
+        propertyTypes: [],
+        resolvedValueTypes: snapshot.resolvedValueTypes,
+        componentProperties: snapshot.componentProperties,
+        componentCategories: snapshot.componentCategories,
+        components: snapshot.components,
+        figmaConfiguration: snapshot.figmaConfiguration || { fileKey: '', fileColorProfile: 'srgb' }
+      },
+      platformExtensions: (snapshot.platformExtensions || {}) as Record<string, PlatformExtension>,
+      themeOverrides: (snapshot.themeOverrides || {}) as Record<string, ThemeOverrideFile>
+    };
+
+    return snapshot;
   }
 
   /**
@@ -1154,6 +1195,12 @@ export class DataManager {
    * Update presentation data by merging storage data
    */
   private updatePresentationData(): void {
+    // Guard against null core data
+    if (!this.state.storageData.core) {
+      console.log('[DataManager] Skipping updatePresentationData - no core data available');
+      return;
+    }
+
     // Use EnhancedDataMerger to merge data with override support
     const enhancedMerger = EnhancedDataMerger.getInstance();
     

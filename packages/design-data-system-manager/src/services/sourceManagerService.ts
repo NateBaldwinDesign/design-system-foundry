@@ -1,10 +1,14 @@
-import { DataLoaderService } from './dataLoaderService';
-import { DataEditorService } from './dataEditorService';
-import { DataMergerService } from './dataMergerService';
 import { StorageService } from './storage';
+import { DataEditorService } from './dataEditorService';
 import { DataSourceManager } from './dataSourceManager';
+import { DataManager } from './dataManager';
 import type { 
-  DataSourceType, 
+  SourceContext, 
+  SourceSwitchResult, 
+  DataSourceType 
+} from '../types/dataManagement';
+import type { TokenSystem } from '@token-model/data-model';
+import type { 
   SourceContext, 
   SourceSwitchResult, 
   RepositoryInfo 
@@ -107,9 +111,11 @@ export class SourceManagerService {
       const dataEditorService = DataEditorService.getInstance();
       dataEditorService.resetLocalEdits();
 
-      // 6. Recompute merged data (now with correct source context)
-      const dataMerger = DataMergerService.getInstance();
-      await dataMerger.computeMergedData();
+      // 6. Trigger DataManager to update presentation data (now with correct source context)
+      const dataManager = DataManager.getInstance();
+      // The DataManager will automatically update presentation data when source context changes
+      // We just need to ensure it has the latest data
+      console.log('[SourceManagerService] Triggering DataManager presentation data update');
 
       console.log('[SourceManagerService] Source switch completed successfully');
       return {

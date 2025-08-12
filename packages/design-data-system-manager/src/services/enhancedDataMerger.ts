@@ -13,6 +13,7 @@ import type {
   ComponentCategory,
   Component
 } from '@token-model/data-model';
+import { mergeData } from '@token-model/data-model';
 import type { DataSourceContext } from './dataSourceManager';
 
 export interface MergedDataSnapshot {
@@ -95,28 +96,119 @@ export class EnhancedDataMerger {
     themeOverrides: Record<string, ThemeOverrideFile>
   ): MergedDataSnapshot {
     try {
-      // Start with core data
-      let mergedData = this.coreToMergedSnapshot(coreData);
+      console.log('[EnhancedDataMerger] 🚀 Starting mergeData with context:', {
+        currentPlatform: context.currentPlatform,
+        currentTheme: context.currentTheme,
+        editMode: context.editMode
+      });
 
-      // Merge platform extension if selected
+      if (!coreData) {
+        throw new Error('Core data is required for merging');
+      }
+
+      console.log('[EnhancedDataMerger] 📊 Core data summary:', {
+        tokensCount: coreData.tokens.length,
+        dimensionsCount: coreData.dimensions.length,
+        dimensionOrder: coreData.dimensionOrder
+      });
+
+      // Convert platform extensions and theme overrides to the format expected by mergeData
+      const platformExtensionsArray: PlatformExtension[] = [];
+      const themeOverridesMap: Record<string, any> = {}; // Using any for now due to complex type issues
+
+      // Add platform extension if selected
       if (context.currentPlatform && context.currentPlatform !== 'none') {
         const platformExtension = platformExtensions[context.currentPlatform];
         if (platformExtension) {
-          mergedData = this.mergePlatformExtension(mergedData, platformExtension, context.currentPlatform);
+          console.log('[EnhancedDataMerger] 🔧 Adding platform extension:', {
+            platformId: context.currentPlatform,
+            tokenOverridesCount: platformExtension.tokenOverrides?.length || 0
+          });
+          platformExtensionsArray.push(platformExtension);
         }
       }
 
-      // Merge theme override if selected
+      // Add theme override if selected
       if (context.currentTheme && context.currentTheme !== 'none') {
         const themeOverride = themeOverrides[context.currentTheme];
         if (themeOverride) {
-          mergedData = this.mergeThemeOverride(mergedData, themeOverride, context.currentTheme);
+          console.log('[EnhancedDataMerger] 🎨 Adding theme override:', {
+            themeId: context.currentTheme,
+            tokenOverridesCount: themeOverride.tokenOverrides?.length || 0
+          });
+          themeOverridesMap[context.currentTheme] = themeOverride.tokenOverrides || [];
         }
       }
 
-      return mergedData;
+      console.log('[EnhancedDataMerger] 📋 Merge inputs prepared:', {
+        platformExtensionsCount: platformExtensionsArray.length,
+        themeOverridesCount: Object.keys(themeOverridesMap).length
+      });
+
+      // Use the enhanced mergeData function from data-model package
+      const mergedResult = mergeData(
+        coreData,
+        platformExtensionsArray,
+        Object.keys(themeOverridesMap).length > 0 ? themeOverridesMap : undefined
+      );
+
+      console.log('[EnhancedDataMerger] ✅ Merge completed:', {
+        mergedTokensCount: mergedResult.mergedTokens.length,
+        mergedPlatformsCount: mergedResult.mergedPlatforms.length
+      });
+
+      // Debug: Check specific tokens for valuesByMode issues
+      console.log('[EnhancedDataMerger] 🔍 Debugging valuesByMode merging:');
+      mergedResult.mergedTokens.forEach((token, index) => {
+        if (index < 5) { // Only log first 5 tokens to avoid spam
+          console.log(`[EnhancedDataMerger] Token ${token.id} (${token.displayName}):`, {
+            valuesByModeCount: token.valuesByMode?.length || 0,
+            valuesByMode: token.valuesByMode?.map(vbm => ({
+              modeIds: vbm.modeIds,
+              hasValue: !!vbm.value,
+              valueType: vbm.value ? (typeof vbm.value === 'object' && 'tokenId' in vbm.value ? 'alias' : 'direct') : 'none'
+            }))
+          });
+        }
+      });
+
+      // Convert the MergedData result to TokenSystem format for coreToMergedSnapshot
+      const mergedTokenSystem: TokenSystem = {
+        ...coreData,
+        tokens: mergedResult.mergedTokens,
+        platforms: mergedResult.mergedPlatforms,
+        // Preserve other properties from core data
+        tokenCollections: coreData.tokenCollections,
+        dimensions: coreData.dimensions,
+        resolvedValueTypes: coreData.resolvedValueTypes,
+        themes: coreData.themes,
+        taxonomies: coreData.taxonomies,
+        componentProperties: coreData.componentProperties,
+        componentCategories: coreData.componentCategories,
+        components: coreData.components,
+        taxonomyOrder: coreData.taxonomyOrder,
+        dimensionOrder: coreData.dimensionOrder, // MergedData doesn't have dimensionOrder directly
+        systemName: coreData.systemName,
+        systemId: coreData.systemId,
+        version: coreData.version,
+        figmaConfiguration: coreData.figmaConfiguration
+      };
+
+      // Convert the result back to MergedDataSnapshot format
+      const mergedDataSnapshot = this.coreToMergedSnapshot(mergedTokenSystem);
+
+      console.log('[EnhancedDataMerger] 📤 Final merged snapshot:', {
+        tokensCount: mergedDataSnapshot.tokens.length,
+        collectionsCount: mergedDataSnapshot.collections.length,
+        dimensionsCount: mergedDataSnapshot.dimensions.length
+      });
+
+      // Track source information for tokens
+      this.trackSourceInformation(mergedResult, context);
+
+      return mergedDataSnapshot;
     } catch (error) {
-      console.error('Error merging data:', error);
+      console.error('[EnhancedDataMerger] ❌ Error merging data:', error);
       throw new Error('Failed to merge data sources');
     }
   }
@@ -535,17 +627,18 @@ export class EnhancedDataMerger {
     themeOverrides: Record<string, ThemeOverrideFile>,
     pendingOverrides: Array<{tokenId: string; override: Record<string, unknown>}>
   ): MergedDataSnapshot {
-    // Start with normal merge
-    const context: DataSourceContext = {
-      currentPlatform: null,
-      currentTheme: null,
-      availablePlatforms: [],
-      availableThemes: [],
-      permissions: { core: false, platforms: {}, themes: {} },
-      repositories: { core: null, platforms: {}, themes: {} },
-      editMode: { isActive: false, sourceType: 'core', sourceId: null, targetRepository: null, validationSchema: 'schema' },
-      viewMode: { isMerged: false, mergeSources: ['core'], displayData: 'core-only' }
-    };
+          // Start with normal merge
+      const context: DataSourceContext = {
+        currentPlatform: null,
+        currentTheme: null,
+        availablePlatforms: [],
+        availableThemes: [],
+        permissions: { core: false, platforms: {}, themes: {} },
+        repositories: { core: null, platforms: {}, themes: {} },
+        editMode: { isActive: false, sourceType: 'core', sourceId: null, targetRepository: null, validationSchema: 'schema' },
+        viewMode: { isMerged: false, mergeSources: ['core'], displayData: 'core-only' },
+        platformSyntaxPatterns: {}
+      };
     
     const mergedData = this.mergeData(context, coreData, platformExtensions, themeOverrides);
 
@@ -562,5 +655,46 @@ export class EnhancedDataMerger {
     }
 
     return mergedData;
+  }
+
+  /**
+   * Track source information for tokens
+   */
+  private trackSourceInformation(
+    mergedResult: any,
+    context: DataSourceContext
+  ): void {
+    // Track source for all tokens
+    mergedResult.tokens?.forEach((token: Token) => {
+      this.sourceTracking.set(token.id, {
+        sourceType: 'core',
+        sourceId: null,
+        isOverride: false
+      });
+    });
+
+    // Track platform extension overrides
+    if (context.currentPlatform && context.currentPlatform !== 'none') {
+      mergedResult.platformExtensions?.forEach((extension: PlatformExtension) => {
+        extension.tokenOverrides?.forEach((override: any) => {
+          this.sourceTracking.set(override.id, {
+            sourceType: 'platform-extension',
+            sourceId: context.currentPlatform,
+            isOverride: true
+          });
+        });
+      });
+    }
+
+    // Track theme override overrides
+    if (context.currentTheme && context.currentTheme !== 'none') {
+      mergedResult.themeOverrides?.[context.currentTheme]?.forEach((override: any) => {
+        this.sourceTracking.set(override.tokenId, {
+          sourceType: 'theme-override',
+          sourceId: context.currentTheme,
+          isOverride: true
+        });
+      });
+    }
   }
 } 

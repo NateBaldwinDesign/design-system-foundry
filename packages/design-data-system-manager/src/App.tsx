@@ -854,49 +854,41 @@ const App = () => {
 
   // Function to refresh data from storage (called when GitHub data is loaded)
   const refreshDataFromStorage = useCallback(() => {
-    const storedCollections = StorageService.getCollections();
-    const storedModes = StorageService.getModes();
-    const storedDimensions = StorageService.getDimensions();
-    const storedResolvedValueTypes = StorageService.getValueTypes();
-    const storedPlatforms = StorageService.getPlatforms();
-    const storedThemes = StorageService.getThemes();
-    const storedTokens = StorageService.getTokens();
-    const storedTaxonomies = StorageService.getTaxonomies();
-    const storedComponentProperties = StorageService.getComponentProperties();
-    const storedComponentCategories = StorageService.getComponentCategories();
-    const storedComponents = StorageService.getComponents();
-    const storedAlgorithms = StorageService.getAlgorithms();
-    const storedTaxonomyOrder = StorageService.getTaxonomyOrder();
-
-    setCollections(storedCollections);
-    setModes(storedModes);
-    setDimensions(storedDimensions);
-    setResolvedValueTypes(storedResolvedValueTypes);
-    setPlatforms(storedPlatforms);
-    setThemes(storedThemes);
-    setTokens(storedTokens);
-    setTaxonomies(storedTaxonomies);
-    setComponentProperties(storedComponentProperties);
-    setComponentCategories(storedComponentCategories);
-    setComponents(storedComponents);
-    setAlgorithms(storedAlgorithms);
-    setTaxonomyOrder(storedTaxonomyOrder);
+    // Use DataManager to get merged data instead of direct storage access
+    const dataManager = DataManager.getInstance();
+    const presentationSnapshot = dataManager.getPresentationSnapshot();
+    
+    // Use merged data from presentation snapshot
+    setCollections(presentationSnapshot.collections);
+    setModes(presentationSnapshot.modes);
+    setDimensions(presentationSnapshot.dimensions);
+    setResolvedValueTypes(presentationSnapshot.resolvedValueTypes);
+    setPlatforms(presentationSnapshot.platforms);
+    setThemes(presentationSnapshot.themes);
+    setTokens(presentationSnapshot.tokens);
+    setTaxonomies(presentationSnapshot.taxonomies);
+    setComponentProperties(presentationSnapshot.componentProperties);
+    setComponentCategories(presentationSnapshot.componentCategories);
+    setComponents(presentationSnapshot.components);
+    setAlgorithms(presentationSnapshot.algorithms);
+    setTaxonomyOrder(presentationSnapshot.taxonomyOrder);
+    setDimensionOrder(presentationSnapshot.dimensionOrder);
 
     // Reset change tracking baseline for new data source
     const newBaselineData = {
-      collections: storedCollections,
-      modes: storedModes,
-      dimensions: storedDimensions,
-      resolvedValueTypes: storedResolvedValueTypes,
-      platforms: storedPlatforms,
-      themes: storedThemes,
-      tokens: storedTokens,
-      taxonomies: storedTaxonomies,
-      componentProperties: storedComponentProperties,
-      componentCategories: storedComponentCategories,
-      components: storedComponents,
-      algorithms: storedAlgorithms,
-      taxonomyOrder: storedTaxonomyOrder,
+      collections: presentationSnapshot.collections,
+      modes: presentationSnapshot.modes,
+      dimensions: presentationSnapshot.dimensions,
+      resolvedValueTypes: presentationSnapshot.resolvedValueTypes,
+      platforms: presentationSnapshot.platforms,
+      themes: presentationSnapshot.themes,
+      tokens: presentationSnapshot.tokens,
+      taxonomies: presentationSnapshot.taxonomies,
+      componentProperties: presentationSnapshot.componentProperties,
+      componentCategories: presentationSnapshot.componentCategories,
+      components: presentationSnapshot.components,
+      algorithms: presentationSnapshot.algorithms,
+      taxonomyOrder: presentationSnapshot.taxonomyOrder,
     };
 
     // Set baseline data in ChangeTrackingService

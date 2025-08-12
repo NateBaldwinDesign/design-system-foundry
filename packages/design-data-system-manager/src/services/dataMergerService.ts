@@ -163,19 +163,99 @@ export class DataMergerService {
       let newCount = 0;
       
       for (const override of platformData.tokenOverrides) {
+        console.log(`[DataMergerService] 🔍 Processing token override: ${override.id} (${override.displayName})`);
+        
+        // Debug: Show existing token's valuesByMode before override
+        const existingToken = mergedData.tokens?.find(t => t.id === override.id);
+        if (existingToken) {
+          console.log(`[DataMergerService] 📋 Existing token valuesByMode:`, {
+            tokenId: existingToken.id,
+            tokenName: existingToken.displayName,
+            valuesByModeCount: existingToken.valuesByMode?.length || 0,
+            valuesByMode: existingToken.valuesByMode?.map(vbm => ({
+              modeIds: vbm.modeIds,
+              hasValue: !!vbm.value,
+              valueType: vbm.value ? (typeof vbm.value === 'object' && 'tokenId' in vbm.value ? 'alias' : 'direct') : 'none'
+            }))
+          });
+        }
+        
+        // Debug: Show override's valuesByMode
+        console.log(`[DataMergerService] 📋 Override valuesByMode:`, {
+          tokenId: override.id,
+          tokenName: override.displayName,
+          valuesByModeCount: override.valuesByMode?.length || 0,
+          valuesByMode: override.valuesByMode?.map(vbm => ({
+            modeIds: vbm.modeIds,
+            hasValue: !!vbm.value,
+            valueType: vbm.value ? (typeof vbm.value === 'object' && 'tokenId' in vbm.value ? 'alias' : 'direct') : 'none'
+          }))
+        });
+        
         const existingTokenIndex = mergedData.tokens?.findIndex(t => t.id === override.id);
         
         if (existingTokenIndex !== undefined && existingTokenIndex >= 0) {
           // Update existing token
-          console.log(`[DataMergerService] Overriding existing token: ${override.id}`);
-          mergedData.tokens![existingTokenIndex] = {
-            ...mergedData.tokens![existingTokenIndex],
-            ...override
-          };
+          console.log(`[DataMergerService] ✅ Overriding existing token: ${override.id}`);
+          
+          // Debug: Show what's being merged
+          const originalToken = mergedData.tokens![existingTokenIndex];
+          console.log(`[DataMergerService] 🔄 Before override - valuesByMode count:`, originalToken.valuesByMode?.length || 0);
+          
+          // FIXED: Perform mode-specific merge instead of full replacement
+          if (override.valuesByMode && originalToken.valuesByMode) {
+            const existingValuesByMode = [...originalToken.valuesByMode];
+            const overrideValuesByMode = override.valuesByMode;
+            
+            console.log(`[DataMergerService] 🔧 Performing mode-specific merge:`, {
+              existingCount: existingValuesByMode.length,
+              overrideCount: overrideValuesByMode.length
+            });
+            
+            // For each override value, find and replace the matching modeIds, or add if not found
+            for (const overrideValue of overrideValuesByMode) {
+              const existingIndex = existingValuesByMode.findIndex(existing => 
+                JSON.stringify(existing.modeIds.sort()) === JSON.stringify(overrideValue.modeIds.sort())
+              );
+              
+              if (existingIndex !== -1) {
+                // Replace existing mode combination
+                console.log(`[DataMergerService] 🔄 Replacing mode combination:`, overrideValue.modeIds);
+                existingValuesByMode[existingIndex] = overrideValue;
+              } else {
+                // Add new mode combination
+                console.log(`[DataMergerService] ➕ Adding new mode combination:`, overrideValue.modeIds);
+                existingValuesByMode.push(overrideValue);
+              }
+            }
+            
+            // Update the token with the merged valuesByMode
+            mergedData.tokens![existingTokenIndex] = {
+              ...originalToken,
+              ...override,
+              valuesByMode: existingValuesByMode
+            };
+          } else {
+            // Fallback to original behavior if no valuesByMode to merge
+            mergedData.tokens![existingTokenIndex] = {
+              ...mergedData.tokens![existingTokenIndex],
+              ...override
+            };
+          }
+          
+          // Debug: Show result after override
+          const updatedToken = mergedData.tokens![existingTokenIndex];
+          console.log(`[DataMergerService] 🔄 After override - valuesByMode count:`, updatedToken.valuesByMode?.length || 0);
+          console.log(`[DataMergerService] 🔄 After override - valuesByMode:`, updatedToken.valuesByMode?.map(vbm => ({
+            modeIds: vbm.modeIds,
+            hasValue: !!vbm.value,
+            valueType: vbm.value ? (typeof vbm.value === 'object' && 'tokenId' in vbm.value ? 'alias' : 'direct') : 'none'
+          })));
+          
           overriddenCount++;
         } else {
           // Add new token
-          console.log(`[DataMergerService] Adding new token: ${override.id}`);
+          console.log(`[DataMergerService] ➕ Adding new token: ${override.id}`);
           if (mergedData.tokens) {
             mergedData.tokens.push(override as any);
           } else {
@@ -187,16 +267,16 @@ export class DataMergerService {
       
       console.log(`[DataMergerService] Token override summary: ${overriddenCount} overridden, ${newCount} new`);
     } else {
-      console.log(`[DataMergerService] No token overrides found in platform data`);
+      console.log('[DataMergerService] No token overrides found in platform data');
     }
 
     // Apply platform algorithm variable overrides
     if (platformData.algorithmVariableOverrides) {
       for (const override of platformData.algorithmVariableOverrides) {
         // Find the algorithm and update its variables
-        const algorithm = mergedData.algorithms?.find(a => a.id === override.algorithmId);
+        const algorithm = mergedData.algorithms?.find((a: any) => a.id === override.algorithmId);
         if (algorithm && algorithm.variables) {
-          const variable = algorithm.variables.find(v => v.id === override.variableId);
+          const variable = algorithm.variables.find((v: any) => v.id === override.variableId);
           if (variable) {
             variable.valuesByMode = override.valuesByMode;
           }
@@ -344,4 +424,4 @@ export class DataMergerService {
     // Recompute if more than 5 minutes have passed
     return timeSinceLastLoad > 5 * 60 * 1000;
   }
-} 
+}
