@@ -91,8 +91,6 @@ interface HeaderProps {
     path: string;
     branch: string;
   } | null;
-  // GitHub permissions
-  hasEditPermissions?: boolean;
   // Data source context props
   dataSourceContext?: DataSourceContext;
   onPlatformChange?: (platformId: string | null) => void;
@@ -147,8 +145,6 @@ export const Header: React.FC<HeaderProps> = ({
   isURLBasedAccess = false,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   urlRepoInfo = null, // Keep for interface compatibility but not used in logic
-  // GitHub permissions
-  hasEditPermissions = false,
   // Data source context props
   dataSourceContext,
   onPlatformChange,
@@ -289,7 +285,7 @@ export const Header: React.FC<HeaderProps> = ({
         // Check actual permissions and edit mode to determine access level
         if (isEditMode) {
           subtitle = `(${currentBranch}) - Editing`;
-        } else if (hasEditPermissions) {
+        } else if (hasDataSourceEditPermissions()) {
           subtitle = `(${currentBranch}) - Edit Access`;
         } else {
           subtitle = `(${currentBranch}) - View Only`;
@@ -343,7 +339,7 @@ export const Header: React.FC<HeaderProps> = ({
         
         // NEW: Enhanced two-tier permission system
         const hasEditAccess = currentSourceContext.editMode?.isActive || 
-                              (githubUser && dataSourceManager.getCurrentEditPermissions());
+                              (githubUser && hasDataSourceEditPermissions());
         
         if (hasEditAccess) {
           subtitle += ' - Edit Access';
@@ -409,12 +405,6 @@ export const Header: React.FC<HeaderProps> = ({
     // Check actual permissions from the data source manager
     const dataSourceManager = DataSourceManager.getInstance();
     return dataSourceManager.getCurrentEditPermissions();
-  };
-
-  // NEW: Helper function to determine if user is view-only
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const isViewOnlyUser = () => {
-    return !hasDataSourceEditPermissions();
   };
 
   const { title, subtitle } = getTitleAndSubtitle();

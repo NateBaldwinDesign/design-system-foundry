@@ -55,13 +55,13 @@ import { DataMergerService } from './services/dataMergerService';
 import { PlatformSyntaxPatternService } from './services/platformSyntaxPatternService';
 import { exampleData, algorithmData } from '@token-model/data-model';
 import { isMainBranch } from './utils/BranchValidationUtils';
+import { SourceManagerService } from './services/sourceManagerService';
 
 const App = () => {
   console.log('🔍 [App] App component rendering');
   
   const { colorMode } = useColorMode();
   const { schema } = useSchema();
-  const [dataSource, setDataSource] = useState<string>('minimal');
   
   console.log('🔍 [App] Current color mode:', colorMode);
   
@@ -78,6 +78,7 @@ const App = () => {
   const [components, setComponents] = useState<Component[]>([]);
   const [algorithms, setAlgorithms] = useState<Algorithm[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataSource, setDataSource] = useState('minimal');
   const [dataOptions, setDataOptions] = useState<{ label: string; value: string; hasAlgorithms: boolean }[]>([]);
   const [taxonomyOrder, setTaxonomyOrder] = useState<string[]>([]);
   const [dimensionOrder, setDimensionOrder] = useState<string[]>(() => {
@@ -98,7 +99,6 @@ const App = () => {
     fileType: 'schema' | 'theme-override' | 'platform-extension';
   } | null>(null);
   const [isViewOnlyMode, setIsViewOnlyMode] = useState(false);
-  const [hasEditPermissions, setHasEditPermissions] = useState(false);
   const [dataSourceContext, setDataSourceContext] = useState<DataSourceContext | undefined>(undefined);
   const [isAppLoading, setIsAppLoading] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
@@ -408,6 +408,12 @@ const App = () => {
         clearEditModeState();
         
         if (repo) {
+          // Prevent double loading if already in progress
+          if (isAppLoading) {
+            console.log('[App] Already loading data from URL, skipping duplicate request');
+            return;
+          }
+          
           // Load from URL parameters using new DataLoaderService
           console.log('[App] Loading from URL parameters using DataLoaderService:', { repo, path, branch, platform, theme });
           setIsAppLoading(true); // Start app loading state
@@ -506,10 +512,9 @@ const App = () => {
               // Branch-based governance: Show edit button if user has write access
               // But only allow actual editing on non-main branches
               const isOnMainBranch = isMainBranch(branch);
-              const canShowEditButton = hasWriteAccess; // Show button if user has write access
               const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
               
-              setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
+              // setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
               setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
               
               // Update DataSourceManager permissions for all sources
@@ -517,7 +522,7 @@ const App = () => {
             } else {
               // User is not authenticated, set view-only mode
               setIsViewOnlyMode(true);
-              setHasEditPermissions(false);
+              // setHasEditPermissions(false); // Controls Edit button visibility
             }
             
             // Update data source context
@@ -549,6 +554,10 @@ const App = () => {
             setIsAppLoading(false); // End app loading state for URL loading
           } catch (urlError) {
             console.warn('[App] Failed to load from URL, falling back to default initialization:', urlError);
+            
+            // Ensure loading state is reset on error
+            setLoading(false);
+            setIsAppLoading(false);
             
             // Show user-friendly error message
             const errorMessage = urlError instanceof Error ? urlError.message : 'Unknown error';
@@ -722,7 +731,7 @@ const App = () => {
       const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
       
       // Update state based on permissions and branch status
-      setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
+      // setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
       setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
       setSelectedRepoInfo(repoInfo);
       setIsGitHubConnected(true);
@@ -1324,6 +1333,35 @@ const App = () => {
       const newContext = dataSourceManager.getCurrentContext();
       setDataSourceContext(newContext);
       
+      // CRITICAL FIX: Update UI data state with new merged data
+      const dataMerger = DataMergerService.getInstance();
+      const mergedData = await dataMerger.computeMergedData();
+      
+      if (mergedData) {
+        // Update React state with new merged data
+        setCollections(mergedData.tokenCollections || []);
+        const allModes = mergedData.dimensions?.flatMap(d => d.modes || []) || [];
+        setModes(allModes);
+        setDimensions(mergedData.dimensions || []);
+        setResolvedValueTypes(mergedData.resolvedValueTypes || []);
+        setPlatforms(mergedData.platforms || []);
+        setThemes(mergedData.themes || []);
+        setTokens(mergedData.tokens || []);
+        setTaxonomies(mergedData.taxonomies || []);
+        setComponentProperties(mergedData.componentProperties || []);
+        setComponentCategories(mergedData.componentCategories || []);
+        setComponents(mergedData.components || []);
+        setAlgorithms([]); // Algorithms are not part of TokenSystem
+        setTaxonomyOrder(mergedData.taxonomyOrder || []);
+        setDimensionOrder(mergedData.dimensionOrder || []);
+        
+        console.log('[App] Platform change completed - UI data updated:', {
+          tokens: mergedData.tokens?.length || 0,
+          collections: mergedData.tokenCollections?.length || 0,
+          dimensions: mergedData.dimensions?.length || 0
+        });
+      }
+      
       // CRITICAL: Update permissions for the new data source context
       if (githubUser) {
         // Force refresh permissions after source switch to ensure accuracy
@@ -1350,12 +1388,13 @@ const App = () => {
         const canShowEditButton = hasWriteAccess; // Show button if user has write access
         const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
         
-        setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
+        // setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
         setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
       }
       
-      // SourceManagerService already handled the merge, just update UI state
-      // No need to call mergeDataForCurrentContext since DataMergerService already computed merged data
+      // Update change log data
+      updateChangeLogData();
+      
     } catch (error) {
       toast({
         title: 'Error switching platform',
@@ -1387,6 +1426,35 @@ const App = () => {
       const newContext = dataSourceManager.getCurrentContext();
       setDataSourceContext(newContext);
       
+      // CRITICAL FIX: Update UI data state with new merged data
+      const dataMerger = DataMergerService.getInstance();
+      const mergedData = await dataMerger.computeMergedData();
+      
+      if (mergedData) {
+        // Update React state with new merged data
+        setCollections(mergedData.tokenCollections || []);
+        const allModes = mergedData.dimensions?.flatMap(d => d.modes || []) || [];
+        setModes(allModes);
+        setDimensions(mergedData.dimensions || []);
+        setResolvedValueTypes(mergedData.resolvedValueTypes || []);
+        setPlatforms(mergedData.platforms || []);
+        setThemes(mergedData.themes || []);
+        setTokens(mergedData.tokens || []);
+        setTaxonomies(mergedData.taxonomies || []);
+        setComponentProperties(mergedData.componentProperties || []);
+        setComponentCategories(mergedData.componentCategories || []);
+        setComponents(mergedData.components || []);
+        setAlgorithms([]); // Algorithms are not part of TokenSystem
+        setTaxonomyOrder(mergedData.taxonomyOrder || []);
+        setDimensionOrder(mergedData.dimensionOrder || []);
+        
+        console.log('[App] Theme change completed - UI data updated:', {
+          tokens: mergedData.tokens?.length || 0,
+          collections: mergedData.tokenCollections?.length || 0,
+          dimensions: mergedData.dimensions?.length || 0
+        });
+      }
+      
       // CRITICAL: Update permissions for the new data source context
       if (githubUser) {
         // Force refresh permissions after source switch to ensure accuracy
@@ -1413,12 +1481,13 @@ const App = () => {
         const canShowEditButton = hasWriteAccess; // Show button if user has write access
         const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
         
-        setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
+        // setHasEditPermissions(canShowEditButton); // Controls Edit button visibility
         setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
       }
       
-      // SourceManagerService already handled the merge, just update UI state
-      // No need to call mergeDataForCurrentContext since DataMergerService already computed merged data
+      // Update change log data
+      updateChangeLogData();
+      
     } catch (error) {
       toast({
         title: 'Error switching theme',
@@ -1510,20 +1579,18 @@ const App = () => {
         const hasWriteAccess = await GitHubApiService.hasWriteAccessToRepository(currentRepository.fullName);
         
         // When on a new branch (not main), user should have edit permissions if they have write access
-        const canShowEditButton = hasWriteAccess; // Show button if user has write access
         const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
         
         console.log('[App] Permission check results:', {
           hasWriteAccess,
           isOnMainBranch,
-          canShowEditButton,
-          canActuallyEdit,
           newBranchName
         });
         
         // Set edit permissions based on the new branch context
         // When on a new branch, user should have edit permissions if they have write access
-        setHasEditPermissions(canActuallyEdit); // Controls Edit button visibility AND edit capability
+        
+        // setHasEditPermissions(canShowEditButton); // Controls Edit button visibility AND edit capability
         setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
       }
       
@@ -1557,14 +1624,14 @@ const App = () => {
       setIsEditMode(true);
       
       // Ensure edit permissions are set correctly for non-main branches
-      if (hasEditPermissions) {
-        // User already has edit permissions, keep them
-        console.log('[App] Entering edit mode on non-main branch with existing edit permissions');
-      } else {
+      // if (hasEditPermissions) { // Controls Edit button visibility
+      //   // User already has edit permissions, keep them
+      //   console.log('[App] Entering edit mode on non-main branch with existing edit permissions');
+      // } else {
         // Re-check permissions for the current branch
         console.log('[App] Re-checking edit permissions for non-main branch');
         // This will be handled by the permission check in the useEffect
-      }
+      // }
       
       // Enter edit mode in DataSourceManager
       const dsManager = DataSourceManager.getInstance();
@@ -1662,6 +1729,30 @@ const App = () => {
     setIsEditorOpen(true);
   };
 
+  // NEW: Unified edit permissions logic (same as Header.tsx)
+  const hasDataSourceEditPermissions = useCallback(() => {
+    // Check if user is authenticated
+    if (!githubUser) {
+      return false;
+    }
+    
+    // Check if we have a valid source context with repository information
+    const sourceManager = SourceManagerService.getInstance();
+    const sourceContext = sourceManager.getCurrentSourceContext();
+    if (!sourceContext) {
+      return false;
+    }
+    
+    // If already in edit mode, user has permissions
+    if (sourceContext.editMode?.isActive) {
+      return true;
+    }
+    
+    // Check actual permissions from the data source manager
+    const dataSourceManager = DataSourceManager.getInstance();
+    return dataSourceManager.getCurrentEditPermissions();
+  }, [githubUser]);
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -1711,7 +1802,6 @@ const App = () => {
                     const branch = urlParams.get('branch');
                     return repo && path && branch ? { repo, path, branch } : null;
                   })() : null}
-                  hasEditPermissions={hasEditPermissions}
                   dataSourceContext={dataSourceContext}
                   onPlatformChange={handlePlatformChange}
                   onThemeChange={handleThemeChange}
@@ -1756,9 +1846,10 @@ const App = () => {
                       sourceName,
                     };
                   })() : undefined}
-                                 onSaveChanges={undefined} // Let Header use its own save workflow
-                   onDiscardChanges={handleDiscardChanges}
+                  onSaveChanges={undefined} // Let Header use its own save workflow
+                  onDiscardChanges={handleDiscardChanges}
                   pendingOverrides={pendingOverrides}
+                  hasEditPermissions={hasDataSourceEditPermissions} // Pass the new function
                 >
                   <ViewRenderer
                     currentView={currentView}
@@ -1779,10 +1870,10 @@ const App = () => {
                     schema={schema}
                     githubUser={githubUser}
                     isViewOnlyMode={isViewOnlyMode}
-                    hasEditPermissions={hasEditPermissions}
                     dataSourceContext={dataSourceContext}
                     isAppLoading={isAppLoading}
-                    canEdit={hasEditPermissions && isEditMode}
+                    canEdit={isEditMode} // Controls Edit button visibility
+                    hasEditPermissions={hasDataSourceEditPermissions} // Pass the unified function
                     onUpdateTokens={handleUpdateTokens}
                     onUpdateCollections={handleUpdateCollections}
                     onUpdateDimensions={handleUpdateDimensions}

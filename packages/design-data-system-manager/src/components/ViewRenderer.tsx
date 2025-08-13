@@ -65,7 +65,6 @@ interface ViewRendererProps {
   githubUser: GitHubUser | null;
   // View mode
   isViewOnlyMode?: boolean;
-  hasEditPermissions?: boolean;
   canEdit?: boolean;
   // Data source context
   dataSourceContext?: DataSourceContext;
@@ -96,6 +95,8 @@ interface ViewRendererProps {
   onCloseEditor: () => void;
   onSaveToken: (token: ExtendedToken) => void;
   onDeleteToken: (tokenId: string) => void;
+  // NEW: Unified edit permissions function
+  hasEditPermissions?: () => boolean;
 }
 
 export const ViewRenderer: React.FC<ViewRendererProps> = ({
@@ -115,7 +116,6 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   schema,
   githubUser,
   isViewOnlyMode = false,
-  hasEditPermissions = false,
   canEdit = false,
   dataSourceContext,
   isAppLoading = false,
@@ -141,6 +141,8 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   onCloseEditor,
   onSaveToken,
   onDeleteToken,
+  // NEW: Unified edit permissions function
+  hasEditPermissions,
 }) => {
   // Views should show edit capabilities when user has permissions AND is in edit mode
   // canEdit prop already combines hasEditPermissions && isEditMode from App.tsx
@@ -269,8 +271,8 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
         return <FigmaConfigurationsView 
           tokenSystem={getTokenSystemForFigmaSettings()} 
           canEdit={effectiveCanEdit} 
-          hasEditPermissions={hasEditPermissions} 
           dataSourceContext={dataSourceContext} 
+          hasEditPermissions={hasEditPermissions}
         />;
       }
       

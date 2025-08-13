@@ -43,23 +43,28 @@ import { FigmaConfigurationOverrideService } from '../services/figmaConfiguratio
 import { detectChanges } from '../components/ChangeLog';
 import { DataMergerService } from '../services/dataMergerService';
 import { DataSourceManager } from '../services/dataSourceManager';
+import { SourceManagerService } from '../services/sourceManagerService';
 
 interface FigmaConfigurationsViewProps {
   tokenSystem: TokenSystem;
   canEdit?: boolean;
-  hasEditPermissions?: boolean;
   // NEW: Data source context for source-specific Figma configuration
   dataSourceContext?: DataSourceContext;
+  // NEW: Unified edit permissions function from App level
+  hasEditPermissions?: () => boolean;
 }
 
 export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = ({ 
   tokenSystem,
   canEdit = false,
-  hasEditPermissions = false,
-  dataSourceContext
+  dataSourceContext,
+  hasEditPermissions
 }) => {
   const { colorMode } = useColorMode();
   const toast = useToast();
+  
+  // NEW: Use the unified edit permissions function passed from App level
+  // This ensures consistency with Header.tsx logic
   
   const [accessToken, setAccessToken] = useState('');
   const [fileKey, setFileKey] = useState('');
@@ -272,7 +277,30 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
   const tokens = mergedData?.tokens || [];
   const resolvedValueTypes = mergedData?.resolvedValueTypes || [];
 
-    // Load configuration and check change tracking state on mount
+  // Listen for data source changes to update Publishing tab visibility
+  useEffect(() => {
+    const handleDataSourceChange = () => {
+      // Force re-render when data source changes
+      console.log('[FigmaConfigurationsView] Data source changed, updating Publishing tab visibility');
+    };
+
+    // Listen for data source change events
+    window.addEventListener('token-model:data-source-changed', handleDataSourceChange);
+    
+    // Also listen for URL changes (when platform/theme parameters change)
+    const handleUrlChange = () => {
+      console.log('[FigmaConfigurationsView] URL changed, updating Publishing tab visibility');
+    };
+    
+    window.addEventListener('popstate', handleUrlChange);
+    
+    return () => {
+      window.removeEventListener('token-model:data-source-changed', handleDataSourceChange);
+      window.removeEventListener('popstate', handleUrlChange);
+    };
+  }, []);
+
+  // Load configuration and check change tracking state on mount
   useEffect(() => {
     const initializeSettings = async () => {
       setCheckingChanges(true);
@@ -907,9 +935,16 @@ export const FigmaConfigurationsView: React.FC<FigmaConfigurationsViewProps> = (
 
   // Helper function to determine if publishing tab should be shown
   const shouldShowPublishingTab = (): boolean => {
-    // User must have edit permissions to show publishing tab
-    // hasEditPermissions comes from App.tsx and represents hasWriteAccess
-    return hasEditPermissions === true;
+    // SIMPLIFIED: Use ONLY the unified edit permissions logic
+    // hasEditPermissions and hasWriteAccess should be synonymous
+    const hasPermissions = hasEditPermissions?.() ?? false;
+    
+    console.log('[FigmaConfigurationsView] Publishing tab visibility check:', {
+      hasEditPermissions: hasPermissions,
+      shouldShow: hasPermissions
+    });
+    
+    return hasPermissions;
   };
 
   // Render change tracking status
