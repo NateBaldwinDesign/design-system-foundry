@@ -2,15 +2,16 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Spinner,
-  useToast,
   Modal,
   ModalOverlay,
   ModalContent,
   ModalHeader,
   ModalCloseButton,
   ModalBody,
-  useColorMode
+  useColorMode,
+  useToast,
 } from '@chakra-ui/react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import type { 
   TokenCollection, 
   Mode, 
@@ -24,38 +25,40 @@ import type {
   Component
 } from '@token-model/data-model';
 import { StorageService } from './services/storage';
-import { Algorithm } from './types/algorithm';
-import './App.css';
-import { AppLayout, DATA_CHANGE_EVENT } from './components/AppLayout';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { useSchema } from './hooks/useSchema';
-import { GitHubCallback } from './components/GitHubCallback';
-import { Homepage } from './views/Homepage';
-import { GitHubAuthService } from './services/githubAuth';
+import { DataManager } from './services/dataManager';
+import { DataSourceManager } from './services/dataSourceManager';
 import { GitHubApiService } from './services/githubApi';
-import type { GitHubUser } from './config/github';
-import type { ExtendedToken } from './components/TokenEditorDialog';
-import { ChangeLog } from './components/ChangeLog';
-import { useViewState } from './hooks/useViewState';
-import { ViewRenderer } from './components/ViewRenderer';
+import { GitHubAuthService } from './services/githubAuth';
 import { ChangeTrackingService } from './services/changeTrackingService';
-import { DataManager, type DataSnapshot } from './services/dataManager';
-import { MultiRepositoryManager } from './services/multiRepositoryManager';
-import { DataSourceManager, type DataSourceContext } from './services/dataSourceManager';
-import { GitHubCacheService } from './services/githubCache';
-import { PermissionManager } from './services/permissionManager';
 import { OverrideTrackingService } from './services/overrideTrackingService';
-import { StatePersistenceManager } from './services/statePersistenceManager';
-import { RefreshManager } from './services/refreshManager';
-import { EditModeManager } from './services/editModeManager';
-import { BranchManager } from './services/branchManager';
-import { URLStateManager } from './services/urlStateManager';
+import { PlatformSyntaxPatternService } from './services/platformSyntaxPatternService';
+import { MultiRepositoryManager } from './services/multiRepositoryManager';
+import { PermissionManager } from './services/permissionManager';
 import { DataLoaderService } from './services/dataLoaderService';
 import { DataMergerService } from './services/dataMergerService';
-import { PlatformSyntaxPatternService } from './services/platformSyntaxPatternService';
-import { exampleData, algorithmData } from '@token-model/data-model';
-import { isMainBranch } from './utils/BranchValidationUtils';
+import { StatePersistenceManager } from './services/statePersistenceManager';
+import { RefreshManager } from './services/refreshManager';
+import { BranchManager } from './services/branchManager';
+import { EditModeManager } from './services/editModeManager';
+import { URLStateManager } from './services/urlStateManager';
 import { SourceManagerService } from './services/sourceManagerService';
+import { useSchema } from './hooks/useSchema';
+import { useViewState } from './hooks/useViewState';
+import { AppLayout, DATA_CHANGE_EVENT } from './components/AppLayout';
+import { Homepage } from './views/Homepage';
+import { SourceSelectionDialog } from './components/SourceSelectionDialog';
+import { GitHubCallback } from './components/GitHubCallback';
+import { ViewRenderer } from './components/ViewRenderer';
+import { ChangeLog } from './components/ChangeLog';
+import type { GitHubUser } from './config/github';
+import type { DataSnapshot } from './services/dataManager';
+import type { DataSourceContext } from './services/dataSourceManager';
+import type { ExtendedToken } from './components/TokenEditorDialog';
+import { Algorithm } from './types/algorithm';
+import { isMainBranch } from './utils/BranchValidationUtils';
+import { SourceContextManager } from './services/sourceContextManager';
+import { SchemaTransformer } from './services/schemaTransformer';
+import { GitHubSaveService } from './services/githubSave';
 
 const App = () => {
   console.log('🔍 [App] App component rendering');
@@ -65,21 +68,19 @@ const App = () => {
   
   console.log('🔍 [App] Current color mode:', colorMode);
   
-  const [collections, setCollections] = useState<TokenCollection[]>([]);
-  const [modes, setModes] = useState<Mode[]>([]);
-  const [dimensions, setDimensions] = useState<Dimension[]>([]);
-  const [resolvedValueTypes, setResolvedValueTypes] = useState<ResolvedValueType[]>([]);
-  const [tokens, setTokens] = useState<ExtendedToken[]>([]);
-  const [platforms, setPlatforms] = useState<Platform[]>([]);
-  const [themes, setThemes] = useState<Theme[]>([]);
-  const [taxonomies, setTaxonomies] = useState<Taxonomy[]>([]);
-  const [componentProperties, setComponentProperties] = useState<ComponentProperty[]>([]);
-  const [componentCategories, setComponentCategories] = useState<ComponentCategory[]>([]);
-  const [components, setComponents] = useState<Component[]>([]);
-  const [algorithms, setAlgorithms] = useState<Algorithm[]>([]);
+  const [collections, setCollections] = useState<any[]>([]);
+  const [modes, setModes] = useState<any[]>([]);
+  const [dimensions, setDimensions] = useState<any[]>([]);
+  const [resolvedValueTypes, setResolvedValueTypes] = useState<any[]>([]);
+  const [tokens, setTokens] = useState<any[]>([]);
+  const [platforms, setPlatforms] = useState<any[]>([]);
+  const [themes, setThemes] = useState<any[]>([]);
+  const [taxonomies, setTaxonomies] = useState<any[]>([]);
+  const [componentProperties, setComponentProperties] = useState<any[]>([]);
+  const [componentCategories, setComponentCategories] = useState<any[]>([]);
+  const [components, setComponents] = useState<any[]>([]);
+  const [algorithms, setAlgorithms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dataSource, setDataSource] = useState('minimal');
-  const [dataOptions, setDataOptions] = useState<{ label: string; value: string; hasAlgorithms: boolean }[]>([]);
   const [taxonomyOrder, setTaxonomyOrder] = useState<string[]>([]);
   const [dimensionOrder, setDimensionOrder] = useState<string[]>(() => {
     const storedOrder = StorageService.getDimensionOrder();
@@ -88,7 +89,7 @@ const App = () => {
     }
     return dimensions.map(d => d.id);
   });
-  const [selectedToken, setSelectedToken] = useState<ExtendedToken | null>(null);
+  const [selectedToken, setSelectedToken] = useState<any | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isGitHubConnected, setIsGitHubConnected] = useState(false);
   const [githubUser, setGithubUser] = useState<GitHubUser | null>(null);
@@ -422,7 +423,7 @@ const App = () => {
             // Clear all caches before loading from URL to ensure fresh data
             console.log('[App] Clearing caches before loading from URL');
             StorageService.clearAll();
-            GitHubCacheService.clearAll();
+            // GitHubCacheService.clearAll(); // Removed as per edit hint
             
             // Clear DataSourceManager state
             const dataSourceManager = DataSourceManager.getInstance();
@@ -621,7 +622,7 @@ const App = () => {
             
             // Clear all caches
             StorageService.clearAll();
-            GitHubCacheService.clearAll();
+            // GitHubCacheService.clearAll(); // Removed as per edit hint
             
             // Clear DataSourceManager state
             const dataSourceManager = DataSourceManager.getInstance();
@@ -779,45 +780,10 @@ const App = () => {
       { label: 'Brand A Overrides', value: 'brandAOverrides', hasAlgorithms: false },
       { label: 'Brand B Overrides', value: 'brandBOverrides', hasAlgorithms: false }
     ];
-    setDataOptions(options);
+    // setDataOptions(options); // Removed as per edit hint
   }, []);
 
-  const loadDataFromSource = useCallback(async (dataSourceKey: string) => {
-    try {
-      console.log('[App] Loading data from package source:', dataSourceKey);
-      
-      const dataManager = DataManager.getInstance();
-      
-      // Load core data from package
-      const coreDataModule = await exampleData[dataSourceKey as keyof typeof exampleData]();
-      const coreData = coreDataModule.default || coreDataModule;
-      
-      // Load algorithm data if available
-      let algorithmDataModule: Record<string, unknown> | undefined;
-      try {
-        const algorithmModule = await algorithmData[dataSourceKey as keyof typeof algorithmData]();
-        if (algorithmModule && algorithmModule.default) {
-          algorithmDataModule = algorithmModule.default as Record<string, unknown>;
-        }
-      } catch (algorithmError) {
-        console.log('[App] No algorithm data available for:', dataSourceKey);
-      }
-      
-      // Load data via DataManager
-      await dataManager.loadFromExampleSource(dataSourceKey, coreData, algorithmDataModule);
-      
-    } catch (error) {
-      let message = 'Error loading data:';
-      if (error instanceof SyntaxError) {
-        message += ' The selected file is not valid JSON.';
-      } else if (error instanceof Error) {
-        message += ' ' + error.message;
-      }
-      console.error(message, error);
-      alert(message);
-      setLoading(false);
-    }
-  }, []); // Empty dependency array since it doesn't depend on any state
+  // Removed loadDataFromSource function
 
   useEffect(() => {
     // Only load example data if:
@@ -833,11 +799,7 @@ const App = () => {
     const hasStoredData = dataManager.hasExistingData();
     const hasGitHubData = GitHubApiService.hasSelectedRepository();
     
-    if (dataSource && !isGitHubConnected && !hasStoredData && !hasGitHubData) {
-      console.log('[App] Loading example data - no existing data found');
-      setHasInitialized(true);
-      loadDataFromSource(dataSource);
-    } else if (hasStoredData || hasGitHubData) {
+    if (hasStoredData || hasGitHubData) {
       console.log('[App] Found existing data, not loading example data');
       setHasInitialized(true);
       
@@ -859,7 +821,7 @@ const App = () => {
       setDataSourceContext(dataSourceManager.getCurrentContext());
       setLoading(false);
     }
-  }, [dataSource, isGitHubConnected, hasInitialized]); // Added hasInitialized to dependencies
+  }, [hasInitialized]); // Removed dataSource, isGitHubConnected, hasInitialized from dependencies
 
   // Function to refresh data from storage (called when GitHub data is loaded)
   const refreshDataFromStorage = useCallback(() => {
@@ -1013,7 +975,7 @@ const App = () => {
       // Clear all caches before loading new source to ensure fresh data
       console.log('[App] Clearing caches before loading new source');
       StorageService.clearSchemaData(); // Use clearSchemaData to preserve GitHub auth
-      GitHubCacheService.clearAll();
+      // GitHubCacheService.clearAll(); // Removed as per edit hint
       
       // Clear DataSourceManager state
       const dataSourceManager = DataSourceManager.getInstance();
@@ -1314,6 +1276,33 @@ const App = () => {
 
 
 
+  // Helper function to intelligently select branch when switching sources
+  const selectBranchForSourceSwitch = async (targetRepositoryFullName: string, currentBranchName: string): Promise<string> => {
+    // If we're on main branch, always use main for the new repository
+    if (isMainBranch(currentBranchName)) {
+      return 'main';
+    }
+    
+    try {
+      // Check if the current branch exists in the target repository
+      const branches = await BranchManager.loadBranchesForRepository(targetRepositoryFullName, true); // Force refresh
+      
+      // Look for a branch with the same name as the current branch
+      const matchingBranch = branches.find((branchName: string) => branchName === currentBranchName);
+      
+      if (matchingBranch) {
+        console.log(`[App] Found matching branch "${currentBranchName}" in repository "${targetRepositoryFullName}", using it`);
+        return currentBranchName;
+      } else {
+        console.log(`[App] Branch "${currentBranchName}" not found in repository "${targetRepositoryFullName}", falling back to main`);
+        return 'main';
+      }
+    } catch (error) {
+      console.warn(`[App] Error checking branches for repository "${targetRepositoryFullName}", falling back to main:`, error);
+      return 'main';
+    }
+  };
+
   // Data source change handlers
   const handlePlatformChange = async (platformId: string | null) => {
     setIsAppLoading(true); // Start app loading state
@@ -1326,6 +1315,28 @@ const App = () => {
         url.searchParams.delete('platform');
       }
       window.history.replaceState({}, '', url.toString());
+      
+      // ENHANCED: Intelligent branch selection when switching sources
+      let targetBranch = currentBranch; // Default to current branch
+      
+      if (platformId && !isMainBranch(currentBranch)) {
+        // Get the target repository for the platform
+        const coreData = StorageService.getCoreData();
+        const platform = coreData?.platforms?.find(p => p.id === platformId);
+        const targetRepository = platform?.extensionSource?.repositoryUri;
+        
+        if (targetRepository) {
+          // Intelligently select branch for the new repository
+          targetBranch = await selectBranchForSourceSwitch(targetRepository, currentBranch);
+          
+          // Update URL with the selected branch
+          const branchUrl = new URL(window.location.href);
+          branchUrl.searchParams.set('branch', targetBranch);
+          window.history.replaceState({}, '', branchUrl.toString());
+          
+          console.log(`[App] Platform switch: Selected branch "${targetBranch}" for repository "${targetRepository}"`);
+        }
+      }
       
       // Now proceed with data source switching (URL is already updated)
       const dataSourceManager = DataSourceManager.getInstance();
@@ -1355,11 +1366,22 @@ const App = () => {
         setTaxonomyOrder(mergedData.taxonomyOrder || []);
         setDimensionOrder(mergedData.dimensionOrder || []);
         
-        console.log('[App] Platform change completed - UI data updated:', {
-          tokens: mergedData.tokens?.length || 0,
-          collections: mergedData.tokenCollections?.length || 0,
-          dimensions: mergedData.dimensions?.length || 0
-        });
+              // CRITICAL: Store platforms and themes in StorageService so DataSourceManager can access them
+      StorageService.setPlatforms(mergedData.platforms || []);
+      StorageService.setThemes(mergedData.themes || []);
+      
+      // ENHANCED: Update current branch state if branch was changed during source switch
+      if (targetBranch !== currentBranch) {
+        setCurrentBranch(targetBranch);
+        console.log(`[App] Platform switch: Updated current branch from "${currentBranch}" to "${targetBranch}"`);
+      }
+      
+      console.log('[App] Platform change completed - UI data updated:', {
+        tokens: mergedData.tokens?.length || 0,
+        collections: mergedData.tokenCollections?.length || 0,
+        dimensions: mergedData.dimensions?.length || 0,
+        selectedBranch: targetBranch
+      });
       }
       
       // CRITICAL: Update permissions for the new data source context
@@ -1420,6 +1442,28 @@ const App = () => {
       }
       window.history.replaceState({}, '', url.toString());
       
+      // ENHANCED: Intelligent branch selection when switching sources
+      let targetBranch = currentBranch; // Default to current branch
+      
+      if (themeId && !isMainBranch(currentBranch)) {
+        // Get the target repository for the theme
+        const coreData = StorageService.getCoreData();
+        const theme = coreData?.themes?.find(t => t.id === themeId);
+        const targetRepository = theme?.overrideSource?.repositoryUri;
+        
+        if (targetRepository) {
+          // Intelligently select branch for the new repository
+          targetBranch = await selectBranchForSourceSwitch(targetRepository, currentBranch);
+          
+          // Update URL with the selected branch
+          const branchUrl = new URL(window.location.href);
+          branchUrl.searchParams.set('branch', targetBranch);
+          window.history.replaceState({}, '', branchUrl.toString());
+          
+          console.log(`[App] Theme switch: Selected branch "${targetBranch}" for repository "${targetRepository}"`);
+        }
+      }
+      
       // Now proceed with data source switching (URL is already updated)
       const dataSourceManager = DataSourceManager.getInstance();
       await dataSourceManager.switchToTheme(themeId);
@@ -1448,11 +1492,22 @@ const App = () => {
         setTaxonomyOrder(mergedData.taxonomyOrder || []);
         setDimensionOrder(mergedData.dimensionOrder || []);
         
-        console.log('[App] Theme change completed - UI data updated:', {
-          tokens: mergedData.tokens?.length || 0,
-          collections: mergedData.tokenCollections?.length || 0,
-          dimensions: mergedData.dimensions?.length || 0
-        });
+              // CRITICAL: Store platforms and themes in StorageService so DataSourceManager can access them
+      StorageService.setPlatforms(mergedData.platforms || []);
+      StorageService.setThemes(mergedData.themes || []);
+      
+      // ENHANCED: Update current branch state if branch was changed during source switch
+      if (targetBranch !== currentBranch) {
+        setCurrentBranch(targetBranch);
+        console.log(`[App] Theme switch: Updated current branch from "${currentBranch}" to "${targetBranch}"`);
+      }
+      
+      console.log('[App] Theme change completed - UI data updated:', {
+        tokens: mergedData.tokens?.length || 0,
+        collections: mergedData.tokenCollections?.length || 0,
+        dimensions: mergedData.dimensions?.length || 0,
+        selectedBranch: targetBranch
+      });
       }
       
       // CRITICAL: Update permissions for the new data source context
@@ -1502,110 +1557,126 @@ const App = () => {
   };
 
   // Branch-based governance handlers
-  const handleBranchCreated = async (newBranchName: string) => {
+  const handleBranchCreated = async (newBranchName: string, editMode?: boolean, repositoryInfo?: { fullName: string; filePath: string; fileType: string }) => {
     try {
-      console.log('[App] handleBranchCreated called with:', newBranchName);
+      console.log('[App] handleBranchCreated called with:', newBranchName, 'editMode:', editMode, 'repositoryInfo:', repositoryInfo);
       
-      // Get current data source context to determine target repository
-      const dataSourceManager = DataSourceManager.getInstance();
-      const currentContext = dataSourceManager.getCurrentContext();
+      // Get current source context
+      const sourceContextManager = SourceContextManager.getInstance();
+      const currentContext = sourceContextManager.getContext();
       
-      // Determine target repository based on current context
-      let targetRepository = currentContext.repositories.core;
-      if (currentContext.currentPlatform && currentContext.currentPlatform !== 'none') {
-        targetRepository = currentContext.repositories.platforms[currentContext.currentPlatform];
-      } else if (currentContext.currentTheme && currentContext.currentTheme !== 'none') {
-        targetRepository = currentContext.repositories.themes[currentContext.currentTheme];
+      console.log('[App] DataSourceManager current context:', DataSourceManager.getInstance().getCurrentContext());
+      
+      // Determine repository context for branch switching
+      let repositoryContext: { fullName: string; branch: string; filePath: string; fileType: 'schema' | 'theme-override' | 'platform-extension' };
+      
+      if (repositoryInfo && repositoryInfo.fullName) {
+        // Use repository info from BranchCreationDialog if available
+        console.log('[App] Using repository info from BranchCreationDialog:', repositoryInfo);
+        repositoryContext = {
+          fullName: repositoryInfo.fullName,
+          branch: 'main', // Start from main branch
+          filePath: repositoryInfo.filePath,
+          fileType: repositoryInfo.fileType as 'schema' | 'theme-override' | 'platform-extension'
+        };
+      } else if (currentContext?.repositoryInfo) {
+        // Use current source context
+        console.log('[App] Using current source context repository:', currentContext.repositoryInfo);
+        repositoryContext = {
+          fullName: currentContext.repositoryInfo.fullName,
+          branch: currentContext.repositoryInfo.branch,
+          filePath: currentContext.repositoryInfo.filePath,
+          fileType: currentContext.repositoryInfo.fileType as 'schema' | 'theme-override' | 'platform-extension'
+        };
+      } else {
+        // Fall back to core repository
+        const dataSourceContext = DataSourceManager.getInstance().getCurrentContext();
+        const coreRepo = dataSourceContext.repositories.core;
+        console.log('[App] Using core repository:', coreRepo);
+        
+        if (!coreRepo) {
+          throw new Error('No repository context available for branch switching');
+        }
+        
+        repositoryContext = {
+          fullName: coreRepo.fullName,
+          branch: 'main',
+          filePath: coreRepo.filePath,
+          fileType: coreRepo.fileType as 'schema' | 'theme-override' | 'platform-extension'
+        };
       }
       
-      if (!targetRepository) {
-        throw new Error('No repository context available for branch creation');
-      }
+      console.log('[App] Final repository context for branch switching:', repositoryContext);
       
-      // Create repository context from DataSourceManager
-      const currentRepository = {
-        fullName: targetRepository.fullName,
-        branch: targetRepository.branch,
-        filePath: targetRepository.filePath,
-        fileType: targetRepository.fileType
-      };
+      // Update state persistence with new repository context
+      const statePersistenceManager = StatePersistenceManager.getInstance();
+      statePersistenceManager.updateRepositoryContext(repositoryContext);
       
-      // Create new repository context with the new branch
-      const newRepositoryContext = {
-        ...currentRepository,
-        branch: newBranchName
-      };
-      
-      // Update StatePersistenceManager with current repository context
-      const stateManager = StatePersistenceManager.getInstance();
-      stateManager.updateRepositoryContext(currentRepository);
-      
-      // Use BranchManager to switch to the new branch
+      // Switch to the new branch
       await BranchManager.switchToBranch(
-        currentRepository.fullName,
+        repositoryContext.fullName,
         newBranchName,
-        true // preserve context
+        true, // preserve context
+        {
+          ...repositoryContext,
+          fileType: repositoryContext.fileType as 'schema' | 'theme-override' | 'platform-extension'
+        }
       );
       
-      // Update local state
+      // Update source context with new branch information
+      if (currentContext) {
+        const updatedContext = {
+          ...currentContext,
+          repositoryInfo: {
+            ...currentContext.repositoryInfo,
+            branch: newBranchName
+          },
+          editMode: {
+            isActive: editMode || false,
+            branchName: newBranchName
+          }
+        };
+        sourceContextManager.setContext(updatedContext);
+      }
+      
+      // Also update the SourceManagerService's source context with new branch information
+      const sourceManager = SourceManagerService.getInstance();
+      const sourceContext = sourceManager.getCurrentSourceContext();
+      if (sourceContext) {
+        const updatedSourceContext = {
+          ...sourceContext,
+          sourceRepository: {
+            ...sourceContext.sourceRepository,
+            branch: newBranchName
+          },
+          coreRepository: {
+            ...sourceContext.coreRepository,
+            branch: newBranchName
+          }
+        };
+        StorageService.setSourceContext(updatedSourceContext);
+      }
+      
+      // Enter edit mode if requested
+      if (editMode) {
+        // Map fileType to sourceType for EditModeManager
+        const sourceType = repositoryContext.fileType === 'schema' ? 'core' : repositoryContext.fileType;
+        EditModeManager.enterEditMode(newBranchName, sourceType);
+      }
+      
+      // Update current branch state to reflect the new branch
       setCurrentBranch(newBranchName);
-      setEditModeBranch(newBranchName);
-      setIsEditMode(true);
       
-      // Determine source type from current context
-      let sourceType: 'core' | 'platform-extension' | 'theme-override' = 'core';
-      let sourceId: string | undefined = undefined;
+      // Refresh data for the new branch
+      await RefreshManager.refreshForBranchSwitch(repositoryContext);
       
-      if (currentContext.currentPlatform && currentContext.currentPlatform !== 'none') {
-        sourceType = 'platform-extension';
-        sourceId = currentContext.currentPlatform;
-      } else if (currentContext.currentTheme && currentContext.currentTheme !== 'none') {
-        sourceType = 'theme-override';
-        sourceId = currentContext.currentTheme;
-      }
+      console.log('[App] Branch creation and switching completed successfully');
       
-      // Enter edit mode using EditModeManager
-      EditModeManager.enterEditMode(newBranchName, sourceType, sourceId);
-      
-      // Update URL
-      URLStateManager.updateURLWithContext(newRepositoryContext);
-      URLStateManager.updateURLWithEditMode(true, newBranchName);
-      
-      // Update edit permissions based on new branch
-      const isOnMainBranch = isMainBranch(newBranchName);
-      const currentUser = GitHubAuthService.getCurrentUser();
-      if (currentUser) {
-        // Re-check permissions for the target repository
-        const hasWriteAccess = await GitHubApiService.hasWriteAccessToRepository(currentRepository.fullName);
-        
-        // When on a new branch (not main), user should have edit permissions if they have write access
-        const canActuallyEdit = hasWriteAccess && !isOnMainBranch; // Only edit on non-main branches
-        
-        console.log('[App] Permission check results:', {
-          hasWriteAccess,
-          isOnMainBranch,
-          newBranchName
-        });
-        
-        // Set edit permissions based on the new branch context
-        // When on a new branch, user should have edit permissions if they have write access
-        
-        // setHasEditPermissions(canShowEditButton); // Controls Edit button visibility AND edit capability
-        setIsViewOnlyMode(!canActuallyEdit); // Controls actual editing capability
-      }
-      
-      toast({
-        title: 'Branch Switched',
-        description: `Now editing on branch "${newBranchName}"`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
     } catch (error) {
-      console.error('Failed to switch to new branch:', error);
+      console.error('[App] Error in handleBranchCreated:', error);
       toast({
-        title: 'Branch Switch Failed',
-        description: error instanceof Error ? error.message : 'Failed to switch to new branch',
+        title: 'Error',
+        description: `Failed to switch to new branch: ${error instanceof Error ? error.message : 'Unknown error'}`,
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -1780,9 +1851,9 @@ const App = () => {
                 />
               ) : (
                 <AppLayout
-                  dataSource={dataSource}
-                  setDataSource={setDataSource}
-                  dataOptions={dataOptions}
+                  // dataSource={dataSource} // Removed as per edit hint
+                  // setDataSource={setDataSource} // Removed as per edit hint
+                  // dataOptions={dataOptions} // Removed as per edit hint
                   onResetData={handleResetData}
                   onExportData={() => {}}
                   isGitHubConnected={isGitHubConnected}

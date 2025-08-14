@@ -82,8 +82,38 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
 
   const loadBranches = async () => {
     try {
-      const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
-      if (!repoInfo) return;
+      // Determine the correct repository based on current source context
+      let repoInfo: { fullName: string; branch: string; filePath: string; fileType: string } | null = null;
+      
+      if (dataSourceContext) {
+        if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
+          // Platform extension editing
+          repoInfo = dataSourceContext.repositories.platforms[dataSourceContext.currentPlatform] || null;
+        } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
+          // Theme override editing
+          repoInfo = dataSourceContext.repositories.themes[dataSourceContext.currentTheme] || null;
+        } else {
+          // Core data editing
+          repoInfo = dataSourceContext.repositories.core || null;
+        }
+      }
+      
+      // Fallback to localStorage if no repository info found in context
+      if (!repoInfo) {
+        repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+      }
+      
+      if (!repoInfo) {
+        console.error('No repository information available');
+        toast({
+          title: 'Error',
+          description: 'No repository information available. Please ensure you have a valid repository connection.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
 
       const branches = await GitHubApiService.getBranches(repoInfo.fullName);
       setAvailableBranches(branches);
@@ -106,20 +136,64 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
   };
 
   const generateDefaultMessages = () => {
-    const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+    // Determine the correct repository based on current source context
+    let repoInfo: { fullName: string; branch: string; filePath: string; fileType: string } | null = null;
+    
+    if (dataSourceContext) {
+      if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
+        // Platform extension editing
+        repoInfo = dataSourceContext.repositories.platforms[dataSourceContext.currentPlatform] || null;
+      } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
+        // Theme override editing
+        repoInfo = dataSourceContext.repositories.themes[dataSourceContext.currentTheme] || null;
+      } else {
+        // Core data editing
+        repoInfo = dataSourceContext.repositories.core || null;
+      }
+    }
+    
+    // Fallback to localStorage if no repository info found in context
+    if (!repoInfo) {
+      repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+    }
+    
     if (!repoInfo) return;
 
     const timestamp = new Date().toLocaleString();
     setCommitMessage(`Update ${repoInfo.filePath} - ${timestamp}`);
     setPrTitle(`Update ${repoInfo.filePath}`);
-    setPrDescription(`Update design system data in ${repoInfo.filePath}\n\n- Changes made via Token Model Manager\n- Timestamp: ${timestamp}\n- File type: ${repoInfo.fileType === 'schema' ? 'Core Data' : 'Theme Override'}`);
+    setPrDescription(`Update design system data in ${repoInfo.filePath}\n\n- Changes made via Token Model Manager\n- Timestamp: ${timestamp}\n- File type: ${repoInfo.fileType === 'schema' ? 'Core Data' : repoInfo.fileType === 'platform-extension' ? 'Platform Extension' : 'Theme Override'}`);
   };
 
   const checkFileSize = () => {
-    const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+    // Determine the correct repository based on current source context
+    let repoInfo: { fullName: string; branch: string; filePath: string; fileType: string } | null = null;
+    
+    if (dataSourceContext) {
+      if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
+        // Platform extension editing
+        repoInfo = dataSourceContext.repositories.platforms[dataSourceContext.currentPlatform] || null;
+      } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
+        // Theme override editing
+        repoInfo = dataSourceContext.repositories.themes[dataSourceContext.currentTheme] || null;
+      } else {
+        // Core data editing
+        repoInfo = dataSourceContext.repositories.core || null;
+      }
+    }
+    
+    // Fallback to localStorage if no repository info found in context
+    if (!repoInfo) {
+      repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+    }
+    
     if (!repoInfo) return;
 
-    const currentData = GitHubSaveService['getCurrentDataForFileType'](repoInfo.fileType === 'schema' ? 'core' : repoInfo.fileType);
+    const currentData = GitHubSaveService['getCurrentDataForFileType'](
+      repoInfo.fileType === 'schema' ? 'core' : 
+      repoInfo.fileType === 'platform-extension' ? 'platform-extension' : 
+      'theme-override'
+    );
     const warning = GitHubSaveService.getFileSizeWarning(currentData);
     setFileSizeWarning(warning);
   };

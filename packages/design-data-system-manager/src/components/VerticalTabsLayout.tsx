@@ -32,11 +32,12 @@ export function VerticalTabsLayout({
   width = '100%',
   height = '100%',
 }: VerticalTabsLayoutProps) {
-  const selectedBg = useColorModeValue('blue.50', 'blue.900');
+  const selectedBg = useColorModeValue('gray.100', 'gray.800');
   const hoverBg = useColorModeValue('gray.50', 'gray.700');
   const { colorMode } = useColorMode();
   const bgColor = colorMode === 'dark' ? 'gray.800' : 'white';
   const borderColor = colorMode === 'dark' ? 'gray.700' : 'gray.200';
+  const selectedBorderColor = colorMode === 'dark' ? 'gray.200' : 'gray.500';
 
 
   return (
@@ -74,7 +75,7 @@ export function VerticalTabsLayout({
               _selected={{
                 bg: selectedBg,
                 borderRight: '2px',
-                borderRightColor: 'blue.500',
+                borderRightColor: selectedBorderColor,
               }}
               _hover={{
                 bg: hoverBg,

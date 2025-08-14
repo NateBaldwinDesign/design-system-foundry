@@ -253,29 +253,12 @@ export class DataSourceManager {
       
       // Filter out example/placeholder platforms
       const validPlatforms = platforms.filter(platform => {
-        console.log(`[DataSourceManager] Processing platform ${platform.id} (${platform.displayName}):`, {
-          hasExtensionSource: !!platform.extensionSource,
-          repositoryUri: platform.extensionSource?.repositoryUri,
-          isLocal: platform.extensionSource?.repositoryUri === 'local'
-        });
-        
-        if (!platform.extensionSource || platform.extensionSource.repositoryUri === 'local') {
-          console.log(`[DataSourceManager] Platform ${platform.id} has NO extensionSource or is local`);
+        if (!platform.extensionSource) {
+          console.log(`[DataSourceManager] Platform ${platform.id} has NO extensionSource`);
           return false;
         }
         
         const { repositoryUri } = platform.extensionSource;
-        
-        // More targeted filtering - only filter out known example patterns
-        const isExampleRepo = repositoryUri === 'NateBaldwinDesign/design-system-foundry' || 
-                             repositoryUri.startsWith('company/design-system-') ||
-                             repositoryUri.includes('/example/') ||
-                             repositoryUri.includes('/placeholder/');
-        
-        if (isExampleRepo) {
-          console.log(`[DataSourceManager] Skipping example platform ${platform.id} (${platform.displayName}) - repository: ${repositoryUri}`);
-          return false;
-        }
         
         console.log(`[DataSourceManager] Platform ${platform.id} has valid extensionSource:`, platform.extensionSource);
         return true;
@@ -304,19 +287,6 @@ export class DataSourceManager {
       const validThemes = themes.filter(theme => {
         if (!theme.overrideSource) {
           console.log(`[DataSourceManager] Theme ${theme.id} has NO overrideSource`);
-          return false;
-        }
-        
-        const { repositoryUri } = theme.overrideSource;
-        
-        // More targeted filtering - only filter out known example patterns
-        const isExampleRepo = repositoryUri === 'NateBaldwinDesign/design-system-foundry' || 
-                             repositoryUri.startsWith('company/design-system-') ||
-                             repositoryUri.includes('/example/') ||
-                             repositoryUri.includes('/placeholder/');
-        
-        if (isExampleRepo) {
-          console.log(`[DataSourceManager] Skipping example theme ${theme.id} (${theme.displayName}) - repository: ${repositoryUri}`);
           return false;
         }
         

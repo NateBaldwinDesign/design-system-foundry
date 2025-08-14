@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useStorage } from './useStorage';
-import { exampleData } from '@token-model/data-model';
+import { ValidationService } from '../services/validationService';
 import { StorageService } from '../services/storage';
-import { ValidationService } from '../services/validation';
+import type { Schema, TokenStatus, TokenTier, PropertyType, TokenValue } from '@token-model/data-model';
 import { useToast } from '@chakra-ui/react';
 import type { 
   TokenCollection, 
@@ -15,10 +15,7 @@ import type {
   DimensionEvolution,
   TokenGroup,
   TokenVariant,
-  TokenStatus,
-  TokenTier,
   TokenValue,
-  PropertyType,
   ComponentProperty
 } from '@token-model/data-model';
 
@@ -306,176 +303,49 @@ export const useSchema = () => {
     const loadDefaultSchema = async () => {
       if (!schema) {
         try {
-          const coreDataModule = await exampleData.minimal();
-          const coreData = coreDataModule.default;
-          
-          // Debug log the raw data
-          console.debug('[useSchema] Raw core data:', {
-            version: coreData.version,
-            systemName: coreData.systemName,
-            systemId: coreData.systemId,
-            hasTokenCollections: !!coreData.tokenCollections,
-            tokenCollectionsCount: coreData.tokenCollections?.length,
-            hasTokens: !!coreData.tokens,
-            tokensCount: coreData.tokens?.length,
-            hasDimensions: !!coreData.dimensions,
-            dimensionsCount: coreData.dimensions?.length,
-            hasPlatforms: !!coreData.platforms,
-            platformsCount: coreData.platforms?.length,
-            hasTaxonomies: !!coreData.taxonomies,
-            taxonomiesCount: coreData.taxonomies?.length,
-            hasThemes: !!coreData.themes,
-            themesCount: coreData.themes?.length,
-            hasResolvedValueTypes: !!coreData.resolvedValueTypes,
-            resolvedValueTypesCount: coreData.resolvedValueTypes?.length,
-            hasTaxonomyOrder: !!coreData.taxonomyOrder,
-            hasVersionHistory: !!coreData.versionHistory,
-            versionHistoryCount: coreData.versionHistory?.length
-          });
-          
-          // Process the data to ensure proper typing
-          const processedData = {
-            ...coreData,
-            // Ensure required fields are present
-            version: coreData.version || '1.0.0',
-            systemName: coreData.systemName || 'Design System',
-            systemId: coreData.systemId || 'design-system',
-            // Ensure arrays are initialized
-            taxonomies: coreData.taxonomies || [],
-            tokenCollections: coreData.tokenCollections || [],
-            platforms: (coreData.platforms || []).map(platform => ({
-              ...platform,
-              syntaxPatterns: platform.syntaxPatterns ? {
-                ...platform.syntaxPatterns,
-                delimiter: platform.syntaxPatterns.delimiter as '' | '_' | '-' | '.' | '/',
-                capitalization: platform.syntaxPatterns.capitalization as 'none' | 'uppercase' | 'lowercase' | 'capitalize'
-              } : undefined
-            })),
-            resolvedValueTypes: (coreData.resolvedValueTypes || []).map(type => ({
-              ...type,
-              type: type.type as 'COLOR' | 'DIMENSION' | 'SPACING' | 'FONT_FAMILY' | 'FONT_WEIGHT' | 'FONT_SIZE' | 'LINE_HEIGHT' | 'LETTER_SPACING' | 'DURATION' | 'CUBIC_BEZIER' | 'BLUR' | 'SPREAD' | 'RADIUS' | undefined
-            })),
-            // Add standard property types if not present
-            standardPropertyTypes: (coreData.standardPropertyTypes || []).map(pt => ({
-              ...pt,
-              category: pt.category as 'color' | 'typography' | 'spacing' | 'dimension' | 'effect' | 'border' | 'layout' | 'animation'
-            })),
-            // Ensure tokens are properly typed and convert propertyTypes if needed
-            tokens: (coreData.tokens || []).map(token => ({
-              ...token,
-              status: token.status as TokenStatus | undefined,
-              tokenTier: token.tokenTier as TokenTier,
-              // Convert old string-based propertyTypes to new object-based format
-              propertyTypes: Array.isArray(token.propertyTypes) 
-                ? token.propertyTypes.map(pt => {
-                    if (typeof pt === 'string') {
-                      // Convert string to PropertyType object
-                      return {
-                        id: pt,
-                        displayName: pt.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),
-                        category: 'color' as const, // Default category, will be overridden by standard types
-                        compatibleValueTypes: [],
-                        inheritance: false
-                      };
-                    }
-                    return pt as PropertyType;
-                  })
-                : [],
-              valuesByMode: token.valuesByMode.map(mode => ({
-                ...mode,
-                value: mode.value as TokenValue
-              }))
-            })),
-            // Ensure taxonomy order is present
-            taxonomyOrder: cleanTaxonomyOrder(coreData.taxonomyOrder || [], coreData.taxonomies || []),
-            // Ensure version history is present
-            versionHistory: coreData.versionHistory || [{
-              version: coreData.version || '1.0.0',
-              dimensions: (coreData.dimensions || []).map(d => d.id),
-              date: new Date().toISOString().slice(0, 10)
-            }]
-          };
-          
-          // Debug log the processed data structure
-          console.debug('[useSchema] Processed data structure:', {
-            version: processedData.version,
-            systemName: processedData.systemName,
-            systemId: processedData.systemId,
-            tokenCollections: {
-              count: processedData.tokenCollections.length,
-              sample: processedData.tokenCollections[0]
-            },
-            tokens: {
-              count: processedData.tokens.length,
-              sample: processedData.tokens[0]
-            },
-            dimensions: {
-              count: processedData.dimensions.length,
-              sample: processedData.dimensions[0]
-            },
-            platforms: {
-              count: processedData.platforms.length,
-              sample: processedData.platforms[0]
-            },
-            taxonomies: {
-              count: processedData.taxonomies.length,
-              sample: processedData.taxonomies[0]
-            },
-            themes: {
-              count: processedData.themes.length,
-              sample: processedData.themes[0]
-            },
-            resolvedValueTypes: {
-              count: processedData.resolvedValueTypes.length,
-              sample: processedData.resolvedValueTypes[0]
-            },
-            namingRules: processedData.namingRules,
-            versionHistory: {
-              count: processedData.versionHistory.length,
-              sample: processedData.versionHistory[0]
-            }
-          });
-          
-          // Validate processed data before setting
-          const validationResult = ValidationService.validateData(processedData);
-          if (validationResult.isValid) {
-            // Store taxonomies first to ensure they exist for naming rules
-            StorageService.setTaxonomies(processedData.taxonomies);
-            // Then store the complete schema
-            setSchema(processedData);
+          // Only load from storage, no example data fallback
+          const storedSchema = getItem('schema');
+          if (storedSchema) {
+            setSchema(storedSchema);
           } else {
-            // Enhanced error reporting
-            console.error('[useSchema] Schema validation failed:', {
-              errors: validationResult.errors,
-              dataSummary: {
-                version: processedData.version,
-                systemName: processedData.systemName,
-                systemId: processedData.systemId,
-                tokenCollectionsCount: processedData.tokenCollections.length,
-                tokensCount: processedData.tokens.length,
-                dimensionsCount: processedData.dimensions.length,
-                platformsCount: processedData.platforms.length,
-                taxonomiesCount: processedData.taxonomies.length,
-                themesCount: processedData.themes.length,
-                resolvedValueTypesCount: processedData.resolvedValueTypes.length
+            // If no schema in storage, create a minimal default schema
+            const defaultSchema: Schema = {
+              systemName: 'Design System',
+              systemId: 'design-system',
+              version: '1.0.0',
+              description: 'A comprehensive design system',
+              tokenCollections: [],
+              tokens: [],
+              dimensions: [],
+              modes: [],
+              platforms: [],
+              themes: [],
+              taxonomies: [],
+              resolvedValueTypes: [],
+              componentProperties: [],
+              componentCategories: [],
+              components: [],
+              taxonomyOrder: [],
+              dimensionOrder: [],
+              versionHistory: [],
+              namingRules: {
+                prefix: '',
+                suffix: '',
+                delimiter: '_',
+                capitalization: 'none'
               }
-            });
-            throw new Error(`Invalid schema structure in default data: ${validationResult.errors?.join(', ')}`);
+            };
+            setSchema(defaultSchema);
+            setItem('schema', defaultSchema);
           }
-        } catch (err) {
-          console.error('Failed to load default schema:', err);
-          toast({
-            title: 'Schema Error',
-            description: 'Failed to load default schema',
-            status: 'error',
-            duration: 5000,
-            isClosable: true,
-          });
+        } catch (error) {
+          console.error('[useSchema] Error loading schema:', error);
         }
       }
     };
+
     loadDefaultSchema();
-  }, [toast]); // Removed schema from dependencies to prevent infinite loop
+  }, [schema, getItem, setItem]);
 
   useEffect(() => {
     if (schema) {

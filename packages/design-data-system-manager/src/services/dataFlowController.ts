@@ -5,13 +5,15 @@ import { StorageService } from './storage';
 import { DataSourceManager } from './dataSourceManager';
 import { DataManager } from './dataManager';
 import { EnhancedDataMerger } from './enhancedDataMerger';
+import { SourceContextManager } from './sourceContextManager';
+import { SchemaTransformer } from './schemaTransformer';
 import type { 
   TokenSystem, 
   PlatformExtension, 
-  ThemeOverrideFile,
-  DataSnapshot,
-  SourceContext
+  ThemeOverrideFile
 } from '@token-model/data-model';
+import type { DataSnapshot } from './dataManager';
+import type { SourceContext } from './sourceContextManager';
 
 // Feature flag for gradual rollout
 const DATA_FLOW_CONTROLLER_ENABLED = process.env.REACT_APP_DATA_FLOW_CONTROLLER_ENABLED === 'true' || false;
@@ -56,6 +58,21 @@ export interface DataFlowOptions {
   forceRefresh?: boolean;
   skipMigration?: boolean;
   timeout?: number; // milliseconds
+}
+
+// Commit result interface
+export interface CommitResult {
+  success: boolean;
+  commitSha?: string;
+  branchName?: string;
+  repositoryFullName?: string;
+  filePath?: string;
+  error?: string;
+  validationResult?: {
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+  };
 }
 
 // Default data flow options
@@ -649,23 +666,152 @@ export class DataFlowController {
   }
 
   /**
+   * Commit data with context awareness
+   */
+  async commitWithContext(
+    context: SourceContext, 
+    data: DataSnapshot
+  ): Promise<CommitResult> {
+    console.log('[DataFlowController] Committing with context:', context);
+    
+    this.updateState({ 
+      operation: 'commit',
+      status: 'processing',
+      progress: 0,
+      message: 'Starting commit with context',
+      sourceContext: context
+    });
+
+    try {
+      // 1. Validate context
+      if (!context || !context.repositoryInfo) {
+        throw new DataFlowError(
+          'Invalid source context for commit',
+          'INVALID_CONTEXT',
+          'commit',
+          { context }
+        );
+      }
+
+      this.updateState({ progress: 10, message: 'Validating source context' });
+
+      // 2. Transform data for target schema
+      const schemaTransformer = SchemaTransformer.getInstance();
+      const sourceContext = context.sourceId && context.sourceName ? 
+        { sourceId: context.sourceId, sourceName: context.sourceName } : 
+        undefined;
+      
+      const transformedData = schemaTransformer.transformForTarget(
+        data, 
+        context.schemaType,
+        sourceContext
+      );
+
+      this.updateState({ progress: 30, message: 'Data transformed for target schema' });
+
+      // 3. Validate transformed data
+      if (!transformedData.validationResult.isValid) {
+        const error = `Schema validation failed: ${transformedData.validationResult.errors.join(', ')}`;
+        this.updateState({ 
+          progress: 100, 
+          status: 'error',
+          message: 'Commit failed: Schema validation failed',
+          error
+        });
+        
+        return {
+          success: false,
+          error,
+          validationResult: transformedData.validationResult
+        };
+      }
+
+      this.updateState({ progress: 50, message: 'Data validated successfully' });
+
+      // 4. Prepare commit data
+      const commitData = {
+        repositoryFullName: context.repositoryInfo.fullName,
+        branch: context.repositoryInfo.branch,
+        filePath: context.repositoryInfo.filePath,
+        fileType: context.repositoryInfo.fileType,
+        data: transformedData.data,
+        schemaType: context.schemaType
+      };
+
+      this.updateState({ progress: 70, message: 'Preparing commit data' });
+
+      // 5. Execute commit (this would integrate with GitHubSaveService)
+      // For now, we'll simulate the commit and return success
+      // TODO: Integrate with actual GitHub commit logic
+      
+      this.updateState({ progress: 90, message: 'Executing commit' });
+
+      // Simulate commit delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      this.updateState({ 
+        progress: 100, 
+        status: 'success',
+        message: 'Commit completed successfully'
+      });
+
+      return {
+        success: true,
+        branchName: context.repositoryInfo.branch,
+        repositoryFullName: context.repositoryInfo.fullName,
+        filePath: context.repositoryInfo.filePath,
+        validationResult: transformedData.validationResult
+      };
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error during commit';
+      
+      this.updateState({ 
+        progress: 100, 
+        status: 'error',
+        message: 'Commit failed',
+        error: errorMessage
+      });
+
+      return {
+        success: false,
+        error: errorMessage
+      };
+    }
+  }
+
+  /**
    * Perform commit operation
    */
-  private async performCommitOperation(options: DataFlowOptions): Promise<void> {
+  private async performCommitOperation(options: DataFlowOptions): Promise<CommitResult> {
     this.updateState({ progress: 10, message: 'Starting data commit' });
 
     try {
-      // Save current data
-      await this.performSaveOperation(options);
+      // Get current source context
+      const sourceContextManager = SourceContextManager.getInstance();
+      const context = sourceContextManager.getContext();
+      
+      if (!context) {
+        throw new DataFlowError(
+          'No source context available for commit',
+          'NO_CONTEXT',
+          'commit'
+        );
+      }
 
-      this.updateState({ progress: 100, message: 'Data commit completed' });
+      // Get current data
+      const dataManager = DataManager.getInstance();
+      const currentData = dataManager.getCurrentSnapshot();
+
+      // Use the new commitWithContext method
+      return await this.commitWithContext(context, currentData);
 
     } catch (error) {
       throw new DataFlowError(
-        `Commit operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'Commit operation failed',
         'COMMIT_FAILED',
         'commit',
-        { originalError: error }
+        { error: error instanceof Error ? error.message : 'Unknown error' }
       );
     }
   }

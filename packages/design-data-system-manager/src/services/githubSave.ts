@@ -1,7 +1,11 @@
 import { GitHubApiService } from './githubApi';
 import { StorageService } from './storage';
 import { DataManager } from './dataManager';
+import { SourceContextManager } from './sourceContextManager';
+import { SchemaTransformer } from './schemaTransformer';
 import type { DataSourceContext } from './dataSourceManager';
+import type { SourceContext } from './sourceContextManager';
+import type { Platform, Theme } from '@token-model/data-model';
 
 export interface SaveOptions {
   message?: string;
@@ -10,62 +14,92 @@ export interface SaveOptions {
   prTitle?: string;
   prDescription?: string;
   dataSourceContext?: DataSourceContext;
+  sourceContext?: SourceContext; // NEW: Direct source context
 }
 
 export interface SaveResult {
   success: boolean;
   message: string;
   pullRequestUrl?: string;
+  commitSha?: string;
+  branchName?: string;
+  repositoryFullName?: string;
+  filePath?: string;
+  validationResult?: {
+    isValid: boolean;
+    errors: string[];
+    warnings: string[];
+  };
 }
 
 export class GitHubSaveService {
   /**
-   * Save current data to GitHub
+   * Save current data to GitHub with context awareness
    */
   static async saveToGitHub(options: SaveOptions = {}): Promise<SaveResult> {
     try {
-      // Determine source type and ID from data source context
-      let sourceType: 'core' | 'platform-extension' | 'theme-override';
-      let sourceId: string | undefined;
-      let targetRepoInfo: {
-        fullName: string;
-        branch: string;
-        filePath: string;
-        fileType: 'schema' | 'theme-override' | 'platform-extension';
-      } | null = null;
+      console.log('[GitHubSaveService] Starting save with options:', options);
 
-      if (options.dataSourceContext?.currentPlatform && options.dataSourceContext.currentPlatform !== 'none') {
-        sourceType = 'platform-extension';
-        sourceId = options.dataSourceContext.currentPlatform;
-        // Get platform repository info
-        targetRepoInfo = options.dataSourceContext.repositories.platforms[sourceId] || null;
-      } else if (options.dataSourceContext?.currentTheme && options.dataSourceContext.currentTheme !== 'none') {
-        sourceType = 'theme-override';
-        sourceId = options.dataSourceContext.currentTheme;
-        // Get theme repository info
-        targetRepoInfo = options.dataSourceContext.repositories.themes[sourceId] || null;
+      // Get source context - prioritize direct context, then fall back to data source context
+      let sourceContext: SourceContext | null = null;
+      
+      if (options.sourceContext) {
+        sourceContext = options.sourceContext;
+        console.log('[GitHubSaveService] Using provided source context:', sourceContext);
       } else {
-        sourceType = 'core';
-        // Get core repository info
-        targetRepoInfo = options.dataSourceContext?.repositories.core || GitHubApiService.getSelectedRepositoryInfo();
+        // Get context from SourceContextManager
+        const sourceContextManager = SourceContextManager.getInstance();
+        sourceContext = sourceContextManager.getContext();
+        
+        if (!sourceContext) {
+          // Fall back to legacy data source context
+          sourceContext = this.createSourceContextFromDataSource(options.dataSourceContext);
+        }
+        
+        console.log('[GitHubSaveService] Using source context from manager:', sourceContext);
       }
 
-      if (!targetRepoInfo) {
-        throw new Error('No repository selected. Please load a file from GitHub first.');
+      if (!sourceContext) {
+        throw new Error('No source context available. Please load a file from GitHub first.');
       }
 
-      // Get schema-compliant data for storage
-      const currentData = this.getCurrentDataForFileType(sourceType, sourceId);
-      
-      // Validate data against appropriate schema before saving
+      // Validate source context
+      if (!sourceContext.repositoryInfo) {
+        throw new Error('Invalid source context: missing repository information.');
+      }
+
+      // Get current data
       const dataManager = DataManager.getInstance();
-      const validationResult = dataManager.validateStorageData(currentData, sourceType);
-      if (!validationResult.isValid) {
-        throw new Error(`Data validation failed: ${validationResult.errors.join(', ')}`);
+      const currentData = dataManager.getCurrentSnapshot();
+
+      // Transform data for target schema
+      const schemaTransformer = SchemaTransformer.getInstance();
+      const sourceContextForTransform = sourceContext.sourceId && sourceContext.sourceName ? 
+        { sourceId: sourceContext.sourceId, sourceName: sourceContext.sourceName } : 
+        undefined;
+
+      const transformedData = schemaTransformer.transformForTarget(
+        currentData,
+        sourceContext.schemaType,
+        sourceContextForTransform
+      );
+
+      console.log('[GitHubSaveService] Data transformed for schema:', sourceContext.schemaType);
+
+      // Validate transformed data
+      if (!transformedData.validationResult.isValid) {
+        const error = `Schema validation failed: ${transformedData.validationResult.errors.join(', ')}`;
+        console.error('[GitHubSaveService] Validation failed:', error);
+        
+        return {
+          success: false,
+          message: error,
+          validationResult: transformedData.validationResult
+        };
       }
-      
+
       // Convert to JSON string
-      const jsonContent = JSON.stringify(currentData, null, 2);
+      const jsonContent = JSON.stringify(transformedData.data, null, 2);
       
       // Check file size (GitHub has 1MB limit)
       const fileSizeBytes = new Blob([jsonContent]).size;
@@ -79,14 +113,16 @@ export class GitHubSaveService {
         console.warn(`File size (${fileSizeMB.toFixed(2)}MB) is approaching GitHub's 1MB limit.`);
       }
 
-      const commitMessage = options.message || `Update ${targetRepoInfo.filePath} - ${new Date().toLocaleString()}`;
+      const commitMessage = options.message || `Update ${sourceContext.repositoryInfo.filePath} - ${new Date().toLocaleString()}`;
 
       if (options.createPullRequest && options.targetBranch) {
         // Create a new branch and pull request
         return await this.createPullRequestWithChanges(
           {
-            ...targetRepoInfo,
-            fileType: targetRepoInfo.fileType === 'platform-extension' ? 'schema' : targetRepoInfo.fileType
+            fullName: sourceContext.repositoryInfo.fullName,
+            branch: sourceContext.repositoryInfo.branch,
+            filePath: sourceContext.repositoryInfo.filePath,
+            fileType: sourceContext.repositoryInfo.fileType as 'schema' | 'theme-override'
           },
           jsonContent,
           commitMessage,
@@ -97,28 +133,32 @@ export class GitHubSaveService {
       } else {
         // Direct save to the current branch
         await GitHubApiService.createFile(
-          targetRepoInfo.fullName,
-          targetRepoInfo.filePath,
+          sourceContext.repositoryInfo.fullName,
+          sourceContext.repositoryInfo.filePath,
           jsonContent,
-          targetRepoInfo.branch,
-          commitMessage
+          commitMessage,
+          sourceContext.repositoryInfo.branch
         );
 
-        // Reset baseline to current data after successful save
-        const dataManager = DataManager.getInstance();
-        dataManager.resetBaselineToCurrent();
+        console.log('[GitHubSaveService] Direct save completed');
 
         return {
           success: true,
-          message: `Successfully saved changes to ${targetRepoInfo.filePath}`
+          message: 'Data saved successfully',
+          branchName: sourceContext.repositoryInfo.branch,
+          repositoryFullName: sourceContext.repositoryInfo.fullName,
+          filePath: sourceContext.repositoryInfo.filePath,
+          validationResult: transformedData.validationResult
         };
       }
 
     } catch (error) {
-      console.error('Failed to save to GitHub:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error during save';
+      console.error('[GitHubSaveService] Save failed:', errorMessage);
+      
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to save to GitHub'
+        message: errorMessage
       };
     }
   }
@@ -175,6 +215,52 @@ export class GitHubSaveService {
       success: true,
       message: `Successfully created pull request #${pr.number}`,
       pullRequestUrl: pr.html_url
+    };
+  }
+
+  /**
+   * Create source context from legacy data source context
+   */
+  private static createSourceContextFromDataSource(dataSourceContext?: DataSourceContext): SourceContext | null {
+    if (!dataSourceContext) {
+      return null;
+    }
+
+    let sourceType: 'core' | 'platform-extension' | 'theme-override' = 'core';
+    let schemaType: 'schema' | 'platform-extension' | 'theme-override' = 'schema';
+    let sourceId: string | null = null;
+    let sourceName: string | null = null;
+    let repositoryInfo = dataSourceContext.repositories.core;
+
+    if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
+      sourceType = 'platform-extension';
+      schemaType = 'platform-extension';
+      sourceId = dataSourceContext.currentPlatform;
+      sourceName = dataSourceContext.availablePlatforms.find((p: Platform) => p.id === sourceId)?.displayName || null;
+      repositoryInfo = dataSourceContext.repositories.platforms[sourceId];
+    } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
+      sourceType = 'theme-override';
+      schemaType = 'theme-override';
+      sourceId = dataSourceContext.currentTheme;
+      sourceName = dataSourceContext.availableThemes.find((t: Theme) => t.id === sourceId)?.displayName || null;
+      repositoryInfo = dataSourceContext.repositories.themes[sourceId];
+    }
+
+    if (!repositoryInfo) {
+      return null;
+    }
+
+    return {
+      sourceType,
+      sourceId,
+      sourceName,
+      repositoryInfo: {
+        fullName: repositoryInfo.fullName,
+        branch: repositoryInfo.branch,
+        filePath: repositoryInfo.filePath,
+        fileType: repositoryInfo.fileType
+      },
+      schemaType
     };
   }
 

@@ -98,7 +98,7 @@ interface HeaderProps {
   // Branch-based governance props
   isEditMode?: boolean;
   currentBranch?: string;
-  onBranchCreated?: (branchName: string) => void;
+  onBranchCreated?: (branchName: string, editMode?: boolean, repositoryInfo?: { fullName: string; filePath: string; fileType: string }) => void;
   onEnterEditMode?: () => void;
   onExitEditMode?: () => void;
   
@@ -194,8 +194,6 @@ export const Header: React.FC<HeaderProps> = ({
   const dataEditor = DataEditorService.getInstance();
   const sourceManager = SourceManagerService.getInstance();
   const localChangeCount = dataEditor.getChangeCount();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const changeSummary = dataEditor.getChangeSummary();
   const currentSourceContext = sourceManager.getCurrentSourceContext();
   const dataSourceManager = DataSourceManager.getInstance();
   const currentDataSourceContext = dataSourceManager.getCurrentContext();
@@ -316,7 +314,7 @@ export const Header: React.FC<HeaderProps> = ({
           subtitle = 'Editing';
         }
       } else {
-        // View mode: show current platform/theme selection
+        // View mode: show current platform/theme selection with repository and branch info
         const availablePlatforms = sourceManager.getAvailablePlatforms();
         const availableThemes = sourceManager.getAvailableThemes();
         
@@ -327,14 +325,36 @@ export const Header: React.FC<HeaderProps> = ({
           ? availableThemes.find(t => t.id === currentSourceContext.sourceId)?.displayName
           : null;
         
-        if (platformName && themeName) {
-          subtitle = `${platformName} + ${themeName}`;
-        } else if (platformName) {
-          subtitle = platformName;
-        } else if (themeName) {
-          subtitle = themeName;
+        // Get repository information for Platform/Theme sources
+        let repositoryInfo = '';
+        if (currentSourceContext.sourceType === 'platform' && currentSourceContext.sourceRepository) {
+          const repoName = currentSourceContext.sourceRepository.fullName.split('/')[1]; // Get repo name without owner
+          // Use the branch from the source repository context, or fallback to currentBranch
+          const branchName = currentSourceContext.sourceRepository.branch || currentBranch;
+          repositoryInfo = `(${repoName} - ${branchName})`;
+        } else if (currentSourceContext.sourceType === 'theme' && currentSourceContext.sourceRepository) {
+          const repoName = currentSourceContext.sourceRepository.fullName.split('/')[1]; // Get repo name without owner
+          // Use the branch from the source repository context, or fallback to currentBranch
+          const branchName = currentSourceContext.sourceRepository.branch || currentBranch;
+          repositoryInfo = `(${repoName} - ${branchName})`;
+        } else if (currentSourceContext.sourceType === 'core' && currentSourceContext.coreRepository) {
+          const repoName = currentSourceContext.coreRepository.fullName.split('/')[1]; // Get repo name without owner
+          // Use the branch from the core repository context, or fallback to currentBranch
+          const branchName = currentSourceContext.coreRepository.branch || currentBranch;
+          repositoryInfo = `(${repoName} - ${branchName})`;
         } else {
-          subtitle = 'Core Data';
+          // Fallback to just branch name
+          repositoryInfo = `(${currentBranch})`;
+        }
+        
+        if (platformName && themeName) {
+          subtitle = `${platformName} + ${themeName} ${repositoryInfo}`;
+        } else if (platformName) {
+          subtitle = `${platformName} ${repositoryInfo}`;
+        } else if (themeName) {
+          subtitle = `${themeName} ${repositoryInfo}`;
+        } else {
+          subtitle = `Core Data ${repositoryInfo}`;
         }
         
         // NEW: Enhanced two-tier permission system
@@ -718,14 +738,15 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const handleBranchSelected = (branchName: string, editMode?: boolean) => {
+  const handleBranchSelected = (branchName: string, editMode?: boolean, repositoryInfo?: { fullName: string; filePath: string; fileType: string }) => {
+    console.log('[Header] handleBranchSelected called with:', { branchName, editMode, repositoryInfo });
     // When selecting an existing branch, we need to:
     // 1. Switch to that branch (similar to branch creation)
     // 2. Enter edit mode if editMode is true
     
     if (onBranchCreated) {
       // Use onBranchCreated which handles branch switching and entering edit mode
-      onBranchCreated(branchName);
+      onBranchCreated(branchName, editMode, repositoryInfo);
     } else if (editMode && onEnterEditMode) {
       // If edit mode is requested and we have the handler, enter edit mode
       onEnterEditMode();
@@ -821,13 +842,48 @@ export const Header: React.FC<HeaderProps> = ({
     // Switch to the selected branch in view mode
     // This should trigger a data refresh to load the new branch data
     if (onRefreshData) {
-      // Update the URL to reflect the new branch
+      // CRITICAL: Update URL FIRST before any data operations (same pattern as Platform/Theme switching)
       const url = new URL(window.location.href);
       url.searchParams.set('branch', branchName);
       window.history.replaceState({}, '', url.toString());
       
-      // Refresh data to load the new branch (suppress the data refresh toast)
-      onRefreshData(true); // Pass suppressToast = true to prevent duplicate toast
+      // CRITICAL: Update the current branch state to reflect the new branch
+      // This ensures the Header displays the correct branch information
+      if (onBranchCreated) {
+        // Use onBranchCreated to properly update the branch state and context
+        // Pass false for editMode (view mode) and get repository info from current context
+        const sourceManager = SourceManagerService.getInstance();
+        const currentSourceContext = sourceManager.getCurrentSourceContext();
+        
+        let repositoryInfo: { fullName: string; filePath: string; fileType: string } | undefined = undefined;
+        if (currentSourceContext) {
+          if (currentSourceContext.sourceType === 'platform' && currentSourceContext.sourceRepository) {
+            repositoryInfo = {
+              fullName: currentSourceContext.sourceRepository.fullName,
+              filePath: currentSourceContext.sourceRepository.filePath,
+              fileType: 'platform-extension'
+            };
+          } else if (currentSourceContext.sourceType === 'theme' && currentSourceContext.sourceRepository) {
+            repositoryInfo = {
+              fullName: currentSourceContext.sourceRepository.fullName,
+              filePath: currentSourceContext.sourceRepository.filePath,
+              fileType: 'theme-override'
+            };
+          } else if (currentSourceContext.sourceType === 'core' && currentSourceContext.coreRepository) {
+            repositoryInfo = {
+              fullName: currentSourceContext.coreRepository.fullName,
+              filePath: currentSourceContext.coreRepository.filePath,
+              fileType: 'schema'
+            };
+          }
+        }
+        
+        // Call onBranchCreated to properly switch branches and update context
+        onBranchCreated(branchName, false, repositoryInfo);
+      } else {
+        // Fallback to simple refresh if onBranchCreated is not available
+        onRefreshData(true); // Pass suppressToast = true to prevent duplicate toast
+      }
       
       toast({
         title: 'Branch Switched',
@@ -1193,10 +1249,71 @@ export const Header: React.FC<HeaderProps> = ({
         onClose={() => setShowBranchSelectionDialog(false)}
         onBranchSelected={handleBranchSelected}
         currentBranch={targetBranchForBranch}
-        repositoryFullName={targetRepositoryForBranch?.fullName || selectedRepoInfo?.fullName || ''}
+        repositoryFullName={(() => {
+          // Determine the correct repository based on current source context
+          if (currentSourceContext) {
+            if (currentSourceContext.sourceType === 'platform' && currentSourceContext.sourceId) {
+              // Platform extension editing
+              return currentSourceContext.sourceRepository?.fullName || '';
+            } else if (currentSourceContext.sourceType === 'theme' && currentSourceContext.sourceId) {
+              // Theme override editing
+              return currentSourceContext.sourceRepository?.fullName || '';
+            } else {
+              // Core data editing
+              return currentSourceContext.coreRepository?.fullName || '';
+            }
+          }
+          // Fallback to targetRepositoryForBranch or selectedRepoInfo
+          return targetRepositoryForBranch?.fullName || selectedRepoInfo?.fullName || '';
+        })()}
         githubUser={githubUser || null}
         editMode={true}
         sourceContext={(() => {
+          // Use the new unified source management system
+          if (currentSourceContext) {
+            // Map the currentSourceContext to the format expected by BranchSelectionDialog
+            let sourceType: 'core' | 'platform-extension' | 'theme-override';
+            let sourceName: string | null = 'Core Design System';
+            let platformName: string | undefined;
+            let themeName: string | undefined;
+            
+            if (currentSourceContext.sourceType === 'platform' && currentSourceContext.sourceId) {
+              sourceType = 'platform-extension';
+              // Try to get platform name from dataSourceContext if available
+              if (dataSourceContext) {
+                const platform = dataSourceContext.availablePlatforms.find(p => p.id === currentSourceContext.sourceId);
+                sourceName = platform?.displayName || currentSourceContext.sourceId;
+                platformName = sourceName;
+              } else {
+                sourceName = currentSourceContext.sourceId;
+                platformName = currentSourceContext.sourceId;
+              }
+            } else if (currentSourceContext.sourceType === 'theme' && currentSourceContext.sourceId) {
+              sourceType = 'theme-override';
+              // Try to get theme name from dataSourceContext if available
+              if (dataSourceContext) {
+                const theme = dataSourceContext.availableThemes.find(t => t.id === currentSourceContext.sourceId);
+                sourceName = theme?.displayName || currentSourceContext.sourceId;
+                themeName = sourceName;
+              } else {
+                sourceName = currentSourceContext.sourceId;
+                themeName = currentSourceContext.sourceId;
+              }
+            } else {
+              sourceType = 'core';
+              sourceName = 'Core Design System';
+            }
+            
+            return {
+              sourceType,
+              sourceId: currentSourceContext.sourceId,
+              sourceName,
+              platformName,
+              themeName,
+            };
+          }
+          
+          // Fallback to old dataSourceContext approach if currentSourceContext is not available
           if (!dataSourceContext) return undefined;
           
           const { currentPlatform, currentTheme, availablePlatforms, availableThemes } = dataSourceContext;
@@ -1239,10 +1356,71 @@ export const Header: React.FC<HeaderProps> = ({
         onClose={() => setShowSwitchBranchDialog(false)}
         onBranchSelected={handleSwitchBranchSelected}
         currentBranch={targetBranchForBranch}
-        repositoryFullName={targetRepositoryForBranch?.fullName || selectedRepoInfo?.fullName || ''}
+        repositoryFullName={(() => {
+          // Determine the correct repository based on current source context
+          if (currentSourceContext) {
+            if (currentSourceContext.sourceType === 'platform' && currentSourceContext.sourceId) {
+              // Platform extension editing
+              return currentSourceContext.sourceRepository?.fullName || '';
+            } else if (currentSourceContext.sourceType === 'theme' && currentSourceContext.sourceId) {
+              // Theme override editing
+              return currentSourceContext.sourceRepository?.fullName || '';
+            } else {
+              // Core data editing
+              return currentSourceContext.coreRepository?.fullName || '';
+            }
+          }
+          // Fallback to targetRepositoryForBranch or selectedRepoInfo
+          return targetRepositoryForBranch?.fullName || selectedRepoInfo?.fullName || '';
+        })()}
         githubUser={githubUser || null}
         editMode={false}
         sourceContext={(() => {
+          // Use the new unified source management system
+          if (currentSourceContext) {
+            // Map the currentSourceContext to the format expected by BranchSelectionDialog
+            let sourceType: 'core' | 'platform-extension' | 'theme-override';
+            let sourceName: string | null = 'Core Design System';
+            let platformName: string | undefined;
+            let themeName: string | undefined;
+            
+            if (currentSourceContext.sourceType === 'platform' && currentSourceContext.sourceId) {
+              sourceType = 'platform-extension';
+              // Try to get platform name from dataSourceContext if available
+              if (dataSourceContext) {
+                const platform = dataSourceContext.availablePlatforms.find(p => p.id === currentSourceContext.sourceId);
+                sourceName = platform?.displayName || currentSourceContext.sourceId;
+                platformName = sourceName;
+              } else {
+                sourceName = currentSourceContext.sourceId;
+                platformName = currentSourceContext.sourceId;
+              }
+            } else if (currentSourceContext.sourceType === 'theme' && currentSourceContext.sourceId) {
+              sourceType = 'theme-override';
+              // Try to get theme name from dataSourceContext if available
+              if (dataSourceContext) {
+                const theme = dataSourceContext.availableThemes.find(t => t.id === currentSourceContext.sourceId);
+                sourceName = theme?.displayName || currentSourceContext.sourceId;
+                themeName = sourceName;
+              } else {
+                sourceName = currentSourceContext.sourceId;
+                themeName = currentSourceContext.sourceId;
+              }
+            } else {
+              sourceType = 'core';
+              sourceName = 'Core Design System';
+            }
+            
+            return {
+              sourceType,
+              sourceId: currentSourceContext.sourceId,
+              sourceName,
+              platformName,
+              themeName,
+            };
+          }
+          
+          // Fallback to old dataSourceContext approach if currentSourceContext is not available
           if (!dataSourceContext) return undefined;
           
           const { currentPlatform, currentTheme, availablePlatforms, availableThemes } = dataSourceContext;

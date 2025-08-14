@@ -23,21 +23,23 @@ export class BranchManager {
   static async switchToBranch(
     repositoryFullName: string,
     branchName: string,
-    preserveContext: boolean = true
+    preserveContext: boolean = true,
+    repositoryContext?: RepositoryContext
   ): Promise<void> {
-    console.log('[BranchManager] Switching to branch:', { repositoryFullName, branchName, preserveContext });
+    console.log('[BranchManager] Switching to branch:', { repositoryFullName, branchName, preserveContext, repositoryContext });
     
     try {
-      // 1. Get current repository context
+      // 1. Get current repository context (fallback if no context provided)
       const stateManager = StatePersistenceManager.getInstance();
       const currentContext = stateManager.getCurrentRepositoryContext();
       
       // 2. Create new repository context with updated branch
+      // Use provided context if available, otherwise fall back to current context
       const newRepositoryContext: RepositoryContext = {
         fullName: repositoryFullName,
         branch: branchName,
-        filePath: currentContext?.filePath || 'schema.json',
-        fileType: currentContext?.fileType || 'schema'
+        filePath: repositoryContext?.filePath || currentContext?.filePath || 'schema.json',
+        fileType: repositoryContext?.fileType || currentContext?.fileType || 'schema'
       };
       
       // 3. Update repository context

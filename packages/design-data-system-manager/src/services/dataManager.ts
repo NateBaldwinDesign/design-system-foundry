@@ -205,7 +205,7 @@ export class DataManager {
    * Load data from GitHub and update storage and state
    */
   async loadFromGitHub(fileContent: Record<string, unknown>, fileType: 'schema' | 'theme-override' | 'platform-extension'): Promise<DataSnapshot> {
-    console.log('[DataManager] Loading GitHub data, file type:', fileType);
+    console.log('[DataManager] Loading GitHub data with file type:', fileType);
     
     try {
       let snapshot: DataSnapshot;
@@ -223,15 +223,6 @@ export class DataManager {
         throw new Error(`Unsupported file type: ${fileType}`);
       }
       
-      console.log('[DataManager] Processed snapshot:', {
-        tokens: snapshot.tokens.length,
-        collections: snapshot.collections.length,
-        dimensions: snapshot.dimensions.length,
-        modes: snapshot.modes.length,
-        platforms: snapshot.platforms.length,
-        themes: snapshot.themes.length
-      });
-      
       // Pre-load platform extension data if user is authenticated
       if (snapshot.platforms.length > 0) {
         await this.preloadPlatformExtensions(snapshot.platforms);
@@ -239,7 +230,7 @@ export class DataManager {
       
       // Store in localStorage
       this.storeSnapshot(snapshot);
-      console.log('[DataManager] Stored snapshot in localStorage');
+      console.log('[DataManager] Stored GitHub data snapshot in localStorage');
       
       // Set new baseline for change tracking - this establishes the new "original" state
       this.setBaseline(snapshot);
@@ -261,48 +252,6 @@ export class DataManager {
       return this.state.presentationData;
     } catch (error) {
       console.error('[DataManager] Error loading GitHub data:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Load data from example source and update storage and state
-   */
-  async loadFromExampleSource(dataSourceKey: string, exampleData: Record<string, unknown>, algorithmData?: Record<string, unknown>): Promise<DataSnapshot> {
-    console.log('[DataManager] Loading example data from source:', dataSourceKey);
-    
-    try {
-      const snapshot = this.processExampleData(dataSourceKey, exampleData, algorithmData);
-      
-      // Pre-load platform extension data if user is authenticated
-      if (snapshot.platforms.length > 0) {
-        await this.preloadPlatformExtensions(snapshot.platforms);
-      }
-      
-      // Store in localStorage
-      this.storeSnapshot(snapshot);
-      console.log('[DataManager] Stored example data snapshot in localStorage');
-      
-      // Set new baseline for change tracking - this establishes the new "original" state
-      this.setBaseline(snapshot);
-      console.log('[DataManager] Set new baseline for change tracking');
-      
-      // Update presentation data to ensure merged data is available
-      this.updatePresentationData();
-      
-      // Notify that data has been loaded with new baseline
-      this.callbacks.onDataLoaded?.(this.state.presentationData);
-      this.callbacks.onBaselineUpdated?.(this.state.presentationData);
-      
-      console.log('[DataManager] Successfully loaded example data:', {
-        tokens: this.state.presentationData.tokens.length,
-        collections: this.state.presentationData.collections.length,
-        dimensions: this.state.presentationData.dimensions.length
-      });
-      
-      return this.state.presentationData;
-    } catch (error) {
-      console.error('[DataManager] Error loading example data:', error);
       throw error;
     }
   }
@@ -680,91 +629,6 @@ export class DataManager {
     
     // For now, return current data
     return this.getCurrentSnapshot();
-  }
-
-  /**
-   * Process example data
-   */
-  private processExampleData(dataSourceKey: string, coreData: Record<string, unknown>, algorithmData?: Record<string, unknown>): DataSnapshot {
-    const d = coreData;
-
-    const normalizedCollections = (d.tokenCollections as TokenCollection[]) ?? [];
-    const normalizedDimensions = (d.dimensions as Dimension[]) ?? [];
-    const normalizedTokens = ((d.tokens as Token[]) ?? []).map((token: Token) => ({
-      ...token,
-      valuesByMode: token.valuesByMode
-    }));
-    const normalizedPlatforms = (d.platforms as Platform[]) ?? [];
-    const normalizedThemes = ((d.themes as Theme[]) ?? []).map((theme: Theme) => ({
-      id: theme.id,
-      displayName: theme.displayName,
-      description: theme.description,
-      overrideSource: theme.overrideSource,
-      status: theme.status
-    }));
-    const normalizedTaxonomies = (d.taxonomies as Taxonomy[]) ?? [];
-    const normalizedResolvedValueTypes = (d.resolvedValueTypes as ResolvedValueType[]) ?? [];
-    const normalizedTaxonomyOrder = ((d.taxonomyOrder as string[]) ?? normalizedTaxonomies.map(t => t.id));
-    const normalizedComponentProperties = (d.componentProperties as ComponentProperty[]) ?? [];
-    const normalizedComponentCategories = (d.componentCategories as ComponentCategory[]) ?? [];
-    const normalizedComponents = (d.components as Component[]) ?? [];
-
-    const allModes: Mode[] = normalizedDimensions.flatMap((dimension: Dimension) => (dimension as { modes?: Mode[] }).modes || []);
-
-    // Process algorithm data if available
-    let loadedAlgorithms: Algorithm[] = [];
-    let algorithmFile: Record<string, unknown> | null = null;
-    
-    if (algorithmData && algorithmData.default) {
-      algorithmFile = algorithmData.default as Record<string, unknown>;
-      loadedAlgorithms = ((algorithmData.default as Record<string, unknown>).algorithms || []) as Algorithm[];
-    }
-
-    // Store root-level data
-    const systemName = (d.systemName as string) ?? 'Design System';
-    const systemId = (d.systemId as string) ?? 'design-system';
-    const description = (d.description as string) ?? 'A comprehensive design system with tokens, dimensions, and themes';
-    const version = (d.version as string) ?? '1.0.0';
-    const versionHistory = (d.versionHistory ?? []) as Array<{
-      version: string;
-      dimensions: string[];
-      date: string;
-      migrationStrategy?: {
-        emptyModeIds: string;
-        preserveOriginalValues: boolean;
-      };
-    }>;
-
-    StorageService.setRootData({
-      systemName,
-      systemId,
-      description,
-      version,
-      versionHistory
-    });
-
-    return {
-      collections: normalizedCollections,
-      modes: allModes,
-      dimensions: normalizedDimensions,
-      resolvedValueTypes: normalizedResolvedValueTypes,
-      platforms: normalizedPlatforms,
-      themes: normalizedThemes,
-      tokens: normalizedTokens as ExtendedToken[],
-      taxonomies: normalizedTaxonomies,
-      componentProperties: normalizedComponentProperties,
-      componentCategories: normalizedComponentCategories,
-      components: normalizedComponents,
-      algorithms: loadedAlgorithms,
-      taxonomyOrder: normalizedTaxonomyOrder,
-      dimensionOrder: normalizedDimensions.map(dimension => dimension.id),
-      algorithmFile,
-      // Clear MultiRepositoryManager data when loading from example source
-      linkedRepositories: [],
-      platformExtensions: {},
-      themeOverrides: null,
-      figmaConfiguration: null,
-    };
   }
 
   /**

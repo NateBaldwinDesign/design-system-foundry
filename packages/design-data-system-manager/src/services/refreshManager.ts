@@ -31,8 +31,8 @@ export class RefreshManager {
   /**
    * Refresh data with context-aware options
    */
-  static async refreshWithContext(options: RefreshOptions = {}): Promise<void> {
-    console.log('[RefreshManager] Starting refresh with options:', options);
+  static async refreshWithContext(options: RefreshOptions = {}, repositoryContext?: RepositoryContext): Promise<void> {
+    console.log('[RefreshManager] Starting refresh with options:', options, 'repositoryContext:', repositoryContext);
     
     try {
       // 1. Save current state before refresh
@@ -43,8 +43,8 @@ export class RefreshManager {
       
       console.log('[RefreshManager] Current repository context:', currentState.currentRepository);
       
-      // 2. Determine target repository based on current context
-      let targetRepository = currentState.currentRepository;
+      // 2. Determine target repository based on provided context or current context
+      let targetRepository = repositoryContext || currentState.currentRepository;
       if (!targetRepository) {
         targetRepository = this.getTargetRepositoryFromContext(currentContext);
       }
@@ -243,7 +243,7 @@ export class RefreshManager {
       preserveBranchCache: true,
       clearEditMode: false,
       suppressToast: true
-    });
+    }, repository); // Pass the repository context
   }
 
   /**

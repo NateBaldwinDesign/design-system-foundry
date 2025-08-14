@@ -417,6 +417,69 @@ private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<Dat
       return;
     }
 
+    // Get core data to find platform/theme extension repositories
+    const coreData = StorageService.getCoreData();
+    
+    // Determine the source repository based on the source type
+    let sourceRepository: {
+      fullName: string;
+      branch: string;
+      filePath: string;
+      fileType: 'schema' | 'platform-extension' | 'theme-override';
+    };
+
+    if (sourceType === 'platform' && platformId) {
+      // Platform extension - get repository from core data's platforms array
+      const platform = coreData?.platforms?.find(p => p.id === platformId);
+      if (platform?.extensionSource) {
+        sourceRepository = {
+          fullName: platform.extensionSource.repositoryUri,
+          branch: 'main', // Default to main branch for platform extensions
+          filePath: platform.extensionSource.filePath,
+          fileType: 'platform-extension'
+        };
+        console.log(`[DataLoaderService] Platform extension repository: ${platform.extensionSource.repositoryUri}/${platform.extensionSource.filePath}`);
+      } else {
+        console.warn(`[DataLoaderService] Platform ${platformId} not found in core data or missing extensionSource`);
+        // Fallback to core repository
+        sourceRepository = {
+          fullName: repo,
+          branch,
+          filePath: path,
+          fileType: 'platform-extension'
+        };
+      }
+    } else if (sourceType === 'theme' && themeId) {
+      // Theme override - get repository from core data's themes array
+      const theme = coreData?.themes?.find(t => t.id === themeId);
+      if (theme?.overrideSource) {
+        sourceRepository = {
+          fullName: theme.overrideSource.repositoryUri,
+          branch: 'main', // Default to main branch for theme overrides
+          filePath: theme.overrideSource.filePath,
+          fileType: 'theme-override'
+        };
+        console.log(`[DataLoaderService] Theme override repository: ${theme.overrideSource.repositoryUri}/${theme.overrideSource.filePath}`);
+      } else {
+        console.warn(`[DataLoaderService] Theme ${themeId} not found in core data or missing overrideSource`);
+        // Fallback to core repository
+        sourceRepository = {
+          fullName: repo,
+          branch,
+          filePath: path,
+          fileType: 'theme-override'
+        };
+      }
+    } else {
+      // Core data - use the same repository
+      sourceRepository = {
+        fullName: repo,
+        branch,
+        filePath: path,
+        fileType: 'schema'
+      };
+    }
+
     const sourceContext: SourceContext = {
       sourceType,
       sourceId: platformId || themeId || null,
@@ -426,12 +489,7 @@ private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<Dat
         filePath: path,
         fileType: 'schema'
       },
-      sourceRepository: {
-        fullName: repo,
-        branch,
-        filePath: path,
-        fileType: sourceType === 'platform' ? 'platform-extension' : sourceType === 'theme' ? 'theme-override' : 'schema'
-      },
+      sourceRepository,
       lastLoadedAt: new Date().toISOString(),
       hasLocalChanges: false,
       editMode: {
@@ -443,7 +501,7 @@ private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<Dat
     };
 
     StorageService.setSourceContext(sourceContext);
-    console.log('[DataLoaderService] Source context updated');
+    console.log('[DataLoaderService] Source context updated with proper repository mapping');
   }
 
   /**

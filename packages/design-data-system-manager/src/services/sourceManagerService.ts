@@ -5,14 +5,10 @@ import { DataManager } from './dataManager';
 import type { 
   SourceContext, 
   SourceSwitchResult, 
-  DataSourceType 
-} from '../types/dataManagement';
-import type { TokenSystem } from '@token-model/data-model';
-import type { 
-  SourceContext, 
-  SourceSwitchResult, 
+  DataSourceType,
   RepositoryInfo 
 } from '../types/dataManagement';
+import type { TokenSystem } from '@token-model/data-model';
 
 export class SourceManagerService {
   private static instance: SourceManagerService;
@@ -344,10 +340,59 @@ export class SourceManagerService {
       return null;
     }
 
+    // Get core data to find platform/theme extension repositories
+    const coreData = StorageService.getCoreData();
+    
+    // Determine the source repository based on the source type
+    let sourceRepository: {
+      fullName: string;
+      branch: string;
+      filePath: string;
+      fileType: 'schema' | 'platform-extension' | 'theme-override';
+    };
+
+    if (sourceType === 'platform' && sourceId) {
+      // Platform extension - get repository from core data's platforms array
+      const platform = coreData?.platforms?.find(p => p.id === sourceId);
+      if (platform?.extensionSource) {
+        sourceRepository = {
+          fullName: platform.extensionSource.repositoryUri,
+          branch: 'main', // Default to main branch for platform extensions
+          filePath: platform.extensionSource.filePath,
+          fileType: 'platform-extension'
+        };
+        console.log(`[SourceManagerService] Platform extension repository: ${platform.extensionSource.repositoryUri}/${platform.extensionSource.filePath}`);
+      } else {
+        console.warn(`[SourceManagerService] Platform ${sourceId} not found in core data or missing extensionSource`);
+        // Fallback to existing source repository
+        sourceRepository = currentContext.sourceRepository;
+      }
+    } else if (sourceType === 'theme' && sourceId) {
+      // Theme override - get repository from core data's themes array
+      const theme = coreData?.themes?.find(t => t.id === sourceId);
+      if (theme?.overrideSource) {
+        sourceRepository = {
+          fullName: theme.overrideSource.repositoryUri,
+          branch: 'main', // Default to main branch for theme overrides
+          filePath: theme.overrideSource.filePath,
+          fileType: 'theme-override'
+        };
+        console.log(`[SourceManagerService] Theme override repository: ${theme.overrideSource.repositoryUri}/${theme.overrideSource.filePath}`);
+      } else {
+        console.warn(`[SourceManagerService] Theme ${sourceId} not found in core data or missing overrideSource`);
+        // Fallback to existing source repository
+        sourceRepository = currentContext.sourceRepository;
+      }
+    } else {
+      // Core data - use the core repository
+      sourceRepository = currentContext.coreRepository;
+    }
+
     const newContext: SourceContext = {
       ...currentContext,
       sourceType,
       sourceId: sourceId || null,
+      sourceRepository,
       lastLoadedAt: new Date().toISOString(),
       hasLocalChanges: false,
       editMode: {
@@ -359,6 +404,7 @@ export class SourceManagerService {
     };
 
     StorageService.setSourceContext(newContext);
+    console.log('[SourceManagerService] Source context updated with proper repository mapping');
     return newContext;
   }
 

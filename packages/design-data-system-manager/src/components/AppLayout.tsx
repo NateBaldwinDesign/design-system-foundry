@@ -16,9 +16,6 @@ interface DataSourceOption {
 }
 
 interface AppLayoutProps {
-  dataSource: string;
-  setDataSource: (source: string) => void;
-  dataOptions: DataSourceOption[];
   onResetData: () => void;
   onExportData: () => void;
   isGitHubConnected?: boolean;
@@ -77,9 +74,6 @@ interface AppLayoutProps {
 const DATA_CHANGE_EVENT = 'token-model:data-change';
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
-  dataSource,
-  setDataSource,
-  dataOptions,
   onResetData,
   onExportData,
   isGitHubConnected = false,
