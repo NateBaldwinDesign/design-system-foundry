@@ -1,919 +1,496 @@
-import { unifiedStorageService } from './unifiedStorageService';
-import { dataValidationService } from './dataValidationService';
-import { dataMigrationService } from './dataMigrationService';
-import { StorageService } from './storage';
+import { UnifiedStorageService, type UnifiedDataContext, type SourceContext } from './unifiedStorageService';
 import { DataSourceManager } from './dataSourceManager';
 import { DataManager } from './dataManager';
-import { EnhancedDataMerger } from './enhancedDataMerger';
-import { SourceContextManager } from './sourceContextManager';
-import { SchemaTransformer } from './schemaTransformer';
-import type { 
-  TokenSystem, 
-  PlatformExtension, 
-  ThemeOverrideFile
-} from '@token-model/data-model';
-import type { DataSnapshot } from './dataManager';
-import type { SourceContext } from './sourceContextManager';
+import { RepositoryContextService } from './repositoryContextService';
 
-// Feature flag for gradual rollout
-const DATA_FLOW_CONTROLLER_ENABLED = process.env.REACT_APP_DATA_FLOW_CONTROLLER_ENABLED === 'true' || false;
-
-// Data flow operation types
-export type DataFlowOperation = 
-  | 'load'
-  | 'save'
-  | 'merge'
-  | 'validate'
-  | 'migrate'
-  | 'refresh'
-  | 'commit'
-  | 'rollback';
-
-// Data flow state interface
+// Types for the data flow controller
 export interface DataFlowState {
-  operation: DataFlowOperation;
-  status: 'idle' | 'loading' | 'processing' | 'success' | 'error';
-  progress: number; // 0-100
-  message: string;
-  error?: string;
-  timestamp: string;
-  dataType?: 'TokenSystem' | 'PlatformExtension' | 'ThemeOverrideFile';
-  sourceContext?: SourceContext;
+  // Current unified context
+  unifiedContext: UnifiedDataContext;
+  
+  // Data loading state
+  isLoading: boolean;
+  lastLoadTime: string | null;
+  
+  // Error state
+  error: string | null;
+  
+  // Change tracking
+  hasUnsavedChanges: boolean;
+  lastSaveTime: string | null;
 }
 
-// Data flow event interface
-export interface DataFlowEvent {
-  type: 'state-change' | 'operation-start' | 'operation-complete' | 'error';
-  operation: DataFlowOperation;
-  state: DataFlowState;
+export interface DataFlowOperation {
+  id: string;
+  type: 'load' | 'save' | 'switch' | 'merge' | 'validate';
+  status: 'pending' | 'in-progress' | 'completed' | 'failed';
+  timestamp: string;
   data?: unknown;
   error?: string;
 }
 
-// Data flow options interface
-export interface DataFlowOptions {
-  enableValidation?: boolean;
-  enableCaching?: boolean;
-  enableLogging?: boolean;
-  forceRefresh?: boolean;
-  skipMigration?: boolean;
-  timeout?: number; // milliseconds
-}
-
-// Commit result interface
-export interface CommitResult {
-  success: boolean;
-  commitSha?: string;
-  branchName?: string;
-  repositoryFullName?: string;
-  filePath?: string;
-  error?: string;
-  validationResult?: {
-    isValid: boolean;
-    errors: string[];
-    warnings: string[];
-  };
-}
-
-// Default data flow options
-const DEFAULT_DATA_FLOW_OPTIONS: DataFlowOptions = {
-  enableValidation: true,
-  enableCaching: true,
-  enableLogging: true,
-  forceRefresh: false,
-  skipMigration: false,
-  timeout: 30000 // 30 seconds
-};
-
-// Error types for data flow
-export class DataFlowError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly operation: DataFlowOperation,
-    public readonly details?: Record<string, unknown>
-  ) {
-    super(message);
-    this.name = 'DataFlowError';
-  }
-}
-
 /**
- * Data Flow Controller - Unified orchestrator for all data operations
+ * Data Flow Controller
  * 
- * This service provides:
- * - Single orchestrator for all data operations
- * - Unified state management
- * - Predictable data flow patterns
- * - Comprehensive error handling
- * - Integration with existing services
+ * This service serves as a unified orchestrator for all data operations.
+ * It provides predictable data flow patterns and comprehensive error handling.
+ * 
+ * Responsibilities:
+ * - Orchestrate all data operations
+ * - Manage unified state
+ * - Provide predictable data flow patterns
+ * - Handle all error scenarios
+ * - Coordinate between services
  */
 export class DataFlowController {
   private static instance: DataFlowController;
-  private currentState: DataFlowState;
-  private eventListeners: Array<(event: DataFlowEvent) => void> = [];
-  private operationQueue: Array<{
-    operation: DataFlowOperation;
-    options: DataFlowOptions;
-    resolve: (result: unknown) => void;
-    reject: (error: Error) => void;
-  }> = [];
-  private isProcessing = false;
-
+  
+  // Dependencies
+  private unifiedStorage: UnifiedStorageService;
+  private dataSourceManager: DataSourceManager;
+  private dataManager: DataManager;
+  private repositoryContextService: RepositoryContextService;
+  
+  // State
+  private state: DataFlowState;
+  private operations: Map<string, DataFlowOperation>;
+  
+  // Event listeners
+  private eventListeners: Map<string, Set<(state: DataFlowState) => void>>;
+  
   private constructor() {
-    this.currentState = {
-      operation: 'load',
-      status: 'idle',
-      progress: 0,
-      message: 'Data flow controller initialized',
-      timestamp: new Date().toISOString()
-    };
+    console.log('[DataFlowController] Initializing new instance');
     
-    console.log('[DataFlowController] Initializing with feature flag:', DATA_FLOW_CONTROLLER_ENABLED);
+    // Initialize dependencies
+    this.unifiedStorage = UnifiedStorageService.getInstance();
+    this.dataSourceManager = DataSourceManager.getInstance();
+    this.dataManager = DataManager.getInstance();
+    this.repositoryContextService = RepositoryContextService.getInstance();
+    
+    // Initialize state
+    this.state = this.getInitialState();
+    this.operations = new Map();
+    this.eventListeners = new Map();
+    
+    // Set up event listeners
+    this.setupEventListeners();
+    
+    console.log('[DataFlowController] Initialization completed');
   }
-
-  static getInstance(): DataFlowController {
+  
+  public static getInstance(): DataFlowController {
     if (!DataFlowController.instance) {
       DataFlowController.instance = new DataFlowController();
     }
     return DataFlowController.instance;
   }
-
+  
+  // ============================================================================
+  // PUBLIC API - State Management
+  // ============================================================================
+  
   /**
-   * Check if data flow controller is enabled
+   * Get current data flow state
    */
-  static isEnabled(): boolean {
-    return DATA_FLOW_CONTROLLER_ENABLED;
+  getState(): DataFlowState {
+    return { ...this.state };
   }
-
+  
   /**
-   * Get current state
+   * Get current unified context
    */
-  getCurrentState(): DataFlowState {
-    return { ...this.currentState };
+  getUnifiedContext(): UnifiedDataContext {
+    return this.unifiedStorage.getUnifiedContext();
   }
-
+  
   /**
-   * Add event listener
+   * Get current source context
    */
-  addEventListener(listener: (event: DataFlowEvent) => void): void {
-    this.eventListeners.push(listener);
+  getCurrentSource(): SourceContext {
+    return this.unifiedStorage.getCurrentSource();
   }
-
+  
+  // ============================================================================
+  // PUBLIC API - Data Operations
+  // ============================================================================
+  
   /**
-   * Remove event listener
+   * Load data for the current source
    */
-  removeEventListener(listener: (event: DataFlowEvent) => void): void {
-    const index = this.eventListeners.indexOf(listener);
-    if (index > -1) {
-      this.eventListeners.splice(index, 1);
-    }
-  }
-
-  /**
-   * Emit event to all listeners
-   */
-  private emitEvent(event: DataFlowEvent): void {
-    this.eventListeners.forEach(listener => {
-      try {
-        listener(event);
-      } catch (error) {
-        console.error('[DataFlowController] Error in event listener:', error);
-      }
-    });
-  }
-
-  /**
-   * Update state and emit event
-   */
-  private updateState(updates: Partial<DataFlowState>): void {
-    this.currentState = {
-      ...this.currentState,
-      ...updates,
-      timestamp: new Date().toISOString()
-    };
-
-    this.emitEvent({
-      type: 'state-change',
-      operation: this.currentState.operation,
-      state: this.currentState
-    });
-  }
-
-  /**
-   * Execute data flow operation
-   */
-  async executeOperation(
-    operation: DataFlowOperation,
-    options: DataFlowOptions = {}
-  ): Promise<unknown> {
-    const opts = { ...DEFAULT_DATA_FLOW_OPTIONS, ...options };
+  async loadData(): Promise<void> {
+    const operationId = this.startOperation('load');
     
-    console.log(`[DataFlowController] Executing operation: ${operation}`);
-
-    return new Promise((resolve, reject) => {
-      this.operationQueue.push({
-        operation,
-        options: opts,
-        resolve,
-        reject
-      });
-
-      this.processQueue();
-    });
-  }
-
-  /**
-   * Process operation queue
-   */
-  private async processQueue(): Promise<void> {
-    if (this.isProcessing || this.operationQueue.length === 0) {
-      return;
-    }
-
-    this.isProcessing = true;
-
-    while (this.operationQueue.length > 0) {
-      const { operation, options, resolve, reject } = this.operationQueue.shift()!;
-
-      try {
-        this.updateState({
-          operation,
-          status: 'processing',
-          progress: 0,
-          message: `Starting ${operation} operation`
-        });
-
-        this.emitEvent({
-          type: 'operation-start',
-          operation,
-          state: this.currentState
-        });
-
-        const result = await this.performOperation(operation, options);
-        
-        this.updateState({
-          status: 'success',
-          progress: 100,
-          message: `${operation} operation completed successfully`
-        });
-
-        this.emitEvent({
-          type: 'operation-complete',
-          operation,
-          state: this.currentState,
-          data: result
-        });
-
-        resolve(result);
-
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        
-        this.updateState({
-          status: 'error',
-          progress: 0,
-          message: `${operation} operation failed`,
-          error: errorMessage
-        });
-
-        this.emitEvent({
-          type: 'error',
-          operation,
-          state: this.currentState,
-          error: errorMessage
-        });
-
-        reject(error instanceof Error ? error : new Error(errorMessage));
-      }
-    }
-
-    this.isProcessing = false;
-  }
-
-  /**
-   * Perform specific operation
-   */
-  private async performOperation(operation: DataFlowOperation, options: DataFlowOptions): Promise<unknown> {
-    switch (operation) {
-      case 'load':
-        return this.performLoadOperation(options);
-      case 'save':
-        return this.performSaveOperation(options);
-      case 'merge':
-        return this.performMergeOperation(options);
-      case 'validate':
-        return this.performValidateOperation(options);
-      case 'migrate':
-        return this.performMigrateOperation(options);
-      case 'refresh':
-        return this.performRefreshOperation(options);
-      case 'commit':
-        return this.performCommitOperation(options);
-      case 'rollback':
-        return this.performRollbackOperation(options);
-      default:
-        throw new DataFlowError(
-          `Unknown operation: ${operation}`,
-          'UNKNOWN_OPERATION',
-          operation
-        );
-    }
-  }
-
-  /**
-   * Perform load operation
-   */
-  private async performLoadOperation(options: DataFlowOptions): Promise<DataSnapshot> {
-    this.updateState({ progress: 10, message: 'Loading data from storage' });
-
     try {
-      // Check if migration is needed
-      if (!options.skipMigration && dataMigrationService.isMigrationNeeded()) {
-        this.updateState({ progress: 20, message: 'Performing data migration' });
-        const migrationResult = await dataMigrationService.performMigration();
-        
-        if (!migrationResult.success) {
-          throw new DataFlowError(
-            `Migration failed: ${migrationResult.errors.join(', ')}`,
-            'MIGRATION_FAILED',
-            'load',
-            { migrationResult }
-          );
-        }
-      }
-
-      this.updateState({ progress: 40, message: 'Loading data from unified storage' });
-
-      // Load data from unified storage if enabled
-      if (unifiedStorageService.isEnabled()) {
-        const coreData = unifiedStorageService.getData<TokenSystem>('token-model:unified:core-data', 'TokenSystem');
-        const sourceContext = unifiedStorageService.getData<SourceContext>('token-model:unified:source-context');
-        const localEdits = unifiedStorageService.getData('token-model:unified:local-edits');
-
-        if (coreData) {
-          this.updateState({ progress: 60, message: 'Validating loaded data' });
-
-          // Validate data if enabled
-          if (options.enableValidation) {
-            const validation = dataValidationService.validateTokenSystem(coreData);
-            if (!validation.isValid) {
-              throw new DataFlowError(
-                `Data validation failed: ${validation.errors.join(', ')}`,
-                'VALIDATION_FAILED',
-                'load',
-                { validation }
-              );
-            }
-          }
-
-          this.updateState({ progress: 80, message: 'Building data snapshot' });
-
-          // Build data snapshot
-          const snapshot = this.buildDataSnapshot(coreData, sourceContext, localEdits);
-          
-          this.updateState({ progress: 100, message: 'Data loaded successfully' });
-          return snapshot;
-        }
-      }
-
-      // Fallback to existing data manager
-      this.updateState({ progress: 60, message: 'Loading data from existing storage' });
-      const dataManager = DataManager.getInstance();
-      const snapshot = dataManager.loadFromStorage();
+      console.log('[DataFlowController] Loading data for current source');
       
-      this.updateState({ progress: 100, message: 'Data loaded successfully' });
-      return snapshot;
-
-    } catch (error) {
-      throw new DataFlowError(
-        `Load operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'LOAD_FAILED',
-        'load',
-        { originalError: error }
-      );
-    }
-  }
-
-  /**
-   * Perform save operation
-   */
-  private async performSaveOperation(options: DataFlowOptions): Promise<void> {
-    this.updateState({ progress: 10, message: 'Preparing to save data' });
-
-    try {
-      const dataManager = DataManager.getInstance();
-      const currentData = dataManager.getCurrentData();
-
-      this.updateState({ progress: 30, message: 'Validating data before save' });
-
-      // Validate data if enabled
-      if (options.enableValidation) {
-        const validation = dataValidationService.validateTokenSystem(currentData);
-        if (!validation.isValid) {
-          throw new DataFlowError(
-            `Data validation failed: ${validation.errors.join(', ')}`,
-            'VALIDATION_FAILED',
-            'save',
-            { validation }
-          );
-        }
-      }
-
-      this.updateState({ progress: 50, message: 'Saving data to storage' });
-
-      // Save to unified storage if enabled
-      if (unifiedStorageService.isEnabled()) {
-        unifiedStorageService.setData('token-model:unified:core-data', currentData, 'TokenSystem');
-        
-        // Save local edits if they exist
-        const localEdits = StorageService.getLocalEdits();
-        if (localEdits) {
-          unifiedStorageService.setData('token-model:unified:local-edits', localEdits);
-        }
-      }
-
-      this.updateState({ progress: 80, message: 'Saving to existing storage' });
-
-      // Save to existing storage
-      dataManager.saveToStorage();
-
-      this.updateState({ progress: 100, message: 'Data saved successfully' });
-
-    } catch (error) {
-      throw new DataFlowError(
-        `Save operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'SAVE_FAILED',
-        'save',
-        { originalError: error }
-      );
-    }
-  }
-
-  /**
-   * Perform merge operation
-   */
-  private async performMergeOperation(options: DataFlowOptions): Promise<DataSnapshot> {
-    this.updateState({ progress: 10, message: 'Starting data merge operation' });
-
-    try {
-      const dataManager = DataManager.getInstance();
-      const sourceContext = DataSourceManager.getInstance().getCurrentContext();
-
-      this.updateState({ progress: 30, message: 'Loading source data' });
-
-      // Load source data
-      const coreData = dataManager.getCurrentData();
-      const platformExtensions: Record<string, PlatformExtension> = {};
-      const themeOverrides: Record<string, ThemeOverrideFile> = {};
-
-      // Load platform extensions
-      if (unifiedStorageService.isEnabled()) {
-        // Load from unified storage
-        const platformKeys = Object.keys(localStorage).filter(key => 
-          key.startsWith('token-model:unified:platform-extension-')
-        );
-        platformKeys.forEach(key => {
-          const platformId = key.replace('token-model:unified:platform-extension-', '');
-          const platformData = unifiedStorageService.getData<PlatformExtension>(key, 'PlatformExtension');
-          if (platformData) {
-            platformExtensions[platformId] = platformData;
-          }
-        });
-      } else {
-        // Load from existing storage
-        const storedPlatformExtensions = StorageService.getPlatformExtensions();
-        Object.assign(platformExtensions, storedPlatformExtensions);
-      }
-
-      // Load theme overrides
-      if (unifiedStorageService.isEnabled()) {
-        // Load from unified storage
-        const themeKeys = Object.keys(localStorage).filter(key => 
-          key.startsWith('token-model:unified:theme-override-')
-        );
-        themeKeys.forEach(key => {
-          const themeId = key.replace('token-model:unified:theme-override-', '');
-          const themeData = unifiedStorageService.getData<ThemeOverrideFile>(key, 'ThemeOverrideFile');
-          if (themeData) {
-            themeOverrides[themeId] = themeData;
-          }
-        });
-      } else {
-        // Load from existing storage
-        const storedThemeOverrides = StorageService.getThemeOverrides();
-        Object.assign(themeOverrides, storedThemeOverrides);
-      }
-
-      this.updateState({ progress: 50, message: 'Validating source data' });
-
-      // Validate data if enabled
-      if (options.enableValidation) {
-        for (const [platformId, platformData] of Object.entries(platformExtensions)) {
-          const platformValidation = dataValidationService.validatePlatformExtension(platformData);
-          if (!platformValidation.isValid) {
-            throw new DataFlowError(
-              `Platform extension validation failed for ${platformId}: ${platformValidation.errors.join(', ')}`,
-              'VALIDATION_FAILED',
-              'merge',
-              { validation: platformValidation, platformId }
-            );
-          }
-        }
-
-        for (const [themeId, themeData] of Object.entries(themeOverrides)) {
-          const themeValidation = dataValidationService.validateThemeOverrideFile(themeData);
-          if (!themeValidation.isValid) {
-            throw new DataFlowError(
-              `Theme override validation failed for ${themeId}: ${themeValidation.errors.join(', ')}`,
-              'VALIDATION_FAILED',
-              'merge',
-              { validation: themeValidation, themeId }
-            );
-          }
-        }
-      }
-
-      this.updateState({ progress: 70, message: 'Performing data merge' });
-
-      // Perform merge using enhanced data merger
-      const enhancedMerger = EnhancedDataMerger.getInstance();
-      const mergedDataSnapshot = enhancedMerger.mergeData(sourceContext, coreData, platformExtensions, themeOverrides);
-
-      this.updateState({ progress: 90, message: 'Converting merged data to snapshot' });
-
-      // Convert MergedDataSnapshot to DataSnapshot
-      const snapshot: DataSnapshot = {
-        collections: mergedDataSnapshot.collections,
-        modes: mergedDataSnapshot.modes,
-        dimensions: mergedDataSnapshot.dimensions,
-        resolvedValueTypes: mergedDataSnapshot.resolvedValueTypes,
-        platforms: mergedDataSnapshot.platforms,
-        themes: mergedDataSnapshot.themes,
-        tokens: mergedDataSnapshot.tokens,
-        taxonomies: mergedDataSnapshot.taxonomies,
-        componentProperties: mergedDataSnapshot.componentProperties,
-        componentCategories: mergedDataSnapshot.componentCategories,
-        components: mergedDataSnapshot.components,
-        algorithms: mergedDataSnapshot.algorithmFile ? [mergedDataSnapshot.algorithmFile] : [],
-        taxonomyOrder: mergedDataSnapshot.taxonomyOrder,
-        dimensionOrder: mergedDataSnapshot.dimensionOrder,
-        algorithmFile: mergedDataSnapshot.algorithmFile,
-        linkedRepositories: StorageService.getLinkedRepositories(),
-        platformExtensions: platformExtensions,
-        themeOverrides: themeOverrides,
-        figmaConfiguration: mergedDataSnapshot.figmaConfiguration
-      };
-
-      this.updateState({ progress: 100, message: 'Data merge completed successfully' });
-      return snapshot;
-
-    } catch (error) {
-      throw new DataFlowError(
-        `Merge operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'MERGE_FAILED',
-        'merge',
-        { originalError: error }
-      );
-    }
-  }
-
-  /**
-   * Perform validate operation
-   */
-  private async performValidateOperation(options: DataFlowOptions): Promise<unknown> {
-    this.updateState({ progress: 10, message: 'Starting data validation' });
-
-    try {
-      const dataManager = DataManager.getInstance();
-      const currentData = dataManager.getCurrentData();
-
-      this.updateState({ progress: 30, message: 'Validating core data' });
-
-      const validation = dataValidationService.validateTokenSystem(currentData);
-
-      this.updateState({ 
-        progress: 100, 
-        message: validation.isValid ? 'Validation passed' : 'Validation failed',
-        error: validation.isValid ? undefined : validation.errors.join(', ')
-      });
-
-      return validation;
-
-    } catch (error) {
-      throw new DataFlowError(
-        `Validation operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'VALIDATION_FAILED',
-        'validate',
-        { originalError: error }
-      );
-    }
-  }
-
-  /**
-   * Perform migrate operation
-   */
-  private async performMigrateOperation(options: DataFlowOptions): Promise<unknown> {
-    this.updateState({ progress: 10, message: 'Starting data migration' });
-
-    try {
-      const result = await dataMigrationService.performMigration();
-
-      this.updateState({ 
-        progress: 100, 
-        message: result.success ? 'Migration completed' : 'Migration failed',
-        error: result.success ? undefined : result.errors.join(', ')
-      });
-
-      return result;
-
-    } catch (error) {
-      throw new DataFlowError(
-        `Migration operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'MIGRATION_FAILED',
-        'migrate',
-        { originalError: error }
-      );
-    }
-  }
-
-  /**
-   * Perform refresh operation
-   */
-  private async performRefreshOperation(options: DataFlowOptions): Promise<DataSnapshot> {
-    this.updateState({ progress: 10, message: 'Starting data refresh' });
-
-    try {
-      // Force reload from storage
-      const dataManager = DataManager.getInstance();
-      dataManager.refreshData();
-
-      this.updateState({ progress: 50, message: 'Loading refreshed data' });
-
-      const snapshot = dataManager.loadFromStorage();
-
-      this.updateState({ progress: 100, message: 'Data refresh completed' });
-      return snapshot;
-
-    } catch (error) {
-      throw new DataFlowError(
-        `Refresh operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'REFRESH_FAILED',
-        'refresh',
-        { originalError: error }
-      );
-    }
-  }
-
-  /**
-   * Commit data with context awareness
-   */
-  async commitWithContext(
-    context: SourceContext, 
-    data: DataSnapshot
-  ): Promise<CommitResult> {
-    console.log('[DataFlowController] Committing with context:', context);
-    
-    this.updateState({ 
-      operation: 'commit',
-      status: 'processing',
-      progress: 0,
-      message: 'Starting commit with context',
-      sourceContext: context
-    });
-
-    try {
-      // 1. Validate context
-      if (!context || !context.repositoryInfo) {
-        throw new DataFlowError(
-          'Invalid source context for commit',
-          'INVALID_CONTEXT',
-          'commit',
-          { context }
-        );
-      }
-
-      this.updateState({ progress: 10, message: 'Validating source context' });
-
-      // 2. Transform data for target schema
-      const schemaTransformer = SchemaTransformer.getInstance();
-      const sourceContext = context.sourceId && context.sourceName ? 
-        { sourceId: context.sourceId, sourceName: context.sourceName } : 
-        undefined;
+      this.updateState({ isLoading: true, error: null });
       
-      const transformedData = schemaTransformer.transformForTarget(
-        data, 
-        context.schemaType,
-        sourceContext
-      );
-
-      this.updateState({ progress: 30, message: 'Data transformed for target schema' });
-
-      // 3. Validate transformed data
-      if (!transformedData.validationResult.isValid) {
-        const error = `Schema validation failed: ${transformedData.validationResult.errors.join(', ')}`;
-        this.updateState({ 
-          progress: 100, 
-          status: 'error',
-          message: 'Commit failed: Schema validation failed',
-          error
-        });
-        
-        return {
-          success: false,
-          error,
-          validationResult: transformedData.validationResult
-        };
-      }
-
-      this.updateState({ progress: 50, message: 'Data validated successfully' });
-
-      // 4. Prepare commit data
-      const commitData = {
-        repositoryFullName: context.repositoryInfo.fullName,
-        branch: context.repositoryInfo.branch,
-        filePath: context.repositoryInfo.filePath,
-        fileType: context.repositoryInfo.fileType,
-        data: transformedData.data,
-        schemaType: context.schemaType
-      };
-
-      this.updateState({ progress: 70, message: 'Preparing commit data' });
-
-      // 5. Execute commit (this would integrate with GitHubSaveService)
-      // For now, we'll simulate the commit and return success
-      // TODO: Integrate with actual GitHub commit logic
-      
-      this.updateState({ progress: 90, message: 'Executing commit' });
-
-      // Simulate commit delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      this.updateState({ 
-        progress: 100, 
-        status: 'success',
-        message: 'Commit completed successfully'
-      });
-
-      return {
-        success: true,
-        branchName: context.repositoryInfo.branch,
-        repositoryFullName: context.repositoryInfo.fullName,
-        filePath: context.repositoryInfo.filePath,
-        validationResult: transformedData.validationResult
-      };
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error during commit';
-      
-      this.updateState({ 
-        progress: 100, 
-        status: 'error',
-        message: 'Commit failed',
-        error: errorMessage
-      });
-
-      return {
-        success: false,
-        error: errorMessage
-      };
-    }
-  }
-
-  /**
-   * Perform commit operation
-   */
-  private async performCommitOperation(options: DataFlowOptions): Promise<CommitResult> {
-    this.updateState({ progress: 10, message: 'Starting data commit' });
-
-    try {
       // Get current source context
-      const sourceContextManager = SourceContextManager.getInstance();
-      const context = sourceContextManager.getContext();
+      const sourceContext = this.unifiedStorage.getCurrentSource();
       
-      if (!context) {
-        throw new DataFlowError(
-          'No source context available for commit',
-          'NO_CONTEXT',
-          'commit'
-        );
-      }
-
-      // Get current data
-      const dataManager = DataManager.getInstance();
-      const currentData = dataManager.getCurrentSnapshot();
-
-      // Use the new commitWithContext method
-      return await this.commitWithContext(context, currentData);
-
+      // Load data based on source type
+      const data = await this.unifiedStorage.getData(sourceContext.schemaType);
+      
+      // Update state
+      this.updateState({
+        isLoading: false,
+        lastLoadTime: new Date().toISOString(),
+        error: null
+      });
+      
+      this.completeOperation(operationId, { data });
+      
+      console.log('[DataFlowController] Data loaded successfully');
+      
     } catch (error) {
-      throw new DataFlowError(
-        'Commit operation failed',
-        'COMMIT_FAILED',
-        'commit',
-        { error: error instanceof Error ? error.message : 'Unknown error' }
-      );
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[DataFlowController] Error loading data:', error);
+      
+      this.updateState({
+        isLoading: false,
+        error: errorMessage
+      });
+      
+      this.failOperation(operationId, errorMessage);
+      throw error;
     }
   }
-
+  
   /**
-   * Perform rollback operation
+   * Save data for the current source
    */
-  private async performRollbackOperation(options: DataFlowOptions): Promise<void> {
-    this.updateState({ progress: 10, message: 'Starting data rollback' });
-
+  async saveData(data: unknown): Promise<void> {
+    const operationId = this.startOperation('save');
+    
     try {
-      // Clear local edits
-      StorageService.clearLocalEdits();
-
-      if (unifiedStorageService.isEnabled()) {
-        unifiedStorageService.deleteData('token-model:unified:local-edits');
-      }
-
-      this.updateState({ progress: 50, message: 'Refreshing data' });
-
-      // Refresh data to get original state
-      await this.performRefreshOperation(options);
-
-      this.updateState({ progress: 100, message: 'Data rollback completed' });
-
+      console.log('[DataFlowController] Saving data for current source');
+      
+      // Get current source context
+      const sourceContext = this.unifiedStorage.getCurrentSource();
+      
+      // Save data based on source type
+      await this.unifiedStorage.setData(sourceContext.schemaType, data);
+      
+      // Update state
+      this.updateState({
+        hasUnsavedChanges: false,
+        lastSaveTime: new Date().toISOString(),
+        error: null
+      });
+      
+      this.completeOperation(operationId, { data });
+      
+      console.log('[DataFlowController] Data saved successfully');
+      
     } catch (error) {
-      throw new DataFlowError(
-        `Rollback operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'ROLLBACK_FAILED',
-        'rollback',
-        { originalError: error }
-      );
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[DataFlowController] Error saving data:', error);
+      
+      this.updateState({ error: errorMessage });
+      this.failOperation(operationId, errorMessage);
+      throw error;
     }
   }
-
+  
   /**
-   * Build data snapshot from various sources
+   * Switch to a different source
    */
-  private buildDataSnapshot(
-    coreData: TokenSystem,
-    sourceContext?: SourceContext,
-    localEdits?: unknown
-  ): DataSnapshot {
-    return {
-      collections: coreData.tokenCollections || [],
-      modes: StorageService.getModes(),
-      dimensions: coreData.dimensions || [],
-      resolvedValueTypes: coreData.resolvedValueTypes || [],
-      platforms: coreData.platforms || [],
-      themes: coreData.themes || [],
-      tokens: coreData.tokens || [],
-      taxonomies: coreData.taxonomies || [],
-      componentProperties: coreData.componentProperties || [],
-      componentCategories: coreData.componentCategories || [],
-      components: coreData.components || [],
-      algorithms: StorageService.getAlgorithms(),
-      taxonomyOrder: coreData.taxonomyOrder || [],
-      dimensionOrder: StorageService.getDimensionOrder(),
-      algorithmFile: StorageService.getAlgorithmFile(),
-      linkedRepositories: StorageService.getLinkedRepositories(),
-      platformExtensions: StorageService.getPlatformExtensions(),
-      themeOverrides: StorageService.getThemeOverrides(),
-      figmaConfiguration: coreData.figmaConfiguration
+  async switchSource(type: 'core' | 'platform-extension' | 'theme-override', id: string | null): Promise<void> {
+    const operationId = this.startOperation('switch');
+    
+    try {
+      console.log('[DataFlowController] Switching source:', { type, id });
+      
+      // Switch source using unified storage
+      await this.unifiedStorage.switchSource(type, id);
+      
+      // Load data for the new source
+      await this.loadData();
+      
+      this.completeOperation(operationId);
+      
+      console.log('[DataFlowController] Source switched successfully');
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[DataFlowController] Error switching source:', error);
+      
+      this.updateState({ error: errorMessage });
+      this.failOperation(operationId, errorMessage);
+      throw error;
+    }
+  }
+  
+  /**
+   * Merge data from multiple sources
+   */
+  async mergeData(sources: Array<{ type: string; id: string | null }>): Promise<unknown> {
+    const operationId = this.startOperation('merge');
+    
+    try {
+      console.log('[DataFlowController] Merging data from sources:', sources);
+      
+      // For now, this is a placeholder implementation
+      // This will be enhanced as we implement the unified merging system
+      const mergedData = {};
+      
+             for (const source of sources) {
+         const data = await this.unifiedStorage.getData(source.type as 'schema' | 'platform-extension' | 'theme-override');
+         Object.assign(mergedData, data);
+       }
+      
+      this.completeOperation(operationId, { data: mergedData });
+      
+      console.log('[DataFlowController] Data merged successfully');
+      
+      return mergedData;
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[DataFlowController] Error merging data:', error);
+      
+      this.updateState({ error: errorMessage });
+      this.failOperation(operationId, errorMessage);
+      throw error;
+    }
+  }
+  
+  /**
+   * Validate data for the current source
+   */
+  async validateData(data: unknown): Promise<{ isValid: boolean; errors: string[] }> {
+    const operationId = this.startOperation('validate');
+    
+    try {
+      console.log('[DataFlowController] Validating data');
+      
+      // For now, this is a basic validation
+      // This will be enhanced with proper schema validation
+      const errors: string[] = [];
+      
+      if (!data) {
+        errors.push('Data is required');
+      }
+      
+      if (typeof data !== 'object') {
+        errors.push('Data must be an object');
+      }
+      
+      const isValid = errors.length === 0;
+      
+      this.completeOperation(operationId, { data: { isValid, errors } });
+      
+      console.log('[DataFlowController] Data validation completed:', { isValid, errors });
+      
+      return { isValid, errors };
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[DataFlowController] Error validating data:', error);
+      
+      this.updateState({ error: errorMessage });
+      this.failOperation(operationId, errorMessage);
+      throw error;
+    }
+  }
+  
+  // ============================================================================
+  // PUBLIC API - Permission Management
+  // ============================================================================
+  
+  /**
+   * Check if user has edit permissions for current source
+   */
+  hasEditPermissions(): boolean {
+    return this.unifiedStorage.hasEditPermissions();
+  }
+  
+  /**
+   * Check permission for a specific source
+   */
+  checkPermission(sourceId: string): boolean {
+    return this.unifiedStorage.checkPermission(sourceId);
+  }
+  
+  /**
+   * Get all permissions
+   */
+  getPermissions() {
+    return this.unifiedStorage.getPermissions();
+  }
+  
+  // ============================================================================
+  // PUBLIC API - Repository Management
+  // ============================================================================
+  
+  /**
+   * Get repository information for a source
+   */
+  getRepositoryInfo(sourceId: string) {
+    return this.unifiedStorage.getRepositoryInfo(sourceId);
+  }
+  
+  /**
+   * Update repository information for a source
+   */
+  updateRepositoryInfo(sourceId: string, info: unknown): void {
+    this.unifiedStorage.updateRepositoryInfo(sourceId, info);
+  }
+  
+  // ============================================================================
+  // PUBLIC API - Edit Mode Management
+  // ============================================================================
+  
+  /**
+   * Get current edit mode
+   */
+  getEditMode() {
+    return this.unifiedStorage.getEditMode();
+  }
+  
+  /**
+   * Set edit mode
+   */
+  setEditMode(editMode: unknown): void {
+    this.unifiedStorage.setEditMode(editMode);
+  }
+  
+  // ============================================================================
+  // PUBLIC API - Event System
+  // ============================================================================
+  
+  /**
+   * Subscribe to state changes
+   */
+  subscribe(event: string, callback: (state: DataFlowState) => void): () => void {
+    console.log('[DataFlowController] Subscribing to event:', event);
+    
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, new Set());
+    }
+    
+    this.eventListeners.get(event)!.add(callback);
+    
+    // Return unsubscribe function
+    return () => {
+      const listeners = this.eventListeners.get(event);
+      if (listeners) {
+        listeners.delete(callback);
+      }
     };
   }
-
+  
   /**
-   * Get operation statistics
+   * Get operation history
    */
-  getOperationStats() {
+  getOperations(): DataFlowOperation[] {
+    return Array.from(this.operations.values());
+  }
+  
+  /**
+   * Get operation by ID
+   */
+  getOperation(operationId: string): DataFlowOperation | undefined {
+    return this.operations.get(operationId);
+  }
+  
+  // ============================================================================
+  // PRIVATE METHODS
+  // ============================================================================
+  
+  private getInitialState(): DataFlowState {
     return {
-      queueLength: this.operationQueue.length,
-      isProcessing: this.isProcessing,
-      currentState: this.currentState,
-      listenerCount: this.eventListeners.length
+      unifiedContext: this.unifiedStorage.getUnifiedContext(),
+      isLoading: false,
+      lastLoadTime: null,
+      error: null,
+      hasUnsavedChanges: false,
+      lastSaveTime: null
     };
   }
-
-  /**
-   * Clear operation queue
-   */
-  clearQueue(): void {
-    this.operationQueue = [];
-    console.log('[DataFlowController] Operation queue cleared');
+  
+  private setupEventListeners(): void {
+    console.log('[DataFlowController] Setting up event listeners');
+    
+    // Listen to unified storage events
+    this.unifiedStorage.subscribe('dataUpdated', (context) => {
+      this.updateState({ unifiedContext: context });
+    });
+    
+    this.unifiedStorage.subscribe('editModeUpdated', (context) => {
+      this.updateState({ unifiedContext: context });
+    });
+    
+    this.unifiedStorage.subscribe('repositoryUpdated', (context) => {
+      this.updateState({ unifiedContext: context });
+    });
   }
-
-  /**
-   * Reset controller state
-   */
-  reset(): void {
-    this.currentState = {
-      operation: 'load',
-      status: 'idle',
-      progress: 0,
-      message: 'Data flow controller reset',
+  
+  private updateState(updates: Partial<DataFlowState>): void {
+    this.state = { ...this.state, ...updates };
+    this.notifyListeners('stateUpdated', this.state);
+  }
+  
+  private startOperation(type: DataFlowOperation['type']): string {
+    const operationId = `op_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    const operation: DataFlowOperation = {
+      id: operationId,
+      type,
+      status: 'pending',
       timestamp: new Date().toISOString()
     };
     
-    this.operationQueue = [];
-    this.isProcessing = false;
+    this.operations.set(operationId, operation);
     
-    console.log('[DataFlowController] Controller state reset');
+    // Update operation status to in-progress
+    setTimeout(() => {
+      const op = this.operations.get(operationId);
+      if (op) {
+        op.status = 'in-progress';
+        this.operations.set(operationId, op);
+      }
+    }, 0);
+    
+    console.log('[DataFlowController] Started operation:', operationId, type);
+    return operationId;
+  }
+  
+  private completeOperation(operationId: string, data?: { data?: unknown }): void {
+    const operation = this.operations.get(operationId);
+    if (operation) {
+      operation.status = 'completed';
+      if (data) {
+        operation.data = data.data;
+      }
+      this.operations.set(operationId, operation);
+    }
+    
+    console.log('[DataFlowController] Completed operation:', operationId);
+  }
+  
+  private failOperation(operationId: string, error: string): void {
+    const operation = this.operations.get(operationId);
+    if (operation) {
+      operation.status = 'failed';
+      operation.error = error;
+      this.operations.set(operationId, operation);
+    }
+    
+    console.log('[DataFlowController] Failed operation:', operationId, error);
+  }
+  
+  private notifyListeners(event: string, state: DataFlowState): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.forEach(callback => {
+        try {
+          callback(state);
+        } catch (error) {
+          console.error('[DataFlowController] Error in event listener:', error);
+        }
+      });
+    }
   }
 }
 

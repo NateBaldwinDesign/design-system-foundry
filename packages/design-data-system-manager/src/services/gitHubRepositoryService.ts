@@ -1,6 +1,4 @@
-import { DataSourceManager } from './dataSourceManager';
-import { SourceContextManager } from './sourceContextManager';
-import { GitHubApiService } from './githubApi';
+import { RepositoryContextService } from './repositoryContextService';
 
 export interface RepositoryInfo {
   fullName: string;
@@ -13,7 +11,7 @@ export interface SourceContext {
   sourceType: 'core' | 'platform-extension' | 'theme-override';
   sourceId: string | null;
   sourceName: string | null;
-  repositoryInfo: RepositoryInfo;
+  repositoryInfo: RepositoryInfo | null;
   schemaType: 'schema' | 'platform-extension' | 'theme-override';
 }
 
@@ -23,8 +21,11 @@ export interface SourceContext {
  */
 export class GitHubRepositoryService {
   private static instance: GitHubRepositoryService;
+  private repositoryContextService: RepositoryContextService;
 
-  private constructor() {}
+  private constructor() {
+    this.repositoryContextService = RepositoryContextService.getInstance();
+  }
 
   static getInstance(): GitHubRepositoryService {
     if (!GitHubRepositoryService.instance) {
@@ -35,97 +36,23 @@ export class GitHubRepositoryService {
 
   /**
    * Get the current repository information for GitHub operations
-   * Uses the same priority system as GitHubSaveDialog
+   * Uses RepositoryContextService as single source of truth
    */
   getCurrentRepositoryInfo(): RepositoryInfo | null {
-    // PRIORITY 1: Use SourceContextManager (most up-to-date)
-    const sourceContextManager = SourceContextManager.getInstance();
-    const currentSourceContext = sourceContextManager.getContext();
+    // Direct access to RepositoryContextService
+    const sourceContext = this.repositoryContextService.getCurrentSourceContext();
     
-    if (currentSourceContext?.repositoryInfo) {
-      console.log('[GitHubRepositoryService] Using SourceContextManager repository info:', currentSourceContext.repositoryInfo);
-      return currentSourceContext.repositoryInfo;
-    }
-
-    // PRIORITY 2: Use DataSourceManager
-    const dataSourceManager = DataSourceManager.getInstance();
-    const dataSourceContext = dataSourceManager.getCurrentContext();
+    console.log('[GitHubRepositoryService] Getting repository info from RepositoryContextService:', sourceContext);
     
-    if (dataSourceContext) {
-      if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
-        const platformRepo = dataSourceContext.repositories.platforms[dataSourceContext.currentPlatform];
-        console.log('[GitHubRepositoryService] Using platform repository from DataSourceManager:', platformRepo);
-        return platformRepo || null;
-      } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
-        const themeRepo = dataSourceContext.repositories.themes[dataSourceContext.currentTheme];
-        console.log('[GitHubRepositoryService] Using theme repository from DataSourceManager:', themeRepo);
-        return themeRepo || null;
-      } else {
-        const coreRepo = dataSourceContext.repositories.core;
-        console.log('[GitHubRepositoryService] Using core repository from DataSourceManager:', coreRepo);
-        return coreRepo || null;
-      }
-    }
-
-    // PRIORITY 3: Fallback to old method (least reliable)
-    const fallbackRepo = GitHubApiService.getSelectedRepositoryInfo();
-    console.log('[GitHubRepositoryService] Using fallback repository info:', fallbackRepo);
-    return fallbackRepo;
+    return sourceContext?.repositoryInfo || null;
   }
 
   /**
    * Get the current source context for GitHub operations
    */
   getCurrentSourceContext(): SourceContext | null {
-    // PRIORITY 1: Use SourceContextManager
-    const sourceContextManager = SourceContextManager.getInstance();
-    const currentSourceContext = sourceContextManager.getContext();
-    
-    if (currentSourceContext) {
-      return currentSourceContext;
-    }
-
-    // PRIORITY 2: Build from DataSourceManager
-    const dataSourceManager = DataSourceManager.getInstance();
-    const dataSourceContext = dataSourceManager.getCurrentContext();
-    
-    if (!dataSourceContext) {
-      return null;
-    }
-
-    let sourceType: 'core' | 'platform-extension' | 'theme-override' = 'core';
-    let schemaType: 'schema' | 'platform-extension' | 'theme-override' = 'schema';
-    let sourceId: string | null = null;
-    let sourceName: string | null = null;
-    let repositoryInfo: RepositoryInfo | null = null;
-
-    if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
-      sourceType = 'platform-extension';
-      schemaType = 'platform-extension';
-      sourceId = dataSourceContext.currentPlatform;
-      sourceName = dataSourceContext.availablePlatforms.find(p => p.id === sourceId)?.displayName || null;
-      repositoryInfo = dataSourceContext.repositories.platforms[sourceId];
-    } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
-      sourceType = 'theme-override';
-      schemaType = 'theme-override';
-      sourceId = dataSourceContext.currentTheme;
-      sourceName = dataSourceContext.availableThemes.find(t => t.id === sourceId)?.displayName || null;
-      repositoryInfo = dataSourceContext.repositories.themes[sourceId];
-    } else {
-      repositoryInfo = dataSourceContext.repositories.core;
-    }
-
-    if (!repositoryInfo) {
-      return null;
-    }
-
-    return {
-      sourceType,
-      sourceId,
-      sourceName,
-      repositoryInfo,
-      schemaType
-    };
+    // Direct access to RepositoryContextService
+    return this.repositoryContextService.getCurrentSourceContext();
   }
 
   /**

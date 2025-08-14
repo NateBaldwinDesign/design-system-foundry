@@ -1,556 +1,519 @@
-import { validateTokenSystem } from '@token-model/data-model';
-import type { 
-  TokenSystem, 
-  PlatformExtension, 
-  ThemeOverrideFile,
-  Token,
-  TokenCollection,
-  Mode,
-  Dimension,
-  Platform,
-  Theme,
-  Taxonomy,
-  ResolvedValueType,
-  ComponentProperty,
-  ComponentCategory,
-  Component
-} from '@token-model/data-model';
+import { StorageService } from './storage';
+import { DataSourceManager } from './dataSourceManager';
+import { RepositoryContextService } from './repositoryContextService';
+import { DataManager } from './dataManager';
 
-// Feature flag for gradual rollout
-const UNIFIED_STORAGE_ENABLED = process.env.REACT_APP_UNIFIED_STORAGE_ENABLED === 'true' || false;
-
-// Storage keys for unified storage
-const UNIFIED_STORAGE_KEYS = {
-  CORE_DATA: 'token-model:unified:core-data',
-  SOURCE_SNAPSHOT: 'token-model:unified:source-snapshot',
-  LOCAL_EDITS: 'token-model:unified:local-edits',
-  MERGED_DATA: 'token-model:unified:merged-data',
-  SOURCE_CONTEXT: 'token-model:unified:source-context',
-  TRANSACTION_LOG: 'token-model:unified:transaction-log',
-  MIGRATION_STATUS: 'token-model:unified:migration-status'
-} as const;
-
-// Data types supported by unified storage
-export type UnifiedDataType = 'TokenSystem' | 'PlatformExtension' | 'ThemeOverrideFile';
-
-// Transaction interface for atomic operations
-export interface StorageTransaction {
-  id: string;
-  timestamp: string;
-  operations: Array<{
-    type: 'read' | 'write' | 'delete';
-    key: string;
-    data?: unknown;
-    previousData?: unknown;
-  }>;
-  status: 'pending' | 'committed' | 'rolled-back';
+// Types for the unified service
+export interface UnifiedDataContext {
+  // Current source information
+  sourceType: 'core' | 'platform-extension' | 'theme-override';
+  sourceId: string | null;
+  sourceName: string | null;
+  
+  // Repository information
+  repositoryInfo: RepositoryInfo | null;
+  schemaType: 'schema' | 'platform-extension' | 'theme-override';
+  
+  // Permissions
+  permissions: PermissionMap;
+  
+  // Data
+  data: unknown;
+  
+  // Edit mode
+  editMode: {
+    isActive: boolean;
+    sourceType: string;
+    sourceId: string | null;
+    targetRepository: RepositoryInfo | null;
+  };
+  
+  // View mode
+  viewMode: {
+    isMerged: boolean;
+    mergeSources: string[];
+    displayData: string;
+  };
 }
 
-// Validation result interface
-export interface ValidationResult {
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
-  data?: unknown;
+export interface RepositoryInfo {
+  fullName: string;
+  branch: string;
+  filePath: string;
+  fileType: 'schema' | 'platform-extension' | 'theme-override';
+  hasWriteAccess?: boolean;
 }
 
-// Error types for unified storage
-export class UnifiedStorageError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly details?: Record<string, unknown>
-  ) {
-    super(message);
-    this.name = 'UnifiedStorageError';
-  }
+export interface PermissionMap {
+  core: boolean;
+  platforms: Record<string, boolean>;
+  themes: Record<string, boolean>;
 }
 
-// Migration status interface
-export interface MigrationStatus {
-  isComplete: boolean;
-  completedSteps: string[];
-  failedSteps: string[];
-  lastUpdated: string;
-  errors: string[];
+export interface SourceContext {
+  sourceType: 'core' | 'platform-extension' | 'theme-override';
+  sourceId: string | null;
+  sourceName: string | null;
+  repositoryInfo: RepositoryInfo | null;
+  schemaType: 'schema' | 'platform-extension' | 'theme-override';
+  editMode: {
+    isActive: boolean;
+    sourceType: string;
+    sourceId: string | null;
+    targetRepository: RepositoryInfo | null;
+  };
+  viewMode: {
+    isMerged: boolean;
+    mergeSources: string[];
+    displayData: string;
+  };
 }
 
 /**
- * Unified Storage Service - Single API for all data storage operations
+ * Unified Storage Service
  * 
- * This service consolidates all data storage operations with:
- * - Single API for all data access patterns
- * - Comprehensive TypeScript types and validation
- * - Atomic operations with transaction support
- * - Detailed logging for debugging
- * - Performance monitoring and optimization
+ * This service consolidates all data storage operations into a single, unified API.
+ * It serves as the single source of truth for all data operations in the application.
+ * 
+ * Responsibilities:
+ * - Data storage and retrieval
+ * - Source management (core, platform, theme)
+ * - Permission management
+ * - Repository information management
+ * - Edit mode management
+ * - State synchronization
  */
 export class UnifiedStorageService {
   private static instance: UnifiedStorageService;
-  private transactionLog: StorageTransaction[] = [];
-  private validationCache = new Map<string, ValidationResult>();
-
+  
+  // Dependencies
+  private storageService: StorageService;
+  private dataSourceManager: DataSourceManager;
+  private repositoryContextService: RepositoryContextService;
+  private dataManager: DataManager;
+  
+  // Unified state
+  private unifiedContext: UnifiedDataContext;
+  
+  // Event listeners
+  private eventListeners: Map<string, Set<(context: UnifiedDataContext) => void>>;
+  
   private constructor() {
-    console.log('[UnifiedStorageService] Initializing with feature flag:', UNIFIED_STORAGE_ENABLED);
-    this.initializeMigrationStatus();
+    console.log('[UnifiedStorageService] Initializing new instance');
+    
+    // Initialize dependencies
+    this.storageService = StorageService;
+    this.dataSourceManager = DataSourceManager.getInstance();
+    this.repositoryContextService = RepositoryContextService.getInstance();
+    this.dataManager = DataManager.getInstance();
+    
+    // Initialize unified context
+    this.unifiedContext = this.getInitialContext();
+    
+    // Initialize event system
+    this.eventListeners = new Map();
+    
+    // Set up synchronization with existing services
+    this.setupServiceSynchronization();
+    
+    console.log('[UnifiedStorageService] Initialization completed');
   }
-
-  static getInstance(): UnifiedStorageService {
+  
+  public static getInstance(): UnifiedStorageService {
     if (!UnifiedStorageService.instance) {
       UnifiedStorageService.instance = new UnifiedStorageService();
     }
     return UnifiedStorageService.instance;
   }
-
+  
+  // ============================================================================
+  // PUBLIC API - Data Access
+  // ============================================================================
+  
   /**
-   * Check if unified storage is enabled
+   * Get data for the specified type
    */
-  static isEnabled(): boolean {
-    return UNIFIED_STORAGE_ENABLED;
-  }
-
-  /**
-   * Initialize migration status
-   */
-  private initializeMigrationStatus(): void {
-    const existingStatus = this.getMigrationStatus();
-    if (!existingStatus) {
-      const initialStatus: MigrationStatus = {
-        isComplete: false,
-        completedSteps: [],
-        failedSteps: [],
-        lastUpdated: new Date().toISOString(),
-        errors: []
-      };
-      this.setMigrationStatus(initialStatus);
-    }
-  }
-
-  /**
-   * Get migration status
-   */
-  private getMigrationStatus(): MigrationStatus | null {
-    try {
-      const status = localStorage.getItem(UNIFIED_STORAGE_KEYS.MIGRATION_STATUS);
-      return status ? JSON.parse(status) : null;
-    } catch (error) {
-      console.error('[UnifiedStorageService] Failed to get migration status:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Set migration status
-   */
-  private setMigrationStatus(status: MigrationStatus): void {
-    try {
-      localStorage.setItem(UNIFIED_STORAGE_KEYS.MIGRATION_STATUS, JSON.stringify(status));
-    } catch (error) {
-      console.error('[UnifiedStorageService] Failed to set migration status:', error);
-    }
-  }
-
-  /**
-   * Update migration status
-   */
-  private updateMigrationStatus(updates: Partial<MigrationStatus>): void {
-    const currentStatus = this.getMigrationStatus();
-    if (currentStatus) {
-      const updatedStatus: MigrationStatus = {
-        ...currentStatus,
-        ...updates,
-        lastUpdated: new Date().toISOString()
-      };
-      this.setMigrationStatus(updatedStatus);
-    }
-  }
-
-  /**
-   * Start a new transaction
-   */
-  private startTransaction(): StorageTransaction {
-    const transaction: StorageTransaction = {
-      id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: new Date().toISOString(),
-      operations: [],
-      status: 'pending'
-    };
+  async getData(type: 'schema' | 'platform-extension' | 'theme-override'): Promise<unknown> {
+    console.log('[UnifiedStorageService] Getting data for type:', type);
     
-    console.log('[UnifiedStorageService] Started transaction:', transaction.id);
-    return transaction;
-  }
-
-  /**
-   * Commit a transaction
-   */
-  private commitTransaction(transaction: StorageTransaction): void {
     try {
-      // Apply all operations atomically
-      for (const operation of transaction.operations) {
-        switch (operation.type) {
-          case 'write':
-            localStorage.setItem(operation.key, JSON.stringify(operation.data));
-            break;
-          case 'delete':
-            localStorage.removeItem(operation.key);
-            break;
-        }
-      }
-
-      transaction.status = 'committed';
-      this.transactionLog.push(transaction);
+      // For now, return the current snapshot from DataManager
+      // This will be enhanced as we implement the unified system
+      const snapshot = this.dataManager.getCurrentSnapshot();
       
-      console.log('[UnifiedStorageService] Committed transaction:', transaction.id);
-    } catch (error) {
-      console.error('[UnifiedStorageService] Failed to commit transaction:', transaction.id, error);
-      this.rollbackTransaction(transaction);
-      throw new UnifiedStorageError(
-        `Failed to commit transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'TRANSACTION_COMMIT_FAILED',
-        { transactionId: transaction.id }
-      );
-    }
-  }
-
-  /**
-   * Rollback a transaction
-   */
-  private rollbackTransaction(transaction: StorageTransaction): void {
-    try {
-      // Rollback operations in reverse order
-      for (let i = transaction.operations.length - 1; i >= 0; i--) {
-        const operation = transaction.operations[i];
-        if (operation.previousData !== undefined) {
-          localStorage.setItem(operation.key, JSON.stringify(operation.previousData));
-        } else {
-          localStorage.removeItem(operation.key);
-        }
-      }
-
-      transaction.status = 'rolled-back';
-      console.log('[UnifiedStorageService] Rolled back transaction:', transaction.id);
-    } catch (error) {
-      console.error('[UnifiedStorageService] Failed to rollback transaction:', transaction.id, error);
-      throw new UnifiedStorageError(
-        `Failed to rollback transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'TRANSACTION_ROLLBACK_FAILED',
-        { transactionId: transaction.id }
-      );
-    }
-  }
-
-  /**
-   * Validate data against schema
-   */
-  private validateData(data: unknown, dataType: UnifiedDataType): ValidationResult {
-    const cacheKey = `${dataType}_${JSON.stringify(data)}`;
-    
-    // Check cache first
-    if (this.validationCache.has(cacheKey)) {
-      return this.validationCache.get(cacheKey)!;
-    }
-
-    const result: ValidationResult = {
-      isValid: false,
-      errors: [],
-      warnings: []
-    };
-
-    try {
-      switch (dataType) {
-        case 'TokenSystem':
-          if (data && typeof data === 'object') {
-            const validationResult = validateTokenSystem(data as TokenSystem);
-            result.isValid = validationResult.isValid;
-            result.errors = validationResult.errors || [];
-            result.warnings = validationResult.warnings || [];
-            result.data = data;
-          } else {
-            result.errors.push('Data is not a valid object');
-          }
-          break;
-        
-        case 'PlatformExtension':
-          // Basic validation for PlatformExtension
-          if (data && typeof data === 'object' && 'platformId' in data) {
-            result.isValid = true;
-            result.data = data;
-          } else {
-            result.errors.push('Data is not a valid PlatformExtension');
-          }
-          break;
-        
-        case 'ThemeOverrideFile':
-          // Basic validation for ThemeOverrideFile
-          if (data && typeof data === 'object' && 'themeId' in data) {
-            result.isValid = true;
-            result.data = data;
-          } else {
-            result.errors.push('Data is not a valid ThemeOverrideFile');
-          }
-          break;
-        
+      switch (type) {
+        case 'schema':
+          return snapshot;
+        case 'platform-extension':
+          return snapshot.platformExtensions;
+        case 'theme-override':
+          return snapshot.themeOverrides;
         default:
-          result.errors.push(`Unknown data type: ${dataType}`);
+          throw new Error(`Unknown data type: ${type}`);
       }
     } catch (error) {
-      result.errors.push(`Validation error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('[UnifiedStorageService] Error getting data:', error);
+      throw error;
     }
-
-    // Cache result
-    this.validationCache.set(cacheKey, result);
+  }
+  
+  /**
+   * Set data for the specified type
+   */
+  async setData(type: 'schema' | 'platform-extension' | 'theme-override', data: unknown): Promise<void> {
+    console.log('[UnifiedStorageService] Setting data for type:', type);
     
-    return result;
-  }
-
-  /**
-   * Get data from storage with validation
-   */
-  getData<T>(key: string, dataType?: UnifiedDataType): T | null {
     try {
-      console.log('[UnifiedStorageService] Getting data:', key);
+      // For now, this is a placeholder
+      // This will be enhanced as we implement the unified system
+      console.log('[UnifiedStorageService] Setting data (placeholder):', { type, data });
       
-      const data = localStorage.getItem(key);
-      if (!data) {
-        return null;
+      // Update unified context
+      this.unifiedContext.data = data;
+      this.notifyListeners('dataUpdated', this.unifiedContext);
+      
+    } catch (error) {
+      console.error('[UnifiedStorageService] Error setting data:', error);
+      throw error;
+    }
+  }
+  
+  // ============================================================================
+  // PUBLIC API - Source Management
+  // ============================================================================
+  
+  /**
+   * Get current source context
+   */
+  getCurrentSource(): SourceContext {
+    console.log('[UnifiedStorageService] Getting current source');
+    return this.unifiedContext as SourceContext;
+  }
+  
+  /**
+   * Switch to a different source
+   */
+  async switchSource(type: 'core' | 'platform-extension' | 'theme-override', id: string | null): Promise<void> {
+    console.log('[UnifiedStorageService] Switching source:', { type, id });
+    
+    try {
+      switch (type) {
+        case 'core':
+          await this.dataSourceManager.switchToPlatform(null);
+          await this.dataSourceManager.switchToTheme(null);
+          break;
+        case 'platform-extension':
+          if (id) {
+            await this.dataSourceManager.switchToPlatform(id);
+          }
+          break;
+        case 'theme-override':
+          if (id) {
+            await this.dataSourceManager.switchToTheme(id);
+          }
+          break;
+        default:
+          throw new Error(`Unknown source type: ${type}`);
       }
-
-      const parsedData = JSON.parse(data);
       
-      // Validate data if type is specified
-      if (dataType) {
-        const validation = this.validateData(parsedData, dataType);
-        if (!validation.isValid) {
-          console.warn('[UnifiedStorageService] Data validation failed:', validation.errors);
-          throw new UnifiedStorageError(
-            `Data validation failed: ${validation.errors.join(', ')}`,
-            'DATA_VALIDATION_FAILED',
-            { key, dataType, errors: validation.errors }
-          );
+      // Update unified context
+      this.updateUnifiedContext();
+      
+    } catch (error) {
+      console.error('[UnifiedStorageService] Error switching source:', error);
+      throw error;
+    }
+  }
+  
+  // ============================================================================
+  // PUBLIC API - Permission Management
+  // ============================================================================
+  
+  /**
+   * Get all permissions
+   */
+  getPermissions(): PermissionMap {
+    console.log('[UnifiedStorageService] Getting permissions');
+    return this.unifiedContext.permissions;
+  }
+  
+  /**
+   * Check permission for a specific source
+   */
+  checkPermission(sourceId: string): boolean {
+    console.log('[UnifiedStorageService] Checking permission for:', sourceId);
+    
+    const { permissions, sourceType, sourceId: currentSourceId } = this.unifiedContext;
+    
+    // Check if this is the current source
+    if (sourceId === currentSourceId) {
+      switch (this.unifiedContext.sourceType) {
+        case 'platform-extension':
+          return permissions.platforms[sourceId] || false;
+        case 'theme-override':
+          return permissions.themes[sourceId] || false;
+        case 'core':
+          return permissions.core;
+        default:
+          return false;
+      }
+    }
+    
+    // Check specific source permissions
+    if (permissions.platforms[sourceId] !== undefined) {
+      return permissions.platforms[sourceId];
+    }
+    
+    if (permissions.themes[sourceId] !== undefined) {
+      return permissions.themes[sourceId];
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Check if user has edit permissions for current source
+   */
+  hasEditPermissions(): boolean {
+    console.log('[UnifiedStorageService] Checking edit permissions for current source');
+    
+    const { sourceType, sourceId, permissions } = this.unifiedContext;
+    
+    switch (sourceType) {
+      case 'platform-extension':
+        if (sourceId) {
+          return permissions.platforms[sourceId] || false;
         }
-      }
-
-      return parsedData as T;
-    } catch (error) {
-      console.error('[UnifiedStorageService] Failed to get data:', key, error);
-      if (error instanceof UnifiedStorageError) {
-        throw error;
-      }
-      throw new UnifiedStorageError(
-        `Failed to get data: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'DATA_GET_FAILED',
-        { key }
-      );
-    }
-  }
-
-  /**
-   * Set data in storage with validation
-   */
-  setData<T>(key: string, data: T, dataType?: UnifiedDataType): void {
-    try {
-      console.log('[UnifiedStorageService] Setting data:', key);
-      
-      // Validate data if type is specified
-      if (dataType) {
-        const validation = this.validateData(data, dataType);
-        if (!validation.isValid) {
-          console.error('[UnifiedStorageService] Data validation failed:', validation.errors);
-          throw new UnifiedStorageError(
-            `Data validation failed: ${validation.errors.join(', ')}`,
-            'DATA_VALIDATION_FAILED',
-            { key, dataType, errors: validation.errors }
-          );
+        break;
+      case 'theme-override':
+        if (sourceId) {
+          return permissions.themes[sourceId] || false;
         }
+        break;
+      case 'core':
+        return permissions.core;
+    }
+    
+    return false;
+  }
+  
+  // ============================================================================
+  // PUBLIC API - Repository Management
+  // ============================================================================
+  
+  /**
+   * Get repository information for a source
+   */
+  getRepositoryInfo(sourceId: string): RepositoryInfo | null {
+    console.log('[UnifiedStorageService] Getting repository info for:', sourceId);
+    
+    const { sourceType, sourceId: currentSourceId, repositoryInfo } = this.unifiedContext;
+    
+    // If this is the current source, return current repository info
+    if (sourceId === currentSourceId) {
+      return repositoryInfo;
+    }
+    
+    // Otherwise, get from DataSourceManager
+    const dataSourceContext = this.dataSourceManager.getCurrentContext();
+    
+    if (dataSourceContext.repositories.platforms[sourceId]) {
+      return dataSourceContext.repositories.platforms[sourceId];
+    }
+    
+    if (dataSourceContext.repositories.themes[sourceId]) {
+      return dataSourceContext.repositories.themes[sourceId];
+    }
+    
+    return null;
+  }
+  
+  /**
+   * Update repository information for a source
+   */
+  updateRepositoryInfo(sourceId: string, info: RepositoryInfo): void {
+    console.log('[UnifiedStorageService] Updating repository info for:', sourceId);
+    
+    // Update in DataSourceManager
+    const dataSourceContext = this.dataSourceManager.getCurrentContext();
+    
+    if (dataSourceContext.repositories.platforms[sourceId]) {
+      dataSourceContext.repositories.platforms[sourceId] = info;
+    } else if (dataSourceContext.repositories.themes[sourceId]) {
+      dataSourceContext.repositories.themes[sourceId] = info;
+    } else if (sourceId === 'core') {
+      dataSourceContext.repositories.core = info;
+    }
+    
+    // Update unified context if this is the current source
+    if (sourceId === this.unifiedContext.sourceId) {
+      this.unifiedContext.repositoryInfo = info;
+      this.notifyListeners('repositoryUpdated', this.unifiedContext);
+    }
+  }
+  
+  // ============================================================================
+  // PUBLIC API - Edit Mode Management
+  // ============================================================================
+  
+  /**
+   * Get current edit mode
+   */
+  getEditMode() {
+    return this.unifiedContext.editMode;
+  }
+  
+  /**
+   * Set edit mode
+   */
+  setEditMode(editMode: UnifiedDataContext['editMode']): void {
+    console.log('[UnifiedStorageService] Setting edit mode:', editMode);
+    
+    this.unifiedContext.editMode = editMode;
+    this.notifyListeners('editModeUpdated', this.unifiedContext);
+  }
+  
+  // ============================================================================
+  // PUBLIC API - Event System
+  // ============================================================================
+  
+  /**
+   * Subscribe to events
+   */
+  subscribe(event: string, callback: (context: UnifiedDataContext) => void): () => void {
+    console.log('[UnifiedStorageService] Subscribing to event:', event);
+    
+    if (!this.eventListeners.has(event)) {
+      this.eventListeners.set(event, new Set());
+    }
+    
+    this.eventListeners.get(event)!.add(callback);
+    
+    // Return unsubscribe function
+    return () => {
+      const listeners = this.eventListeners.get(event);
+      if (listeners) {
+        listeners.delete(callback);
       }
-
-      // Start transaction for atomic operation
-      const transaction = this.startTransaction();
-      
-      // Store previous data for rollback
-      const previousData = localStorage.getItem(key);
-      
-      transaction.operations.push({
-        type: 'write',
-        key,
-        data,
-        previousData: previousData ? JSON.parse(previousData) : undefined
-      });
-
-      this.commitTransaction(transaction);
-      
-      console.log('[UnifiedStorageService] Successfully set data:', key);
-    } catch (error) {
-      console.error('[UnifiedStorageService] Failed to set data:', key, error);
-      if (error instanceof UnifiedStorageError) {
-        throw error;
+    };
+  }
+  
+  /**
+   * Get current unified context
+   */
+  getUnifiedContext(): UnifiedDataContext {
+    return { ...this.unifiedContext };
+  }
+  
+  // ============================================================================
+  // PRIVATE METHODS
+  // ============================================================================
+  
+  private getInitialContext(): UnifiedDataContext {
+    return {
+      sourceType: 'core',
+      sourceId: null,
+      sourceName: null,
+      repositoryInfo: null,
+      schemaType: 'schema',
+      permissions: {
+        core: false,
+        platforms: {},
+        themes: {}
+      },
+      data: null,
+      editMode: {
+        isActive: false,
+        sourceType: 'core',
+        sourceId: null,
+        targetRepository: null
+      },
+      viewMode: {
+        isMerged: true,
+        mergeSources: ['core'],
+        displayData: 'core-only'
       }
-      throw new UnifiedStorageError(
-        `Failed to set data: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'DATA_SET_FAILED',
-        { key }
-      );
-    }
+    };
   }
-
-  /**
-   * Delete data from storage
-   */
-  deleteData(key: string): void {
+  
+  private setupServiceSynchronization(): void {
+    console.log('[UnifiedStorageService] Setting up service synchronization');
+    
+    // Initial sync
+    this.updateUnifiedContext();
+    
+    // Set up periodic sync (every 5 seconds)
+    setInterval(() => {
+      this.updateUnifiedContext();
+    }, 5000);
+  }
+  
+  private updateUnifiedContext(): void {
+    console.log('[UnifiedStorageService] Updating unified context');
+    
     try {
-      console.log('[UnifiedStorageService] Deleting data:', key);
+      // Get current state from DataSourceManager
+      const dataSourceContext = this.dataSourceManager.getCurrentContext();
       
-      // Start transaction for atomic operation
-      const transaction = this.startTransaction();
-      
-      // Store previous data for rollback
-      const previousData = localStorage.getItem(key);
-      
-      transaction.operations.push({
-        type: 'delete',
-        key,
-        previousData: previousData ? JSON.parse(previousData) : undefined
-      });
-
-      this.commitTransaction(transaction);
-      
-      console.log('[UnifiedStorageService] Successfully deleted data:', key);
-    } catch (error) {
-      console.error('[UnifiedStorageService] Failed to delete data:', key, error);
-      throw new UnifiedStorageError(
-        `Failed to delete data: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'DATA_DELETE_FAILED',
-        { key }
-      );
-    }
-  }
-
-  /**
-   * Check if data exists in storage
-   */
-  hasData(key: string): boolean {
-    try {
-      return localStorage.getItem(key) !== null;
-    } catch (error) {
-      console.error('[UnifiedStorageService] Failed to check data existence:', key, error);
-      return false;
-    }
-  }
-
-  /**
-   * Clear all unified storage data
-   */
-  clearAllData(): void {
-    try {
-      console.log('[UnifiedStorageService] Clearing all unified storage data');
-      
-      const transaction = this.startTransaction();
-      
-      // Store previous data for all keys
-      Object.values(UNIFIED_STORAGE_KEYS).forEach(key => {
-        const previousData = localStorage.getItem(key);
-        if (previousData) {
-          transaction.operations.push({
-            type: 'delete',
-            key,
-            previousData: JSON.parse(previousData)
-          });
-        }
-      });
-
-      this.commitTransaction(transaction);
-      
-      // Clear validation cache
-      this.validationCache.clear();
-      
-      console.log('[UnifiedStorageService] Successfully cleared all unified storage data');
-    } catch (error) {
-      console.error('[UnifiedStorageService] Failed to clear all data:', error);
-      throw new UnifiedStorageError(
-        `Failed to clear all data: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'CLEAR_ALL_FAILED'
-      );
-    }
-  }
-
-  /**
-   * Get transaction log for debugging
-   */
-  getTransactionLog(): StorageTransaction[] {
-    return [...this.transactionLog];
-  }
-
-  /**
-   * Get storage statistics
-   */
-  getStorageStats(): {
-    totalKeys: number;
-    totalSize: number;
-    transactionCount: number;
-    validationCacheSize: number;
-  } {
-    try {
-      let totalSize = 0;
-      let totalKeys = 0;
-      
-      Object.values(UNIFIED_STORAGE_KEYS).forEach(key => {
-        const data = localStorage.getItem(key);
-        if (data) {
-          totalSize += data.length;
-          totalKeys++;
-        }
-      });
-
-      return {
-        totalKeys,
-        totalSize,
-        transactionCount: this.transactionLog.length,
-        validationCacheSize: this.validationCache.size
-      };
-    } catch (error) {
-      console.error('[UnifiedStorageService] Failed to get storage stats:', error);
-      return {
-        totalKeys: 0,
-        totalSize: 0,
-        transactionCount: this.transactionLog.length,
-        validationCacheSize: this.validationCache.size
-      };
-    }
-  }
-
-  /**
-   * Clear validation cache
-   */
-  clearValidationCache(): void {
-    this.validationCache.clear();
-    console.log('[UnifiedStorageService] Cleared validation cache');
-  }
-
-  /**
-   * Get migration status
-   */
-  getMigrationStatus(): MigrationStatus | null {
-    return this.getMigrationStatus();
-  }
-
-  /**
-   * Update migration step
-   */
-  updateMigrationStep(step: string, success: boolean): void {
-    const currentStatus = this.getMigrationStatus();
-    if (currentStatus) {
-      if (success) {
-        currentStatus.completedSteps.push(step);
+      // Update source information
+      if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
+        this.unifiedContext.sourceType = 'platform-extension';
+        this.unifiedContext.sourceId = dataSourceContext.currentPlatform;
+        this.unifiedContext.sourceName = this.getPlatformName(dataSourceContext.currentPlatform, dataSourceContext);
+        this.unifiedContext.repositoryInfo = dataSourceContext.repositories.platforms[dataSourceContext.currentPlatform] || null;
+        this.unifiedContext.schemaType = 'platform-extension';
+      } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
+        this.unifiedContext.sourceType = 'theme-override';
+        this.unifiedContext.sourceId = dataSourceContext.currentTheme;
+        this.unifiedContext.sourceName = this.getThemeName(dataSourceContext.currentTheme, dataSourceContext);
+        this.unifiedContext.repositoryInfo = dataSourceContext.repositories.themes[dataSourceContext.currentTheme] || null;
+        this.unifiedContext.schemaType = 'theme-override';
       } else {
-        currentStatus.failedSteps.push(step);
-        currentStatus.errors.push(`Failed to complete step: ${step}`);
+        this.unifiedContext.sourceType = 'core';
+        this.unifiedContext.sourceId = null;
+        this.unifiedContext.sourceName = null;
+        this.unifiedContext.repositoryInfo = dataSourceContext.repositories.core || null;
+        this.unifiedContext.schemaType = 'schema';
       }
       
-      if (currentStatus.failedSteps.length === 0) {
-        currentStatus.isComplete = true;
-      }
+      // Update permissions
+      this.unifiedContext.permissions = dataSourceContext.permissions;
       
-      this.setMigrationStatus(currentStatus);
+      // Update edit mode
+      this.unifiedContext.editMode = dataSourceContext.editMode;
+      
+      // Update view mode
+      this.unifiedContext.viewMode = dataSourceContext.viewMode;
+      
+      console.log('[UnifiedStorageService] Unified context updated:', this.unifiedContext);
+      
+    } catch (error) {
+      console.error('[UnifiedStorageService] Error updating unified context:', error);
+    }
+  }
+  
+  private getPlatformName(platformId: string, dataSourceContext: unknown): string | null {
+    const context = dataSourceContext as { availablePlatforms?: Array<{ id: string; displayName?: string; name?: string }> };
+    const platform = context.availablePlatforms?.find((p) => p.id === platformId);
+    return platform?.displayName || platform?.name || null;
+  }
+  
+  private getThemeName(themeId: string, dataSourceContext: unknown): string | null {
+    const context = dataSourceContext as { availableThemes?: Array<{ id: string; displayName?: string; name?: string }> };
+    const theme = context.availableThemes?.find((t) => t.id === themeId);
+    return theme?.displayName || theme?.name || null;
+  }
+  
+  private notifyListeners(event: string, context: UnifiedDataContext): void {
+    const listeners = this.eventListeners.get(event);
+    if (listeners) {
+      listeners.forEach(callback => {
+        try {
+          callback(context);
+        } catch (error) {
+          console.error('[UnifiedStorageService] Error in event listener:', error);
+        }
+      });
     }
   }
 }

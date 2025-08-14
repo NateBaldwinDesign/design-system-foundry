@@ -24,8 +24,7 @@ import {
 } from '@chakra-ui/react';
 import { GitHubSaveService, SaveOptions } from '../services/githubSave';
 import { GitHubApiService } from '../services/githubApi';
-import { SourceContextManager } from '../services/sourceContextManager';
-import { GitHubRepositoryService } from '../services/gitHubRepositoryService';
+import { RepositoryContextService } from '../services/repositoryContextService';
 import type { GitHubBranch } from '../config/github';
 import type { DataSourceContext } from '../services/dataSourceManager';
 
@@ -66,12 +65,12 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
   } | null>(null);
   const toast = useToast();
 
-  // Helper function to get repository info using centralized service
+  // Helper function to get repository info using unified service
   const getRepositoryInfo = (): { fullName: string; branch: string; filePath: string; fileType: string } | null => {
-    const gitHubRepositoryService = GitHubRepositoryService.getInstance();
-    const repoInfo = gitHubRepositoryService.getCurrentRepositoryInfo();
+    const repositoryContextService = RepositoryContextService.getInstance();
+    const repoInfo = repositoryContextService.getRepositoryInfo();
     
-    console.log('[GitHubSaveDialog] getRepositoryInfo - Using centralized service:', repoInfo);
+    console.log('[GitHubSaveDialog] getRepositoryInfo - Using unified service:', repoInfo);
     
     return repoInfo;
   };
@@ -157,9 +156,9 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
     setLoading(true);
 
     try {
-      // Get current source context from SourceContextManager
-      const sourceContextManager = SourceContextManager.getInstance();
-      const currentSourceContext = sourceContextManager.getContext();
+      // Get current source context from RepositoryContextService
+      const repositoryContextService = RepositoryContextService.getInstance();
+      const currentSourceContext = repositoryContextService.getCurrentSourceContext();
       
       const options: SaveOptions = {
         message: commitMessage,
@@ -223,8 +222,8 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
   };
 
   // Get repository info for display using the helper function
-  const sourceContextManager = SourceContextManager.getInstance();
-  const currentSourceContext = sourceContextManager.getContext();
+  const repositoryContextService = RepositoryContextService.getInstance();
+  const currentSourceContext = repositoryContextService.getCurrentSourceContext();
   console.log('[GitHubSaveDialog] Current source context:', currentSourceContext);
   console.log('[GitHubSaveDialog] dataSourceContext prop:', dataSourceContext);
   

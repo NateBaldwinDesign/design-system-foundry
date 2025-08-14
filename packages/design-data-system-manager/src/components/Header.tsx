@@ -62,6 +62,7 @@ import { isMainBranch } from '../utils/BranchValidationUtils';
 
 import type { DataSourceContext } from '../services/dataSourceManager';
 import { DataSourceManager } from '../services/dataSourceManager';
+import { RepositoryContextService } from '../services/repositoryContextService';
 
 interface HeaderProps {
   hasChanges?: boolean;
@@ -264,6 +265,10 @@ export const Header: React.FC<HeaderProps> = ({
     let title = systemName;
     let subtitle = '';
 
+    // Get current source context from unified RepositoryContextService
+    const repositoryContextService = RepositoryContextService.getInstance();
+    const currentSourceContext = repositoryContextService.getCurrentSourceContext();
+
     // Check for URL-based access
     const urlParams = new URLSearchParams(window.location.search);
     const repo = urlParams.get('repo');
@@ -317,29 +322,18 @@ export const Header: React.FC<HeaderProps> = ({
         const availablePlatforms = sourceManager.getAvailablePlatforms();
         const availableThemes = sourceManager.getAvailableThemes();
         
-        const platformName = currentSourceContext.sourceType === 'platform' && currentSourceContext.sourceId
+        const platformName = currentSourceContext.sourceType === 'platform-extension' && currentSourceContext.sourceId
           ? availablePlatforms.find(p => p.id === currentSourceContext.sourceId)?.displayName 
           : null;
-        const themeName = currentSourceContext.sourceType === 'theme' && currentSourceContext.sourceId
+        const themeName = currentSourceContext.sourceType === 'theme-override' && currentSourceContext.sourceId
           ? availableThemes.find(t => t.id === currentSourceContext.sourceId)?.displayName
           : null;
         
-        // Get repository information for Platform/Theme sources
+        // Get repository information for Platform/Theme sources using unified service
         let repositoryInfo = '';
-        if (currentSourceContext.sourceType === 'platform' && currentSourceContext.sourceRepository) {
-          const repoName = currentSourceContext.sourceRepository.fullName.split('/')[1]; // Get repo name without owner
-          // Use the branch from the source repository context, or fallback to currentBranch
-          const branchName = currentSourceContext.sourceRepository.branch || currentBranch;
-          repositoryInfo = `(${repoName} - ${branchName})`;
-        } else if (currentSourceContext.sourceType === 'theme' && currentSourceContext.sourceRepository) {
-          const repoName = currentSourceContext.sourceRepository.fullName.split('/')[1]; // Get repo name without owner
-          // Use the branch from the source repository context, or fallback to currentBranch
-          const branchName = currentSourceContext.sourceRepository.branch || currentBranch;
-          repositoryInfo = `(${repoName} - ${branchName})`;
-        } else if (currentSourceContext.sourceType === 'core' && currentSourceContext.coreRepository) {
-          const repoName = currentSourceContext.coreRepository.fullName.split('/')[1]; // Get repo name without owner
-          // Use the branch from the core repository context, or fallback to currentBranch
-          const branchName = currentSourceContext.coreRepository.branch || currentBranch;
+        if (currentSourceContext.repositoryInfo) {
+          const repoName = currentSourceContext.repositoryInfo.fullName.split('/')[1]; // Get repo name without owner
+          const branchName = currentSourceContext.repositoryInfo.branch || currentBranch;
           repositoryInfo = `(${repoName} - ${branchName})`;
         } else {
           // Fallback to just branch name
@@ -405,25 +399,35 @@ export const Header: React.FC<HeaderProps> = ({
 
   // NEW: Helper function to determine if user has edit permissions from new data management services
   const hasDataSourceEditPermissions = () => {
+    console.log('[Header] hasDataSourceEditPermissions - Starting permission check');
+    console.log('[Header] hasDataSourceEditPermissions - GitHub user:', githubUser);
+    
     // Check if user is authenticated
     if (!githubUser) {
+      console.log('[Header] hasDataSourceEditPermissions - No GitHub user, returning false');
       return false;
     }
     
     // Check if we have a valid source context with repository information
     const sourceContext = sourceManager.getCurrentSourceContext();
+    console.log('[Header] hasDataSourceEditPermissions - Source context:', sourceContext);
+    
     if (!sourceContext) {
+      console.log('[Header] hasDataSourceEditPermissions - No source context, returning false');
       return false;
     }
     
     // If already in edit mode, user has permissions
     if (sourceContext.editMode?.isActive) {
+      console.log('[Header] hasDataSourceEditPermissions - Already in edit mode, returning true');
       return true;
     }
     
     // Check actual permissions from the data source manager
     const dataSourceManager = DataSourceManager.getInstance();
-    return dataSourceManager.getCurrentEditPermissions();
+    const permission = dataSourceManager.getCurrentEditPermissions();
+    console.log('[Header] hasDataSourceEditPermissions - Final permission result:', permission);
+    return permission;
   };
 
   const { title, subtitle } = getTitleAndSubtitle();

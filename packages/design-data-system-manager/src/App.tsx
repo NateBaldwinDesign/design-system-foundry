@@ -500,18 +500,17 @@ const App = () => {
             // Save repository info to localStorage so other services can access it
             localStorage.setItem('github_selected_repo', JSON.stringify(repoInfo));
             
+            // CRITICAL: Always initialize DataSourceManager from URL parameters
+            // This ensures core repository information is properly set up
+            dataSourceManager.initializeFromURL();
+            
             // Initialize platform/theme selection from URL parameters
             if (platform) {
-              dataSourceManager.initializeFromURL();
               // Switch to the specified platform
               await dataSourceManager.switchToPlatform(platform === 'none' ? null : platform);
             }
             
             if (theme) {
-              // If platform wasn't set, initialize from URL now
-              if (!platform) {
-                dataSourceManager.initializeFromURL();
-              }
               // Switch to the specified theme
               await dataSourceManager.switchToTheme(theme === 'none' ? null : theme);
             }

@@ -6,8 +6,8 @@ import { OverrideTrackingService } from './overrideTrackingService';
 import { DataEditorService } from './dataEditorService';
 import { SourceManagerService } from './sourceManagerService';
 import { SourceContextManager } from './sourceContextManager';
-import { DataMergerService } from './dataMergerService';
 import { PlatformSyntaxPatternService } from './platformSyntaxPatternService';
+import { RepositoryContextService, type SourceContext } from './repositoryContextService';
 import type { Platform, Theme } from '@token-model/data-model';
 
 export interface RepositoryInfo {
@@ -70,6 +70,7 @@ export interface DataSourceCallbacks {
 export class DataSourceManager {
   private static instance: DataSourceManager;
   private callbacks: DataSourceCallbacks = {};
+  private repositoryContextService: RepositoryContextService;
   private currentContext: DataSourceContext = {
     currentPlatform: null,
     currentTheme: null,
@@ -101,7 +102,14 @@ export class DataSourceManager {
   };
 
   private constructor() {
+    this.repositoryContextService = RepositoryContextService.getInstance();
     this.initializeFromStorage();
+    
+    // CRITICAL: Initialize RepositoryContextService AFTER DataSourceManager is fully set up
+    // This ensures DataSourceManager has all the data before RepositoryContextService tries to read it
+    setTimeout(() => {
+      this.repositoryContextService.initializeFromExistingServices();
+    }, 0);
   }
 
   static getInstance(): DataSourceManager {
@@ -119,16 +127,156 @@ export class DataSourceManager {
   }
 
   /**
+   * Setup event listeners for repository context changes
+   */
+  private setupEventListeners(): void {
+    // Listen for repository context changes
+    this.repositoryContextService.subscribeToChanges('contextUpdated', (context) => {
+      this.syncFromRepositoryContext(context);
+    });
+  }
+
+  /**
+   * Sync from repository context updates
+   */
+  private syncFromRepositoryContext(context: any): void {
+    console.log('[DataSourceManager] Syncing from repository context:', context);
+    
+    // Transform repository context to DataSourceContext format
+    const dataSourceContext = this.transformToDataSourceContext(context);
+    
+    // Update current context
+    this.currentContext = { ...this.currentContext, ...dataSourceContext };
+    
+    // CRITICAL: Update permissions when repository context changes
+    // This ensures permissions are refreshed for the new repository context
+    this.updatePermissions().catch(error => {
+      console.error('[DataSourceManager] Failed to update permissions after context sync:', error);
+    });
+    
+    // Notify callbacks
+    this.callbacks.onDataSourceChanged?.(this.getCurrentContext());
+  }
+
+  /**
+   * Transform repository context to DataSourceContext format
+   */
+  private transformToDataSourceContext(repoContext: any): Partial<DataSourceContext> {
+    return {
+      currentPlatform: repoContext.currentSource?.sourceType === 'platform-extension' 
+        ? repoContext.currentSource.sourceId 
+        : null,
+      currentTheme: repoContext.currentSource?.sourceType === 'theme-override' 
+        ? repoContext.currentSource.sourceId 
+        : null,
+      repositories: {
+        core: repoContext.coreRepository,
+        platforms: repoContext.platformRepositories,
+        themes: repoContext.themeRepositories
+      },
+      editMode: repoContext.currentSource?.editMode || this.currentContext.editMode,
+      viewMode: this.getViewMode(repoContext.currentSource)
+    };
+  }
+
+  /**
+   * Get view mode based on source context
+   */
+  private getViewMode(sourceContext: any): DataSourceContext['viewMode'] {
+    if (!sourceContext) {
+      return this.currentContext.viewMode;
+    }
+
+    const sourceType = sourceContext.sourceType;
+    const isMerged = sourceType !== 'core';
+    const mergeSources: Array<'core' | 'platform-extension' | 'theme-override'> = ['core'];
+    
+    if (sourceType === 'platform-extension') {
+      mergeSources.push('platform-extension');
+    } else if (sourceType === 'theme-override') {
+      mergeSources.push('theme-override');
+    }
+
+    const displayData: 'merged' | 'core-only' | 'platform-only' | 'theme-only' = 
+      sourceType === 'core' ? 'core-only' :
+      sourceType === 'platform-extension' ? 'platform-only' :
+      sourceType === 'theme-override' ? 'theme-only' : 'merged';
+
+    return {
+      isMerged,
+      mergeSources,
+      displayData
+    };
+  }
+
+  /**
+   * Get platform name by ID
+   */
+  private getPlatformName(platformId: string | null): string | null {
+    if (!platformId) return null;
+    const platform = this.currentContext.availablePlatforms.find(p => p.id === platformId);
+    return platform?.name || null;
+  }
+
+  /**
+   * Get platform repository by ID
+   */
+  private getPlatformRepository(platformId: string | null): RepositoryInfo | null {
+    if (!platformId) return null;
+    return this.currentContext.repositories.platforms[platformId] || null;
+  }
+
+  /**
+   * Get theme name by ID
+   */
+  private getThemeName(themeId: string | null): string | null {
+    if (!themeId) return null;
+    const theme = this.currentContext.availableThemes.find(t => t.id === themeId);
+    return theme?.displayName || null;
+  }
+
+  /**
+   * Get theme repository by ID
+   */
+  private getThemeRepository(themeId: string | null): RepositoryInfo | null {
+    if (!themeId) return null;
+    return this.currentContext.repositories.themes[themeId] || null;
+  }
+
+  /**
+   * Get core repository
+   */
+  private getCoreRepository(): RepositoryInfo | null {
+    return this.currentContext.repositories.core;
+  }
+
+  /**
    * Get current data source context
    */
   getCurrentContext(): DataSourceContext {
-    return { ...this.currentContext };
+    // Get context from RepositoryContextService
+    const repoContext = this.repositoryContextService.getCurrentContext();
+    
+    // Transform to DataSourceContext format
+    const transformedContext = this.transformToDataSourceContext(repoContext);
+    
+    // Merge with local context for backward compatibility
+    return {
+      ...this.currentContext,
+      ...transformedContext,
+      availablePlatforms: this.currentContext.availablePlatforms,
+      availableThemes: this.currentContext.availableThemes,
+      permissions: this.currentContext.permissions,
+      platformSyntaxPatterns: this.currentContext.platformSyntaxPatterns
+    };
   }
 
   /**
    * Switch to a specific platform with change detection
    */
   async switchToPlatform(platformId: string | null): Promise<void> {
+    console.log('[DataSourceManager] Switching to platform:', platformId);
+    
     try {
       // Use new SourceManagerService for source switching
       const sourceManager = SourceManagerService.getInstance();
@@ -157,14 +305,24 @@ export class DataSourceManager {
         return;
       }
       
+      // Update local state for backward compatibility
       this.currentContext.currentPlatform = platformId;
-      // Update view mode context
+      this.updateEditModeContext();
       this.updateViewModeContext();
-      // Update baseline for the new source
-      this.updateBaselineForCurrentSource();
       
-      // CRITICAL: Update available sources AFTER the source switch to populate repository info
+      // CRITICAL: Update available sources FIRST to populate repository info
       await this.updateAvailableSources();
+      
+      // CRITICAL: Update RepositoryContextService AFTER repository info is populated
+      const updates: Partial<SourceContext> = {
+        sourceType: platformId ? 'platform-extension' : 'core',
+        sourceId: platformId,
+        sourceName: this.getPlatformName(platformId),
+        repositoryInfo: platformId ? this.getPlatformRepository(platformId) : this.getCoreRepository(),
+        schemaType: platformId ? 'platform-extension' : 'schema'
+      };
+      
+      this.repositoryContextService.updateSourceContext(updates);
       
       // CRITICAL: Update edit mode context AFTER repository info is populated
       this.updateEditModeContext();
@@ -180,8 +338,12 @@ export class DataSourceManager {
       this.persistToStorage();
       // Notify callbacks
       this.callbacks.onDataSourceChanged?.(this.getCurrentContext());
+      
+      console.log('[DataSourceManager] Platform switch completed successfully');
     } catch (error) {
+      console.error('[DataSourceManager] Platform switch failed:', error);
       this.callbacks.onError?.(error instanceof Error ? error.message : 'Failed to switch platform');
+      throw error;
     }
   }
 
@@ -217,14 +379,24 @@ export class DataSourceManager {
         return;
       }
       
+      // Update local state for backward compatibility
       this.currentContext.currentTheme = themeId;
-      // Update view mode context
       this.updateViewModeContext();
-      // Update baseline for the new source
       this.updateBaselineForCurrentSource();
       
-      // CRITICAL: Update available sources AFTER the source switch to populate repository info
+      // CRITICAL: Update available sources FIRST to populate repository info
       await this.updateAvailableSources();
+      
+      // CRITICAL: Update RepositoryContextService AFTER repository info is populated
+      const updates: Partial<SourceContext> = {
+        sourceType: themeId ? 'theme-override' : 'core',
+        sourceId: themeId,
+        sourceName: this.getThemeName(themeId),
+        repositoryInfo: themeId ? this.getThemeRepository(themeId) : this.getCoreRepository(),
+        schemaType: themeId ? 'theme-override' : 'schema'
+      };
+      
+      this.repositoryContextService.updateSourceContext(updates);
       
       // CRITICAL: Update edit mode context AFTER repository info is populated
       this.updateEditModeContext();
@@ -367,17 +539,30 @@ export class DataSourceManager {
    * Check if user has edit permissions for current data source
    */
   getCurrentEditPermissions(): boolean {
+    console.log('[DataSourceManager] getCurrentEditPermissions - Starting permission check');
+    
+    // CRITICAL: Always use the working permission logic as primary source
     const { currentPlatform, currentTheme, permissions } = this.currentContext;
+    console.log('[DataSourceManager] getCurrentEditPermissions - Current context:', { currentPlatform, currentTheme, permissions });
 
+    // Check platform permissions
     if (currentPlatform && currentPlatform !== 'none') {
-      return permissions.platforms[currentPlatform] || false;
+      const platformPermission = permissions.platforms[currentPlatform] || false;
+      console.log('[DataSourceManager] getCurrentEditPermissions - Platform permission:', platformPermission);
+      return platformPermission;
     }
 
+    // Check theme permissions
     if (currentTheme && currentTheme !== 'none') {
-      return permissions.themes[currentTheme] || false;
+      const themePermission = permissions.themes[currentTheme] || false;
+      console.log('[DataSourceManager] getCurrentEditPermissions - Theme permission:', themePermission);
+      return themePermission;
     }
 
-    return permissions.core;
+    // Check core permissions
+    const corePermission = permissions.core || false;
+    console.log('[DataSourceManager] getCurrentEditPermissions - Core permission:', corePermission);
+    return corePermission;
   }
 
   /**
@@ -457,6 +642,10 @@ export class DataSourceManager {
       console.log('[DataSourceManager] Final permissions:', permissions);
       this.currentContext.permissions = permissions;
       
+      // CRITICAL: Update RepositoryContextService with current repository information
+      // This ensures the unified service has the correct repository info for permission checks
+      this.updateRepositoryContextService();
+      
       // Persist to storage
       this.persistToStorage();
       
@@ -465,6 +654,23 @@ export class DataSourceManager {
       
     } catch (error) {
       this.callbacks.onError?.(error instanceof Error ? error.message : 'Failed to update permissions');
+    }
+  }
+
+  /**
+   * Update RepositoryContextService with current repository information
+   */
+  private updateRepositoryContextService(): void {
+    try {
+      console.log('[DataSourceManager] Updating RepositoryContextService with current context');
+      
+      // Get current context and update RepositoryContextService
+      const currentContext = this.getCurrentContext();
+      this.repositoryContextService.mergeFromDataSourceContext(currentContext);
+      
+      console.log('[DataSourceManager] RepositoryContextService updated successfully');
+    } catch (error) {
+      console.error('[DataSourceManager] Failed to update RepositoryContextService:', error);
     }
   }
 
@@ -493,6 +699,9 @@ export class DataSourceManager {
       const urlParams = new URLSearchParams(window.location.search);
       const platform = urlParams.get('platform');
       const theme = urlParams.get('theme');
+      const repo = urlParams.get('repo');
+      const path = urlParams.get('path');
+      const branch = urlParams.get('branch') || 'main';
 
       if (platform) {
         this.currentContext.currentPlatform = platform === 'none' ? null : platform;
@@ -502,8 +711,22 @@ export class DataSourceManager {
         this.currentContext.currentTheme = theme === 'none' ? null : theme;
       }
 
+      // CRITICAL: Set up core repository information from URL parameters
+      if (repo && path) {
+        this.currentContext.repositories.core = {
+          fullName: repo,
+          branch: branch,
+          filePath: path,
+          fileType: 'schema'
+        };
+        console.log('[DataSourceManager] Set core repository from URL:', this.currentContext.repositories.core);
+      }
+
       // Validate selections
       this.validateCurrentSelections();
+      
+      // CRITICAL: Update RepositoryContextService with the new repository information
+      this.updateRepositoryContextService();
       
     } catch (error) {
       this.callbacks.onError?.(error instanceof Error ? error.message : 'Failed to initialize from URL');

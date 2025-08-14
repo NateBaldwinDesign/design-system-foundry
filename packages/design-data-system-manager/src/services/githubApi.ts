@@ -691,6 +691,7 @@ export class GitHubApiService {
   static async hasWriteAccessToRepository(repoFullName: string): Promise<boolean> {
     console.log(`[GitHubApiService] Checking write access for repository: ${repoFullName}`);
     const accessToken = await GitHubAuthService.getValidAccessToken();
+    console.log(`[GitHubApiService] Access token available: ${!!accessToken}`);
     
     // First, try to get the specific repository directly to check permissions
     try {
