@@ -5,6 +5,7 @@ import { ChangeTrackingService } from './changeTrackingService';
 import { OverrideTrackingService } from './overrideTrackingService';
 import { DataEditorService } from './dataEditorService';
 import { SourceManagerService } from './sourceManagerService';
+import { SourceContextManager } from './sourceContextManager';
 import { DataMergerService } from './dataMergerService';
 import { PlatformSyntaxPatternService } from './platformSyntaxPatternService';
 import type { Platform, Theme } from '@token-model/data-model';
@@ -157,8 +158,6 @@ export class DataSourceManager {
       }
       
       this.currentContext.currentPlatform = platformId;
-      // Update edit mode context based on platform selection
-      this.updateEditModeContext();
       // Update view mode context
       this.updateViewModeContext();
       // Update baseline for the new source
@@ -167,8 +166,15 @@ export class DataSourceManager {
       // CRITICAL: Update available sources AFTER the source switch to populate repository info
       await this.updateAvailableSources();
       
+      // CRITICAL: Update edit mode context AFTER repository info is populated
+      this.updateEditModeContext();
+      
       // Update permissions for the new context (now with populated repository info)
       await this.updatePermissions();
+      
+      // CRITICAL: Update SourceContextManager with current context
+      const sourceContextManager = SourceContextManager.getInstance();
+      sourceContextManager.updateFromDataSource();
       
       // Persist to storage
       this.persistToStorage();
@@ -212,8 +218,6 @@ export class DataSourceManager {
       }
       
       this.currentContext.currentTheme = themeId;
-      // Update edit mode context based on theme selection
-      this.updateEditModeContext();
       // Update view mode context
       this.updateViewModeContext();
       // Update baseline for the new source
@@ -222,8 +226,15 @@ export class DataSourceManager {
       // CRITICAL: Update available sources AFTER the source switch to populate repository info
       await this.updateAvailableSources();
       
+      // CRITICAL: Update edit mode context AFTER repository info is populated
+      this.updateEditModeContext();
+      
       // Update permissions for the new context (now with populated repository info)
       await this.updatePermissions();
+      
+      // CRITICAL: Update SourceContextManager with current context
+      const sourceContextManager = SourceContextManager.getInstance();
+      sourceContextManager.updateFromDataSource();
       
       // Persist to storage
       this.persistToStorage();
@@ -687,8 +698,25 @@ export class DataSourceManager {
   enterEditMode(): void {
     this.currentContext.editMode.isActive = true;
     
+    // CRITICAL: Sync current platform/theme with edit mode context
+    if (this.currentContext.editMode.sourceType === 'platform-extension' && this.currentContext.editMode.sourceId) {
+      this.currentContext.currentPlatform = this.currentContext.editMode.sourceId;
+      console.log(`[DataSourceManager] Entering edit mode for platform: ${this.currentContext.editMode.sourceId}`);
+    } else if (this.currentContext.editMode.sourceType === 'theme-override' && this.currentContext.editMode.sourceId) {
+      this.currentContext.currentTheme = this.currentContext.editMode.sourceId;
+      console.log(`[DataSourceManager] Entering edit mode for theme: ${this.currentContext.editMode.sourceId}`);
+    } else if (this.currentContext.editMode.sourceType === 'core') {
+      this.currentContext.currentPlatform = null;
+      this.currentContext.currentTheme = null;
+      console.log('[DataSourceManager] Entering edit mode for core data');
+    }
+    
     // Initialize override tracking session for platform/theme editing
     OverrideTrackingService.initializeSession(this.currentContext);
+    
+    // CRITICAL: Update SourceContextManager with current context
+    const sourceContextManager = SourceContextManager.getInstance();
+    sourceContextManager.updateFromDataSource();
     
     this.persistToStorage();
     this.callbacks.onDataSourceChanged?.(this.getCurrentContext());

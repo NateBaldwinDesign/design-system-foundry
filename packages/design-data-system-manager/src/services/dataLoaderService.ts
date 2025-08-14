@@ -73,7 +73,10 @@ export class DataLoaderService {
 private async loadCoreData(urlParams: URLSearchParams): Promise<DataLoadResult> {
   const repo = urlParams.get('repo');
   const path = urlParams.get('path');
-  const branch = urlParams.get('branch') || 'main';
+  
+  // ENHANCED: Core data should always be loaded from main branch (or default)
+  // The branch parameter in URL is for platform/theme repositories, not core repository
+  const branch = 'main';
 
   if (!repo || !path) {
     return {
@@ -83,7 +86,7 @@ private async loadCoreData(urlParams: URLSearchParams): Promise<DataLoadResult> 
   }
 
   try {
-    console.log(`[DataLoaderService] Loading core data from ${repo}/${path} on branch ${branch}`);
+    console.log(`[DataLoaderService] Loading core data from ${repo}/${path} on branch ${branch} (branch parameter ignored for core data)`);
 
     // Check if user is authenticated
     const isAuthenticated = GitHubAuthService.isAuthenticated();
@@ -181,7 +184,7 @@ private async loadCoreData(urlParams: URLSearchParams): Promise<DataLoadResult> 
           };
         }
 
-        return await this.loadPlatformData(platformId, coreData);
+        return await this.loadPlatformData(platformId, coreData, urlParams);
       }
 
       if (sourceType === 'theme') {
@@ -193,7 +196,7 @@ private async loadCoreData(urlParams: URLSearchParams): Promise<DataLoadResult> 
           };
         }
 
-        return await this.loadThemeData(themeId, coreData);
+        return await this.loadThemeData(themeId, coreData, urlParams);
       }
 
       return {
@@ -213,7 +216,7 @@ private async loadCoreData(urlParams: URLSearchParams): Promise<DataLoadResult> 
 /**
  * Load platform extension data (with public repository fallback)
  */
-private async loadPlatformData(platformId: string, coreData: TokenSystem): Promise<DataLoadResult> {
+private async loadPlatformData(platformId: string, coreData: TokenSystem, urlParams: URLSearchParams): Promise<DataLoadResult> {
   const platform = coreData.platforms?.find(p => p.id === platformId);
   if (!platform) {
     return {
@@ -231,11 +234,12 @@ private async loadPlatformData(platformId: string, coreData: TokenSystem): Promi
 
   try {
     const { repositoryUri, filePath } = platform.extensionSource;
-    const branch = 'main'; // Default to main branch for platform extensions
+    // ENHANCED: Use branch from URL parameters if available, otherwise default to main
+    const branch = urlParams.get('branch') || 'main';
     const [owner, repo] = repositoryUri.split('/');
     const fullRepoName = `${owner}/${repo}`;
 
-    console.log(`[DataLoaderService] Loading platform data from ${fullRepoName}/${filePath}`);
+    console.log(`[DataLoaderService] Loading platform data from ${fullRepoName}/${filePath} on branch ${branch}`);
     
     let fileContent;
     
@@ -286,7 +290,7 @@ private async loadPlatformData(platformId: string, coreData: TokenSystem): Promi
 /**
  * Load theme override data (with public repository fallback)
  */
-private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<DataLoadResult> {
+private async loadThemeData(themeId: string, coreData: TokenSystem, urlParams: URLSearchParams): Promise<DataLoadResult> {
   const theme = coreData.themes?.find(t => t.id === themeId);
   if (!theme) {
     return {
@@ -304,11 +308,12 @@ private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<Dat
 
   try {
     const { repositoryUri, filePath } = theme.overrideSource;
-    const branch = 'main'; // Default to main branch for theme overrides
+    // ENHANCED: Use branch from URL parameters if available, otherwise default to main
+    const branch = urlParams.get('branch') || 'main';
     const [owner, repo] = repositoryUri.split('/');
     const fullRepoName = `${owner}/${repo}`;
 
-    console.log(`[DataLoaderService] Loading theme data from ${fullRepoName}/${filePath}`);
+    console.log(`[DataLoaderService] Loading theme data from ${fullRepoName}/${filePath} on branch ${branch}`);
     
     let fileContent;
     

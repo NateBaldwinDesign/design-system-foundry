@@ -3,6 +3,7 @@ import { StorageService } from './storage';
 import { DataManager } from './dataManager';
 import { SourceContextManager } from './sourceContextManager';
 import { SchemaTransformer } from './schemaTransformer';
+import { GitHubRepositoryService } from './gitHubRepositoryService';
 import type { DataSourceContext } from './dataSourceManager';
 import type { SourceContext } from './sourceContextManager';
 import type { Platform, Theme } from '@token-model/data-model';
@@ -220,8 +221,19 @@ export class GitHubSaveService {
 
   /**
    * Create source context from legacy data source context
+   * Now uses centralized GitHubRepositoryService for consistency
    */
   private static createSourceContextFromDataSource(dataSourceContext?: DataSourceContext): SourceContext | null {
+    // Use centralized service for consistency
+    const gitHubRepositoryService = GitHubRepositoryService.getInstance();
+    const sourceContext = gitHubRepositoryService.getCurrentSourceContext();
+    
+    if (sourceContext) {
+      console.log('[GitHubSaveService] Using centralized service for source context:', sourceContext);
+      return sourceContext;
+    }
+    
+    // Fallback to legacy method if centralized service doesn't have context
     if (!dataSourceContext) {
       return null;
     }

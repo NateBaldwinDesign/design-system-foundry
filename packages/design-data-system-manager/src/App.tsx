@@ -318,6 +318,11 @@ const App = () => {
         dataSourceManager.setCallbacks({
           onDataSourceChanged: async (context: DataSourceContext) => {
             console.log('[App] Data source changed, updating UI state:', context);
+            
+            // CRITICAL: Preserve edit mode state before updating UI
+            const currentEditMode = isEditMode;
+            const currentEditModeBranch = editModeBranch;
+            
             setDataSourceContext(context);
             
             // Update UI state with merged data from storage
@@ -370,6 +375,13 @@ const App = () => {
               // Dispatch event to notify change detection
               window.dispatchEvent(new CustomEvent(DATA_CHANGE_EVENT));
             }
+            
+            // CRITICAL: Restore edit mode state after UI update
+            if (currentEditMode) {
+              console.log('[App] Restoring edit mode state after data source change');
+              setIsEditMode(currentEditMode);
+              setEditModeBranch(currentEditModeBranch);
+            }
           },
           onPermissionsChanged: (permissions) => {
             console.log('[App] Permissions changed:', permissions);
@@ -389,7 +401,7 @@ const App = () => {
         
         dataSourceManager.initializeFromURL();
         
-        setDataSourceContext(dataSourceManager.getCurrentContext());
+        // DO NOT set dataSourceContext here - it will be set after platform/theme switching
         
         // Check for URL parameters first
         const urlParams = new URLSearchParams(window.location.search);
@@ -526,8 +538,20 @@ const App = () => {
               // setHasEditPermissions(false); // Controls Edit button visibility
             }
             
-            // Update data source context
-            setDataSourceContext(dataSourceManager.getCurrentContext());
+            // Update data source context AFTER platform/theme switching is complete
+            const finalContext = dataSourceManager.getCurrentContext();
+            console.log('[App] Setting final dataSourceContext after platform/theme switching:', {
+              currentPlatform: finalContext.currentPlatform,
+              currentTheme: finalContext.currentTheme,
+              availablePlatforms: finalContext.availablePlatforms.length,
+              availableThemes: finalContext.availableThemes.length,
+              repositories: {
+                core: finalContext.repositories.core?.fullName,
+                platforms: Object.keys(finalContext.repositories.platforms),
+                themes: Object.keys(finalContext.repositories.themes)
+              }
+            });
+            setDataSourceContext(finalContext);
             
             // Update React state with merged data
             setCollections(mergedData.tokenCollections || []);
@@ -609,6 +633,16 @@ const App = () => {
             const dataSourceManager = DataSourceManager.getInstance();
             await dataSourceManager.updateAvailableSources();
             
+            // Set dataSourceContext for fallback case
+            const fallbackContext = dataSourceManager.getCurrentContext();
+            console.log('[App] Setting fallback dataSourceContext:', {
+              currentPlatform: fallbackContext.currentPlatform,
+              currentTheme: fallbackContext.currentTheme,
+              availablePlatforms: fallbackContext.availablePlatforms.length,
+              availableThemes: fallbackContext.availableThemes.length
+            });
+            setDataSourceContext(fallbackContext);
+            
             setIsViewOnlyMode(false);
             setIsAppLoading(false); // End app loading state for URL error fallback
           }
@@ -641,6 +675,16 @@ const App = () => {
           // Update DataSourceManager after data is loaded
           const dataSourceManager = DataSourceManager.getInstance();
           await dataSourceManager.updateAvailableSources();
+          
+          // Set dataSourceContext for default initialization
+          const defaultContext = dataSourceManager.getCurrentContext();
+          console.log('[App] Setting default dataSourceContext:', {
+            currentPlatform: defaultContext.currentPlatform,
+            currentTheme: defaultContext.currentTheme,
+            availablePlatforms: defaultContext.availablePlatforms.length,
+            availableThemes: defaultContext.availableThemes.length
+          });
+          setDataSourceContext(defaultContext);
           
           setIsViewOnlyMode(false);
           setIsAppLoading(false); // End app loading state for default initialization
@@ -1320,7 +1364,7 @@ const App = () => {
       let targetBranch = currentBranch; // Default to current branch
       
       if (platformId && !isMainBranch(currentBranch)) {
-        // Get the target repository for the platform
+        // Switching TO a platform - check if current branch exists in platform repository
         const coreData = StorageService.getCoreData();
         const platform = coreData?.platforms?.find(p => p.id === platformId);
         const targetRepository = platform?.extensionSource?.repositoryUri;
@@ -1335,6 +1379,22 @@ const App = () => {
           window.history.replaceState({}, '', branchUrl.toString());
           
           console.log(`[App] Platform switch: Selected branch "${targetBranch}" for repository "${targetRepository}"`);
+        }
+      } else if (!platformId && !isMainBranch(currentBranch)) {
+        // Switching FROM a platform TO core data - check if current branch exists in core repository
+        const urlParams = new URLSearchParams(window.location.search);
+        const coreRepo = urlParams.get('repo');
+        
+        if (coreRepo) {
+          // Intelligently select branch for the core repository
+          targetBranch = await selectBranchForSourceSwitch(coreRepo, currentBranch);
+          
+          // Update URL with the selected branch
+          const branchUrl = new URL(window.location.href);
+          branchUrl.searchParams.set('branch', targetBranch);
+          window.history.replaceState({}, '', branchUrl.toString());
+          
+          console.log(`[App] Platform switch to core: Selected branch "${targetBranch}" for repository "${coreRepo}"`);
         }
       }
       
@@ -1374,6 +1434,10 @@ const App = () => {
       if (targetBranch !== currentBranch) {
         setCurrentBranch(targetBranch);
         console.log(`[App] Platform switch: Updated current branch from "${currentBranch}" to "${targetBranch}"`);
+        
+        // CRITICAL: Refresh data to load from the new branch
+        console.log('[App] Platform switch: Refreshing data to load from new branch');
+        refreshDataFromStorage();
       }
       
       console.log('[App] Platform change completed - UI data updated:', {
@@ -1446,7 +1510,7 @@ const App = () => {
       let targetBranch = currentBranch; // Default to current branch
       
       if (themeId && !isMainBranch(currentBranch)) {
-        // Get the target repository for the theme
+        // Switching TO a theme - check if current branch exists in theme repository
         const coreData = StorageService.getCoreData();
         const theme = coreData?.themes?.find(t => t.id === themeId);
         const targetRepository = theme?.overrideSource?.repositoryUri;
@@ -1461,6 +1525,22 @@ const App = () => {
           window.history.replaceState({}, '', branchUrl.toString());
           
           console.log(`[App] Theme switch: Selected branch "${targetBranch}" for repository "${targetRepository}"`);
+        }
+      } else if (!themeId && !isMainBranch(currentBranch)) {
+        // Switching FROM a theme TO core data - check if current branch exists in core repository
+        const urlParams = new URLSearchParams(window.location.search);
+        const coreRepo = urlParams.get('repo');
+        
+        if (coreRepo) {
+          // Intelligently select branch for the core repository
+          targetBranch = await selectBranchForSourceSwitch(coreRepo, currentBranch);
+          
+          // Update URL with the selected branch
+          const branchUrl = new URL(window.location.href);
+          branchUrl.searchParams.set('branch', targetBranch);
+          window.history.replaceState({}, '', branchUrl.toString());
+          
+          console.log(`[App] Theme switch to core: Selected branch "${targetBranch}" for repository "${coreRepo}"`);
         }
       }
       
@@ -1500,6 +1580,10 @@ const App = () => {
       if (targetBranch !== currentBranch) {
         setCurrentBranch(targetBranch);
         console.log(`[App] Theme switch: Updated current branch from "${currentBranch}" to "${targetBranch}"`);
+        
+        // CRITICAL: Refresh data to load from the new branch
+        console.log('[App] Theme switch: Refreshing data to load from new branch');
+        refreshDataFromStorage();
       }
       
       console.log('[App] Theme change completed - UI data updated:', {
@@ -1662,13 +1746,26 @@ const App = () => {
         // Map fileType to sourceType for EditModeManager
         const sourceType = repositoryContext.fileType === 'schema' ? 'core' : repositoryContext.fileType;
         EditModeManager.enterEditMode(newBranchName, sourceType);
+        
+        // CRITICAL: Update React state to enter edit mode
+        setIsEditMode(true);
+        setEditModeBranch(newBranchName);
+        
+        console.log(`[App] Entered edit mode on branch "${newBranchName}"`);
       }
+      
+      // CRITICAL: Update URL with the new branch name
+      const url = new URL(window.location.href);
+      url.searchParams.set('branch', newBranchName);
+      window.history.replaceState({}, '', url.toString());
+      
+      console.log(`[App] Updated URL with new branch: ${newBranchName}`);
       
       // Update current branch state to reflect the new branch
       setCurrentBranch(newBranchName);
       
-      // Refresh data for the new branch
-      await RefreshManager.refreshForBranchSwitch(repositoryContext);
+      // NOTE: BranchManager.switchToBranch() already calls RefreshManager.refreshForBranchSwitch()
+      // No need for a second refresh call here
       
       console.log('[App] Branch creation and switching completed successfully');
       

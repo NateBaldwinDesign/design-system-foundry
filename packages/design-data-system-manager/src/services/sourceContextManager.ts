@@ -100,16 +100,36 @@ export class SourceContextManager {
     let sourceId: string | null = null;
     let sourceName: string | null = null;
 
-    if (currentContext.currentPlatform && currentContext.currentPlatform !== 'none') {
+    // PRIORITY 1: Check editMode context first (most accurate for current source)
+    if (currentContext.editMode?.sourceType && currentContext.editMode?.sourceId) {
+      sourceType = currentContext.editMode.sourceType;
+      schemaType = currentContext.editMode.sourceType === 'core' ? 'schema' : currentContext.editMode.sourceType;
+      sourceId = currentContext.editMode.sourceId;
+      
+      // Find source name based on source type
+      if (sourceType === 'platform-extension') {
+        sourceName = currentContext.availablePlatforms.find(p => p.id === sourceId)?.displayName || null;
+      } else if (sourceType === 'theme-override') {
+        sourceName = currentContext.availableThemes.find(t => t.id === sourceId)?.displayName || null;
+      }
+      
+      console.log('[SourceContextManager] Using editMode context:', { sourceType, sourceId, sourceName });
+    }
+    // PRIORITY 2: Fallback to currentPlatform/currentTheme (legacy approach)
+    else if (currentContext.currentPlatform && currentContext.currentPlatform !== 'none') {
       sourceType = 'platform-extension';
       schemaType = 'platform-extension';
       sourceId = currentContext.currentPlatform;
-      sourceName = currentContext.platforms.find(p => p.id === sourceId)?.displayName || null;
+      sourceName = currentContext.availablePlatforms.find(p => p.id === sourceId)?.displayName || null;
+      console.log('[SourceContextManager] Using currentPlatform fallback:', { sourceType, sourceId, sourceName });
     } else if (currentContext.currentTheme && currentContext.currentTheme !== 'none') {
       sourceType = 'theme-override';
       schemaType = 'theme-override';
       sourceId = currentContext.currentTheme;
-      sourceName = currentContext.themes.find(t => t.id === sourceId)?.displayName || null;
+      sourceName = currentContext.availableThemes.find(t => t.id === sourceId)?.displayName || null;
+      console.log('[SourceContextManager] Using currentTheme fallback:', { sourceType, sourceId, sourceName });
+    } else {
+      console.log('[SourceContextManager] Using core data as default');
     }
 
     // Get repository information

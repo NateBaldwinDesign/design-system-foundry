@@ -178,7 +178,6 @@ export const Header: React.FC<HeaderProps> = ({
   const [isGitHubConnecting, setIsGitHubConnecting] = useState(false);
   const [showBranchSelectionDialog, setShowBranchSelectionDialog] = useState(false);
   const [targetRepositoryForBranch, setTargetRepositoryForBranch] = useState<{ fullName: string; branch: string; filePath: string; fileType: string } | null>(null);
-  const [targetBranchForBranch, setTargetBranchForBranch] = useState<string>('main');
   const [showSwitchBranchDialog, setShowSwitchBranchDialog] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [switchBranchMode, setSwitchBranchMode] = useState<'edit' | 'view'>('view');
@@ -717,9 +716,6 @@ export const Header: React.FC<HeaderProps> = ({
     if (isMainBranch(currentBranch)) {
       // Main branch - open branch selection dialog to create new branch
       setTargetRepositoryForBranch(targetRepository);
-      // Use the branch from the target repository, or fallback to 'main'
-      const targetBranch = targetRepository?.branch || 'main';
-      setTargetBranchForBranch(targetBranch);
       setShowBranchSelectionDialog(true);
     } else {
       // Non-main branch - directly enter edit mode
@@ -832,8 +828,6 @@ export const Header: React.FC<HeaderProps> = ({
 
     // Set up branch selection dialog for view mode switching
     setTargetRepositoryForBranch(targetRepository);
-    const targetBranch = targetRepository?.branch || 'main';
-    setTargetBranchForBranch(targetBranch);
     setSwitchBranchMode('view');
     setShowSwitchBranchDialog(true);
   };
@@ -1248,7 +1242,7 @@ export const Header: React.FC<HeaderProps> = ({
         isOpen={showBranchSelectionDialog}
         onClose={() => setShowBranchSelectionDialog(false)}
         onBranchSelected={handleBranchSelected}
-        currentBranch={targetBranchForBranch}
+        currentBranch={currentBranch}
         repositoryFullName={(() => {
           // Determine the correct repository based on current source context
           if (currentSourceContext) {
@@ -1355,7 +1349,7 @@ export const Header: React.FC<HeaderProps> = ({
         isOpen={showSwitchBranchDialog}
         onClose={() => setShowSwitchBranchDialog(false)}
         onBranchSelected={handleSwitchBranchSelected}
-        currentBranch={targetBranchForBranch}
+        currentBranch={currentBranch}
         repositoryFullName={(() => {
           // Determine the correct repository based on current source context
           if (currentSourceContext) {

@@ -24,6 +24,8 @@ import {
 } from '@chakra-ui/react';
 import { GitHubSaveService, SaveOptions } from '../services/githubSave';
 import { GitHubApiService } from '../services/githubApi';
+import { SourceContextManager } from '../services/sourceContextManager';
+import { GitHubRepositoryService } from '../services/gitHubRepositoryService';
 import type { GitHubBranch } from '../config/github';
 import type { DataSourceContext } from '../services/dataSourceManager';
 
@@ -64,6 +66,16 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
   } | null>(null);
   const toast = useToast();
 
+  // Helper function to get repository info using centralized service
+  const getRepositoryInfo = (): { fullName: string; branch: string; filePath: string; fileType: string } | null => {
+    const gitHubRepositoryService = GitHubRepositoryService.getInstance();
+    const repoInfo = gitHubRepositoryService.getCurrentRepositoryInfo();
+    
+    console.log('[GitHubSaveDialog] getRepositoryInfo - Using centralized service:', repoInfo);
+    
+    return repoInfo;
+  };
+
   // Load available branches and set defaults
   useEffect(() => {
     if (isOpen) {
@@ -82,26 +94,7 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
 
   const loadBranches = async () => {
     try {
-      // Determine the correct repository based on current source context
-      let repoInfo: { fullName: string; branch: string; filePath: string; fileType: string } | null = null;
-      
-      if (dataSourceContext) {
-        if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
-          // Platform extension editing
-          repoInfo = dataSourceContext.repositories.platforms[dataSourceContext.currentPlatform] || null;
-        } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
-          // Theme override editing
-          repoInfo = dataSourceContext.repositories.themes[dataSourceContext.currentTheme] || null;
-        } else {
-          // Core data editing
-          repoInfo = dataSourceContext.repositories.core || null;
-        }
-      }
-      
-      // Fallback to localStorage if no repository info found in context
-      if (!repoInfo) {
-        repoInfo = GitHubApiService.getSelectedRepositoryInfo();
-      }
+      const repoInfo = getRepositoryInfo();
       
       if (!repoInfo) {
         console.error('No repository information available');
@@ -136,26 +129,7 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
   };
 
   const generateDefaultMessages = () => {
-    // Determine the correct repository based on current source context
-    let repoInfo: { fullName: string; branch: string; filePath: string; fileType: string } | null = null;
-    
-    if (dataSourceContext) {
-      if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
-        // Platform extension editing
-        repoInfo = dataSourceContext.repositories.platforms[dataSourceContext.currentPlatform] || null;
-      } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
-        // Theme override editing
-        repoInfo = dataSourceContext.repositories.themes[dataSourceContext.currentTheme] || null;
-      } else {
-        // Core data editing
-        repoInfo = dataSourceContext.repositories.core || null;
-      }
-    }
-    
-    // Fallback to localStorage if no repository info found in context
-    if (!repoInfo) {
-      repoInfo = GitHubApiService.getSelectedRepositoryInfo();
-    }
+    const repoInfo = getRepositoryInfo();
     
     if (!repoInfo) return;
 
@@ -166,26 +140,7 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
   };
 
   const checkFileSize = () => {
-    // Determine the correct repository based on current source context
-    let repoInfo: { fullName: string; branch: string; filePath: string; fileType: string } | null = null;
-    
-    if (dataSourceContext) {
-      if (dataSourceContext.currentPlatform && dataSourceContext.currentPlatform !== 'none') {
-        // Platform extension editing
-        repoInfo = dataSourceContext.repositories.platforms[dataSourceContext.currentPlatform] || null;
-      } else if (dataSourceContext.currentTheme && dataSourceContext.currentTheme !== 'none') {
-        // Theme override editing
-        repoInfo = dataSourceContext.repositories.themes[dataSourceContext.currentTheme] || null;
-      } else {
-        // Core data editing
-        repoInfo = dataSourceContext.repositories.core || null;
-      }
-    }
-    
-    // Fallback to localStorage if no repository info found in context
-    if (!repoInfo) {
-      repoInfo = GitHubApiService.getSelectedRepositoryInfo();
-    }
+    const repoInfo = getRepositoryInfo();
     
     if (!repoInfo) return;
 
@@ -202,6 +157,10 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
     setLoading(true);
 
     try {
+      // Get current source context from SourceContextManager
+      const sourceContextManager = SourceContextManager.getInstance();
+      const currentSourceContext = sourceContextManager.getContext();
+      
       const options: SaveOptions = {
         message: commitMessage,
         createPullRequest: saveMode === 'pullRequest',
@@ -209,6 +168,7 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
         prTitle: saveMode === 'pullRequest' ? prTitle : undefined,
         prDescription: saveMode === 'pullRequest' ? prDescription : undefined,
         dataSourceContext: dataSourceContext,
+        sourceContext: currentSourceContext || undefined, // CRITICAL: Pass current source context
       };
 
       const result = await GitHubSaveService.saveToGitHub(options);
@@ -262,7 +222,14 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
     onClose();
   };
 
-  const repoInfo = GitHubApiService.getSelectedRepositoryInfo();
+  // Get repository info for display using the helper function
+  const sourceContextManager = SourceContextManager.getInstance();
+  const currentSourceContext = sourceContextManager.getContext();
+  console.log('[GitHubSaveDialog] Current source context:', currentSourceContext);
+  console.log('[GitHubSaveDialog] dataSourceContext prop:', dataSourceContext);
+  
+  const repoInfo = getRepositoryInfo();
+  console.log('[GitHubSaveDialog] Final repository info for display:', repoInfo);
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} size="xl" scrollBehavior="inside">
@@ -281,7 +248,7 @@ export const GitHubSaveDialog: React.FC<GitHubSaveDialogProps> = ({
                   Branch: {currentBranch} {isEditMode && '(Editing)'}
                 </Text>
                 <Text>File: {repoInfo.filePath}</Text>
-                <Text>Type: {repoInfo.fileType === 'schema' ? 'Core Data' : 'Theme Override'}</Text>
+                <Text>Type: {repoInfo.fileType === 'schema' ? 'Core Data' : repoInfo.fileType === 'platform-extension' ? 'Platform Extension' : 'Theme Override'}</Text>
                 {isEditMode && (
                   <Text fontSize="sm" color="blue.600" mt={2}>
                     💡 You&apos;re editing on a feature branch. Changes will be saved to this branch.
