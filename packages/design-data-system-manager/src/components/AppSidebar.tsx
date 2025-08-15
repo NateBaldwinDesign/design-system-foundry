@@ -39,7 +39,7 @@ interface AppSidebarProps {
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Gauge },
   { id: 'system', label: 'System', icon: Waypoints },
-  { id: 'algorithms', label: 'Foundations', icon: Shapes },
+  { id: 'foundations', label: 'Foundations', icon: Shapes },
   { id: 'tokens', label: 'Tokens', icon: TokenIcon },
   { id: 'components', label: 'Components', icon: Boxes },
   { id: 'themes', label: 'Themes', icon: PaletteIcon },

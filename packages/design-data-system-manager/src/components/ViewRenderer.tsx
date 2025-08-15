@@ -25,7 +25,7 @@ import DashboardView from '../views/DashboardView';
 import { TokensView } from '../views/TokensView';
 import { SystemVariablesView } from '../views/SystemVariablesView';
 import AlgorithmsView from '../views/AlgorithmsView';
-import { TokenAnalysis } from '../views/TokenAnalysis';
+import FoundationsView from '../views/FoundationsView';
 import { DimensionsView } from '../views/system/DimensionsView';
 import { TaxonomyView } from '../views/system/TaxonomyView';
 import { ValueTypesView } from '../views/system/ValueTypesView';
@@ -208,6 +208,9 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
 
       case 'system-variables':
         return <SystemVariablesView dimensions={dimensions} canEdit={effectiveCanEdit} />;
+      
+      case 'foundations':
+        return <FoundationsView canEdit={effectiveCanEdit} />;
       
       case 'algorithms':
         return <AlgorithmsView algorithms={algorithms} onUpdate={onUpdateAlgorithms} onUpdateTokens={onUpdateTokens} canEdit={effectiveCanEdit} />;
