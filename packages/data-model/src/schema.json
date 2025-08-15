@@ -62,6 +62,12 @@
           "fileKey": {
             "type": "string",
             "description": "Default Figma file key for publishing core tokens"
+          },
+          "fileColorProfile": {
+            "type": "string",
+            "enum": ["srgb", "display-p3"],
+            "description": "Color profile to use when converting colors for Figma export",
+            "default": "srgb"
           }
         }
       },

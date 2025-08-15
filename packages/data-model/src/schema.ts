@@ -548,7 +548,8 @@ export const TokenSystem = z.object({
       capitalization: z.enum(['camel', 'uppercase', 'lowercase', 'capitalize']).optional(),
       formatString: z.string().optional()
     }).optional(),
-    fileKey: z.string()
+    fileKey: z.string(),
+    fileColorProfile: z.enum(['srgb', 'display-p3']).default('srgb').optional()
   }).optional(),
   version: z.string(),
   versionHistory: z.array(VersionHistoryEntry),

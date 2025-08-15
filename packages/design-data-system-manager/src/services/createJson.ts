@@ -8,6 +8,59 @@ import type { Algorithm } from '../types/algorithm';
  * Returns an object matching the @schema.json structure.
  */
 export function createSchemaJsonFromLocalStorage() {
+  console.log('[createSchemaJsonFromLocalStorage] 🔍 Starting to read data from localStorage...');
+  
+  // Check raw localStorage values for debugging
+  console.log('[createSchemaJsonFromLocalStorage] 🔍 Raw localStorage keys:');
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('token-model:')) {
+      const value = localStorage.getItem(key);
+      console.log(`[createSchemaJsonFromLocalStorage] - ${key}:`, value ? 'exists' : 'null');
+    }
+  }
+  
+  // First, try to get data from the new merged data system
+  const mergedData = StorageService.getMergedData();
+  const coreData = StorageService.getCoreData();
+  const localEdits = StorageService.getLocalEdits();
+  
+  console.log('[createSchemaJsonFromLocalStorage] 🔍 Checking new data management system:');
+  console.log('[createSchemaJsonFromLocalStorage] - mergedData exists:', !!mergedData);
+  console.log('[createSchemaJsonFromLocalStorage] - coreData exists:', !!coreData);
+  console.log('[createSchemaJsonFromLocalStorage] - localEdits exists:', !!localEdits);
+  
+  // If we have merged data, use it
+  if (mergedData && mergedData.tokens && mergedData.tokens.length > 0) {
+    console.log('[createSchemaJsonFromLocalStorage] 🔍 Using merged data from new system');
+    console.log('[createSchemaJsonFromLocalStorage] - mergedData tokens:', mergedData.tokens.length);
+    console.log('[createSchemaJsonFromLocalStorage] - mergedData dimensions:', mergedData.dimensions?.length || 0);
+    console.log('[createSchemaJsonFromLocalStorage] - mergedData dimensionOrder:', mergedData.dimensionOrder);
+    
+    // Return the merged data directly if it has the right structure
+    if (mergedData.dimensionOrder && mergedData.dimensionOrder.length > 0) {
+      console.log('[createSchemaJsonFromLocalStorage] ✅ Using merged data with valid dimensionOrder');
+      return mergedData;
+    }
+  }
+  
+  // If we have core data, use it
+  if (coreData && coreData.tokens && coreData.tokens.length > 0) {
+    console.log('[createSchemaJsonFromLocalStorage] 🔍 Using core data from new system');
+    console.log('[createSchemaJsonFromLocalStorage] - coreData tokens:', coreData.tokens.length);
+    console.log('[createSchemaJsonFromLocalStorage] - coreData dimensions:', coreData.dimensions?.length || 0);
+    console.log('[createSchemaJsonFromLocalStorage] - coreData dimensionOrder:', coreData.dimensionOrder);
+    
+    // Return the core data directly if it has the right structure
+    if (coreData.dimensionOrder && coreData.dimensionOrder.length > 0) {
+      console.log('[createSchemaJsonFromLocalStorage] ✅ Using core data with valid dimensionOrder');
+      return coreData;
+    }
+  }
+  
+  // Fall back to old individual storage keys
+  console.log('[createSchemaJsonFromLocalStorage] 🔍 Falling back to individual storage keys...');
+  
   // Read all relevant data from localStorage
   const tokenCollections = StorageService.getCollections() as TokenCollection[];
   const tokens = StorageService.getTokens() as Token[];
@@ -20,8 +73,22 @@ export function createSchemaJsonFromLocalStorage() {
   const dimensionOrder = JSON.parse(localStorage.getItem('token-model:dimension-order') || '[]') as string[];
   const figmaConfiguration = StorageService.getFigmaConfiguration();
 
+  console.log('[createSchemaJsonFromLocalStorage] 🔍 Data read from StorageService:');
+  console.log('[createSchemaJsonFromLocalStorage] - tokenCollections:', tokenCollections?.length || 0);
+  console.log('[createSchemaJsonFromLocalStorage] - tokens:', tokens?.length || 0);
+  console.log('[createSchemaJsonFromLocalStorage] - dimensions:', dimensions?.length || 0);
+  console.log('[createSchemaJsonFromLocalStorage] - platforms:', platforms?.length || 0);
+  console.log('[createSchemaJsonFromLocalStorage] - themes:', themes?.length || 0);
+  console.log('[createSchemaJsonFromLocalStorage] - taxonomies:', taxonomies?.length || 0);
+  console.log('[createSchemaJsonFromLocalStorage] - resolvedValueTypes:', resolvedValueTypes?.length || 0);
+  console.log('[createSchemaJsonFromLocalStorage] - taxonomyOrder:', taxonomyOrder);
+  console.log('[createSchemaJsonFromLocalStorage] - dimensionOrder:', dimensionOrder);
+  console.log('[createSchemaJsonFromLocalStorage] - figmaConfiguration:', figmaConfiguration);
+
   // Read root-level data from localStorage
   const rootData = StorageService.getRootData();
+  console.log('[createSchemaJsonFromLocalStorage] - rootData:', rootData);
+  
   const {
     systemName = 'Design System',
     systemId = 'design-system',

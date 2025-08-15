@@ -382,105 +382,29 @@ export class FigmaIdManager {
    * Get the Figma ID for an item, using tempToRealId mapping if available
    * For initial modes, uses fallback mapping from GET response if primary mapping is not available
    */
-  getFigmaId(itemId: string): string {
-    const mappedId = this.tempToRealIdMap.get(itemId);
-    
-    // If we have a mapping, use the mapped Figma ID
-    if (mappedId) {
-      console.log(`[FigmaIdManager] getFigmaId(${itemId}):`, {
-        hasMapping: true,
-        mappedId: mappedId,
-        result: mappedId,
-        tempToRealIdMapSize: this.tempToRealIdMap.size,
-        tempToRealIdMapKeys: Array.from(this.tempToRealIdMap.keys()).slice(0, 10)
-      });
-      return mappedId;
+  getFigmaId(sourceId: string): string {
+    // Step 9: Direct mapping lookup
+    if (this.tempToRealIdMap.has(sourceId)) {
+      const figmaId = this.tempToRealIdMap.get(sourceId)!;
+      console.log(`[FigmaIdManager] Found mapping: ${sourceId} -> ${figmaId}`);
+      return figmaId;
     }
     
-    // Special handling for initial modes: check fallback mapping
-    if (itemId.startsWith('mode-tokenCollection-')) {
-      // Extract collection ID from the mode ID
-      const collectionId = itemId.replace('mode-tokenCollection-', '');
-      let fallbackInitialModeId = this.initialModeIds.get(collectionId);
-      
-      console.log(`[FigmaIdManager] 🔍 FALLBACK DEBUG for ${itemId}:`, {
-        extractedCollectionId: collectionId,
-        directFallback: fallbackInitialModeId,
-        initialModeIdsMapSize: this.initialModeIds.size,
-        initialModeIdsMapKeys: Array.from(this.initialModeIds.keys()),
-        initialModeIdsMapValues: Array.from(this.initialModeIds.values())
-      });
-      
-      // If not found with deterministic ID, try with the original collection ID
-      if (!fallbackInitialModeId && this.isDeterministicId(collectionId)) {
-        // Try to find the original collection ID that maps to this deterministic ID
-        for (const [originalId, figmaId] of this.tempToRealIdMap.entries()) {
-          if (figmaId === collectionId || this.generateDeterministicId(originalId, 'collection') === collectionId) {
-            fallbackInitialModeId = this.initialModeIds.get(originalId);
-            if (fallbackInitialModeId) {
-              console.log(`[FigmaIdManager] Found fallback via original collection ID: ${originalId} -> ${fallbackInitialModeId}`);
-              break;
-            }
-          }
-        }
-      }
-      
-      if (fallbackInitialModeId) {
-        console.log(`[FigmaIdManager] getFigmaId(${itemId}):`, {
-          hasMapping: false,
-          hasFallback: true,
-          fallbackInitialModeId: fallbackInitialModeId,
-          result: fallbackInitialModeId,
-          tempToRealIdMapSize: this.tempToRealIdMap.size,
-          tempToRealIdMapKeys: Array.from(this.tempToRealIdMap.keys()).slice(0, 10)
-        });
-        return fallbackInitialModeId;
-      }
-    }
-
-    // Check if this is a canonical ID that should be mapped to an existing Figma ID
-    // This handles the case where we have existing Figma data but the tempToRealId mapping
-    // might be incomplete or the item exists in Figma but not in our mapping
-    if (this.isUuid(itemId)) {
-      // For UUIDs (canonical IDs), check if there's an existing Figma ID that matches
-      // This is important for modes, variables, and collections that already exist in Figma
-      
-      // Check if this ID exists in the current Figma data
-      if (this.existingFigmaIds.has(itemId)) {
-        console.log(`[FigmaIdManager] getFigmaId(${itemId}):`, {
-          hasMapping: false,
-          existsInFigma: true,
-          result: itemId,
-          tempToRealIdMapSize: this.tempToRealIdMap.size,
-          tempToRealIdMapKeys: Array.from(this.tempToRealIdMap.keys()).slice(0, 10)
-        });
-        return itemId;
-      }
-      
-      // For modes, check if we can find a matching mode by name in existing collections
-      if (this.determineIdType(itemId) === 'mode') {
-        // Try to find the mode in existing collections by looking up the canonical mode
-        // This requires access to the token system to get mode names, but we can't access it here
-        // Instead, we'll rely on the tempToRealId mapping being properly populated
-        console.log(`[FigmaIdManager] getFigmaId(${itemId}): Mode ID not found in mapping, will generate deterministic ID`);
-      }
-    }
-    
-    // If no mapping and not an existing Figma ID, convert to deterministic ID to ensure consistency
-    const deterministicId = this.generateDeterministicId(itemId, this.determineIdType(itemId));
-    
-    console.log(`[FigmaIdManager] getFigmaId(${itemId}):`, {
-      hasMapping: false,
-      hasFallback: false,
-      mappedId: undefined,
-      originalId: itemId,
-      deterministicId: deterministicId,
-      result: deterministicId,
-      tempToRealIdMapSize: this.tempToRealIdMap.size,
-      tempToRealIdMapKeys: Array.from(this.tempToRealIdMap.keys()).slice(0, 10)
-    });
-    
+    // Fallback to deterministic ID
+    const deterministicId = this.generateDeterministicId(sourceId, this.determineIdType(sourceId));
+    console.log(`[FigmaIdManager] No mapping found, using deterministic ID: ${deterministicId}`);
     return deterministicId;
+  }
+
+  /**
+   * Determine the action (CREATE/UPDATE) for an item
+   */
+  determineAction(sourceId: string): 'CREATE' | 'UPDATE' {
+    // Step 10: Simple mapping check
+    const hasMapping = this.tempToRealIdMap.has(sourceId);
+    const action = hasMapping ? 'UPDATE' : 'CREATE';
+    console.log(`[FigmaIdManager] Action for ${sourceId}: ${action} (has mapping: ${hasMapping})`);
+    return action;
   }
 
   /**
@@ -547,17 +471,6 @@ export class FigmaIdManager {
   }
 
   /**
-   * Check if an ID is a Figma ID pattern (e.g., "250:13", "VariableCollectionId:250:8")
-   */
-  isFigmaId(id: string): boolean {
-    // Figma ID patterns:
-    // - Simple: "250:13" (number:number)
-    // - With prefix: "VariableCollectionId:250:8" (prefix:number:number)
-    const figmaIdPattern = /^([A-Za-z]+:)?\d+:\d+$/;
-    return figmaIdPattern.test(id);
-  }
-
-  /**
    * Create a deterministic ID from a UUID
    */
   private createDeterministicId(uuid: string, type: 'collection' | 'mode' | 'variable'): string {
@@ -591,27 +504,6 @@ export class FigmaIdManager {
   }
 
   /**
-   * Check if an item exists in Figma by ID
-   * This checks both the current Figma file data AND the tempToRealId mapping
-   */
-  itemExists(itemId: string): boolean {
-    // First check if we have a mapping for this item (meaning it was created in a previous publish)
-    const figmaId = this.getFigmaId(itemId);
-    
-    // If the figmaId is different from the itemId, it means we have a mapping
-    // This indicates the item was created in a previous publish
-    if (figmaId !== itemId) {
-      console.log(`[FigmaIdManager] Item ${itemId} exists via mapping: ${figmaId}`);
-      return true;
-    }
-    
-    // Otherwise, check if it exists in the current Figma file data
-    const existsInCurrentData = this.existingFigmaIds.has(figmaId);
-    console.log(`[FigmaIdManager] Item ${itemId} exists in current data: ${existsInCurrentData}`);
-    return existsInCurrentData;
-  }
-
-  /**
    * Find existing variable by name
    */
   findVariableByName(name: string): string | undefined {
@@ -623,48 +515,6 @@ export class FigmaIdManager {
    */
   findCollectionByName(name: string): string | undefined {
     return this.existingCollectionNames.get(name);
-  }
-
-  /**
-   * Get or create Figma ID for a variable, checking by name first
-   * This is used for intermediary variables in daisy-chaining to prevent naming collisions
-   */
-  getOrCreateVariableId(tempId: string, name: string): string {
-    // First check if we have a mapping for this temp ID
-    const existingMapping = this.tempToRealIdMap.get(tempId);
-    if (existingMapping) {
-      return existingMapping;
-    }
-
-    // Then check if there's an existing variable with this name
-    const existingVariableId = this.findVariableByName(name);
-    if (existingVariableId) {
-      // Add this mapping to our tempToRealId map
-      this.tempToRealIdMap.set(tempId, existingVariableId);
-      console.log(`[FigmaIdManager] Mapped temp ID ${tempId} to existing variable ${existingVariableId} by name "${name}"`);
-      return existingVariableId;
-    }
-
-    // Return the temp ID for new variables
-    return tempId;
-  }
-
-  /**
-   * Determine the action (CREATE/UPDATE) for an item
-   */
-  determineAction(itemId: string): 'CREATE' | 'UPDATE' {
-    console.log(`[FigmaIdManager] 🔍 DETERMINING ACTION for itemId: ${itemId}`);
-    
-    const figmaId = this.getFigmaId(itemId);
-    console.log(`[FigmaIdManager] getFigmaId(${itemId}) returned: ${figmaId}`);
-    
-    const exists = this.itemExists(itemId);
-    console.log(`[FigmaIdManager] itemExists(${itemId}) returned: ${exists}`);
-    
-    const action = exists ? 'UPDATE' : 'CREATE';
-    console.log(`[FigmaIdManager] ✅ FINAL ACTION for ${itemId}: ${action}`);
-    
-    return action;
   }
 
   /**

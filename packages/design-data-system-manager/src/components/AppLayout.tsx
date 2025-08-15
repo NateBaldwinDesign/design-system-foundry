@@ -16,9 +16,6 @@ interface DataSourceOption {
 }
 
 interface AppLayoutProps {
-  dataSource: string;
-  setDataSource: (source: string) => void;
-  dataOptions: DataSourceOption[];
   onResetData: () => void;
   onExportData: () => void;
   isGitHubConnected?: boolean;
@@ -43,8 +40,6 @@ interface AppLayoutProps {
     path: string;
     branch: string;
   } | null;
-  // GitHub permissions
-  hasEditPermissions?: boolean;
   // Data source context props
   dataSourceContext?: DataSourceContext;
   onPlatformChange?: (platformId: string | null) => void;
@@ -71,15 +66,14 @@ interface AppLayoutProps {
     overrideType: 'platform' | 'theme';
     overrideSource: string;
   }>;
+  // NEW: Unified edit permissions function
+  hasEditPermissions?: () => boolean;
 }
 
 // Custom event for data changes
 const DATA_CHANGE_EVENT = 'token-model:data-change';
 
 export const AppLayout: React.FC<AppLayoutProps> = ({
-  dataSource,
-  setDataSource,
-  dataOptions,
   onResetData,
   onExportData,
   isGitHubConnected = false,
@@ -95,8 +89,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
   // URL-based access props
   isViewOnlyMode = false,
   urlRepoInfo = null,
-  // GitHub permissions
-  hasEditPermissions = false,
   // Data source context props
   dataSourceContext,
   onPlatformChange,
@@ -338,7 +330,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           onRefreshData={onRefreshData}
           isURLBasedAccess={isViewOnlyMode}
           urlRepoInfo={urlRepoInfo}
-          hasEditPermissions={hasEditPermissions}
           dataSourceContext={dataSourceContext}
           onPlatformChange={onPlatformChange}
           onThemeChange={onThemeChange}

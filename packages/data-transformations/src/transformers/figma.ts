@@ -194,7 +194,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
     stats.collectionsUpdated += modelessCollections.filter(c => c.action === 'UPDATE').length;
 
     // Step 4c-e: Transform tokens with daisy-chaining
-    const { variables, modeValues } = this.transformTokensWithDaisyChaining(input);
+    const { variables, modeValues } = this.transformTokensWithDaisyChaining(input, input.figmaConfiguration?.fileColorProfile || 'srgb');
     allVariables.push(...variables);
     allModeValues.push(...modeValues);
     stats.created += variables.filter(v => v.action === 'CREATE').length;
@@ -308,14 +308,20 @@ export class FigmaTransformer extends AbstractBaseTransformer<
    * Steps 4c-e of the intended workflow
    */
   private transformTokensWithDaisyChaining(
-    tokenSystem: TokenSystem
+    tokenSystem: TokenSystem,
+    fileColorProfile: 'srgb' | 'display-p3' = 'srgb'
   ): { variables: FigmaVariable[], modeValues: FigmaVariableModeValue[] } {
     const variables: FigmaVariable[] = [];
     const modeValues: FigmaVariableModeValue[] = [];
 
     // Validate dimensionOrder exists
+    console.log('[FigmaTransformer] 🔍 DEEP DEBUG: Checking dimensionOrder for daisy-chaining');
+    console.log('[FigmaTransformer] 🔍 DEEP DEBUG: dimensionOrder:', tokenSystem.dimensionOrder);
+    console.log('[FigmaTransformer] 🔍 DEEP DEBUG: dimensions:', tokenSystem.dimensions?.map(d => ({ id: d.id, displayName: d.displayName })));
+    
     if (!tokenSystem.dimensionOrder || tokenSystem.dimensionOrder.length === 0) {
       console.warn('[FigmaTransformer] No dimensionOrder specified, falling back to simple variable creation');
+      console.warn('[FigmaTransformer] This will prevent daisy-chaining from working properly!');
       return this.createSimpleVariables(tokenSystem);
     }
 
@@ -346,7 +352,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
         // Use daisy-chaining for tokens with dimension dependencies
         console.log(`[FigmaTransformer] Using daisy-chaining for token ${token.id} with ${usedDimensions.length} dimension dependencies`);
         const { variables: tokenVariables, modeValues: tokenModeValues } = 
-          this.daisyChainService.transformTokenWithDaisyChaining(token, tokenSystem, figmaCodeSyntax);
+          this.daisyChainService.transformTokenWithDaisyChaining(token, tokenSystem, figmaCodeSyntax, fileColorProfile);
         variables.push(...tokenVariables);
         modeValues.push(...tokenModeValues);
       } else {
@@ -366,6 +372,7 @@ export class FigmaTransformer extends AbstractBaseTransformer<
       }
     }
 
+    console.log(`[FigmaTransformer] Daisy-chaining transformation complete: ${variables.length} variables, ${modeValues.length} mode values`);
     return { variables, modeValues };
   }
 

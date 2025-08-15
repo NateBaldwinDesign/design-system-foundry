@@ -14,7 +14,8 @@ export class FigmaValueConverter {
   convertValue(
     value: unknown, 
     resolvedValueTypeId: string, 
-    tokenSystem: TokenSystem
+    tokenSystem: TokenSystem,
+    fileColorProfile: 'srgb' | 'display-p3' = 'srgb'
   ): FigmaVariableValue {
     const figmaType = this.mapToFigmaVariableType(resolvedValueTypeId, tokenSystem);
     
@@ -22,7 +23,8 @@ export class FigmaValueConverter {
       value,
       resolvedValueTypeId,
       figmaType,
-      valueType: typeof value
+      valueType: typeof value,
+      fileColorProfile
     });
 
     // Handle alias values directly
@@ -33,7 +35,7 @@ export class FigmaValueConverter {
     // Convert based on Figma type
     switch (figmaType) {
       case 'COLOR':
-        return this.convertToFigmaColor(value);
+        return this.convertToFigmaColor(value, fileColorProfile);
       case 'FLOAT':
         return this.convertToFigmaFloat(value);
       case 'BOOLEAN':
@@ -109,19 +111,18 @@ export class FigmaValueConverter {
    * Returns RGB object with optional alpha: { r: number, g: number, b: number, a?: number }
    * Figma expects linear RGB values in 0-1 range
    */
-  private convertToFigmaColor(value: unknown): { r: number; g: number; b: number; a?: number } {
+  convertToFigmaColor(value: unknown, fileColorProfile: 'srgb' | 'display-p3' = 'srgb'): { r: number; g: number; b: number; a?: number } {
     try {
       if (typeof value === 'string') {
-        return this.convertStringToFigmaColor(value);
+        return this.convertStringToFigmaColor(value, fileColorProfile);
       }
-
       if (typeof value === 'object' && value !== null) {
-        return this.convertObjectToFigmaColor(value);
+        return this.convertObjectToFigmaColor(value, fileColorProfile);
       }
-
       console.warn(`[FigmaValueConverter] Unsupported color value type:`, value);
       return { r: 0, g: 0, b: 0 };
-    } catch (error) {
+    }
+    catch (error) {
       console.error(`[FigmaValueConverter] Color conversion error:`, error);
       return { r: 0, g: 0, b: 0 };
     }
@@ -130,101 +131,142 @@ export class FigmaValueConverter {
   /**
    * Convert string value to Figma color
    */
-  private convertStringToFigmaColor(value: string): { r: number; g: number; b: number; a?: number } {
-    // Handle hex colors
-    if (isHexColor(value)) {
-      const color = new Color(value);
-      const rgb = color.to('srgb');
-      
-      const result: { r: number; g: number; b: number; a?: number } = {
-        r: rgb.coords[0],
-        g: rgb.coords[1],
-        b: rgb.coords[2]
-      };
-
-      if (rgb.alpha !== undefined && rgb.alpha !== 1) {
-        result.a = rgb.alpha;
-      }
-
-      return result;
-    }
-
-    // Handle other color formats
-    const color = new Color(value);
-    const rgb = color.to('srgb');
+  private convertStringToFigmaColor(value: string, fileColorProfile: 'srgb' | 'display-p3' = 'srgb'): { r: number; g: number; b: number; a?: number } {
+    console.log(`[FigmaValueConverter] Converting color string: "${value}" with profile: ${fileColorProfile}`);
     
-    const result: { r: number; g: number; b: number; a?: number } = {
-      r: rgb.coords[0],
-      g: rgb.coords[1],
-      b: rgb.coords[2]
-    };
-
-    if (rgb.alpha !== undefined && rgb.alpha !== 1) {
-      result.a = rgb.alpha;
+    try {
+      // Step 1: Create Color object from original color data
+      const color = new Color(value);
+      console.log(`[FigmaValueConverter] Created color object:`, color);
+      
+      // Step 2: Convert to target file profile
+      let targetColor;
+      if (fileColorProfile === 'srgb') {
+        // Convert to sRGB and constrain to gamut
+        targetColor = color.toGamut('srgb').to('srgb');
+        console.log(`[FigmaValueConverter] Converted to sRGB:`, targetColor.coords);
+      } else if (fileColorProfile === 'display-p3') {
+        // Convert to Display-P3
+        targetColor = color.to('p3');
+        console.log(`[FigmaValueConverter] Converted to Display-P3:`, targetColor.coords);
+      } else {
+        // Fallback to sRGB
+        targetColor = color.toGamut('srgb').to('srgb');
+        console.log(`[FigmaValueConverter] Fallback to sRGB:`, targetColor.coords);
+      }
+      
+      // Step 3: Extract RGB values and ensure they're in 0-1 range
+      const coords = targetColor.coords;
+      const result: { r: number; g: number; b: number; a?: number } = {
+        r: Math.max(0, Math.min(1, coords[0])),
+        g: Math.max(0, Math.min(1, coords[1])),
+        b: Math.max(0, Math.min(1, coords[2]))
+      };
+      
+      // Step 4: Add alpha if present
+      if (targetColor.alpha !== 1) {
+        result.a = targetColor.alpha;
+      }
+      
+      console.log(`[FigmaValueConverter] Final RGB result:`, result);
+      return result;
+      
+    } catch (error) {
+      console.error(`[FigmaValueConverter] Error converting color string "${value}":`, error);
+      return { r: 0, g: 0, b: 0 };
     }
-
-    return result;
   }
 
   /**
    * Convert object value to Figma color
    */
-  private convertObjectToFigmaColor(colorObj: any): { r: number; g: number; b: number; a?: number } {
-    // If it's already an RGB object, convert from 0-255 to 0-1 range if needed
-    if (colorObj.r !== undefined && colorObj.g !== undefined && colorObj.b !== undefined) {
-      const maxValue = Math.max(colorObj.r, colorObj.g, colorObj.b);
-      const is255Range = maxValue > 1;
-      
-      const result: { r: number; g: number; b: number; a?: number } = {
-        r: is255Range ? colorObj.r / 255 : colorObj.r,
-        g: is255Range ? colorObj.g / 255 : colorObj.g,
-        b: is255Range ? colorObj.b / 255 : colorObj.b
-      };
-
-      if (colorObj.a !== undefined) {
-        result.a = colorObj.a;
-      }
-
-      return result;
-    }
+  private convertObjectToFigmaColor(colorObj: any, fileColorProfile: 'srgb' | 'display-p3' = 'srgb'): { r: number; g: number; b: number; a?: number } {
+    console.log(`[FigmaValueConverter] Converting color object:`, colorObj, `with profile: ${fileColorProfile}`);
     
-    // If it has hex property, convert it
-    if (colorObj.hex) {
-      return this.convertStringToFigmaColor(colorObj.hex);
-    }
-    
-    // If it has rgb property, convert it
-    if (colorObj.rgb) {
-      const { r, g, b, a } = colorObj.rgb;
-      const maxValue = Math.max(r, g, b);
-      const is255Range = maxValue > 1;
-      
-      const result: { r: number; g: number; b: number; a?: number } = {
-        r: is255Range ? r / 255 : r,
-        g: is255Range ? g / 255 : g,
-        b: is255Range ? b / 255 : b
-      };
-
-      if (a !== undefined) {
-        result.a = a;
+    try {
+      // Handle token value format: {value: "#4C6FFE"} or {value: "color(display-p3 1 0 0)"}
+      if (colorObj.value && typeof colorObj.value === 'string') {
+        return this.convertStringToFigmaColor(colorObj.value, fileColorProfile);
       }
-
+      
+      // Handle RGB object format: {r: 255, g: 0, b: 0}
+      if (colorObj.r !== undefined && colorObj.g !== undefined && colorObj.b !== undefined) {
+        // Check if values are in 0-255 range and convert to 0-1
+        const maxValue = Math.max(colorObj.r, colorObj.g, colorObj.b);
+        const scale = maxValue > 1 ? 255 : 1;
+        
+        const result: { r: number; g: number; b: number; a?: number } = {
+          r: colorObj.r / scale,
+          g: colorObj.g / scale,
+          b: colorObj.b / scale
+        };
+        
+        if (colorObj.a !== undefined) {
+          result.a = colorObj.a;
+        }
+        
+        console.log(`[FigmaValueConverter] RGB object result:`, result);
+        return result;
+      }
+      
+      // Handle hex property: {hex: "#4C6FFE"}
+      if (colorObj.hex) {
+        return this.convertStringToFigmaColor(colorObj.hex, fileColorProfile);
+      }
+      
+      // Handle Display-P3 object format: {p3: {r: 1, g: 0, b: 0}}
+      if (colorObj.p3 && colorObj.p3.r !== undefined && colorObj.p3.g !== undefined && colorObj.p3.b !== undefined) {
+        const result: { r: number; g: number; b: number; a?: number } = {
+          r: colorObj.p3.r,
+          g: colorObj.p3.g,
+          b: colorObj.p3.b
+        };
+        
+        if (colorObj.p3.a !== undefined) {
+          result.a = colorObj.p3.a;
+        }
+        
+        console.log(`[FigmaValueConverter] P3 object result:`, result);
+        return result;
+      }
+      
+      // Fallback: try to convert the object as a color using colorjs.io
+      console.log(`[FigmaValueConverter] Attempting to convert object as color using colorjs.io`);
+      const color = new Color(colorObj);
+      
+      // Convert to target file profile
+      let targetColor;
+      if (fileColorProfile === 'srgb') {
+        // Convert to sRGB and constrain to gamut
+        targetColor = color.toGamut('srgb').to('srgb');
+      } else if (fileColorProfile === 'display-p3') {
+        // Convert to Display-P3
+        targetColor = color.to('p3');
+      } else {
+        // Fallback to sRGB
+        targetColor = color.toGamut('srgb').to('srgb');
+      }
+      
+      // Extract RGB values and ensure they're in 0-1 range
+      const coords = targetColor.coords;
+      const result: { r: number; g: number; b: number; a?: number } = {
+        r: Math.max(0, Math.min(1, coords[0])),
+        g: Math.max(0, Math.min(1, coords[1])),
+        b: Math.max(0, Math.min(1, coords[2]))
+      };
+      
+      // Add alpha if present
+      if (targetColor.alpha !== 1) {
+        result.a = targetColor.alpha;
+      }
+      
+      console.log(`[FigmaValueConverter] Colorjs.io conversion result:`, result);
       return result;
+      
+    } catch (error) {
+      console.error(`[FigmaValueConverter] Error converting color object:`, error);
+      return { r: 0, g: 0, b: 0 };
     }
-
-    // Handle token value format: {value: "#4C6FFE"}
-    if (colorObj.value && typeof colorObj.value === 'string') {
-      return this.convertStringToFigmaColor(colorObj.value);
-    }
-
-    // Handle token reference format: {tokenId: "token-id"}
-    if (colorObj.tokenId) {
-      // Return a placeholder color - the actual value will be resolved by daisy-chain logic
-      console.log(`[FigmaValueConverter] Token reference detected: ${colorObj.tokenId}, using placeholder color`);
-      return { r: 0.5, g: 0.5, b: 0.5 }; // Gray placeholder
-    }
-
-    throw new Error(`Unsupported color object format: ${JSON.stringify(colorObj)}`);
   }
 
   /**

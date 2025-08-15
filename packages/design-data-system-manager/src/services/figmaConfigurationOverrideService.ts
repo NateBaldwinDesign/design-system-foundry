@@ -4,6 +4,7 @@ export interface FigmaConfigurationOverride {
   sourceType: 'platform-extension' | 'theme-override';
   sourceId: string;
   figmaFileKey?: string;
+  fileColorProfile?: 'srgb' | 'display-p3';
   syntaxPatterns?: {
     prefix?: string;
     suffix?: string;
@@ -85,7 +86,8 @@ export class FigmaConfigurationOverrideService {
       delimiter?: string;
       capitalization?: string;
       formatString?: string;
-    }
+    },
+    fileColorProfile?: 'srgb' | 'display-p3'
   ): void {
     if (!this.currentSession) {
       console.warn('[FigmaConfigurationOverrideService] No active session for configuration tracking');
@@ -98,6 +100,7 @@ export class FigmaConfigurationOverrideService {
       sourceType,
       sourceId,
       figmaFileKey,
+      fileColorProfile,
       syntaxPatterns,
       timestamp: new Date().toISOString()
     };
@@ -166,7 +169,7 @@ export class FigmaConfigurationOverrideService {
       return null;
     }
 
-    const { sourceType, sourceId, figmaFileKey, syntaxPatterns } = stagedChanges;
+    const { sourceType, sourceId, figmaFileKey, fileColorProfile, syntaxPatterns } = stagedChanges;
 
     if (sourceType === 'platform-extension') {
       return {
@@ -174,13 +177,15 @@ export class FigmaConfigurationOverrideService {
         platformId: sourceId,
         version: '1.0.0',
         figmaFileKey,
+        fileColorProfile,
         syntaxPatterns
       };
     } else if (sourceType === 'theme-override') {
       return {
         systemId: 'design-system', // This should come from context
         themeId: sourceId,
-        figmaFileKey
+        figmaFileKey,
+        fileColorProfile
       };
     }
 

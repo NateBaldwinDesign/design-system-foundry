@@ -1,14 +1,14 @@
-import { DataLoaderService } from './dataLoaderService';
-import { DataEditorService } from './dataEditorService';
-import { DataMergerService } from './dataMergerService';
 import { StorageService } from './storage';
+import { DataEditorService } from './dataEditorService';
 import { DataSourceManager } from './dataSourceManager';
+import { DataManager } from './dataManager';
 import type { 
-  DataSourceType, 
   SourceContext, 
   SourceSwitchResult, 
+  DataSourceType,
   RepositoryInfo 
 } from '../types/dataManagement';
+import type { TokenSystem } from '@token-model/data-model';
 
 export class SourceManagerService {
   private static instance: SourceManagerService;
@@ -107,9 +107,11 @@ export class SourceManagerService {
       const dataEditorService = DataEditorService.getInstance();
       dataEditorService.resetLocalEdits();
 
-      // 6. Recompute merged data (now with correct source context)
-      const dataMerger = DataMergerService.getInstance();
-      await dataMerger.computeMergedData();
+      // 6. Trigger DataManager to update presentation data (now with correct source context)
+      const dataManager = DataManager.getInstance();
+      // The DataManager will automatically update presentation data when source context changes
+      // We just need to ensure it has the latest data
+      console.log('[SourceManagerService] Triggering DataManager presentation data update');
 
       console.log('[SourceManagerService] Source switch completed successfully');
       return {
@@ -242,15 +244,58 @@ export class SourceManagerService {
             const context = dataSourceManager.getCurrentContext();
             const themeRepo = context.repositories.themes[sourceId];
             
-            if (themeRepo) {
+            if (!themeRepo) {
+              // Theme repository not found in context, try to load directly from core data
+              console.log(`[SourceManagerService] Theme repository not found in context, loading directly from core data for: ${sourceId}`);
+              
+              const coreData = StorageService.getCoreData();
+              const theme = coreData?.themes?.find(t => t.id === sourceId);
+              
+              if (theme?.overrideSource) {
+                const { repositoryUri, filePath } = theme.overrideSource;
+                const branch = 'main'; // Default branch since overrideSource doesn't specify branch
+                console.log(`[SourceManagerService] Loading theme override directly from ${repositoryUri}/${filePath}`);
+                
+                const { GitHubApiService } = await import('./githubApi');
+                
+                // Try authenticated request first, then fallback to public API
+                let fileContent;
+                try {
+                  fileContent = await GitHubApiService.getFileContent(repositoryUri, filePath, branch);
+                } catch (error) {
+                  console.log('[SourceManagerService] Authenticated theme loading failed, trying public API');
+                  fileContent = await GitHubApiService.getPublicFileContent(repositoryUri, filePath, branch);
+                }
+                
+                if (fileContent && fileContent.content) {
+                  themeData = JSON.parse(fileContent.content);
+                  console.log('[SourceManagerService] Theme override data loaded from GitHub:', themeData);
+                  
+                  // Store the loaded data for future use
+                  StorageService.setThemeOverrideData(sourceId, themeData);
+                }
+              }
+            } else {
               console.log(`[SourceManagerService] Loading theme override from ${themeRepo.fullName}/${themeRepo.filePath}`);
               
               const { GitHubApiService } = await import('./githubApi');
-              const fileContent = await GitHubApiService.getFileContent(
-                themeRepo.fullName,
-                themeRepo.filePath,
-                themeRepo.branch
-              );
+              
+              // Try authenticated request first, then fallback to public API
+              let fileContent;
+              try {
+                fileContent = await GitHubApiService.getFileContent(
+                  themeRepo.fullName,
+                  themeRepo.filePath,
+                  themeRepo.branch
+                );
+              } catch (error) {
+                console.log('[SourceManagerService] Authenticated theme loading failed, trying public API');
+                fileContent = await GitHubApiService.getPublicFileContent(
+                  themeRepo.fullName,
+                  themeRepo.filePath,
+                  themeRepo.branch
+                );
+              }
               
               if (fileContent && fileContent.content) {
                 themeData = JSON.parse(fileContent.content);
@@ -295,10 +340,59 @@ export class SourceManagerService {
       return null;
     }
 
+    // Get core data to find platform/theme extension repositories
+    const coreData = StorageService.getCoreData();
+    
+    // Determine the source repository based on the source type
+    let sourceRepository: {
+      fullName: string;
+      branch: string;
+      filePath: string;
+      fileType: 'schema' | 'platform-extension' | 'theme-override';
+    };
+
+    if (sourceType === 'platform' && sourceId) {
+      // Platform extension - get repository from core data's platforms array
+      const platform = coreData?.platforms?.find(p => p.id === sourceId);
+      if (platform?.extensionSource) {
+        sourceRepository = {
+          fullName: platform.extensionSource.repositoryUri,
+          branch: 'main', // Default to main branch for platform extensions
+          filePath: platform.extensionSource.filePath,
+          fileType: 'platform-extension'
+        };
+        console.log(`[SourceManagerService] Platform extension repository: ${platform.extensionSource.repositoryUri}/${platform.extensionSource.filePath}`);
+      } else {
+        console.warn(`[SourceManagerService] Platform ${sourceId} not found in core data or missing extensionSource`);
+        // Fallback to existing source repository
+        sourceRepository = currentContext.sourceRepository;
+      }
+    } else if (sourceType === 'theme' && sourceId) {
+      // Theme override - get repository from core data's themes array
+      const theme = coreData?.themes?.find(t => t.id === sourceId);
+      if (theme?.overrideSource) {
+        sourceRepository = {
+          fullName: theme.overrideSource.repositoryUri,
+          branch: 'main', // Default to main branch for theme overrides
+          filePath: theme.overrideSource.filePath,
+          fileType: 'theme-override'
+        };
+        console.log(`[SourceManagerService] Theme override repository: ${theme.overrideSource.repositoryUri}/${theme.overrideSource.filePath}`);
+      } else {
+        console.warn(`[SourceManagerService] Theme ${sourceId} not found in core data or missing overrideSource`);
+        // Fallback to existing source repository
+        sourceRepository = currentContext.sourceRepository;
+      }
+    } else {
+      // Core data - use the core repository
+      sourceRepository = currentContext.coreRepository;
+    }
+
     const newContext: SourceContext = {
       ...currentContext,
       sourceType,
       sourceId: sourceId || null,
+      sourceRepository,
       lastLoadedAt: new Date().toISOString(),
       hasLocalChanges: false,
       editMode: {
@@ -310,6 +404,7 @@ export class SourceManagerService {
     };
 
     StorageService.setSourceContext(newContext);
+    console.log('[SourceManagerService] Source context updated with proper repository mapping');
     return newContext;
   }
 

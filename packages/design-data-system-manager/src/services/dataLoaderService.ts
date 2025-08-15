@@ -1,18 +1,13 @@
-import { GitHubApiService } from './githubApi';
 import { StorageService } from './storage';
-import type { 
-  TokenSystem, 
-  PlatformExtension, 
-  ThemeOverrideFile 
-} from '@token-model/data-model';
+import { GitHubAuthService } from './githubAuth';
+import { GitHubApiService } from './githubApi';
+import type { TokenSystem, PlatformExtension, ThemeOverrideFile } from '@token-model/data-model';
 import type { 
   DataSourceType, 
-  RepositoryInfo, 
   SourceContext, 
   DataLoadResult, 
   DataValidationResult 
 } from '../types/dataManagement';
-import { GitHubAuthService } from './githubAuth';
 
 export class DataLoaderService {
   private static instance: DataLoaderService;
@@ -34,11 +29,7 @@ export class DataLoaderService {
       console.log('[DataLoaderService] Starting data loading from URL parameters');
       
       // Step 1: Load core data
-      const coreResult = await this.loadCoreData(
-        urlParams.get('repo'), 
-        urlParams.get('path'), 
-        urlParams.get('branch') || 'main'
-      );
+      const coreResult = await this.loadCoreData(urlParams);
       
       if (!coreResult.success) {
         return coreResult;
@@ -77,42 +68,50 @@ export class DataLoaderService {
   }
 
 /**
- * Step 1: Load core data from GitHub (with public repository fallback)
+ * Step 1: Load core data from GitHub
  */
-private async loadCoreData(
-  repo: string | null, 
-  path: string | null, 
-  branch: string
-): Promise<DataLoadResult> {
+private async loadCoreData(urlParams: URLSearchParams): Promise<DataLoadResult> {
+  const repo = urlParams.get('repo');
+  const path = urlParams.get('path');
+  
+  // ENHANCED: Core data should always be loaded from main branch (or default)
+  // The branch parameter in URL is for platform/theme repositories, not core repository
+  const branch = 'main';
+
   if (!repo || !path) {
     return {
       success: false,
-      error: 'Repository and path parameters are required'
+      error: 'Repository and path are required for loading core data'
     };
   }
 
   try {
-    console.log(`[DataLoaderService] Loading core data from ${repo}/${path} on branch ${branch}`);
-    
-    let fileContent;
-    
-    // Try authenticated access first (if user is signed in)
-    try {
-      if (GitHubAuthService.isAuthenticated()) {
-        console.log('[DataLoaderService] User is authenticated, trying authenticated access');
-        fileContent = await GitHubApiService.getFileContent(repo, path, branch);
-      } else {
-        throw new Error('User not authenticated, trying public access');
+    console.log(`[DataLoaderService] Loading core data from ${repo}/${path} on branch ${branch} (branch parameter ignored for core data)`);
+
+    // Check if user is authenticated
+    const isAuthenticated = GitHubAuthService.isAuthenticated();
+    console.log(`[DataLoaderService] User is authenticated: ${isAuthenticated}`);
+
+    let data: string;
+    if (isAuthenticated) {
+      console.log('[DataLoaderService] User is authenticated, trying authenticated access');
+      // Use authenticated GitHub API
+      const fileContent = await GitHubApiService.getFileContent(repo, path, branch);
+      data = fileContent.content;
+    } else {
+      console.log('[DataLoaderService] User not authenticated, trying public access');
+      // Try public access
+      const response = await fetch(`https://raw.githubusercontent.com/${repo}/${branch}/${path}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
       }
-    } catch (authError) {
-      // If authenticated access fails or user isn't authenticated, try public access
-      console.log('[DataLoaderService] Authenticated access failed, trying public access:', authError);
-      fileContent = await GitHubApiService.getPublicFileContent(repo, path, branch);
+      data = await response.text();
     }
-    
-    const parsedData = JSON.parse(fileContent.content);
-    
-    // Validate the data structure
+
+    // Parse the JSON data
+    const parsedData = JSON.parse(data);
+
+    // Validate the data against the schema
     const validation = this.validateData(parsedData, 'schema');
     if (!validation.isValid) {
       return {
@@ -120,6 +119,20 @@ private async loadCoreData(
         error: `Invalid core data structure: ${validation.errors.join(', ')}`,
         validationResult: validation
       };
+    }
+
+    // CRITICAL FIX: Ensure dimensionOrder is present for Figma daisy-chaining
+    if (!parsedData.dimensionOrder || !Array.isArray(parsedData.dimensionOrder)) {
+      console.warn('[DataLoaderService] Core data missing dimensionOrder, reconstructing from dimensions');
+      if (parsedData.dimensions && Array.isArray(parsedData.dimensions)) {
+        parsedData.dimensionOrder = parsedData.dimensions.map((dim: { id: string }) => dim.id);
+        console.log('[DataLoaderService] Reconstructed dimensionOrder:', parsedData.dimensionOrder);
+      } else {
+        console.error('[DataLoaderService] Cannot reconstruct dimensionOrder - no dimensions available');
+        parsedData.dimensionOrder = [];
+      }
+    } else {
+      console.log('[DataLoaderService] Core data has valid dimensionOrder:', parsedData.dimensionOrder);
     }
 
     // Store core data
@@ -171,7 +184,7 @@ private async loadCoreData(
           };
         }
 
-        return await this.loadPlatformData(platformId, coreData);
+        return await this.loadPlatformData(platformId, coreData, urlParams);
       }
 
       if (sourceType === 'theme') {
@@ -183,7 +196,7 @@ private async loadCoreData(
           };
         }
 
-        return await this.loadThemeData(themeId, coreData);
+        return await this.loadThemeData(themeId, coreData, urlParams);
       }
 
       return {
@@ -203,7 +216,7 @@ private async loadCoreData(
 /**
  * Load platform extension data (with public repository fallback)
  */
-private async loadPlatformData(platformId: string, coreData: TokenSystem): Promise<DataLoadResult> {
+private async loadPlatformData(platformId: string, coreData: TokenSystem, urlParams: URLSearchParams): Promise<DataLoadResult> {
   const platform = coreData.platforms?.find(p => p.id === platformId);
   if (!platform) {
     return {
@@ -220,11 +233,13 @@ private async loadPlatformData(platformId: string, coreData: TokenSystem): Promi
   }
 
   try {
-    const { repositoryUri, filePath, branch = 'main' } = platform.extensionSource;
+    const { repositoryUri, filePath } = platform.extensionSource;
+    // ENHANCED: Use branch from URL parameters if available, otherwise default to main
+    const branch = urlParams.get('branch') || 'main';
     const [owner, repo] = repositoryUri.split('/');
     const fullRepoName = `${owner}/${repo}`;
 
-    console.log(`[DataLoaderService] Loading platform data from ${fullRepoName}/${filePath}`);
+    console.log(`[DataLoaderService] Loading platform data from ${fullRepoName}/${filePath} on branch ${branch}`);
     
     let fileContent;
     
@@ -275,7 +290,7 @@ private async loadPlatformData(platformId: string, coreData: TokenSystem): Promi
 /**
  * Load theme override data (with public repository fallback)
  */
-private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<DataLoadResult> {
+private async loadThemeData(themeId: string, coreData: TokenSystem, urlParams: URLSearchParams): Promise<DataLoadResult> {
   const theme = coreData.themes?.find(t => t.id === themeId);
   if (!theme) {
     return {
@@ -292,11 +307,13 @@ private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<Dat
   }
 
   try {
-    const { repositoryUri, filePath, branch = 'main' } = theme.overrideSource;
+    const { repositoryUri, filePath } = theme.overrideSource;
+    // ENHANCED: Use branch from URL parameters if available, otherwise default to main
+    const branch = urlParams.get('branch') || 'main';
     const [owner, repo] = repositoryUri.split('/');
     const fullRepoName = `${owner}/${repo}`;
 
-    console.log(`[DataLoaderService] Loading theme data from ${fullRepoName}/${filePath}`);
+    console.log(`[DataLoaderService] Loading theme data from ${fullRepoName}/${filePath} on branch ${branch}`);
     
     let fileContent;
     
@@ -405,6 +422,69 @@ private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<Dat
       return;
     }
 
+    // Get core data to find platform/theme extension repositories
+    const coreData = StorageService.getCoreData();
+    
+    // Determine the source repository based on the source type
+    let sourceRepository: {
+      fullName: string;
+      branch: string;
+      filePath: string;
+      fileType: 'schema' | 'platform-extension' | 'theme-override';
+    };
+
+    if (sourceType === 'platform' && platformId) {
+      // Platform extension - get repository from core data's platforms array
+      const platform = coreData?.platforms?.find(p => p.id === platformId);
+      if (platform?.extensionSource) {
+        sourceRepository = {
+          fullName: platform.extensionSource.repositoryUri,
+          branch: 'main', // Default to main branch for platform extensions
+          filePath: platform.extensionSource.filePath,
+          fileType: 'platform-extension'
+        };
+        console.log(`[DataLoaderService] Platform extension repository: ${platform.extensionSource.repositoryUri}/${platform.extensionSource.filePath}`);
+      } else {
+        console.warn(`[DataLoaderService] Platform ${platformId} not found in core data or missing extensionSource`);
+        // Fallback to core repository
+        sourceRepository = {
+          fullName: repo,
+          branch,
+          filePath: path,
+          fileType: 'platform-extension'
+        };
+      }
+    } else if (sourceType === 'theme' && themeId) {
+      // Theme override - get repository from core data's themes array
+      const theme = coreData?.themes?.find(t => t.id === themeId);
+      if (theme?.overrideSource) {
+        sourceRepository = {
+          fullName: theme.overrideSource.repositoryUri,
+          branch: 'main', // Default to main branch for theme overrides
+          filePath: theme.overrideSource.filePath,
+          fileType: 'theme-override'
+        };
+        console.log(`[DataLoaderService] Theme override repository: ${theme.overrideSource.repositoryUri}/${theme.overrideSource.filePath}`);
+      } else {
+        console.warn(`[DataLoaderService] Theme ${themeId} not found in core data or missing overrideSource`);
+        // Fallback to core repository
+        sourceRepository = {
+          fullName: repo,
+          branch,
+          filePath: path,
+          fileType: 'theme-override'
+        };
+      }
+    } else {
+      // Core data - use the same repository
+      sourceRepository = {
+        fullName: repo,
+        branch,
+        filePath: path,
+        fileType: 'schema'
+      };
+    }
+
     const sourceContext: SourceContext = {
       sourceType,
       sourceId: platformId || themeId || null,
@@ -414,12 +494,7 @@ private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<Dat
         filePath: path,
         fileType: 'schema'
       },
-      sourceRepository: {
-        fullName: repo,
-        branch,
-        filePath: path,
-        fileType: sourceType === 'platform' ? 'platform-extension' : sourceType === 'theme' ? 'theme-override' : 'schema'
-      },
+      sourceRepository,
       lastLoadedAt: new Date().toISOString(),
       hasLocalChanges: false,
       editMode: {
@@ -431,7 +506,7 @@ private async loadThemeData(themeId: string, coreData: TokenSystem): Promise<Dat
     };
 
     StorageService.setSourceContext(sourceContext);
-    console.log('[DataLoaderService] Source context updated');
+    console.log('[DataLoaderService] Source context updated with proper repository mapping');
   }
 
   /**

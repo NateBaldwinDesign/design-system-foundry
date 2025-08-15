@@ -8,6 +8,7 @@ import { StatePersistenceManager, type RepositoryContext } from './statePersiste
 import { OverrideTrackingService } from './overrideTrackingService';
 import type { DataSourceContext } from './dataSourceManager';
 
+
 export interface RefreshOptions {
   preserveRepositoryContext?: boolean;
   preserveBranchCache?: boolean;
@@ -31,8 +32,8 @@ export class RefreshManager {
   /**
    * Refresh data with context-aware options
    */
-  static async refreshWithContext(options: RefreshOptions = {}): Promise<void> {
-    console.log('[RefreshManager] Starting refresh with options:', options);
+  static async refreshWithContext(options: RefreshOptions = {}, repositoryContext?: RepositoryContext): Promise<void> {
+    console.log('[RefreshManager] Starting refresh with options:', options, 'repositoryContext:', repositoryContext);
     
     try {
       // 1. Save current state before refresh
@@ -43,8 +44,8 @@ export class RefreshManager {
       
       console.log('[RefreshManager] Current repository context:', currentState.currentRepository);
       
-      // 2. Determine target repository based on current context
-      let targetRepository = currentState.currentRepository;
+      // 2. Determine target repository based on provided context or current context
+      let targetRepository = repositoryContext || currentState.currentRepository;
       if (!targetRepository) {
         targetRepository = this.getTargetRepositoryFromContext(currentContext);
       }
@@ -125,22 +126,57 @@ export class RefreshManager {
   private static async refreshDataFromRepository(repository: RepositoryContext): Promise<void> {
     console.log('[RefreshManager] Refreshing data from repository:', repository);
     
-    // Load updated data from the target repository
-    const fileContent = await GitHubApiService.getFileContent(
-      repository.fullName,
-      repository.filePath,
-      repository.branch
-    );
+    // Try to get access token for authenticated requests
+    let fileContent;
+    let isNewBranch = false;
     
-    if (!fileContent || !fileContent.content) {
-      throw new Error('Failed to load file content from GitHub');
+    try {
+      // Try authenticated request first
+      fileContent = await GitHubApiService.getFileContent(
+        repository.fullName,
+        repository.filePath,
+        repository.branch
+      );
+    } catch (error) {
+      // If authenticated request fails, try public request
+      console.log('[RefreshManager] Authenticated file refresh failed, trying public API');
+      try {
+        fileContent = await GitHubApiService.getPublicFileContent(
+          repository.fullName,
+          repository.filePath,
+          repository.branch
+        );
+      } catch (publicError) {
+        // If both authenticated and public requests fail, this might be a new branch
+        console.log('[RefreshManager] Both authenticated and public requests failed, checking if this is a new branch');
+        
+        // Check if this is a 404 error (file not found) - check both error messages
+        const is404Error = (error instanceof Error && error.message.includes('404')) ||
+                          (publicError instanceof Error && (publicError.message.includes('404') || publicError.message.includes('File not found')));
+        
+        if (is404Error) {
+          isNewBranch = true;
+          console.log('[RefreshManager] Detected new branch, will create initial file content');
+        } else {
+          // Re-throw the error if it's not a 404
+          throw publicError;
+        }
+      }
     }
     
-    const parsedData = JSON.parse(fileContent.content);
-    
-    // Load the updated data via DataManager with correct file type
-    const dataManager = DataManager.getInstance();
-    await dataManager.loadFromGitHub(parsedData, repository.fileType);
+    if (isNewBranch) {
+      // Handle new branch case - create initial file content
+      await this.initializeNewBranch(repository);
+    } else if (!fileContent || !fileContent.content) {
+      throw new Error('Failed to load file content from GitHub');
+    } else {
+      // Normal case - load existing file content
+      const parsedData = JSON.parse(fileContent.content);
+      
+      // Load the updated data via DataManager with correct file type
+      const dataManager = DataManager.getInstance();
+      await dataManager.loadFromGitHub(parsedData, repository.fileType);
+    }
     
     // Re-merge data with current platform/theme context
     const dataSourceManager = DataSourceManager.getInstance();
@@ -151,12 +187,98 @@ export class RefreshManager {
   }
 
   /**
+   * Initialize a new branch with initial file content
+   */
+  private static async initializeNewBranch(repository: RepositoryContext): Promise<void> {
+    console.log('[RefreshManager] Initializing new branch with initial file content:', repository);
+    
+    try {
+      // Get the appropriate initial data based on file type
+      let initialData: Record<string, unknown>;
+      let commitMessage: string;
+      
+      if (repository.fileType === 'schema') {
+        // For core data, use current core data or create default
+        const coreData = StorageService.getCoreData();
+        if (coreData) {
+          initialData = coreData;
+          commitMessage = `Initialize ${repository.filePath} with current core data`;
+        } else {
+          // Create default core data structure
+          initialData = {
+            tokens: [],
+            collections: [],
+            modes: [],
+            dimensions: [],
+            platforms: [],
+            themes: [],
+            taxonomies: [],
+            resolvedValueTypes: [],
+            algorithms: [],
+            componentProperties: [],
+            componentCategories: [],
+            components: [],
+            figmaConfiguration: null
+          };
+          commitMessage = `Initialize ${repository.filePath} with default structure`;
+        }
+      } else if (repository.fileType === 'platform-extension') {
+        // For platform extensions, create default structure
+        initialData = {
+          platformId: '',
+          platformName: '',
+          extensions: {
+            tokens: [],
+            collections: [],
+            modes: [],
+            dimensions: [],
+            resolvedValueTypes: []
+          }
+        };
+        commitMessage = `Initialize ${repository.filePath} with platform extension structure`;
+      } else if (repository.fileType === 'theme-override') {
+        // For theme overrides, create default structure
+        initialData = {
+          themeId: '',
+          themeName: '',
+          overrides: {
+            tokens: [],
+            collections: [],
+            modes: [],
+            dimensions: []
+          }
+        };
+        commitMessage = `Initialize ${repository.filePath} with theme override structure`;
+      } else {
+        throw new Error(`Unknown file type: ${repository.fileType}`);
+      }
+      
+      // Create the initial file in the new branch
+      await GitHubApiService.createFile(
+        repository.fullName,
+        repository.filePath,
+        JSON.stringify(initialData, null, 2),
+        repository.branch,
+        commitMessage
+      );
+      
+      console.log('[RefreshManager] Successfully created initial file content in new branch');
+      
+      // Load the initial data via DataManager
+      const dataManager = DataManager.getInstance();
+      await dataManager.loadFromGitHub(initialData, repository.fileType);
+      
+    } catch (error) {
+      console.error('[RefreshManager] Failed to initialize new branch:', error);
+      throw new Error(`Failed to initialize new branch: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Merge data for current context (reused from App.tsx)
    */
   private static async mergeDataForCurrentContext(context: DataSourceContext): Promise<void> {
     console.log('[RefreshManager] Merging data for current context');
-    
-    const dataManager = DataManager.getInstance();
     
     // Get core data from StorageService
     const coreData = StorageService.getCoreData();
@@ -166,7 +288,7 @@ export class RefreshManager {
     }
     
     // Get platform extensions
-    const platformExtensions: Record<string, any> = {};
+    const platformExtensions: Record<string, unknown> = {};
     if (context.currentPlatform && context.currentPlatform !== 'none') {
       const platformData = StorageService.getPlatformExtensionData(context.currentPlatform);
       if (platformData) {
@@ -175,7 +297,7 @@ export class RefreshManager {
     }
     
     // Get theme overrides
-    const themeOverrides: Record<string, any> = {};
+    const themeOverrides: Record<string, unknown> = {};
     if (context.currentTheme && context.currentTheme !== 'none') {
       const themeData = StorageService.getThemeOverrideData(context.currentTheme);
       if (themeData) {
@@ -183,12 +305,8 @@ export class RefreshManager {
       }
     }
     
-    // Update presentation data with merged data
-    await dataManager.updatePresentationData({
-      core: coreData,
-      platformExtensions,
-      themeOverrides
-    });
+    // The DataManager.loadFromGitHub method already handles updating presentation data
+    // No need to call updatePresentationData manually
     
     console.log('[RefreshManager] Data merging completed');
   }
@@ -230,7 +348,7 @@ export class RefreshManager {
       preserveBranchCache: true,
       clearEditMode: false,
       suppressToast: true
-    });
+    }, repository); // Pass the repository context
   }
 
   /**

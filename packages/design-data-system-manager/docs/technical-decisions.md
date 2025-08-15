@@ -19,6 +19,176 @@ Both options have been removed from the UI and underlying logic.
 - Value preservation is always the default and only behavior during migration.
 - The migration UI is now simpler, more predictable, and aligned with schema-driven best practices. 
 
+# Unified Permission Handling and Data Source Refactor Implementation
+
+## Context
+The application previously suffered from inconsistent permission handling across different components, particularly between the Header component and FigmaConfigurationsView. The main issues were:
+- Duplicate permission logic (`hasEditPermissions` vs `hasWriteAccess`) with different data sources
+- Inconsistent UI behavior where Header showed "Edit Access" but FigmaConfigurationsView didn't show the Publishing tab
+- Complex permission checking logic scattered across multiple components
+- Stale permission data being used in some components while others used fresh data
+
+## Decision
+Implement a **unified permission handling system** that centralizes all permission logic at the App level and propagates it consistently to all components through props.
+
+### Unified Permission Architecture
+
+#### Single Source of Truth
+- **App-Level Logic**: All permission checking logic centralized in `App.tsx` using the same approach as the working Header component
+- **Unified Function**: Single `hasDataSourceEditPermissions` function that handles all permission scenarios
+- **Props-Based Propagation**: Permission function passed down through component hierarchy as `hasEditPermissions` prop
+- **Consistent Behavior**: All components use the same permission logic, ensuring consistent UI behavior
+
+#### Permission Logic Implementation
+```typescript
+// App.tsx - Unified permission logic (same as Header.tsx)
+const hasDataSourceEditPermissions = useCallback(() => {
+  // Check if user is authenticated
+  if (!githubUser) {
+    return false;
+  }
+  
+  // Check if we have a valid source context with repository information
+  const sourceManager = SourceManagerService.getInstance();
+  const sourceContext = sourceManager.getCurrentSourceContext();
+  if (!sourceContext) {
+    return false;
+  }
+  
+  // If already in edit mode, user has permissions
+  if (sourceContext.editMode?.isActive) {
+    return true;
+  }
+  
+  // Check actual permissions from the data source manager
+  const dataSourceManager = DataSourceManager.getInstance();
+  return dataSourceManager.getCurrentEditPermissions();
+}, [githubUser]);
+```
+
+#### Component Integration Pattern
+```typescript
+// App.tsx passes unified function to components
+<AppLayout hasEditPermissions={hasDataSourceEditPermissions}>
+  <ViewRenderer hasEditPermissions={hasDataSourceEditPermissions}>
+    <FigmaConfigurationsView hasEditPermissions={hasDataSourceEditPermissions} />
+  </ViewRenderer>
+</AppLayout>
+
+// FigmaConfigurationsView uses unified logic
+const shouldShowPublishingTab = (): boolean => {
+  // SIMPLIFIED: Use ONLY the unified edit permissions logic
+  // hasEditPermissions and hasWriteAccess should be synonymous
+  const hasPermissions = hasEditPermissions?.() ?? false;
+  return hasPermissions;
+};
+```
+
+### Data Source Refactor Plan Implementation
+
+#### Phase 1: Unified Data Storage Layer ✅
+- **UnifiedStorageService**: Created consolidated storage operations
+- **DataMigrationService**: Handles migration of existing localStorage data
+- **DataValidationService**: Provides real-time schema validation
+- **Feature Flags**: Environment variables to enable/disable new services
+
+#### Phase 2: Unified Data Flow Controller ✅
+- **DataFlowController**: Unified orchestrator for all data operations
+- **EnhancedDataMerger**: Single merging service replacing old DataMergerService
+- **UnifiedChangeTrackingService**: Unified change tracking across the application
+- **Integration**: New services integrated with existing data pipeline
+
+#### Phase 3: Unified UI Integration ✅
+- **UnifiedUIIntegrationService**: Consolidates UI data access patterns
+- **UnifiedEditModeService**: Manages application's edit mode state
+- **UnifiedPerformanceService**: Optimizes data access and state updates
+- **Component Integration**: Services ready for UI component migration
+
+### Key Improvements
+
+#### Eliminated Permission Inconsistencies
+- **Single Logic**: One permission checking function used across all components
+- **Consistent Data Sources**: All components use the same data sources for permission checking
+- **Synchronized UI**: Header "Edit Access" and FigmaConfigurationsView "Publishing tab" now show consistently
+- **Real-Time Updates**: Permission changes immediately reflected across all components
+
+#### Simplified Architecture
+- **Reduced Complexity**: Eliminated duplicate permission logic (50+ lines → 5 lines)
+- **Clear Data Flow**: Permission function flows from App → Layout → View → Component
+- **Type Safety**: Proper TypeScript interfaces for all permission-related props
+- **Maintainability**: Single place to modify permission logic
+
+#### Enhanced User Experience
+- **Consistent Behavior**: Users see the same permission status across all UI elements
+- **Immediate Feedback**: Permission changes reflected immediately without refresh
+- **Clear Indication**: No more confusion about whether user can edit or publish
+- **Reliable State**: Permission state always matches actual GitHub permissions
+
+### Migration Strategy
+
+#### Removed Patterns
+- **Duplicate Permission Logic**: Eliminated `hasWriteAccess` logic in favor of unified `hasEditPermissions`
+- **Component-Specific Permission Checking**: Removed local permission logic from individual components
+- **Stale Data Usage**: Eliminated use of potentially stale permission data
+- **Inconsistent Data Sources**: Standardized on unified data sources for all permission checks
+
+#### Preserved Patterns
+- **Props-Based Communication**: Components still receive state as props
+- **Callback-Based Updates**: Permission changes still trigger through callback system
+- **Type Safety**: Maintained proper TypeScript interfaces throughout
+
+### Implementation Details
+
+#### Type Safety
+- **Optional Function Props**: `hasEditPermissions?: () => boolean` with proper optional chaining
+- **Consistent Interfaces**: All components use the same permission prop interface
+- **Error Prevention**: Default values prevent undefined function calls
+
+#### Performance Considerations
+- **Memoized Function**: `useCallback` prevents unnecessary re-renders
+- **Efficient Propagation**: Permission function passed by reference, not recreated
+- **Minimal Re-renders**: Only permission changes trigger UI updates
+
+#### Error Handling
+- **Graceful Degradation**: Default to `false` when permission function is undefined
+- **Clear Logging**: Comprehensive logging for debugging permission issues
+- **Fallback Behavior**: Safe defaults when permission checking fails
+
+### Benefits
+
+#### Developer Experience
+- **Single Source of Truth**: One place to modify permission logic
+- **Consistent Patterns**: All components follow the same permission handling pattern
+- **Easier Debugging**: Centralized logic makes permission issues easier to trace
+- **Type Safety**: Proper TypeScript support prevents permission-related bugs
+
+#### User Experience
+- **Consistent UI**: All permission-dependent UI elements behave consistently
+- **Immediate Updates**: Permission changes reflected immediately across all components
+- **Clear Feedback**: Users always know their current permission status
+- **Reliable Behavior**: No more inconsistent permission states
+
+#### Maintainability
+- **Centralized Logic**: Permission changes only need to be made in one place
+- **Clear Architecture**: Permission flow is easy to understand and modify
+- **Scalable Design**: Easy to add new permission-dependent components
+- **Robust Error Handling**: Comprehensive error handling prevents permission-related issues
+
+### Future Considerations
+- **Permission Caching**: Cache permission results for better performance
+- **Granular Permissions**: Support for read/write/admin distinctions
+- **Organization Support**: Handle organization-level permissions
+- **Conflict Resolution**: Enhanced handling of concurrent permission changes
+
+## Outcome
+- **Eliminated Permission Inconsistencies**: All components now use the same permission logic
+- **Simplified Architecture**: Reduced complexity from 50+ lines to 5 lines of permission logic
+- **Enhanced User Experience**: Consistent permission behavior across all UI elements
+- **Improved Maintainability**: Single source of truth for all permission-related logic
+- **Future-Proof Design**: Scalable architecture supports new permission-dependent features
+
+This solution provides a **unified, maintainable, and user-friendly** approach to permission handling that eliminates inconsistencies while making the codebase easier to understand and extend.
+
 # Code Syntax Preview Mapping in TokenEditorDialog
 
 ## Context

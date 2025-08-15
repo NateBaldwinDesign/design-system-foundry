@@ -182,6 +182,9 @@ importers:
       framer-motion:
         specifier: ^11.0.8
         version: 11.18.2(@emotion/is-prop-valid@1.3.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      js-synonyms:
+        specifier: ^1.0.4
+        version: 1.0.4
       lucide-react:
         specifier: ^0.511.0
         version: 0.511.0(react@18.3.1)
@@ -197,6 +200,9 @@ importers:
       react-router-dom:
         specifier: ^7.6.1
         version: 7.7.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      string-similarity-js:
+        specifier: ^2.1.4
+        version: 2.1.4
       zod:
         specifier: ^3.22.4
         version: 3.25.76
@@ -3584,6 +3590,9 @@ packages:
       node-notifier:
         optional: true
 
+  js-synonyms@1.0.4:
+    resolution: {integrity: sha512-7M8Yr7s2zxbEP1gMWmteDW6JSD9RUIKu+0nBd2qj9s2SGKZrsfEtj5rf0ToyaKCWnbOasj7fRkENGHB5HJfZYQ==}
+
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
@@ -4385,6 +4394,9 @@ packages:
   string-length@4.0.2:
     resolution: {integrity: sha512-+l6rNN5fYHNhZZy41RXsYptCjA2Igmq4EG7kZAYFQI1E1VTXarr6ZPXBg6eq7Y6eK4FEhY6AJlyuFIb/v/S0VQ==}
     engines: {node: '>=10'}
+
+  string-similarity-js@2.1.4:
+    resolution: {integrity: sha512-uApODZNjCHGYROzDSAdCmAHf60L/pMDHnP/yk6TAbvGg7JSPZlSto/ceCI7hZEqzc53/juU2aOJFkM2yUVTMTA==}
 
   string-width@4.2.3:
     resolution: {integrity: sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==}
@@ -9148,6 +9160,8 @@ snapshots:
       - supports-color
       - ts-node
 
+  js-synonyms@1.0.4: {}
+
   js-tokens@4.0.0: {}
 
   js-tokens@9.0.1: {}
@@ -9952,6 +9966,8 @@ snapshots:
     dependencies:
       char-regex: 1.0.2
       strip-ansi: 6.0.1
+
+  string-similarity-js@2.1.4: {}
 
   string-width@4.2.3:
     dependencies:

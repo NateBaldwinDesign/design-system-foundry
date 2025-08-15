@@ -8,7 +8,8 @@ const schemaPath = path.resolve(__dirname, '../src/schema.json');
 const schema = JSON.parse(readFileSync(schemaPath, 'utf-8'));
 
 // Load the unified default data
-const dataPath = path.resolve(__dirname, '../examples/themed/core-data.json');
+// const dataPath = path.resolve(__dirname, '../examples/themed/core-data.json');
+const dataPath = path.resolve(__dirname, '../examples/unthemed/spectrum-foundation.json');
 const data = JSON.parse(readFileSync(dataPath, 'utf-8'));
 
 const ajv = new Ajv({ allErrors: true, strict: false });

@@ -18,12 +18,14 @@ import {
 } from '@chakra-ui/react';
 import { BranchManager } from '../services/branchManager';
 import { BranchCreationDialog } from './BranchCreationDialog';
+import { DataSourceManager } from '../services/dataSourceManager';
+import { StorageService } from '../services/storage';
 import type { GitHubUser } from '../config/github';
 
 interface BranchSelectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onBranchSelected: (branchName: string, editMode?: boolean) => void;
+  onBranchSelected: (branchName: string, editMode?: boolean, repositoryInfo?: { fullName: string; filePath: string; fileType: string }) => void;
   currentBranch: string;
   repositoryFullName: string;
   githubUser: GitHubUser | null;
@@ -120,7 +122,54 @@ export const BranchSelectionDialog: React.FC<BranchSelectionDialogProps> = ({
 
     setIsLoading(true);
     try {
-      onBranchSelected(selectedBranch, editMode);
+      // Get the actual file paths from the DataSourceManager
+      const dataSourceManager = DataSourceManager.getInstance();
+      const currentContext = dataSourceManager.getCurrentContext();
+      
+      let actualFilePath = 'schema.json'; // Default fallback
+      
+      if (sourceContext?.sourceType === 'platform-extension' && sourceContext.sourceId) {
+        // Get the actual file path from the platform's extensionSource
+        const platformRepo = currentContext.repositories.platforms[sourceContext.sourceId];
+        if (platformRepo) {
+          actualFilePath = platformRepo.filePath;
+        } else {
+          // Fallback: try to get from core data directly
+          const coreData = StorageService.getCoreData();
+          const platform = coreData?.platforms?.find((p: any) => p.id === sourceContext.sourceId);
+          if (platform?.extensionSource?.filePath) {
+            actualFilePath = platform.extensionSource.filePath;
+          }
+        }
+      } else if (sourceContext?.sourceType === 'theme-override' && sourceContext.sourceId) {
+        // Get the actual file path from the theme's overrideSource
+        const themeRepo = currentContext.repositories.themes[sourceContext.sourceId];
+        if (themeRepo) {
+          actualFilePath = themeRepo.filePath;
+        } else {
+          // Fallback: try to get from core data directly
+          const coreData = StorageService.getCoreData();
+          const theme = coreData?.themes?.find((t: any) => t.id === sourceContext.sourceId);
+          if (theme?.overrideSource?.filePath) {
+            actualFilePath = theme.overrideSource.filePath;
+          }
+        }
+      } else if (sourceContext?.sourceType === 'core') {
+        // Core data uses schema.json
+        actualFilePath = 'schema.json';
+      }
+      
+      // Construct repositoryInfo with the actual file path
+      const repositoryInfo = {
+        fullName: repositoryFullName,
+        filePath: actualFilePath,
+        fileType: sourceContext?.sourceType === 'core' ? 'schema' :
+                 sourceContext?.sourceType === 'platform-extension' ? 'platform-extension' :
+                 sourceContext?.sourceType === 'theme-override' ? 'theme-override' : 'schema'
+      };
+      
+      console.log('[BranchSelectionDialog] handleSelectBranch calling onBranchSelected with:', { selectedBranch, editMode, repositoryInfo });
+      onBranchSelected(selectedBranch, editMode, repositoryInfo);
       onClose();
     } catch (error) {
       console.error('Failed to select branch:', error);
@@ -136,9 +185,10 @@ export const BranchSelectionDialog: React.FC<BranchSelectionDialogProps> = ({
     }
   };
 
-  const handleBranchCreated = (branchName: string, editMode?: boolean) => {
+  const handleBranchCreated = (branchName: string, editMode?: boolean, repositoryInfo?: { fullName: string; filePath: string; fileType: string }) => {
+    console.log('[BranchSelectionDialog] handleBranchCreated called with:', { branchName, editMode, repositoryInfo });
     setShowCreateDialog(false);
-    onBranchSelected(branchName, editMode);
+    onBranchSelected(branchName, editMode, repositoryInfo);
     onClose();
   };
 
@@ -166,11 +216,11 @@ export const BranchSelectionDialog: React.FC<BranchSelectionDialogProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} isCentered>
       <ModalOverlay bg="blackAlpha.300" backdropFilter="blur(10px)" />
       <ModalContent>
-        <ModalHeader>Select Branch to Edit</ModalHeader>
+        <ModalHeader>{editMode ? 'Select Branch to Edit' : 'Switch Branch'}</ModalHeader>
         <ModalBody>
           <VStack spacing={4} align="stretch">
             <Text fontSize="sm" color="gray.600">
-              You&apos;re currently on <strong>{currentBranch}</strong>. Select a branch to edit or create a new one.
+              You&apos;re currently on <strong>{currentBranch}</strong>. {editMode ? 'Select a branch to edit or create a new one.' : 'Select a branch to view.'}
             </Text>
             
             {/* Source Context Information */}
@@ -226,16 +276,22 @@ export const BranchSelectionDialog: React.FC<BranchSelectionDialogProps> = ({
                       {branch}
                     </option>
                   ))}
-                  <option value="create-new" style={{ fontWeight: 'bold', color: '#3182ce' }}>
-                    + Create new branch
-                  </option>
+                  {/* Only show "Create new branch" option for authenticated users in edit mode */}
+                  {githubUser && editMode && (
+                    <option value="create-new" style={{ fontWeight: 'bold', color: '#3182ce' }}>
+                      + Create new branch
+                    </option>
+                  )}
                 </Select>
               )}
             </FormControl>
 
             {branches.length === 0 && !isLoadingBranches && (
               <Text fontSize="sm" color="gray.500">
-                No other branches found. You can create a new branch to start editing.
+                {githubUser && editMode 
+                  ? 'No other branches found. You can create a new branch to start editing.'
+                  : 'No other branches found in this repository.'
+                }
               </Text>
             )}
           </VStack>
@@ -250,7 +306,7 @@ export const BranchSelectionDialog: React.FC<BranchSelectionDialogProps> = ({
             isLoading={isLoading}
             isDisabled={!selectedBranch || isLoadingBranches}
           >
-            Select
+            {editMode ? 'Select' : 'Switch'}
           </Button>
         </ModalFooter>
       </ModalContent>

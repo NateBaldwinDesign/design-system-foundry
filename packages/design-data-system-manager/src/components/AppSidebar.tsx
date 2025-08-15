@@ -16,9 +16,9 @@ import {
   MonitorSmartphone,
   FigmaIcon,
   Waypoints,
-  CircleCheckBig,
   FileCode,
   Boxes,
+  ChartPie,
 } from 'lucide-react';
 import Logo from './Logo';
 import TokenIcon from '../icons/TokenIcon';
@@ -39,14 +39,15 @@ interface AppSidebarProps {
 const NAV_ITEMS: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: Gauge },
   { id: 'system', label: 'System', icon: Waypoints },
-  { id: 'algorithms', label: 'Foundations', icon: Shapes },
+  { id: 'foundations', label: 'Foundations', icon: Shapes },
   { id: 'tokens', label: 'Tokens', icon: TokenIcon },
   { id: 'components', label: 'Components', icon: Boxes },
   { id: 'themes', label: 'Themes', icon: PaletteIcon },
   { id: 'platforms', label: 'Platforms', icon: MonitorSmartphone },
   { id: 'figma-settings', label: 'Figma', icon: FigmaIcon },
+  { id: 'analysis', label: 'Analysis', icon: ChartPie },
   
-  { id: 'validation', label: 'Validation', icon: CircleCheckBig },
+  // { id: 'validation', label: 'Validation', icon: CircleCheckBig },
   { id: 'schemas', label: 'Schemas', icon: FileCode },
 ];
 

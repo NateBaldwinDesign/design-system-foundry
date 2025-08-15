@@ -33,7 +33,7 @@ export interface ResolvedValueTypeOption {
 export interface TaxonomyEditorDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: () => void;
+  onSave: () => void | Promise<void>;
   form: {
     id: string;
     name: string;
@@ -150,7 +150,7 @@ export const TaxonomyEditorDialog: React.FC<TaxonomyEditorDialogProps> = (props:
           <Button variant="ghost" mr={3} onClick={onClose}>
             Cancel
           </Button>
-          <Button colorScheme="blue" onClick={onSave}>
+          <Button colorScheme="blue" onClick={async () => await onSave()}>
             Save
           </Button>
         </ModalFooter>

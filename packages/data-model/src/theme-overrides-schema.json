@@ -19,6 +19,12 @@
       "description": "Unique Figma file key for this platform extension. Must be unique across all platform extensions and cannot be overridden.",
       "pattern": "^[a-zA-Z0-9-_]+$"
     },
+    "fileColorProfile": {
+      "type": "string",
+      "enum": ["srgb", "display-p3"],
+      "description": "Color profile to use when converting colors for Figma export. If not specified, inherits from core system or platform extension.",
+      "default": "srgb"
+    },
     "tokenOverrides": {
       "type": "array",
       "description": "Overrides for tokens in this theme.",

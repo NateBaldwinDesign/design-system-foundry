@@ -25,7 +25,7 @@ import DashboardView from '../views/DashboardView';
 import { TokensView } from '../views/TokensView';
 import { SystemVariablesView } from '../views/SystemVariablesView';
 import AlgorithmsView from '../views/AlgorithmsView';
-import { TokenAnalysis } from '../views/TokenAnalysis';
+import FoundationsView from '../views/FoundationsView';
 import { DimensionsView } from '../views/system/DimensionsView';
 import { TaxonomyView } from '../views/system/TaxonomyView';
 import { ValueTypesView } from '../views/system/ValueTypesView';
@@ -36,10 +36,12 @@ import { SystemView } from '../views/system/SystemView';
 import { TokenEditorDialog } from './TokenEditorDialog';
 import { FigmaConfigurationsView } from '../views/FigmaConfigurationsView';
 import { createSchemaJsonFromLocalStorage } from '../services/createJson';
+import { StorageService } from '../services/storage';
 import type { TokenSystem } from '@token-model/data-model';
 import SchemasView from '../views/SchemasView';
 import ComponentsView from '../views/ComponentsView';
 import { CollectionsView } from '../views/CollectionsView';
+import AnalysisView from '../views/AnalysisView';
 
 import type { DataSourceContext } from '../services/dataSourceManager';
 
@@ -63,7 +65,6 @@ interface ViewRendererProps {
   githubUser: GitHubUser | null;
   // View mode
   isViewOnlyMode?: boolean;
-  hasEditPermissions?: boolean;
   canEdit?: boolean;
   // Data source context
   dataSourceContext?: DataSourceContext;
@@ -94,6 +95,8 @@ interface ViewRendererProps {
   onCloseEditor: () => void;
   onSaveToken: (token: ExtendedToken) => void;
   onDeleteToken: (tokenId: string) => void;
+  // NEW: Unified edit permissions function
+  hasEditPermissions?: () => boolean;
 }
 
 export const ViewRenderer: React.FC<ViewRendererProps> = ({
@@ -113,7 +116,6 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   schema,
   githubUser,
   isViewOnlyMode = false,
-  hasEditPermissions = false,
   canEdit = false,
   dataSourceContext,
   isAppLoading = false,
@@ -139,6 +141,8 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
   onCloseEditor,
   onSaveToken,
   onDeleteToken,
+  // NEW: Unified edit permissions function
+  hasEditPermissions,
 }) => {
   // Views should show edit capabilities when user has permissions AND is in edit mode
   // canEdit prop already combines hasEditPermissions && isEditMode from App.tsx
@@ -205,11 +209,14 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
       case 'system-variables':
         return <SystemVariablesView dimensions={dimensions} canEdit={effectiveCanEdit} />;
       
+      case 'foundations':
+        return <FoundationsView canEdit={effectiveCanEdit} />;
+      
       case 'algorithms':
         return <AlgorithmsView algorithms={algorithms} onUpdate={onUpdateAlgorithms} onUpdateTokens={onUpdateTokens} canEdit={effectiveCanEdit} />;
       
       case 'analysis':
-        return <TokenAnalysis tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} resolvedValueTypes={resolvedValueTypes} />;
+        return <AnalysisView/>;
       
       case 'dimensions':
         return (
@@ -235,8 +242,42 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
       case 'platforms':
         return <PlatformsView platforms={platforms} setPlatforms={onUpdatePlatforms} canEdit={effectiveCanEdit} />;
       
-      case 'figma-settings':
-        return <FigmaConfigurationsView tokenSystem={createSchemaJsonFromLocalStorage()} canEdit={effectiveCanEdit} hasEditPermissions={hasEditPermissions} dataSourceContext={dataSourceContext} />;
+      case 'figma-settings': {
+        // Get the appropriate token system based on current source context
+        const getTokenSystemForFigmaSettings = () => {
+          const sourceContext = dataSourceContext;
+          
+          if (sourceContext?.currentPlatform === null && sourceContext?.currentTheme === null) {
+            // Core data - use pure core data, not merged data
+            const coreData = StorageService.getCoreData();
+            
+            if (!coreData) {
+              // Fallback to createSchemaJsonFromLocalStorage if no core data
+              return createSchemaJsonFromLocalStorage();
+            }
+            
+            // Ensure dimensionOrder is included from localStorage if not present in coreData
+            if (!coreData.dimensionOrder || coreData.dimensionOrder.length === 0) {
+              const dimensionOrder = StorageService.getDimensionOrder();
+              if (dimensionOrder && dimensionOrder.length > 0) {
+                coreData.dimensionOrder = dimensionOrder;
+              }
+            }
+            
+            return coreData;
+          } else {
+            // Platform or theme source - use merged data
+            return createSchemaJsonFromLocalStorage();
+          }
+        };
+        
+        return <FigmaConfigurationsView 
+          tokenSystem={getTokenSystemForFigmaSettings()} 
+          canEdit={effectiveCanEdit} 
+          dataSourceContext={dataSourceContext} 
+          hasEditPermissions={hasEditPermissions}
+        />;
+      }
       
       case 'validation':
         return <ValidationView tokens={tokens} collections={collections} dimensions={dimensions} platforms={platforms} taxonomies={taxonomies} version="1.0.0" versionHistory={[]} onValidate={() => {}} />;

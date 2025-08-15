@@ -23,7 +23,7 @@ import type { GitHubUser } from '../config/github';
 interface BranchCreationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onBranchCreated: (branchName: string, editMode?: boolean) => void;
+  onBranchCreated: (branchName: string, editMode?: boolean, repositoryInfo?: { fullName: string; filePath: string; fileType: string }) => void;
   currentBranch: string;
   repositoryFullName: string;
   githubUser: GitHubUser | null;
@@ -58,17 +58,26 @@ export const BranchCreationDialog: React.FC<BranchCreationDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [branchExistsError, setBranchExistsError] = useState<string | null>(null);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const toast = useToast();
 
-  // Generate suggested branch name when dialog opens
+  // Generate suggested branch name when dialog opens (only once)
   useEffect(() => {
-    if (isOpen && githubUser) {
+    if (isOpen && githubUser && !hasInitialized) {
       const suggestedName = generateSuggestedBranchName(githubUser.login);
       setBranchName(suggestedName);
       setValidationError(null);
       setBranchExistsError(null);
+      setHasInitialized(true);
     }
-  }, [isOpen, githubUser]);
+  }, [isOpen, githubUser, hasInitialized]);
+
+  // Reset initialization flag when dialog closes
+  useEffect(() => {
+    if (!isOpen) {
+      setHasInitialized(false);
+    }
+  }, [isOpen]);
 
   // Validate branch name on input change
   useEffect(() => {
@@ -136,7 +145,36 @@ export const BranchCreationDialog: React.FC<BranchCreationDialogProps> = ({
       });
 
       // Pass the edit mode intent along with the branch name
-      onBranchCreated(branchName, editMode);
+      // Determine repository info based on source context or repositoryFullName
+      let repositoryInfo: { fullName: string; filePath: string; fileType: string } | undefined;
+      
+      if (sourceContext) {
+        // Use source context to determine file path and type
+        repositoryInfo = {
+          fullName: repositoryFullName,
+          filePath: sourceContext.sourceType === 'core' ? 'schema.json' : 
+                   sourceContext.sourceType === 'platform-extension' ? 'platform-extension.json' : 'theme-override.json',
+          fileType: sourceContext.sourceType === 'core' ? 'schema' : 
+                   sourceContext.sourceType === 'platform-extension' ? 'platform-extension' : 'theme-override'
+        };
+      } else {
+        // Fallback: determine file type from repository name or use default
+        // This handles cases where sourceContext might not be available
+        const isPlatformRepo = repositoryFullName.toLowerCase().includes('platform');
+        const isThemeRepo = repositoryFullName.toLowerCase().includes('theme');
+        
+        repositoryInfo = {
+          fullName: repositoryFullName,
+          filePath: isPlatformRepo ? 'platform-extension.json' : 
+                   isThemeRepo ? 'theme-override.json' : 'schema.json',
+          fileType: isPlatformRepo ? 'platform-extension' : 
+                   isThemeRepo ? 'theme-override' : 'schema'
+        };
+      }
+      
+      console.log('[BranchCreationDialog] Created repositoryInfo:', repositoryInfo);
+      
+      onBranchCreated(branchName, editMode, repositoryInfo);
       onClose();
     } catch (error) {
       console.error('Failed to create branch:', error);

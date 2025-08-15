@@ -6,6 +6,7 @@ export type ViewId =
   | 'collections'
   | 'system-variables'
   | 'algorithms'
+  | 'foundations'
   | 'analysis'
   | 'dimensions'
   | 'classification'
