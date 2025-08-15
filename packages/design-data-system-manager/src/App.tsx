@@ -1273,8 +1273,18 @@ const App = () => {
   };
 
   const handleUpdateTaxonomies = (updatedTaxonomies: Taxonomy[]) => {
+    console.log('[App] handleUpdateTaxonomies called with:', {
+      updatedTaxonomiesCount: updatedTaxonomies.length,
+      updatedTaxonomies: updatedTaxonomies.map(t => ({ id: t.id, name: t.name })),
+      currentTaxonomiesCount: taxonomies.length,
+      currentTaxonomies: taxonomies.map(t => ({ id: t.id, name: t.name }))
+    });
+    
     setTaxonomies(updatedTaxonomies);
     StorageService.setTaxonomies(updatedTaxonomies);
+    
+    console.log('[App] State updated and saved to StorageService');
+    
     // Update change log data
     updateChangeLogData();
     // Dispatch event to notify change detection

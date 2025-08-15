@@ -16,7 +16,7 @@ import { LuPlus, LuTrash2, LuPencil, LuGripVertical } from 'react-icons/lu';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import type { Taxonomy, Token, TokenCollection, Dimension, Platform, ResolvedValueType } from '@token-model/data-model';
 import { createUniqueId } from '../../utils/id';
-import { ValidationService } from '../../services/validation';
+import { TaxonomySchema } from '@token-model/data-model';
 import { TaxonomyEditorDialog } from '../../components/TaxonomyEditorDialog';
 import { TermEditorDialog } from '../../components/TermEditorDialog';
 import { CardTitle } from '../../components/CardTitle';
@@ -98,10 +98,9 @@ export function TaxonomyView({
     }
   }, [taxonomies]); // Only depend on taxonomies, not taxonomyOrder to avoid loops
 
-  // Save taxonomies to localStorage whenever they change
-  useEffect(() => {
-    StorageService.setTaxonomies(taxonomies);
-  }, [taxonomies]);
+  // REMOVED: useEffect that saves taxonomies to localStorage
+  // This was causing race conditions with state updates
+  // localStorage saving is now handled directly in validateAndSetTaxonomies
 
   const handleDragEnd = (result: DropResult) => {
     console.log('Drag end result:', result);
@@ -209,63 +208,62 @@ export function TaxonomyView({
     });
   };
 
-  const validateAndSetTaxonomies = async (taxonomies: Taxonomy[]) => {
+  const validateAndSetTaxonomies = async (newTaxonomies: Taxonomy[]): Promise<boolean> => {
     try {
-      // Get root-level data from localStorage
-      const root = JSON.parse(localStorage.getItem('token-model:root') || '{}');
-      const {
-        systemName = 'Design System',
-        systemId = 'design-system',
-        version = '1.0.0',
-        versionHistory = []
-      } = root;
+      console.log('[TaxonomyView] validateAndSetTaxonomies called with:', {
+        newTaxonomiesCount: newTaxonomies.length,
+        newTaxonomies: newTaxonomies.map(t => ({ id: t.id, name: t.name })),
+        currentTaxonomiesCount: taxonomies.length,
+        currentTaxonomies: taxonomies.map(t => ({ id: t.id, name: t.name }))
+      });
 
-      const data = {
-        systemName,
-        systemId,
-        tokenCollections: collections,
-        dimensions,
-        tokens,
-        platforms,
-        taxonomies,
-        resolvedValueTypes: resolvedValueTypes,
-        version,
-        versionHistory
-      };
-
-      console.log('[TaxonomyView] Validation data:', JSON.stringify(data, null, 2));
-      const result = ValidationService.validateData(data);
-      console.log('[TaxonomyView] Validation result:', result);
-      if (!result.isValid) {
-        console.error('[TaxonomyView] Validation errors:', result.errors);
-        const errorMessages = Array.isArray(result.errors) 
-          ? result.errors.map(error => typeof error === 'string' ? error : JSON.stringify(error)).join(', ')
-          : 'See console for details.';
-        toast({
-          title: "Validation Error",
-          description: `Schema Validation Failed: ${errorMessages}`,
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-        return;
+      // Validate each taxonomy individually against the taxonomy schema
+      for (let i = 0; i < newTaxonomies.length; i++) {
+        try {
+          console.log(`[TaxonomyView] Validating taxonomy ${i + 1}/${newTaxonomies.length}:`, newTaxonomies[i].name);
+          TaxonomySchema.parse(newTaxonomies[i]);
+          console.log(`[TaxonomyView] Taxonomy "${newTaxonomies[i].name}" is valid`);
+        } catch (validationError) {
+          console.error(`[TaxonomyView] Taxonomy "${newTaxonomies[i].name}" validation failed:`, validationError);
+          const errorMessage = validationError instanceof Error ? validationError.message : 'Unknown validation error';
+          toast({
+            title: "Taxonomy Validation Error",
+            description: `Taxonomy "${newTaxonomies[i].name}" is invalid: ${errorMessage}`,
+            status: "error",
+            duration: 5000,
+            isClosable: true,
+          });
+          return false;
+        }
       }
-      // Persist to local storage
-      localStorage.setItem('token-model:taxonomies', JSON.stringify(taxonomies));
-      setTaxonomies(taxonomies);
+
+      // All taxonomies are valid, update parent state (which will handle localStorage and other updates)
+      console.log('[TaxonomyView] About to call setTaxonomies (parent update) with:', {
+        newTaxonomiesCount: newTaxonomies.length,
+        newTaxonomies: newTaxonomies.map(t => ({ id: t.id, name: t.name }))
+      });
+      
+      // Call the parent's setTaxonomies function to update the parent state
+      setTaxonomies(newTaxonomies);
+      console.log('[TaxonomyView] setTaxonomies (parent update) called successfully');
+      console.log('[TaxonomyView] All taxonomies validated and parent state updated successfully');
+      return true;
     } catch (error) {
-      console.error('[TaxonomyView] Validation error:', error);
+      console.error('[TaxonomyView] Unexpected error during validation:', error);
       toast({
         title: 'Validation Error',
-        description: 'An error occurred while validating the data',
+        description: 'An unexpected error occurred while validating the taxonomies',
         status: 'error',
         duration: 5000,
         isClosable: true,
       });
+      return false;
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    console.log('[TaxonomyView] handleSave called');
+    
     // Ensure taxonomy has an id
     const taxonomyId = form.id && form.id.trim() ? form.id : createUniqueId('taxonomy');
     if (!form.name.trim()) {
@@ -302,10 +300,19 @@ export function TaxonomyView({
       terms: termsWithIds,
       resolvedValueTypeIds: Array.isArray(form.resolvedValueTypeIds) ? form.resolvedValueTypeIds : [],
     };
+    
+    console.log('[TaxonomyView] Creating new taxonomies array:', {
+      currentCount: taxonomies.length,
+      newTaxonomy: { id: taxonomyId, name: form.name },
+      editingIndex
+    });
+    
     if (editingIndex !== null) {
       newTaxonomies[editingIndex] = taxonomyToSave;
+      console.log('[TaxonomyView] Editing existing taxonomy at index:', editingIndex);
     } else {
       newTaxonomies.push(taxonomyToSave);
+      console.log('[TaxonomyView] Adding new taxonomy, new count:', newTaxonomies.length);
       // Add new taxonomy to the order if it's not already there
       if (!taxonomyOrder.includes(taxonomyId)) {
         const newOrder = [...taxonomyOrder, taxonomyId];
@@ -316,9 +323,19 @@ export function TaxonomyView({
         window.dispatchEvent(new CustomEvent('token-model:data-change'));
       }
     }
-    if (!validateAndSetTaxonomies(newTaxonomies)) {
+    
+    console.log('[TaxonomyView] About to call validateAndSetTaxonomies with:', {
+      newTaxonomiesCount: newTaxonomies.length,
+      newTaxonomies: newTaxonomies.map(t => ({ id: t.id, name: t.name }))
+    });
+    
+    const isValid = await validateAndSetTaxonomies(newTaxonomies);
+    if (!isValid) {
+      console.log('[TaxonomyView] Validation failed, returning early');
       return;
     }
+    
+    console.log('[TaxonomyView] Validation successful, closing dialog');
     setOpen(false);
     setEditingIndex(null);
     toast({ title: 'Taxonomy saved', status: 'success', duration: 2000 });
@@ -344,7 +361,11 @@ export function TaxonomyView({
       });
       return;
     }
+    
+    // Update parent state (which will handle localStorage and other updates)
     setTaxonomies(updated);
+    
+    // Update local taxonomy order state
     StorageService.setTaxonomyOrder(newOrder);
     setTaxonomyOrder(newOrder);
     
@@ -429,7 +450,14 @@ export function TaxonomyView({
     return indexA - indexB;
   });
 
-  console.log('Sorted taxonomies:', sortedTaxonomies);
+  console.log('[TaxonomyView] Sorting debug:', {
+    taxonomiesCount: taxonomies.length,
+    taxonomyOrderCount: taxonomyOrder?.length || 0,
+    taxonomyIds: taxonomies.map(t => t.id),
+    taxonomyOrder: taxonomyOrder,
+    sortedTaxonomiesCount: sortedTaxonomies.length,
+    sortedTaxonomiesIds: sortedTaxonomies.map(t => t.id)
+  });
 
   return (
     <Box>
