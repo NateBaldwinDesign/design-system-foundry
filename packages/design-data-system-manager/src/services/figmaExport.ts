@@ -461,15 +461,162 @@ export class FigmaExportService {
     }
 
     try {
-      const result = await this.exportToFigma(options, mergedTokenSystem);
+      // Step 1-2: Get source context and repository
+      const dataSourceManager = DataSourceManager.getInstance();
+      const context = dataSourceManager.getCurrentContext();
       
-      if (result.success && result.data) {
-        // Publish to Figma API
-        const publishResult = await this.publishToFigmaAPI(result.data, options);
-        return publishResult;
+      console.log('[FigmaExportService] Debug - Full context:', {
+        currentPlatform: context.currentPlatform,
+        currentTheme: context.currentTheme,
+        repositories: {
+          core: context.repositories.core,
+          platforms: Object.keys(context.repositories.platforms),
+          themes: Object.keys(context.repositories.themes)
+        }
+      });
+      
+      const sourceType = context.currentPlatform ? 'platform-extension' : 
+                         context.currentTheme ? 'theme-override' : 'core';
+      
+      let targetRepository = sourceType === 'core' ? context.repositories.core :
+                           sourceType === 'platform-extension' ? context.repositories.platforms[context.currentPlatform!] :
+                           context.repositories.themes[context.currentTheme!];
+
+      // Fallback: If no repository found in DataSourceManager, try to get from GitHubApiService
+      if (!targetRepository) {
+        console.log('[FigmaExportService] No repository found in DataSourceManager, trying GitHubApiService fallback...');
+        
+        try {
+          const { GitHubApiService } = await import('./githubApi');
+          const selectedRepo = GitHubApiService.getSelectedRepositoryInfo();
+          
+          if (selectedRepo) {
+            console.log('[FigmaExportService] Found repository from GitHubApiService:', selectedRepo);
+            targetRepository = {
+              fullName: selectedRepo.fullName,
+              branch: selectedRepo.branch || 'main',
+              filePath: selectedRepo.filePath,
+              fileType: selectedRepo.fileType === 'theme-override' ? 'theme-override' : 'schema'
+            };
+          } else {
+            // Try to get from localStorage as another fallback
+            const storedRepoStr = localStorage.getItem('github_selected_repo');
+            if (storedRepoStr) {
+              try {
+                const storedRepo = JSON.parse(storedRepoStr);
+                console.log('[FigmaExportService] Found repository from localStorage:', storedRepo);
+                targetRepository = {
+                  fullName: storedRepo.fullName,
+                  branch: storedRepo.branch || 'main',
+                  filePath: storedRepo.filePath,
+                  fileType: storedRepo.fileType === 'theme-override' ? 'theme-override' : 'schema'
+                };
+              } catch (parseError) {
+                console.error('[FigmaExportService] Error parsing stored repository:', parseError);
+              }
+            } else {
+              console.log('[FigmaExportService] No repository found in GitHubApiService or localStorage');
+            }
+          }
+        } catch (error) {
+          console.error('[FigmaExportService] Error getting repository from GitHubApiService:', error);
+        }
+      }
+
+      if (!targetRepository) {
+        return {
+          success: false,
+          error: {
+            code: 'NO_REPOSITORY_FOUND',
+            message: `No repository found for ${sourceType}: ${context.currentPlatform || context.currentTheme}. Please ensure you have selected a GitHub repository.`
+          }
+        };
+      }
+
+      console.log('[FigmaExportService] Repository context:', {
+        sourceType,
+        targetRepository: targetRepository.fullName,
+        currentPlatform: context.currentPlatform,
+        currentTheme: context.currentTheme
+      });
+
+      // Step 3-4: Load existing mappings from correct repository
+      const existingMappingData = await FigmaMappingService.getMappingFromGitHub(
+        options.fileId,
+        {
+          owner: targetRepository.fullName.split('/')[0],
+          repo: targetRepository.fullName.split('/')[1],
+          type: sourceType,
+          systemId: 'design-system'
+        }
+      );
+
+      let tempToRealId: Record<string, string> = {};
+      if (existingMappingData?.tempToRealId) {
+        tempToRealId = { ...existingMappingData.tempToRealId };
+        console.log(`[FigmaExportService] 🔍 ORIGINAL tempToRealId mappings loaded:`, {
+          count: Object.keys(tempToRealId).length,
+          mappings: tempToRealId
+        });
       } else {
+        console.log(`[FigmaExportService] 🔍 NO existing tempToRealId mappings found`);
+      }
+
+      // Step 5-6: Fetch and flatten Figma data
+      const existingFigmaData = await this.fetchExistingFigmaData(options.fileId, options.accessToken);
+      const currentFileIds = this.flattenFigmaIds(existingFigmaData);
+      console.log(`[FigmaExportService] 🔍 Found ${currentFileIds.length} existing Figma IDs:`, currentFileIds);
+
+      // Step 7: Prune invalid mappings
+      const prunedTempToRealId = this.pruneMappings(tempToRealId, currentFileIds);
+      console.log(`[FigmaExportService] 🔍 PRUNED tempToRealId mappings:`, {
+        count: Object.keys(prunedTempToRealId).length,
+        mappings: prunedTempToRealId
+      });
+
+      // Step 8: Transform with proper context
+      const transformerOptions: FigmaTransformerOptions = {
+        fileKey: options.fileId,
+        accessToken: options.accessToken,
+        updateExisting: true,
+        existingFigmaData,
+        tempToRealId: prunedTempToRealId
+      };
+
+      // Use provided merged token system or get it from the standard method
+      let tokenSystem: TokenSystem;
+      
+      if (mergedTokenSystem) {
+        console.log('[FigmaExportService] Using provided merged token system');
+        tokenSystem = mergedTokenSystem;
+      } else {
+        console.log('[FigmaExportService] Getting token system for export...');
+        tokenSystem = await this.getTokenSystemForExport();
+      }
+
+      const result = await this.transformer.transform(tokenSystem, transformerOptions);
+
+      if (!result.success) {
         return result;
       }
+
+      // Step 11-12: Post to API and merge response
+      const apiResponse = await this.postToFigmaAPI(result.data!, options);
+      console.log(`[FigmaExportService] 🔍 API RESPONSE tempToRealId:`, {
+        count: Object.keys(apiResponse.tempToRealId).length,
+        mappings: apiResponse.tempToRealId
+      });
+      
+      const mergedTempToRealId = { ...prunedTempToRealId, ...apiResponse.tempToRealId };
+      console.log(`[FigmaExportService] 🔍 MERGED tempToRealId mappings:`, {
+        count: Object.keys(mergedTempToRealId).length,
+        mappings: mergedTempToRealId
+      });
+
+      // Step 13-14: Save and commit mappings
+      await this.saveAndCommitMappings(options.fileId, mergedTempToRealId, context, targetRepository);
+
+      return { success: true, data: result.data };
     } catch (error) {
       console.error('[FigmaExportService] Publishing failed:', error);
       return {
@@ -524,5 +671,163 @@ export class FigmaExportService {
       success: true,
       data: data
     };
+  }
+
+  /**
+   * Fetch existing Figma data from the API
+   */
+  private async fetchExistingFigmaData(fileKey: string, accessToken: string): Promise<unknown> {
+    try {
+      const response = await fetch(`https://api.figma.com/v1/files/${fileKey}/variables/local`, {
+        headers: {
+          'X-Figma-Token': accessToken,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.log(`[FigmaExportService] No existing variables found in Figma file (404)`);
+          return null;
+        }
+        throw new Error(`Failed to fetch Figma variables: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log(`[FigmaExportService] Successfully fetched existing Figma data`);
+      return data;
+    } catch (error) {
+      console.error(`[FigmaExportService] Error fetching Figma data:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Flatten Figma IDs from the API response
+   */
+  private flattenFigmaIds(figmaData: unknown): string[] {
+    const ids: string[] = [];
+    
+    if (figmaData && typeof figmaData === 'object' && 'variables' in figmaData) {
+      const variables = (figmaData as { variables: Record<string, unknown> }).variables;
+      Object.keys(variables).forEach(id => ids.push(id));
+    }
+    
+    if (figmaData && typeof figmaData === 'object' && 'variableCollections' in figmaData) {
+      const collections = (figmaData as { variableCollections: Record<string, unknown> }).variableCollections;
+      Object.keys(collections).forEach(id => ids.push(id));
+    }
+    
+    if (figmaData && typeof figmaData === 'object' && 'variableModes' in figmaData) {
+      const modes = (figmaData as { variableModes: Record<string, unknown> }).variableModes;
+      Object.keys(modes).forEach(id => ids.push(id));
+    }
+    
+    return ids;
+  }
+
+  /**
+   * Prune invalid mappings
+   */
+  private pruneMappings(tempToRealId: Record<string, string>, currentFileIds: string[]): Record<string, string> {
+    const pruned: Record<string, string> = {};
+    let prunedCount = 0;
+    
+    for (const [tempId, figmaId] of Object.entries(tempToRealId)) {
+      if (currentFileIds.includes(figmaId)) {
+        pruned[tempId] = figmaId;
+      } else {
+        prunedCount++;
+        console.log(`[FigmaExportService] Pruned invalid mapping: ${tempId} -> ${figmaId}`);
+      }
+    }
+    
+    console.log(`[FigmaExportService] Pruned ${prunedCount} invalid mappings, kept ${Object.keys(pruned).length} valid mappings`);
+    return pruned;
+  }
+
+  /**
+   * Post to Figma API and return tempToRealId mapping
+   */
+  private async postToFigmaAPI(data: unknown, options: FigmaExportOptions): Promise<{ tempToRealId: Record<string, string> }> {
+    const response = await fetch(`https://api.figma.com/v1/files/${options.fileId}/variables`, {
+      method: 'POST',
+      headers: {
+        'X-Figma-Token': options.accessToken!,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        variables: (data as any).variables,
+        variableCollections: (data as any).collections,
+        variableModes: (data as any).variableModes,
+        variableModeValues: (data as any).variableModeValues
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Figma API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const apiResult = await response.json();
+    console.log(`[FigmaExportService] 🔍 RAW API RESPONSE:`, apiResult);
+    console.log(`[FigmaExportService] 🔍 API RESPONSE KEYS:`, Object.keys(apiResult));
+    
+    // Check for tempToRealId in different possible locations
+    let tempToRealId: Record<string, string> = {};
+    
+    if (apiResult.tempToRealId) {
+      tempToRealId = apiResult.tempToRealId;
+      console.log(`[FigmaExportService] 🔍 Found tempToRealId in root:`, tempToRealId);
+    } else if (apiResult.meta?.tempToRealId) {
+      tempToRealId = apiResult.meta.tempToRealId;
+      console.log(`[FigmaExportService] 🔍 Found tempToRealId in meta:`, tempToRealId);
+    } else if (apiResult.meta?.tempIdToRealId) {
+      tempToRealId = apiResult.meta.tempIdToRealId;
+      console.log(`[FigmaExportService] 🔍 Found tempIdToRealId in meta:`, tempToRealId);
+    } else {
+      console.log(`[FigmaExportService] 🔍 NO tempToRealId found in API response`);
+      console.log(`[FigmaExportService] 🔍 Meta object:`, apiResult.meta);
+    }
+    
+    console.log(`[FigmaExportService] 🔍 FINAL tempToRealId extracted:`, {
+      count: Object.keys(tempToRealId).length,
+      mappings: tempToRealId
+    });
+    
+    return {
+      tempToRealId: tempToRealId || {}
+    };
+  }
+
+  /**
+   * Save and commit mappings to GitHub
+   */
+  private async saveAndCommitMappings(fileKey: string, tempToRealId: Record<string, string>, context: any, targetRepository: any): Promise<void> {
+    const mappingData: any = {
+      fileKey,
+      systemId: 'design-system',
+      lastUpdated: new Date().toISOString(),
+      tempToRealId,
+      metadata: {
+        lastExport: new Date().toISOString(),
+        exportVersion: '1.0.0'
+      },
+      repositoryContext: {
+        owner: targetRepository.fullName.split('/')[0],
+        repo: targetRepository.fullName.split('/')[1],
+        type: (context.currentPlatform ? 'platform-extension' : context.currentTheme ? 'theme-override' : 'core') as 'theme-override' | 'core',
+        systemId: 'design-system'
+      }
+    };
+
+    await FigmaMappingService.saveMappingToGitHub(fileKey, mappingData, {
+      owner: targetRepository.fullName.split('/')[0],
+      repo: targetRepository.fullName.split('/')[1],
+      type: (context.currentPlatform ? 'platform-extension' : context.currentTheme ? 'theme-override' : 'core') as 'theme-override' | 'core',
+      systemId: 'design-system'
+    });
+
+    console.log(`[FigmaExportService] Successfully saved and committed updated mappings`);
   }
 } 

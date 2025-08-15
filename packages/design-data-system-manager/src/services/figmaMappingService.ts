@@ -21,7 +21,7 @@ export interface FigmaMappingData {
   repositoryContext?: {
     owner: string;
     repo: string;
-    type: 'core' | 'theme-override';
+    type: 'core' | 'platform-extension' | 'theme-override';
     systemId: string;
     themeId?: string;
   };
@@ -30,7 +30,7 @@ export interface FigmaMappingData {
 export interface RepositoryInfo {
   owner: string;
   repo: string;
-  type: 'core' | 'theme-override';
+  type: 'core' | 'platform-extension' | 'theme-override';
   systemId: string;
   themeId?: string;
 }
@@ -283,7 +283,7 @@ export class FigmaMappingService {
    */
   static async testGitHubConnection(): Promise<{ success: boolean; message: string }> {
     try {
-      const repoInfo = this.getCurrentRepositoryInfo();
+      const repoInfo = await this.getCurrentRepositoryInfo();
       if (!repoInfo) {
         return {
           success: false,
@@ -693,8 +693,9 @@ export class FigmaMappingService {
     
     // If not found in localStorage, try to load from GitHub
     console.log(`[FigmaMappingService] No mapping found in localStorage, trying GitHub...`);
-    const repoInfo = this.getCurrentRepositoryInfo();
-    if (repoInfo && this.isGitHubIntegrationAvailable()) {
+    const repoInfo = await this.getCurrentRepositoryInfo();
+    const isGitHubAvailable = await this.isGitHubIntegrationAvailable();
+    if (repoInfo && isGitHubAvailable) {
       try {
         const githubMapping = await this.getMappingFromGitHub(fileKey, repoInfo);
         if (githubMapping?.tempToRealId) {
