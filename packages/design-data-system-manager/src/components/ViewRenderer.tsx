@@ -43,6 +43,7 @@ import ComponentsView from '../views/ComponentsView';
 import { CollectionsView } from '../views/CollectionsView';
 import AnalysisView from '../views/AnalysisView';
 
+
 import type { DataSourceContext } from '../services/dataSourceManager';
 
 interface ViewRendererProps {
@@ -298,6 +299,8 @@ export const ViewRenderer: React.FC<ViewRendererProps> = ({
             canEdit={effectiveCanEdit}
           />
         );
+      
+
       
       default:
         return <DashboardView 
