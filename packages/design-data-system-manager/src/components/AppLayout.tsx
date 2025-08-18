@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Box, Flex, useColorMode } from '@chakra-ui/react';
 import { AppSidebar } from './AppSidebar';
 import { Header } from './Header';
+import { AIAssistantPanel } from './ai/AIAssistantPanel';
 import { StorageService } from '../services/storage';
 import type { GitHubUser } from '../config/github';
 import type { ViewId } from '../hooks/useViewState';
@@ -345,9 +346,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           onDiscardChanges={onDiscardChanges}
           pendingOverrides={pendingOverrides}
         />
-        <Box flex="1" overflow="auto"  bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
-          {children}
-        </Box>
+        <Flex flex="1" overflow="hidden">
+          <Box flex="1" overflow="auto" bg={colorMode === 'dark' ? 'gray.900' : 'gray.50'}>
+            {children}
+          </Box>
+          <AIAssistantPanel />
+        </Flex>
       </Flex>
     </Flex>
   );

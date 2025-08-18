@@ -12,6 +12,7 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { GeminiAIProvider } from './contexts/GeminiAIContext';
 import type { 
   TokenCollection, 
   Mode, 
@@ -1940,13 +1941,43 @@ const App = () => {
 
   return (
     <BrowserRouter>
-      <Box h="100vh" display="flex" flexDirection="column">
-        {/* Routes must be outside conditional rendering to handle callback URLs */}
-        <Routes>
-          <Route path="/auth/github/callback" element={<GitHubCallback />} />
-          <Route path="/callback" element={<GitHubCallback />} />
-          <Route path="/" element={
-            <Box flex="1" position="relative">
+      <GeminiAIProvider
+        currentData={{
+          tokens,
+          collections,
+          modes,
+          dimensions,
+          resolvedValueTypes,
+          platforms,
+          themes,
+          taxonomies,
+          componentProperties,
+          componentCategories,
+          components,
+          algorithms,
+          platformExtensions: (() => {
+            // Get platform extensions from MultiRepositoryManager
+            const multiRepoManager = MultiRepositoryManager.getInstance();
+            const multiRepoData = multiRepoManager.getCurrentData();
+            
+            // Convert Map to plain object for serialization
+            const platformExtensions: Record<string, unknown> = {};
+            multiRepoData.platformExtensions.forEach((extension, platformId) => {
+              platformExtensions[platformId] = extension;
+            });
+            
+            return platformExtensions;
+          })(),
+          themeOverrides: StorageService.getAllThemeOverrideData()
+        }}
+      >
+        <Box h="100vh" display="flex" flexDirection="column">
+          {/* Routes must be outside conditional rendering to handle callback URLs */}
+          <Routes>
+            <Route path="/auth/github/callback" element={<GitHubCallback />} />
+            <Route path="/callback" element={<GitHubCallback />} />
+            <Route path="/" element={
+              <Box flex="1" position="relative">
               {shouldShowHomepage() ? (
                 <Homepage
                   isGitHubConnected={isGitHubConnected}
@@ -2093,7 +2124,8 @@ const App = () => {
             </ModalBody>
           </ModalContent>
         </Modal>
-      </Box>
+        </Box>
+      </GeminiAIProvider>
     </BrowserRouter>
   );
 };export default App; 
