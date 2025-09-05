@@ -137,6 +137,15 @@ export class GitHubAuthService {
       ? '/api/github/token'  // Use Vite dev server proxy to avoid CORS issues
       : GITHUB_CONFIG.tokenUrl;  // Use direct GitHub API in production
     
+    console.log('[GitHubAuthService] Token exchange:', {
+      isDevelopment,
+      tokenUrl,
+      hostname: window.location.hostname,
+      codeLength: code.length,
+      codeVerifierLength: codeVerifier.length,
+      redirectUri: GITHUB_CONFIG.redirectUri
+    });
+    
     const response = await fetch(tokenUrl, {
       method: 'POST',
       headers: {

@@ -42,6 +42,15 @@ export const GitHubCallback: React.FC = () => {
         const state = urlParams.get('state');
         const error = urlParams.get('error');
 
+        console.log('[GitHubCallback] Processing OAuth callback:', {
+          url: window.location.href,
+          search: window.location.search,
+          hash: window.location.hash,
+          code: code ? `${code.substring(0, 8)}...` : null,
+          state: state ? `${state.substring(0, 8)}...` : null,
+          error
+        });
+
         if (error) {
           throw new Error(`GitHub authorization error: ${error}`);
         }
@@ -58,8 +67,10 @@ export const GitHubCallback: React.FC = () => {
           throw new Error('Missing authorization code or state parameter');
         }
 
+        console.log('[GitHubCallback] Calling GitHubAuthService.handleCallback...');
         // Handle the OAuth callback
         const user = await GitHubAuthService.handleCallback(code, state);
+        console.log('[GitHubCallback] OAuth callback successful, user:', user.login);
 
         setStatus('success');
         
