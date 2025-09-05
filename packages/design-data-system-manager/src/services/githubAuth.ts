@@ -131,8 +131,11 @@ export class GitHubAuthService {
    * Exchange authorization code for access token using PKCE
    */
   private static async exchangeCodeForTokenWithPKCE(code: string, codeVerifier: string): Promise<string> {
-    // Use Vite dev server proxy to avoid CORS issues
-    const tokenUrl = '/api/github/token';
+    // Detect environment: use proxy in development, direct API in production
+    const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const tokenUrl = isDevelopment 
+      ? '/api/github/token'  // Use Vite dev server proxy to avoid CORS issues
+      : GITHUB_CONFIG.tokenUrl;  // Use direct GitHub API in production
     
     const response = await fetch(tokenUrl, {
       method: 'POST',
