@@ -2,9 +2,9 @@
 <html lang="en" style="font-size: 0.875em;">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/assets/logo-DriaH52w.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Design Data System Manager</title>
+    <title>Design System Foundry</title>
     <script type="text/javascript">
       // Single Page Apps for GitHub Pages
       // MIT License
@@ -27,11 +27,52 @@
         }
       }(window.location))
     </script>
-    <script type="module" crossorigin src="/assets/index-oNK_BJel.js"></script>
+    <!-- ColorModeScript must be in head to prevent flash of unstyled content -->
+    <script type="text/javascript">
+      // Initialize color mode before React renders
+      (function() {
+        var colorMode = localStorage.getItem('chakra-ui-color-mode');
+        var systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        
+        console.log('🔍 [HTML] ColorModeScript initialization:');
+        console.log('  - Stored color mode:', colorMode);
+        console.log('  - System prefers dark:', systemPrefersDark);
+        
+        // If no color mode is stored, use system preference
+        if (!colorMode) {
+          colorMode = systemPrefersDark ? 'dark' : 'light';
+          localStorage.setItem('chakra-ui-color-mode', colorMode);
+          console.log('🔍 [HTML] Set initial color mode to:', colorMode);
+        }
+        
+        // Set the color mode class on the document
+        document.documentElement.setAttribute('data-theme', colorMode);
+        document.documentElement.style.colorScheme = colorMode;
+        
+        // Add CSS variables for immediate effect
+        var style = document.createElement('style');
+        style.textContent = `
+          :root {
+            --chakra-colors-chakra-body-text: ${colorMode === 'dark' ? '#ffffff' : '#1a202c'};
+            --chakra-colors-chakra-body-bg: ${colorMode === 'dark' ? '#171923' : '#ffffff'};
+            --chakra-colors-chakra-border-color: ${colorMode === 'dark' ? '#2d3748' : '#e2e8f0'};
+          }
+          body {
+            background-color: var(--chakra-colors-chakra-body-bg);
+            color: var(--chakra-colors-chakra-body-text);
+            transition: background-color 0.2s, color 0.2s;
+          }
+        `;
+        document.head.appendChild(style);
+        
+        console.log('🔍 [HTML] ColorModeScript completed, color mode:', colorMode);
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-Bp3p79HI.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-CnbTAVxw.js">
-    <link rel="modulepreload" crossorigin href="/assets/chakra-C1ddy4GE.js">
-    <link rel="modulepreload" crossorigin href="/assets/router-p6W222uo.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-D3kNiV43.css">
+    <link rel="modulepreload" crossorigin href="/assets/chakra-C5xAv7Zk.js">
+    <link rel="modulepreload" crossorigin href="/assets/router-B-mtfNp1.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-DVneG3Rq.css">
   </head>
   <body>
     <div id="root"></div>
