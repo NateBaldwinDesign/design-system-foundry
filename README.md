@@ -1,4 +1,4 @@
-![image](packages/design-data-system-manager/src/logoIcon.png) – 
+![image](packages/design-data-system-manager/src/logoIcon.png) 
 
 # Design System Foundry
 
